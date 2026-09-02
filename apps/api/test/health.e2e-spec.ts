@@ -16,7 +16,12 @@ describe("GET /health", () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    // contorno: sem a guarda, um beforeAll que falha produz um segundo erro
+    // aqui, e é esse que o CI reporta — escondendo a causa real atrás de um
+    // TypeError sobre `app`.
+    if (app) {
+      await app.close();
+    }
   });
 
   it('deve devolver 200 com o corpo {"status":"ok"}', async () => {
