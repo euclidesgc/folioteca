@@ -16,6 +16,7 @@ test-results/
 .harness/gate-baseline.json
 .harness/runtime/
 .code-review-graph/
+.claude/worktrees/
 
 .DS_Store
 *.log
