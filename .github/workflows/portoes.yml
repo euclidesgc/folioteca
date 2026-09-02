@@ -15,3 +15,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: medir.sh reprova quando não consegue medir
         run: bash scripts/gates/__tests__/medir.test.sh
+      - name: a fronteira de agent nomeia agents que existem
+        run: bash scripts/gates/__tests__/fronteira-de-agent.test.sh

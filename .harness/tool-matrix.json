@@ -1,6 +1,6 @@
 {
   "agents": {
-    "scout": {
+    "harness:scout": {
       "writes": [],
       "bash": "readonly",
       "deny_tools": [
@@ -21,7 +21,7 @@
         "mcp__code-review-graph__detect_changes_tool"
       ]
     },
-    "doc-writer": {
+    "harness:doc-writer": {
       "writes": [
         "product/**"
       ],
@@ -33,7 +33,7 @@
       ],
       "mcp_allow": []
     },
-    "plan-writer": {
+    "harness:plan-writer": {
       "writes": [
         "product/**"
       ],
@@ -49,7 +49,7 @@
         "mcp__code-review-graph__get_knowledge_gaps_tool"
       ]
     },
-    "phase-validator": {
+    "harness:phase-validator": {
       "writes": [],
       "bash": "any",
       "deny_tools": [
@@ -64,7 +64,7 @@
         "mcp__code-review-graph__query_graph_tool"
       ]
     },
-    "criteria-auditor": {
+    "harness:criteria-auditor": {
       "writes": [],
       "bash": "none",
       "deny_tools": [
@@ -78,7 +78,7 @@
       ],
       "mcp_allow": []
     },
-    "divergence-auditor": {
+    "harness:divergence-auditor": {
       "writes": [],
       "bash": "readonly",
       "deny_tools": [
@@ -91,7 +91,7 @@
       ],
       "mcp_allow": []
     },
-    "doc-reconciler": {
+    "harness:doc-reconciler": {
       "writes": [
         "product/**"
       ],
@@ -103,7 +103,7 @@
       ],
       "mcp_allow": []
     },
-    "security-auditor": {
+    "harness:security-auditor": {
       "writes": [],
       "bash": "any",
       "deny_tools": [
@@ -118,7 +118,7 @@
         "mcp__code-review-graph__semantic_search_nodes_tool"
       ]
     },
-    "test-runner": {
+    "harness:test-runner": {
       "writes": [],
       "bash": "any",
       "deny_tools": [
