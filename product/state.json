@@ -5,7 +5,7 @@
     "001-esqueleto-do-monorepo": {
       "title": "Esqueleto do monorepo: os três apps sobem, o contrato é gerado e o CI fica verde",
       "track": "completa",
-      "stage": "plan",
+      "stage": "execute",
       "stacks": [
         "web",
         "api"
@@ -23,8 +23,9 @@
           "file": "product/items/001-esqueleto-do-monorepo/02-spec.md"
         },
         "plan": {
-          "at": null,
-          "sha": null
+          "at": "2026-09-02T08:46:55Z",
+          "sha": "da4120d854ef0a7bc4bac7963ddf63796f54e737",
+          "file": "product/items/001-esqueleto-do-monorepo/03-plan.md"
         }
       },
       "current_phase": null,
