@@ -21,10 +21,10 @@ PR e commit já escritos.
 | `[-]` | em andamento |
 | `[x]` | concluído |
 
-## Itens
-
-- [ ] `001-esqueleto-do-monorepo` — os três apps sobem, o contrato OpenAPI é
+## Itens- [-] `001-esqueleto-do-monorepo` — os três apps sobem, o contrato OpenAPI é
       gerado e o cliente é gerado dele, e o CI fica verde nos três
+
+
 
 - [ ] `002-conta-e-organizacao` — quem se cadastra cria a organização e vira o
       seu primeiro administrador; o endereço é confirmado por e-mail, a senha se
@@ -121,61 +121,71 @@ PR e commit já escritos.
       **Depende de:** `003-documento-privado` — a base do editor e a persistência
       do documento em blocos vêm de lá.
 
-- [ ] `014-hotsite` — a página pública apresenta o produto com o editor rodando
+- [ ] `014-norma-do-hotsite` — `apps/site` ganha norma de código escrita:
+      estrutura de rotas, camada de estilo e fronteira de import, com os
+      portões que a cobrem
+      **Depende de:** `013-blocos-da-primeira-versao` — a norma precisa existir antes de o hotsite
+      crescer, senão ela vira a descrição do que o bootstrap deixou.
+      **Origem:** decisão autônoma `D8` de `001` — o app não tem pack do
+      harness, e o harness proíbe inventar norma não exercitada de madrugada.
+
+- [ ] `015-hotsite` — a página pública apresenta o produto com o editor rodando
       de verdade ao lado do texto e, logo em seguida, a tela que decide quem vê o
       documento; o acesso fica no canto superior direito e leva ao cadastro
       **Depende de:** `013-blocos-da-primeira-versao` e `006-concessao-individual`
       — a demonstração é o produto, não uma captura: precisa do editor com os
       blocos fechados e da tela de compartilhamento que distingue esta plataforma.
 
-- [ ] `015-comentarios-ancorados` — quem tem acesso de comentário comenta
+- [ ] `016-comentarios-ancorados` — quem tem acesso de comentário comenta
       ancorado no trecho, resolve um comentário e menciona alguém que já tenha
       acesso ao documento; a âncora sobrevive à edição do texto ao redor
       **Depende de:** `013-blocos-da-primeira-versao` — âncora escrita antes de o
       conjunto de blocos fechar é âncora reescrita a cada bloco novo.
 
-- [ ] `016-historico-de-versoes` — o documento guarda as versões e cada uma diz
+- [ ] `017-historico-de-versoes` — o documento guarda as versões e cada uma diz
       quem a salvou, marca que já vem sendo gravada desde `005`; o proprietário
       compara duas e volta a uma anterior, e é daqui que sai a lista de
       contribuintes do documento
       **Depende de:** `013-blocos-da-primeira-versao` — versionar antes de o
       conjunto de blocos fechar produz histórico que a versão seguinte não lê.
 
-- [ ] `017-edicao-concorrente` — quando duas pessoas mexem no mesmo documento
+- [ ] `018-edicao-concorrente` — quando duas pessoas mexem no mesmo documento
       isso é anunciado e resolvido antes de salvar, e ninguém sobrescreve o
       trabalho do outro em silêncio
-      **Depende de:** `016-historico-de-versoes` — resolver a divergência exige
+      **Depende de:** `017-historico-de-versoes` — resolver a divergência exige
       poder mostrar e restaurar a versão que seria perdida.
 
-- [ ] `018-pesquisa-com-filtros` — uma área de pesquisa aceita termos e filtros e
+- [ ] `019-pesquisa-com-filtros` — uma área de pesquisa aceita termos e filtros e
       devolve apenas documentos que a pessoa pode ler, nem que seja só de leitura
       **Depende de:** `007-lista-e-busca-do-canal` — é a mesma leitura restrita
       por permissão, ampliada de um canal para a organização inteira.
 
-- [ ] `019-provedor-de-modelo` — cada organização conecta a própria chave de
+- [ ] `020-provedor-de-modelo` — cada organização conecta a própria chave de
       provedor, escolhe qual modelo usar e vê o consumo; a chave é de terceiro e
       fica cifrada em repouso
       **Depende de:** `009-convite-e-desligamento` — conectar provedor é ato de
       quem administra a organização.
 
-- [ ] `020-indice-e-recuperacao` — o conteúdo dos documentos é indexado por
+- [ ] `021-indice-e-recuperacao` — o conteúdo dos documentos é indexado por
       vetores na mesma base que guarda permissões, e a recuperação filtra por
       permissão antes de buscar e reverifica depois de recuperar — os dois, nunca
       só um
-      **Depende de:** `018-pesquisa-com-filtros` — a condição de permissão já
+      **Depende de:** `019-pesquisa-com-filtros` — a condição de permissão já
       resolvida ali é a mesma que entra na consulta de vetores.
 
-- [ ] `021-conversa-com-documentos` — a pessoa seleciona documentos do resultado
+- [ ] `022-conversa-com-documentos` — a pessoa seleciona documentos do resultado
       e abre uma sessão que responde com a citação do bloco exato, e a citação
       abre no documento no parágrafo certo; sem trecho recuperado que sustente a
       afirmação, a sessão responde que não encontrou; perder o acesso a um
       documento o remove da sessão
-      **Depende de:** `020-indice-e-recuperacao` e `019-provedor-de-modelo` — não
+      **Depende de:** `021-indice-e-recuperacao` e `020-provedor-de-modelo` — não
       há resposta sem recuperação, nem recuperação respondida sem modelo conectado.
 
 O texto do item é a entrada do discovery. Entrada ambígua produz Example Mapping
 raso: "melhorar o compartilhamento" não diz o que perguntar; "sair do canal
 revoga o acesso que vinha dele, e a concessão individual sobrevive" diz.
+
+
 
 ## Pendências de produto abertas
 

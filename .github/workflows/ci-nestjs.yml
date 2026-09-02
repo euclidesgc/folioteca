@@ -12,7 +12,45 @@ defaults:
     working-directory: apps/api
 
 jobs:
+  # Simétrica à guarda do fluxo da web, e pela mesma razão: `apps/api` nasce
+  # declarado no workspace e vazio, e o esqueleto do monorepo cria o pacote
+  # antes de a fase da API escrever a primeira linha. Os jobs aparecem como
+  # PULADOS, nunca verdes — portão que não mediu não aprova nada.
+  guarda:
+    name: Há código de API?
+    runs-on: ubuntu-latest
+    outputs:
+      pronto: ${{ steps.olha.outputs.pronto }}
+    steps:
+      - uses: actions/checkout@v4
+      # `working-directory` do topo do arquivo vale para todo `run`, inclusive
+      # este. Sem o `.` a busca vira `apps/api/apps/api/src` e nunca acha nada — a guarda
+      # respondia "não há código" para tudo, e os portões saíam verdes por não
+      # terem medido. É o defeito que a guarda existia para impedir.
+      - id: olha
+        working-directory: .
+        run: |
+          source scripts/gates/medir.sh
+          # exige_caminho reprova se apps/api sumir: aí não é "não há código", é
+          # medição impossível, e portão que não mediu não aprova nada. Foi
+          # exatamente este caso que passou despercebido quando um
+          # working-directory herdado fazia a busca olhar para apps/api/apps/api.
+          exige_caminho apps/api "o pacote da API"
+          fontes=0
+          if [ -d "$(medir_raiz)/apps/api/src" ]; then
+            fontes="$(conta_sob apps/api/src -name '*.ts' -o -name '*.tsx')"
+          fi
+          echo "medido: $fontes fonte(s) sob apps/api/src"
+          if [ "$fontes" -gt 0 ]; then
+            echo "pronto=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "pronto=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::apps/api não tem código-fonte ainda (medido: 0). Os portões dele passam a valer na fase que o construir."
+          fi
+
   qualidade:
+    needs: guarda
+    if: needs.guarda.outputs.pronto == 'true'
     name: Lint, tipos e testes
     runs-on: ubuntu-latest
     steps:
@@ -22,11 +60,12 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: pnpm
-          cache-dependency-path: "apps/api/pnpm-lock.yaml"
+          cache-dependency-path: "pnpm-lock.yaml"
 
       - name: Dependências
+        working-directory: .
         run: pnpm install --frozen-lockfile
 
       - name: Lint
@@ -39,34 +78,74 @@ jobs:
         run: pnpm test
 
   integracao:
+    needs: guarda
+    if: needs.guarda.outputs.pronto == 'true'
     name: Integração
     runs-on: ubuntu-latest
+    # O banco é real, com a extensão de vetores, porque é o que a plataforma
+    # usa: o índice de busca vive na mesma base das permissões. Rodar
+    # integração contra dublê provaria menos do que o critério exige.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: folioteca
+          # Sem literal de senha em arquivo versionado. O banco é efêmero e
+          # morre com o runner, mas senha escrita à mão num YAML é achado de
+          # scanner com razão — e a exceção "esta aqui é inofensiva" é como
+          # todas as outras começam. O valor sai do identificador da execução:
+          # único por corrida, e nada a rotacionar.
+          POSTGRES_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}
+          POSTGRES_DB: folioteca
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U folioteca -d folioteca"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://folioteca:${{ github.run_id }}-${{ github.run_attempt }}@localhost:5432/folioteca
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: pnpm
-          cache-dependency-path: "apps/api/pnpm-lock.yaml"
+          cache-dependency-path: "pnpm-lock.yaml"
 
       - name: Dependências
+        working-directory: .
         run: pnpm install --frozen-lockfile
 
       # Os testes de integração sobem o banco em contêiner: rodar contra um
       # dublê provaria menos do que o critério comportamental exige.
       - name: Testes de integração
-        run: pnpm test:integration
+        run: |
+          if [ ! -d test ] || [ -z "$(find test -name '*.e2e-spec.ts' -print -quit)" ]; then
+            echo "::notice::Nenhum teste de integração neste app ainda — nada a medir."
+            exit 0
+          fi
+          pnpm test:integration
 
       # Migration pendente é o defeito que só aparece no deploy. Aqui ele
       # aparece no PR.
+      # A guarda é barulhenta de propósito. Um portão que sai 0 por não ter
+      # conseguido medir é pior que portão nenhum: some com o sinal e ninguém
+      # percebe. Aqui ele diz, no log e em aviso do GitHub, que não mediu.
       - name: Migrations aplicáveis
-        run: pnpm exec prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel ./prisma/schema.prisma --exit-code || {
-          echo "::error::O esquema tem mudanças sem migration correspondente."
-          exit 1
+        run: |
+          if [ ! -f prisma/schema.prisma ]; then
+            echo "::notice::Prisma ainda não existe neste repositório — nada a medir. Este portão passa a valer no item que introduzir o esquema."
+            exit 0
+          fi
+          pnpm exec prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel ./prisma/schema.prisma --exit-code || {
+            echo "::error::O esquema tem mudanças sem migration correspondente."
+            exit 1
           }
 
   contrato:
+    needs: guarda
+    if: needs.guarda.outputs.pronto == 'true'
     name: Contrato OpenAPI
     runs-on: ubuntu-latest
     steps:
@@ -74,11 +153,12 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: pnpm
-          cache-dependency-path: "apps/api/pnpm-lock.yaml"
+          cache-dependency-path: "pnpm-lock.yaml"
 
       - name: Dependências
+        working-directory: .
         run: pnpm install --frozen-lockfile
 
       # O contrato commitado precisa ser o que o código gera. Divergência aqui

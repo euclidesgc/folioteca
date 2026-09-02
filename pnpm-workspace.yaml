@@ -1,3 +1,13 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# Nenhuma dependência roda script de instalação, e a recusa é nomeada. Na linha
+# 11 do pnpm, script de build ignorado é erro duro em vez de aviso: a decisão
+# tem de ser de alguém, não da omissão. `@scarf/scarf` é telemetria e não entra
+# de jeito nenhum; os outros dois são bindings nativos com caminho de reserva
+# em JavaScript, e nada no projeto depende do ganho de desempenho deles.
+allowBuilds:
+  "@parcel/watcher": false
+  "@scarf/scarf": false
+  unrs-resolver: false
