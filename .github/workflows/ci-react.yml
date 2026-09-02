@@ -12,7 +12,35 @@ defaults:
     working-directory: apps/web
 
 jobs:
+  # A guarda existe porque `apps/web` nasce declarado no workspace e vazio: o
+  # esqueleto do monorepo cria o pacote antes de a fase da web escrever a
+  # primeira linha. Sem ela, o fluxo reprova por medir o que ainda não existe,
+  # e CI eternamente vermelho é CI que ninguém lê. Os jobs aparecem como
+  # PULADOS, nunca como verdes — um portão que não mediu não aprova nada.
+  guarda:
+    name: Há código de web?
+    runs-on: ubuntu-latest
+    outputs:
+      pronto: ${{ steps.olha.outputs.pronto }}
+    steps:
+      - uses: actions/checkout@v4
+      # `working-directory` do topo do arquivo vale para todo `run`, inclusive
+      # este. Sem o `.` a busca vira `apps/web/apps/web/src` e nunca acha nada — a guarda
+      # respondia "não há código" para tudo, e os portões saíam verdes por não
+      # terem medido. É o defeito que a guarda existia para impedir.
+      - id: olha
+        working-directory: .
+        run: |
+          if [ -n "$(find apps/web/src -name '*.ts' -o -name '*.tsx' 2>/dev/null | head -1)" ]; then
+            echo "pronto=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "pronto=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::apps/web ainda não tem código-fonte. Os portões da web passam a valer na fase que a construir."
+          fi
+
   qualidade:
+    needs: guarda
+    if: needs.guarda.outputs.pronto == 'true'
     name: Tipos, lint e testes
     runs-on: ubuntu-latest
     steps:
@@ -22,11 +50,12 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: pnpm
-          cache-dependency-path: "apps/web/pnpm-lock.yaml"
+          cache-dependency-path: "pnpm-lock.yaml"
 
       - name: Dependências
+        working-directory: .
         run: pnpm install --frozen-lockfile
 
       - name: Tipos
@@ -50,6 +79,8 @@ jobs:
         run: pnpm build
 
   comportamental:
+    needs: guarda
+    if: needs.guarda.outputs.pronto == 'true'
     name: Critérios comportamentais
     runs-on: ubuntu-latest
     steps:
@@ -57,11 +88,12 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: pnpm
-          cache-dependency-path: "apps/web/pnpm-lock.yaml"
+          cache-dependency-path: "pnpm-lock.yaml"
 
       - name: Dependências
+        working-directory: .
         run: pnpm install --frozen-lockfile
 
       - name: Navegador

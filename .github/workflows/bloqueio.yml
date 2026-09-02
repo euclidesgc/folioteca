@@ -1,0 +1,33 @@
+name: Bloqueio
+
+# Um rótulo `blocked-on-*` deixa de ser bilhete e passa a ser tranca. Antes
+# disto, o protocolo de divergência prometia "trava o merge" e o GitHub deixava
+# mergear assim mesmo: rótulo sozinho não impede clique nenhum.
+#
+# `labeled` e `unlabeled` estão na lista de propósito — sem eles a verificação
+# só reavaliaria no próximo push, e tirar o rótulo não destravaria nada.
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+
+jobs:
+  bloqueio:
+    name: Sem bloqueio pendente
+    runs-on: ubuntu-latest
+    steps:
+      - name: Nenhum rótulo blocked-on-*
+        env:
+          ROTULOS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          bloqueios="$(printf '%s' "$ROTULOS" | tr -d '[]"' | tr ',' '\n' | grep '^blocked-on-' || true)"
+          if [ -z "$bloqueios" ]; then
+            echo "Nenhum bloqueio pendente."
+            exit 0
+          fi
+          echo "::error::Este PR está travado por: $(printf '%s' "$bloqueios" | tr '\n' ' ')"
+          echo ""
+          echo "A trava sai quando a pendência for resolvida de fato — não quando"
+          echo "alguém tirar o rótulo. Se a solução vem no futuro, ela precisa de"
+          echo "item no roadmap, na posição de precedência certa, e o merge espera"
+          echo "esse item entregar."
+          exit 1
