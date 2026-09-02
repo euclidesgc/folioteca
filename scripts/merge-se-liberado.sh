@@ -44,4 +44,21 @@ case "$estado" in
 esac
 
 printf 'PR #%s liberado: sem bloqueio, sem check vermelho, estado %s.\n' "$pr" "$estado"
-gh pr merge "$pr" "$metodo"
+
+# PR que pertence a uma pilha não mergeia por `gh pr merge`: o GitHub exige a
+# via assíncrona e recusa o caminho normal. `gh stack merge` é atômico — tudo
+# até o PR escolhido entra junto, ou nada entra —, e é por isso que a checagem
+# acima precisa valer para toda a pilha abaixo, não só para este PR.
+if gh stack view >/dev/null 2>&1; then
+  for abaixo in $(gh pr list --state open --json number --jq '.[].number' | sort -n); do
+    [ "$abaixo" -le "$pr" ] || continue
+    r="$(gh pr view "$abaixo" --json labels --jq '.labels[].name' 2>/dev/null | grep '^blocked-on-' || true)"
+    [ -z "$r" ] || { printf 'RECUSADO: o PR #%s, abaixo na pilha, está travado por %s.\n' "$abaixo" "$r" >&2; exit 1; }
+    v="$(gh pr checks "$abaixo" 2>/dev/null | awk -F'\t' '$2=="fail"{print $1}')"
+    [ -z "$v" ] || { printf 'RECUSADO: o PR #%s, abaixo na pilha, tem check vermelho.\n' "$abaixo" >&2; exit 1; }
+  done
+  printf 'A pilha inteira até o #%s está limpa. Merge atômico.\n' "$pr"
+  gh stack merge "$pr" --yes --merge-method "${metodo#--}"
+else
+  gh pr merge "$pr" "$metodo"
+fi
