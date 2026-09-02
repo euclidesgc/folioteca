@@ -92,6 +92,7 @@ Cada linha aqui é um `state.py approve` que o humano **não** deu.
 | `prd` | `01-prd.md` — 13 requisitos, RF-01 a RF-13, todos com raiz numa das seis regras do discovery | 02/09/2026 |
 | `spec` | `02-spec.md` — 33 frases EARS cobrindo os 13 RF, sendo 12 de comportamento indesejado | 02/09/2026 |
 | `plan` | `03-plan.md` — 5 fases em pilha, 36 critérios tipados (14 estruturais, 10 comando, 12 comportamentais), os 13 RF cobertos. Aprovado depois de duas rodadas do `criteria-auditor`: a primeira reprovou por oito apontamentos, a segunda por uma regressão, e a terceira leitura fechou | 02/09/2026 |
+| `fase 1` | `05-veredictos/fase-1.md` — veredicto `APROVADO` do `phase-validator` cego, que executou os nove critérios por conta própria; `validated_sha` `d10ba2b` | 02/09/2026 |
 
 ## Por que o loop parou
 
