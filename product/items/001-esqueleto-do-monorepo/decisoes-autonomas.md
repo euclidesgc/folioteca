@@ -12,7 +12,7 @@ limpo é o commit `1f50033`, anterior a qualquer trabalho autônomo.
 | # | Decidido | Alternativa descartada | Por quê |
 |---|---|---|---|
 | D1 | **Node 24 LTS** (`engines: >=24`, `.nvmrc`) | Node 22 | O ambiente da máquina já roda v24.19.0. Node 22 entrou em manutenção em out/2025 e o 20 saiu de suporte em abr/2026; começar um projeto novo numa linha em manutenção é herdar uma migração antes da primeira entrega. Corrige o `>=20.11` que eu mesmo tinha escrito no `package.json` durante o init. |
-| D2 | **pnpm 9 com workspace** | npm workspaces, Bun | Já estava declarado no `package.json` da raiz e é o que os dois fluxos de CI do harness assumem (`pnpm-lock.yaml` no cache). Trocar exigiria reescrever os templates de CI que vieram exercitados. |
+| D2 | **pnpm 9 com workspace** | npm workspaces, Bun | A versão é uma escolha ratificada com as advisories conhecidas e pesadas, mantida porque a superfície de risco é nula enquanto o lockfile não tem dependência de terceiro, e porque a atualização é decisão explícita do dono e não linha trocada de passagem.<br>> Reconciliado em D-001. |
 | D3 | **Postgres em contêiner, imagem `pgvector/pgvector:pg16`, via Docker Compose** | O Postgres 16.15 já instalado na máquina | A extensão de vetores precisa estar presente desde a primeira subida (regra R6). Usar o banco do host exigiria compilar a extensão à mão e não reproduz no CI, onde não há host. Docker 29.4.3 e Compose v5.1.3 já estão disponíveis. |
 | D4 | **OpenAPI e cliente gerado, ambos versionados**, com job de CI que reprova divergência | Gerar os dois no build, sem versionar | O pack de NestJS trata quebra de contrato como coisa que tem de aparecer **no diff do PR**. Gerando no build, a quebra só apareceria em runtime, e o gate de contrato perderia a razão de existir. |
 | D5 | **Next.js com App Router e renderização no servidor** em `apps/site` | Pages Router | É a arquitetura que o humano aprovou explicitamente na conversa de hoje, pelo motivo de o hotsite precisar entregar HTML pronto ao rastreador. O App Router é o caminho corrente do framework; o Pages Router é legado. |
@@ -76,12 +76,12 @@ aqui, e no PR, para virar decisão do dono.
   registrado como a exigência que o item `002` tem de cumprir — comprimento
   mínimo, não presença.
 
-### Divergência aberta na fase
+### Divergência ratificada na fase
 
 - **`D-001` — a versão de pnpm fixada no plano acumula advisories abertas.**
-  Tipo `normal`, status `PENDENTE`. A fase seguiu na opção recomendada, que é
-  manter `pnpm@9.12.0`, e o PR nasce marcado `blocked-on-D-001`. O arquivo é
-  `04-divergencias/D-001.md`.
+  Tipo `normal`, status `RECONCILIADA`. Ratificada na opção recomendada (a):
+  `pnpm@9.12.0` permanece, e a atualização vira decisão sua, em separado. O
+  arquivo é `04-divergencias/D-001.md`.
 
 ## Aprovações registradas em modo autônomo
 
@@ -93,6 +93,32 @@ Cada linha aqui é um `state.py approve` que o humano **não** deu.
 | `spec` | `02-spec.md` — 33 frases EARS cobrindo os 13 RF, sendo 12 de comportamento indesejado | 02/09/2026 |
 | `plan` | `03-plan.md` — 5 fases em pilha, 36 critérios tipados (14 estruturais, 10 comando, 12 comportamentais), os 13 RF cobertos. Aprovado depois de duas rodadas do `criteria-auditor`: a primeira reprovou por oito apontamentos, a segunda por uma regressão, e a terceira leitura fechou | 02/09/2026 |
 | `fase 1` | `05-veredictos/fase-1.md` — veredicto `APROVADO` do `phase-validator` cego, que executou os nove critérios por conta própria; `validated_sha` `d10ba2b` | 02/09/2026 |
+| `D-001` | Ratificação da divergência na opção recomendada (a) — `pnpm@9.12.0` permanece. Descartei (b), subir para pnpm 10/11, porque reprovaria um critério estrutural já validado por agent cego, invalidaria o `validated_sha` da Fase 1 e o formato do `pnpm-lock.yaml`, e forçaria mudança na Fase 5; e (c), só o digest `+sha512.`, porque protege o binário do gerenciador e não as dependências, ao custo de tornar ambíguo o texto literal do critério. A superfície de risco é hoje nula: as três advisories de integridade dependem de dependência de terceiro sendo resolvida, e o lockfile tem zero | 02/09/2026 |
+
+## Decisões da Fase 2
+
+| # | Decidido | Alternativa descartada | Por quê |
+|---|---|---|---|
+| D22 | **O CI do GitHub permanece vermelho até a Fase 5**, e os PRs das Fases 2, 3 e 4 declaram isso na seção de validações pendentes | Antecipar as etapas 5.1 e 5.4 para a Fase 2, consertando os fluxos agora | Os cinco jobs falham no passo `setup-node`, antes de qualquer verificação, com `Some specified paths were not resolved`: `cache-dependency-path` aponta para `apps/api/pnpm-lock.yaml` e `apps/web/pnpm-lock.yaml`, que não existem — o lockfile é único, na raiz. O `phase-validator` da Fase 1 já registrou o defeito. Consertar agora poria `.github/workflows/**` no diff da Fase 2, que é escopo declarado da Fase 5, e a regra 2 do `CLAUDE.md` é fronteira de escrita por escopo. A prova de qualidade não se perde: o validador cego executa os portões na máquina, que é de onde veio a evidência dos nove critérios da Fase 1. |
+
+### Achados encaminhados, não aplicados
+
+- **Defeito no `guard_write.py` do harness: a exceção do `doc-reconciler` não
+  reconhece o nome qualificado pelo plugin.** A linha 29 de
+  `scripts/hooks/guard_write.py` define `RECONCILER = "doc-reconciler"` e a
+  linha 106 compara por igualdade exata, mas o `agent_tracker.py` grava o
+  `subagent_type` como o Claude Code o entrega — `harness:doc-reconciler`, com o
+  prefixo do plugin. O resultado é que o único agent autorizado a reconciliar
+  documento aprovado é bloqueado ao tentar fazê-lo. Por isso a âncora de uma
+  linha de `D-001` não entrou em `03-plan.md`. **Isso não deixa nenhum documento
+  mentindo:** a opção ratificada é (a), manter, então o critério estrutural do
+  plano já descreve a realidade palavra por palavra, e o rastro de `D-001` vive
+  em `04-divergencias/D-001.md`, na linha D2 acima e no `state.json`. Não
+  corrigi o hook: ele mora fora deste repositório
+  (`~/.claude/plugins/cache/generic-harness/` e `development/generic_harness/`),
+  e a norma do harness é que a retrospectiva proponha a correção, nunca a
+  aplique. **Decisão sua:** comparar também o sufixo após `:`, ou normalizar o
+  prefixo no `agent_tracker.py` antes de gravar.
 
 ## Por que o loop parou
 
