@@ -41,18 +41,19 @@
           "verdict_at": "2026-09-02T09:05:15Z"
         },
         "2": {
-          "status": "em_execucao",
+          "status": "aprovada",
           "reproved_count": 0,
-          "verdict": null,
-          "verdict_file": null,
-          "validated_sha": null,
+          "verdict": "APROVADO",
+          "verdict_file": "product/items/001-esqueleto-do-monorepo/05-veredictos/fase-2.md",
+          "validated_sha": "194c8234d1bfe64c457d5343e7bd1fed9fd93ca4",
           "pr": null,
           "blocked_on": [
             "D-007",
             "D-008",
             "D-009",
             "D-010"
-          ]
+          ],
+          "verdict_at": "2026-09-02T15:05:01Z"
         }
       },
       "divergences": {
