@@ -199,7 +199,7 @@ contrato que descreve essa rota.
 - [ ] 2.1 Modificar `apps/api/package.json`: declarar `@nestjs/common@11.x`,
       `@nestjs/core@11.x`, `@nestjs/platform-express@11.x`,
       `@nestjs/config@4.0.4`, `@nestjs/swagger@11.4.7`, `class-validator`,
-      `class-transformer`, `joi`, `reflect-metadata` e `rxjs` como
+      `class-transformer`, `dotenv`, `joi`, `reflect-metadata` e `rxjs` como
       dependências; `@nestjs/cli@11.x`, `@nestjs/testing@11.x`, `ts-node`,
       `typescript`, `jest`, `ts-jest`, `supertest`, `@types/node`,
       `@types/jest`, `@types/supertest`, `eslint` e `typescript-eslint` como
@@ -214,10 +214,12 @@ contrato que descreve essa rota.
       anterior; a linha 11.x do conjunto NestJS é a que aceita
       `validationOptions` como objeto plano; `class-validator` e
       `class-transformer` são o par que o `ValidationPipe` global carrega na
-      construção; `ts-node --transpile-only` executa um script `.ts` avulso com
-      os decoradores e os metadados intactos, sem pagar de novo a checagem de
-      tipos que o script `typecheck` já cobre.
-      > Reconciliado em D-003, D-005 e D-006.
+      construção; `dotenv` é o parser que `main.ts` usa para ler o `.env` da
+      raiz por conta própria, antes de o `ConfigModule` existir; `ts-node
+      --transpile-only` executa um script `.ts` avulso com os decoradores e os
+      metadados intactos, sem pagar de novo a checagem de tipos que o script
+      `typecheck` já cobre.
+      > Reconciliado em D-003, D-005, D-006 e D-007.
 - [ ] 2.2 Criar `apps/api/tsconfig.json`, `apps/api/nest-cli.json`,
       `apps/api/eslint.config.mjs`, `apps/api/jest.config.js` e
       `apps/api/test/jest-e2e.json`.
@@ -240,14 +242,25 @@ contrato que descreve essa rota.
       RF-05.3 exige.
       > Reconciliado em D-002.
 - [ ] 2.4 Criar `apps/api/src/app.module.ts` registrando `ConfigModule.forRoot`
-      com `isGlobal: true`, `envFilePath: ['../../.env']`,
-      `validationSchema` e `validationOptions: { abortEarly: false, allowUnknown: true }`.
+      com `isGlobal: true`,
+      `envFilePath: [resolve(__dirname, '..', '..', '..', '.env')]`,
+      `validationSchema` e
+      `validationOptions: { abortEarly: false, allowUnknown: true }`; e
+      registrando `ValidationPipe` global com `whitelist: true` e
+      `forbidNonWhitelisted: true` como provider `APP_PIPE`.
       Justificativa: `abortEarly: false` é o que faz a saída listar todas as
       variáveis faltantes de uma vez (RF-05.3); o modelo versionado é único na
       raiz, e duplicá-lo por app faria variável nova entrar em dois lugares;
       `allowUnknown` impede que as variáveis de itens futuros do modelo reprovem
-      o boot.
-      > Reconciliado em D-003.
+      o boot; o caminho é absoluto a partir do módulo porque o caminho relativo
+      se resolve contra o diretório de trabalho do processo, e passaria a ler um
+      `.env` de fora do repositório quando o processo subisse de outro `cwd` —
+      a contagem de três níveis vale tanto em `src/` quanto em `dist/`, porque a
+      saída do build é plana. O `ValidationPipe` entra no módulo, e não no
+      `main.ts`, porque produção e teste montam o mesmo `AppModule` e por
+      construção recebem a mesma configuração; registrá-lo no bootstrap
+      deixaria a suíte de integração testando uma aplicação que não existe.
+      > Reconciliado em D-003, D-008 e D-010.
 - [ ] 2.5 Criar `apps/api/src/health/dto/health-response.dto.ts` com a classe
       `HealthResponse` e `@ApiProperty()` na propriedade `status`.
       Justificativa: o nome do schema no documento OpenAPI é o nome da classe —
@@ -262,27 +275,34 @@ contrato que descreve essa rota.
       `operationId` explícito porque sem ele o gerador batiza o método do cliente
       a partir do nome do controller, e renomear o controller viraria quebra de
       contrato para o consumidor.
-- [ ] 2.7 Criar `apps/api/src/main.ts` com
-      `NestFactory.create(AppModule, { abortOnError: false, logger: false })`
-      dentro de `try`/`catch`, imprimindo no `catch` uma linha por variável
-      faltante e nada além disso, e encerrando com `process.exit(1)`; e
-      `ValidationPipe` global com `whitelist: true` e
-      `forbidNonWhitelisted: true`.
-      Justificativa: com `abortOnError: true` o Nest imprime o erro de
-      inicialização com stack trace, que é exatamente o que RF-06.2 proíbe;
-      `logger: false` silencia o logger estático do Nest, que registra a
-      exceção de inicialização antes disso e incondicionalmente, e é o que
-      mantém a saída restrita ao que o `catch` imprime; o `catch` transforma a
-      exceção de validação na lista de nomes e nada mais, e o `process.exit(1)`
-      acontece antes de `app.listen`, que é o que mantém a porta 3000 fechada.
-      > Reconciliado em D-004.
+- [ ] 2.7 Criar `apps/api/src/main.ts` validando o ambiente antes de
+      `NestFactory.create`: ler o `.env` da raiz por caminho absoluto, fundir o
+      resultado com `process.env`, validar com o `environmentSchema` do
+      `ConfigModule`, imprimir uma linha por variável faltante ou inválida e
+      encerrar com `process.exit(1)` quando a validação falhar; só então criar
+      a aplicação e chamar `app.listen` com a porta lida do `ConfigService`.
+      Justificativa: validar antes é o que mantém a saída em uma linha só sem
+      suprimir logger nenhum, porque o Nest nunca chega a subir no cenário de
+      configuração inválida (RF-06.2); silenciar o logger do Nest não é escopo
+      de bootstrap — é uma opção estática e global do framework, e usá-la
+      zeraria o logger do processo inteiro, deixando toda exceção de runtime
+      devolver 500 sem registro no servidor; é o mesmo `environmentSchema` do
+      `ConfigModule`, aplicado mais cedo, não uma segunda regra; a saída antes
+      de `app.listen` é o que mantém a porta 3000 fechada.
+      > Reconciliado em D-007 e D-008.
 - [ ] 2.8 Criar `apps/api/src/swagger.ts` com `buildOpenApiDocument` e
-      `apps/api/scripts/generate-openapi.ts` escrevendo `apps/api/openapi.json`
-      com `JSON.stringify(document, null, 2)` seguido de uma quebra de linha.
+      `apps/api/scripts/generate-openapi.ts` montando um módulo dedicado que
+      importa só os módulos de rota, sem o `ConfigModule`, e escrevendo
+      `apps/api/openapi.json` com `JSON.stringify(document, null, 2)` seguido
+      de uma quebra de linha.
       Justificativa: RF-07.3 exige que a regeneração sobre código inalterado
       produza arquivo idêntico — serialização fixa é o que torna o diff do job de
-      contrato mecânico (D4).
-      > Reconciliado em D-006.
+      contrato mecânico (D4); o documento descreve rotas e schemas, não o
+      ambiente de execução — montar o `AppModule` faria a geração exigir
+      `DATABASE_URL` e `NODE_ENV`, e como o `.env` é gitignored por RF-04.2 o
+      critério de RF-07.3 reprovaria no CI, empurrando alguém a versionar
+      credencial no workflow.
+      > Reconciliado em D-006 e D-009.
 - [ ] 2.9 Criar `apps/api/openapi.json` executando
       `pnpm --filter api run openapi:generate`, sem edição manual do arquivo.
       Justificativa: contrato escrito à mão diverge do código no primeiro dia e
@@ -293,11 +313,14 @@ contrato que descreve essa rota.
       `NODE_ENV is required`.
       Justificativa: as mensagens são texto de requisito; sem teste, a próxima
       mudança de schema as altera sem ninguém perceber.
-- [ ] 2.11 Criar `apps/api/test/health.e2e-spec.ts` com Supertest, verificando
-      código 200 e corpo `{"status":"ok"}` em `GET /health`.
+- [ ] 2.11 Criar `apps/api/test/health.e2e-spec.ts` com Supertest, montando o
+      `AppModule` e verificando código 200 e corpo `{"status":"ok"}` em
+      `GET /health`.
       Justificativa: `.harness/config.json` fixa `jest + supertest` como runner
       de critério comportamental da stack nestjs, e o teste é da fase que cria a
-      rota.
+      rota; montar o `AppModule` é o que faz o teste herdar o `ValidationPipe`
+      registrado na etapa 2.4, sem configurar pipe nenhum por conta própria.
+      > Reconciliado em D-008.
 - [ ] 2.12 Modificar `apps/api/README.md` substituindo a seção "Estado" pela
       descrição do que existe: configuração validada no boot, `GET /health` e o
       contrato versionado com o comando que o regenera.

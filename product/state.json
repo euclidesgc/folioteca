@@ -23,8 +23,8 @@
           "file": "product/items/001-esqueleto-do-monorepo/02-spec.md"
         },
         "plan": {
-          "at": "2026-09-02T09:56:27Z",
-          "sha": "7b1f9f2a26f2c60fc24abb7d8b0f0669812fd108",
+          "at": "2026-09-02T17:56:05Z",
+          "sha": "d617aeccb729bab045a5eaf5466ab0ee43342bb9",
           "file": "product/items/001-esqueleto-do-monorepo/03-plan.md"
         }
       },
@@ -47,12 +47,7 @@
           "verdict_file": "product/items/001-esqueleto-do-monorepo/05-veredictos/fase-2.md",
           "validated_sha": "f572d97e2bafdc9bcb534c3367540ba5b1dc48f2",
           "pr": null,
-          "blocked_on": [
-            "D-007",
-            "D-008",
-            "D-009",
-            "D-010"
-          ],
+          "blocked_on": [],
           "verdict_at": "2026-09-02T15:05:20Z"
         }
       },
@@ -106,32 +101,36 @@
           "reconciliada_at": "2026-09-02T09:56:28Z"
         },
         "D-007": {
-          "status": "APROVADA",
+          "status": "RECONCILIADA",
           "kind": "normal",
           "phase": 2,
           "detected_at": "2026-09-02T10:04:19Z",
-          "aprovada_at": "2026-09-02T10:04:19Z"
+          "aprovada_at": "2026-09-02T10:04:19Z",
+          "reconciliada_at": "2026-09-02T17:56:00Z"
         },
         "D-008": {
-          "status": "APROVADA",
+          "status": "RECONCILIADA",
           "kind": "normal",
           "phase": 2,
           "detected_at": "2026-09-02T10:04:19Z",
-          "aprovada_at": "2026-09-02T10:04:19Z"
+          "aprovada_at": "2026-09-02T10:04:19Z",
+          "reconciliada_at": "2026-09-02T17:56:00Z"
         },
         "D-009": {
-          "status": "APROVADA",
+          "status": "RECONCILIADA",
           "kind": "normal",
           "phase": 2,
           "detected_at": "2026-09-02T10:04:19Z",
-          "aprovada_at": "2026-09-02T10:04:19Z"
+          "aprovada_at": "2026-09-02T10:04:19Z",
+          "reconciliada_at": "2026-09-02T17:56:00Z"
         },
         "D-010": {
-          "status": "APROVADA",
+          "status": "RECONCILIADA",
           "kind": "normal",
           "phase": 2,
           "detected_at": "2026-09-02T10:04:19Z",
-          "aprovada_at": "2026-09-02T10:04:19Z"
+          "aprovada_at": "2026-09-02T10:04:19Z",
+          "reconciliada_at": "2026-09-02T17:56:00Z"
         }
       },
       "criteria_exception": null
