@@ -23,7 +23,7 @@ PR e commit já escritos.
 
 ## Itens
 
-- [ ] `001-esqueleto-do-monorepo` — os três apps sobem, o contrato OpenAPI é
+- [-] `001-esqueleto-do-monorepo` — os três apps sobem, o contrato OpenAPI é
       gerado e o cliente é gerado dele, e o CI fica verde nos três
 
 - [ ] `002-conta-e-organizacao` — quem se cadastra cria a organização e vira o
