@@ -1,0 +1,80 @@
+name: React
+
+on:
+  push:
+    branches: [main, develop]
+    paths: ["apps/web/**", ".github/workflows/ci-react.yml"]
+  pull_request:
+    paths: ["apps/web/**", ".github/workflows/ci-react.yml"]
+
+defaults:
+  run:
+    working-directory: apps/web
+
+jobs:
+  qualidade:
+    name: Tipos, lint e testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: "apps/web/pnpm-lock.yaml"
+
+      - name: Dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: Tipos
+        run: pnpm exec tsc --noEmit
+
+      - name: Lint
+        run: pnpm lint
+
+      # A regra de caminho de import do ESLint alcança o que é declarativo; a
+      # análise de dependência alcança o ciclo e a fronteira que ela não vê.
+      - name: Direção de dependência
+        run: |
+          if [ -f .dependency-cruiser.cjs ]; then
+            pnpm exec depcruise src --validate
+          fi
+
+      - name: Testes
+        run: pnpm test -- --reporter=dot
+
+      - name: Build
+        run: pnpm build
+
+  comportamental:
+    name: Critérios comportamentais
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: "apps/web/pnpm-lock.yaml"
+
+      - name: Dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: Navegador
+        run: pnpm exec playwright install --with-deps chromium
+
+      # Cada critério comportamental do plano vira um caso aqui. Isto não é
+      # suíte de regressão: é a prova do que unidade e integração não provam.
+      - name: Playwright
+        run: pnpm exec playwright test
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: "apps/web/playwright-report/"
+          retention-days: 7

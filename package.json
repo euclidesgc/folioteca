@@ -1,0 +1,8 @@
+{
+  "name": "folioteca",
+  "private": true,
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=20.11"
+  }
+}

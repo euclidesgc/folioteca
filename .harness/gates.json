@@ -1,0 +1,84 @@
+{
+  "schema": 1,
+  "gates": [
+    {
+      "id": "G3",
+      "script": "scripts/gates/gate3_no_comments.sh",
+      "escape": "gate3-ok",
+      "applies_to": [
+        "apps/web/src/**"
+      ],
+      "exempt": [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.spec.ts"
+      ],
+      "cobra": "comentário que descreve mecânica em vez de justificar decisão",
+      "pack": "react"
+    },
+    {
+      "id": "G4",
+      "script": "scripts/gates/gate4_no_todo.sh",
+      "escape": null,
+      "applies_to": [
+        "apps/web/src/**"
+      ],
+      "exempt": [],
+      "cobra": "TODO, FIXME, XXX ou HACK",
+      "pack": "react"
+    },
+    {
+      "id": "G5",
+      "script": "scripts/gates/gate5_import_direction.sh",
+      "escape": "gate5-ok",
+      "applies_to": [
+        "apps/web/src/**"
+      ],
+      "exempt": [
+        "**/*.test.ts",
+        "**/*.test.tsx"
+      ],
+      "cobra": "import contra o fluxo shared → features → app",
+      "pack": "react"
+    },
+    {
+      "id": "G3",
+      "script": "scripts/gates/gate3_no_comments.sh",
+      "escape": "gate3-ok",
+      "applies_to": [
+        "apps/api/src/**"
+      ],
+      "exempt": [
+        "**/*.spec.ts",
+        "**/*.e2e-spec.ts"
+      ],
+      "cobra": "comentário que descreve mecânica em vez de justificar decisão",
+      "pack": "nestjs"
+    },
+    {
+      "id": "G4",
+      "script": "scripts/gates/gate4_no_todo.sh",
+      "escape": null,
+      "applies_to": [
+        "apps/api/src/**",
+        "apps/api/test/**"
+      ],
+      "exempt": [],
+      "cobra": "TODO, FIXME, XXX ou HACK",
+      "pack": "nestjs"
+    },
+    {
+      "id": "G7",
+      "script": "scripts/gates/gate7_layer_boundary.sh",
+      "escape": "gate7-ok",
+      "applies_to": [
+        "apps/api/src/**"
+      ],
+      "exempt": [
+        "**/*.spec.ts"
+      ],
+      "cobra": "controller acessando o cliente de banco direto, sem passar pelo serviço",
+      "pack": "nestjs"
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+name: NestJS
+
+on:
+  push:
+    branches: [main, develop]
+    paths: ["apps/api/**", ".github/workflows/ci-nestjs.yml"]
+  pull_request:
+    paths: ["apps/api/**", ".github/workflows/ci-nestjs.yml"]
+
+defaults:
+  run:
+    working-directory: apps/api
+
+jobs:
+  qualidade:
+    name: Lint, tipos e testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: "apps/api/pnpm-lock.yaml"
+
+      - name: Dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Tipos
+        run: pnpm exec tsc --noEmit
+
+      - name: Testes de unidade
+        run: pnpm test
+
+  integracao:
+    name: Integração
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: "apps/api/pnpm-lock.yaml"
+
+      - name: Dependências
+        run: pnpm install --frozen-lockfile
+
+      # Os testes de integração sobem o banco em contêiner: rodar contra um
+      # dublê provaria menos do que o critério comportamental exige.
+      - name: Testes de integração
+        run: pnpm test:integration
+
+      # Migration pendente é o defeito que só aparece no deploy. Aqui ele
+      # aparece no PR.
+      - name: Migrations aplicáveis
+        run: pnpm exec prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel ./prisma/schema.prisma --exit-code || {
+          echo "::error::O esquema tem mudanças sem migration correspondente."
+          exit 1
+          }
+
+  contrato:
+    name: Contrato OpenAPI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: "apps/api/pnpm-lock.yaml"
+
+      - name: Dependências
+        run: pnpm install --frozen-lockfile
+
+      # O contrato commitado precisa ser o que o código gera. Divergência aqui
+      # significa que alguém mudou a API sem regenerar — e o cliente quebra em
+      # runtime, no consumidor que ninguém testou.
+      - name: Contrato commitado é o gerado
+        run: |
+          pnpm run openapi:generate
+          git diff --exit-code openapi.json || {
+            echo "::error::O OpenAPI mudou. Rode 'pnpm run openapi:generate' e comite, junto com os clientes regenerados."
+            exit 1
+          }

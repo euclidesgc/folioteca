@@ -1,0 +1,71 @@
+{
+  "schema": 1,
+  "harness_version": "0.1.0",
+  "mode": "full",
+  "route": "greenfield",
+  "product": "Folioteca — a empresa escreve documentos e os distribui por canais; o acesso vem de onde a pessoa está, e é revogado quando ela sai de lá.",
+  "stacks": {
+    "web": "react",
+    "api": "nestjs",
+    "site": null
+  },
+  "packs": {
+    "react": "0.1.0",
+    "nestjs": "0.1.0"
+  },
+  "paths": {
+    "web": "apps/web",
+    "api": "apps/api",
+    "site": "apps/site"
+  },
+  "brownfield": {},
+  "criteria_tools": {
+    "react": {
+      "comando": {
+        "runner": "bash"
+      },
+      "estrutural": {
+        "runner": "ast-grep",
+        "lang": "tsx",
+        "fallback": "leitura de arquivo com Grep"
+      },
+      "comportamental": {
+        "runner": "playwright test",
+        "unit_runner": "vitest",
+        "formato": "Given-When-Then"
+      }
+    },
+    "nestjs": {
+      "comando": {
+        "runner": "bash"
+      },
+      "estrutural": {
+        "runner": "ast-grep",
+        "lang": "typescript",
+        "fallback": "leitura de arquivo com Grep"
+      },
+      "comportamental": {
+        "runner": "jest + supertest",
+        "formato": "Given-When-Then"
+      }
+    }
+  },
+  "command_quirks": [
+    {
+      "id": "rtk-output-proxy",
+      "aplica_a": "toda chamada de Bash",
+      "sintoma": "um hook global reescreve o comando e filtra a saída antes de ela chegar ao agent",
+      "escape": "rtk proxy <comando>",
+      "quando_usar": "sempre que a evidência de um critério de aceite depender da saída íntegra do comando"
+    }
+  ],
+  "language": {
+    "code": "en",
+    "docs": "pt-BR"
+  },
+  "env_findings": [
+    "proxy de saída rtk em ~/CLAUDE.md e ~/.claude/CLAUDE.md — escape para saída crua: rtk proxy <comando>",
+    "hook global mantém o grafo de código (.code-review-graph) em PostToolUse/Edit|Write e SessionStart — o harness não instala um segundo mantenedor",
+    "hook global PreToolUse/Bash: rtk hook claude — reescreve comandos antes da execução"
+  ]
+}

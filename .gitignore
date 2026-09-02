@@ -1,0 +1,19 @@
+# Segredos — nunca versionados. O que existe é o .env.example, sem valores.
+.env
+.env.*
+!.env.example
+
+node_modules/
+dist/
+build/
+.next/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+.harness/gate-baseline.json
+.code-review-graph/
+
+.DS_Store
+*.log
