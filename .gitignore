@@ -13,6 +13,7 @@ test-results/
 *.tsbuildinfo
 
 .harness/gate-baseline.json
+.harness/runtime/
 .code-review-graph/
 
 .DS_Store
