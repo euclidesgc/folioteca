@@ -31,11 +31,22 @@ jobs:
       - id: olha
         working-directory: .
         run: |
-          if [ -n "$(find apps/web/src -name '*.ts' -o -name '*.tsx' 2>/dev/null | head -1)" ]; then
+          source scripts/gates/medir.sh
+          # exige_caminho reprova se apps/web sumir: aí não é "não há código", é
+          # medição impossível, e portão que não mediu não aprova nada. Foi
+          # exatamente este caso que passou despercebido quando um
+          # working-directory herdado fazia a busca olhar para apps/web/apps/web.
+          exige_caminho apps/web "o pacote da web"
+          fontes=0
+          if [ -d "$(medir_raiz)/apps/web/src" ]; then
+            fontes="$(conta_sob apps/web/src -name '*.ts' -o -name '*.tsx')"
+          fi
+          echo "medido: $fontes fonte(s) sob apps/web/src"
+          if [ "$fontes" -gt 0 ]; then
             echo "pronto=true" >> "$GITHUB_OUTPUT"
           else
             echo "pronto=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::apps/web ainda não tem código-fonte. Os portões da web passam a valer na fase que a construir."
+            echo "::notice::apps/web não tem código-fonte ainda (medido: 0). Os portões dele passam a valer na fase que o construir."
           fi
 
   qualidade:
