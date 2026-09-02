@@ -12,12 +12,23 @@
 # o merge ser uma decisão do dev, tomada de uma vez, acordado.
 #
 # CADA RODADA É UMA SESSÃO NOVA. `claude -p` abre processo novo e o prompt é a
-# única entrada — é daí que vem a economia de contexto: o custo de uma sessão
-# acompanha o tempo que ela fica aberta vezes o contexto que já acumulou.
+# única entrada — é daí que vem a economia de contexto.
 #
 # ⚠️ A sessão roda com --dangerously-skip-permissions, porque não há ninguém
-# acordado para aprovar cada escrita. Isso vale enquanto o repositório for o
-# alvo e não houver segredo de produção nele. Reveja antes do primeiro deploy.
+# acordado para aprovar cada escrita. Reveja antes do primeiro deploy.
+#
+# gate3-ok: o bloco abaixo é o registro de por que o motor sobrevive a uma
+# rodada ruim, e não a mecânica de como. Sem ele, a próxima pessoa a ler
+# desfaz a recuperação achando que é complicação desnecessária.
+#
+# POR QUE ELE SE RECUPERA
+# Na noite de 02/09/2026 uma rodada morreu às 07:13. O tree ficou sujo, o motor
+# recusou partir — que era o comportamento projetado — e a corrida parou por
+# cinco horas com o dono dormindo. Duas mudanças saíram daí:
+#   1. rodada que falha é tentada mais UMA vez, não a noite inteira;
+#   2. trabalho a meio caminho vira commit `wip` na branch da própria fase, em
+#      vez de bloquear tudo. Não é validado nem mergeado: só deixa de ser refém
+#      da árvore suja, e a rodada seguinte retoma a fase de onde parou.
 set -uo pipefail
 
 raiz="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -41,23 +52,51 @@ for ferramenta in node claude gh git; do
   }
 done
 
+batimento="$raiz/.harness/runtime/motor-batimento"
+mkdir -p "$(dirname "$batimento")"
+
+marca() { printf '%s %s\n' "$(date -Iseconds)" "$1" > "$batimento"; }
+
+salva_meio_caminho() {
+  [ -n "$(git status --porcelain)" ] || return 0
+  local branch; branch="$(git branch --show-current)"
+  case "$branch" in
+    main|develop|"")
+      printf 'motor: árvore suja em %s. Não comito wip fora de branch de fase.\n' "${branch:-detached}" >&2
+      return 1 ;;
+  esac
+  git add -A
+  git commit --quiet -m "wip(${branch}): interrupted round, not reviewed nor validated
+
+The round that produced this died before finishing. Committed so the tree stops
+blocking the next round; the phase resumes from here and the blind validator
+judges the branch tip, not this commit.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>" || return 1
+  printf 'motor: trabalho a meio caminho salvo como wip em %s.\n' "$branch" >&2
+}
+
 if [ "$seco" -eq 0 ] && [ -n "$(git status --porcelain)" ]; then
-  printf 'motor: a árvore tem mudança não commitada. Rodar assim varreria trabalho\n' >&2
-  printf '       alheio para dentro de um commit de fase. Comite ou guarde antes.\n' >&2
-  git status --short >&2
-  exit 2
+  printf 'motor: árvore suja ao partir — provavelmente sobra de rodada anterior.\n' >&2
+  salva_meio_caminho || {
+    printf 'motor: não consegui limpar a árvore com segurança. Comite ou guarde à mão.\n' >&2
+    git status --short >&2
+    exit 2
+  }
 fi
 
 rodada=0
 while [ "$rodada" -lt "$ate" ]; do
   rodada=$((rodada + 1))
   printf '\n═══ rodada %s de %s ═══\n' "$rodada" "$ate"
+  marca "rodada $rodada: decidindo"
 
   decisao="$(node scripts/decide-next-action.mjs)"
   codigo=$?
   printf '%s\n' "$decisao"
 
   if [ "$codigo" -ne 0 ]; then
+    marca "parado: a decisão mandou parar"
     printf '\nmotor: parando na rodada %s.\n' "$rodada"
     exit 0
   fi
@@ -69,17 +108,30 @@ while [ "$rodada" -lt "$ate" ]; do
     exit 0
   fi
 
-  [ -f "$prompt" ] || {
-    printf 'motor: %s não existe.\n' "$prompt" >&2
-    exit 2
-  }
+  [ -f "$prompt" ] || { printf 'motor: %s não existe.\n' "$prompt" >&2; exit 2; }
 
-  claude -p "$(cat "$prompt")" --dangerously-skip-permissions || {
-    printf '\nmotor: a sessão da rodada %s saiu com erro.\n' "$rodada" >&2
-    exit 2
-  }
+  tentativa=0
+  ok=0
+  while [ "$tentativa" -lt 2 ]; do
+    tentativa=$((tentativa + 1))
+    marca "rodada $rodada: sessão viva (tentativa $tentativa)"
+    if claude -p "$(cat "$prompt")" --dangerously-skip-permissions; then
+      ok=1
+      break
+    fi
+    printf '\nmotor: a sessão da rodada %s saiu com erro (tentativa %s de 2).\n' "$rodada" "$tentativa" >&2
+    salva_meio_caminho || true
+  done
 
+  if [ "$ok" -eq 0 ]; then
+    marca "parado: duas tentativas falharam na rodada $rodada"
+    printf 'motor: duas tentativas seguidas falharam. Parando — a causa é a montante.\n' >&2
+    exit 2
+  fi
+
+  marca "rodada $rodada: empilhando o PR"
   gh stack submit --auto || printf 'motor: gh stack submit falhou; os commits continuam locais.\n' >&2
 done
 
+marca "concluído: $rodada rodada(s)"
 printf '\nmotor: %s rodada(s) concluída(s).\n' "$rodada"
