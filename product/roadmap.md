@@ -24,69 +24,62 @@ PR e commit já escritos.
 ## Itens- [-] `001-esqueleto-do-monorepo` — os três apps sobem, o contrato OpenAPI é
       gerado e o cliente é gerado dele, e o CI fica verde nos três
 
-- [ ] `002-gerenciador-sem-advisories` — o gerenciador de pacotes sobe para uma
-      linha sem advisories conhecidas, e a extração de tarball deixa de pular a
-      verificação de integridade quando o lockfile não traz o campo
-      **Depende de:** `001-esqueleto-do-monorepo` — é o lockfile dele que muda,
-      e mudá-lo depois de muito código acumulado é rebase de dependência em
-      cima de trabalho vivo.
-      **Origem:** fase 1 de `001`, divergência `D-001` — 24 advisories abertas
-      na versão fixada, três tocando a integridade da instalação.
 
-- [ ] `003-conta-e-organizacao` — quem se cadastra cria a organização e vira o
+
+- [ ] `002-conta-e-organizacao` — quem se cadastra cria a organização e vira o
       seu primeiro administrador; o endereço é confirmado por e-mail, a senha se
       recupera sozinha, e a tela responde a mesma coisa exista ou não a conta
       **Depende de:** `001-esqueleto-do-monorepo` — não há onde rodar, nem banco,
       nem cliente gerado do contrato.
 
-- [ ] `004-documento-privado` — o documento nasce no espaço privado do criador,
+- [ ] `003-documento-privado` — o documento nasce no espaço privado do criador,
       que é o seu primeiro proprietário; escreve-se nele com texto formatado,
       títulos e listas, e ninguém além dele o alcança — nem quem administra
-      **Depende de:** `003-conta-e-organizacao` — não há criador sem conta, nem
+      **Depende de:** `002-conta-e-organizacao` — não há criador sem conta, nem
       espaço privado sem organização que o contenha.
 
-- [ ] `005-canais` — qualquer pessoa cria um canal aberto ou restrito, entra e
+- [ ] `004-canais` — qualquer pessoa cria um canal aberto ou restrito, entra e
       sai em um clique, e toda pessoa admitida é membro do canal geral; canal
       restrito não aparece na busca de quem está de fora
-      **Depende de:** `003-conta-e-organizacao` — o canal geral nasce com a
+      **Depende de:** `002-conta-e-organizacao` — o canal geral nasce com a
       organização, e o membro do canal é a pessoa admitida nela.
 
-- [ ] `006-publicacao-em-canal` — publicar concede leitura a todos os membros, o
+- [ ] `005-publicacao-em-canal` — publicar concede leitura a todos os membros, o
       proprietário muda o nível para comentário ou edição, um documento está em
       mais de um canal e vale o maior nível, sair do canal revoga na hora e
       retirar o documento do canal revoga para todos; toda essa resolução
       acontece por um caminho único no servidor. É aqui que outra pessoa ganha o
       poder de editar, então é daqui em diante que cada salvamento registra quem
       o fez
-      **Depende de:** `004-documento-privado` e `005-canais` — não há o que
+      **Depende de:** `003-documento-privado` e `004-canais` — não há o que
       publicar sem documento, nem onde publicar sem canal.
 
-- [ ] `007-concessao-individual` — o proprietário compartilha com uma pessoa e
+- [ ] `006-concessao-individual` — o proprietário compartilha com uma pessoa e
       essa concessão prevalece sobre a do canal nas duas direções, inclusive
       quando vale "sem acesso"; ela sobrevive à saída do canal; a tela de
       compartilhamento mostra de onde vem cada acesso, e é dela que o
       proprietário propõe a transferência da propriedade a outra pessoa — que
       precisa aceitar, e até lá nada muda de mãos. A proposta não dá acesso a
       quem ainda não tinha, e a autoria não muda nunca
-      **Depende de:** `006-publicacao-em-canal` — precedência só existe contra um
+      **Depende de:** `005-publicacao-em-canal` — precedência só existe contra um
       acesso de canal já resolvido.
 
-- [ ] `008-lista-e-busca-do-canal` — a lista de documentos do canal é a porta de
+- [ ] `007-lista-e-busca-do-canal` — a lista de documentos do canal é a porta de
       entrada de quem chegou agora, e a busca por título devolve apenas o que a
       pessoa pode ver, sem revelar a existência do que ela não pode
-      **Depende de:** `007-concessao-individual` — filtrar sem a precedência
+      **Depende de:** `006-concessao-individual` — filtrar sem a precedência
       completa devolveria documento que a concessão individual já havia tirado.
 
-- [ ] `009-registro-de-auditoria` — todo ato sensível sobre acesso vira uma linha
+- [ ] `008-registro-de-auditoria` — todo ato sensível sobre acesso vira uma linha
       consultável, com quem fez, o quê, quando e por quê: proposta, aceite,
       recusa e cancelamento de transferência de propriedade, abertura de
       documento herdado do espaço privado, mudança de nível de um canal e
       desligamento de pessoa
-      **Depende de:** `007-concessao-individual` — os atos que ele registra são
+      **Depende de:** `006-concessao-individual` — os atos que ele registra são
       atos sobre acesso, e o acesso só está completo depois da precedência
       individual.
 
-- [ ] `010-convite-e-desligamento` — a pessoa entra por convite com prazo, uso
+- [ ] `009-convite-e-desligamento` — a pessoa entra por convite com prazo, uso
       único e preso ao endereço convidado; quem administra a admite e a desliga,
       e desligar **desativa a conta**: ela não entra mais na plataforma e todo o
       acesso dela termina no ato, o de canal e o individual. Os documentos não
@@ -96,96 +89,96 @@ PR e commit já escritos.
       precisa aceitar —
       e abrir um documento que nunca saiu do espaço privado exige um segundo ato,
       com justificativa
-      **Depende de:** `009-registro-de-auditoria` — abrir documento herdado só é
+      **Depende de:** `008-registro-de-auditoria` — abrir documento herdado só é
       aceitável porque fica registrado; sem o registro, o ato existe e ninguém o vê.
 
-- [ ] `011-revogacao-verificada` — uma verificação diária reexecuta a resolução
+- [ ] `010-revogacao-verificada` — uma verificação diária reexecuta a resolução
       de acesso sobre os registros do dia e acusa qualquer acesso resolvido para
       conta desativada, ou para quem já não é membro do canal e não tem concessão
       individual
-      **Depende de:** `010-convite-e-desligamento` — o desligamento é o evento de
+      **Depende de:** `009-convite-e-desligamento` — o desligamento é o evento de
       revogação mais amplo, e sem ele a verificação não cobre o caso que mais
       importa.
 
-- [ ] `012-instrumentacao-e-metricas` — cada abertura de documento registra de
+- [ ] `011-instrumentacao-e-metricas` — cada abertura de documento registra de
       onde veio — busca, lista de canal ou link colado — e cada publicação vira
       evento; um painel mostra as cinco métricas do PRD, cada uma ganhando dado
       quando o item que a produz existir. A mudança de acesso já é gravada por
-      `009-registro-de-auditoria`: aqui ela é agregada, não registrada de novo
-      **Depende de:** `008-lista-e-busca-do-canal` — a origem da abertura só
+      `008-registro-de-auditoria`: aqui ela é agregada, não registrada de novo
+      **Depende de:** `007-lista-e-busca-do-canal` — a origem da abertura só
       distingue busca, lista e link depois que a lista e a busca existem.
 
-- [ ] `013-hierarquia-da-organizacao` — quem administra monta unidades, times e
+- [ ] `012-hierarquia-da-organizacao` — quem administra monta unidades, times e
       as pessoas que os compõem; a hierarquia serve para encontrar gente, montar
       canais e administrar entradas e saídas, e não concede acesso a documento
       nenhum
-      **Depende de:** `010-convite-e-desligamento` — não há quem organizar antes
+      **Depende de:** `009-convite-e-desligamento` — não há quem organizar antes
       de as pessoas entrarem na organização.
 
-- [ ] `014-blocos-da-primeira-versao` — o editor fecha a lista declarada de
+- [ ] `013-blocos-da-primeira-versao` — o editor fecha a lista declarada de
       blocos: tarefas, tabelas, imagens, arquivos, código, citações, divisores,
       links entre documentos, comandos de barra e arrastar para reordenar
-      **Depende de:** `004-documento-privado` — a base do editor e a persistência
+      **Depende de:** `003-documento-privado` — a base do editor e a persistência
       do documento em blocos vêm de lá.
 
-- [ ] `015-norma-do-hotsite` — `apps/site` ganha norma de código escrita:
+- [ ] `014-norma-do-hotsite` — `apps/site` ganha norma de código escrita:
       estrutura de rotas, camada de estilo e fronteira de import, com os
       portões que a cobrem
-      **Depende de:** `014-blocos-da-primeira-versao` — a norma precisa existir antes de o hotsite
+      **Depende de:** `013-blocos-da-primeira-versao` — a norma precisa existir antes de o hotsite
       crescer, senão ela vira a descrição do que o bootstrap deixou.
       **Origem:** decisão autônoma `D8` de `001` — o app não tem pack do
       harness, e o harness proíbe inventar norma não exercitada de madrugada.
 
-- [ ] `016-hotsite` — a página pública apresenta o produto com o editor rodando
+- [ ] `015-hotsite` — a página pública apresenta o produto com o editor rodando
       de verdade ao lado do texto e, logo em seguida, a tela que decide quem vê o
       documento; o acesso fica no canto superior direito e leva ao cadastro
-      **Depende de:** `014-blocos-da-primeira-versao` e `007-concessao-individual`
+      **Depende de:** `013-blocos-da-primeira-versao` e `006-concessao-individual`
       — a demonstração é o produto, não uma captura: precisa do editor com os
       blocos fechados e da tela de compartilhamento que distingue esta plataforma.
 
-- [ ] `017-comentarios-ancorados` — quem tem acesso de comentário comenta
+- [ ] `016-comentarios-ancorados` — quem tem acesso de comentário comenta
       ancorado no trecho, resolve um comentário e menciona alguém que já tenha
       acesso ao documento; a âncora sobrevive à edição do texto ao redor
-      **Depende de:** `014-blocos-da-primeira-versao` — âncora escrita antes de o
+      **Depende de:** `013-blocos-da-primeira-versao` — âncora escrita antes de o
       conjunto de blocos fechar é âncora reescrita a cada bloco novo.
 
-- [ ] `018-historico-de-versoes` — o documento guarda as versões e cada uma diz
+- [ ] `017-historico-de-versoes` — o documento guarda as versões e cada uma diz
       quem a salvou, marca que já vem sendo gravada desde `005`; o proprietário
       compara duas e volta a uma anterior, e é daqui que sai a lista de
       contribuintes do documento
-      **Depende de:** `014-blocos-da-primeira-versao` — versionar antes de o
+      **Depende de:** `013-blocos-da-primeira-versao` — versionar antes de o
       conjunto de blocos fechar produz histórico que a versão seguinte não lê.
 
-- [ ] `019-edicao-concorrente` — quando duas pessoas mexem no mesmo documento
+- [ ] `018-edicao-concorrente` — quando duas pessoas mexem no mesmo documento
       isso é anunciado e resolvido antes de salvar, e ninguém sobrescreve o
       trabalho do outro em silêncio
-      **Depende de:** `018-historico-de-versoes` — resolver a divergência exige
+      **Depende de:** `017-historico-de-versoes` — resolver a divergência exige
       poder mostrar e restaurar a versão que seria perdida.
 
-- [ ] `020-pesquisa-com-filtros` — uma área de pesquisa aceita termos e filtros e
+- [ ] `019-pesquisa-com-filtros` — uma área de pesquisa aceita termos e filtros e
       devolve apenas documentos que a pessoa pode ler, nem que seja só de leitura
-      **Depende de:** `008-lista-e-busca-do-canal` — é a mesma leitura restrita
+      **Depende de:** `007-lista-e-busca-do-canal` — é a mesma leitura restrita
       por permissão, ampliada de um canal para a organização inteira.
 
-- [ ] `021-provedor-de-modelo` — cada organização conecta a própria chave de
+- [ ] `020-provedor-de-modelo` — cada organização conecta a própria chave de
       provedor, escolhe qual modelo usar e vê o consumo; a chave é de terceiro e
       fica cifrada em repouso
-      **Depende de:** `010-convite-e-desligamento` — conectar provedor é ato de
+      **Depende de:** `009-convite-e-desligamento` — conectar provedor é ato de
       quem administra a organização.
 
-- [ ] `022-indice-e-recuperacao` — o conteúdo dos documentos é indexado por
+- [ ] `021-indice-e-recuperacao` — o conteúdo dos documentos é indexado por
       vetores na mesma base que guarda permissões, e a recuperação filtra por
       permissão antes de buscar e reverifica depois de recuperar — os dois, nunca
       só um
-      **Depende de:** `020-pesquisa-com-filtros` — a condição de permissão já
+      **Depende de:** `019-pesquisa-com-filtros` — a condição de permissão já
       resolvida ali é a mesma que entra na consulta de vetores.
 
-- [ ] `023-conversa-com-documentos` — a pessoa seleciona documentos do resultado
+- [ ] `022-conversa-com-documentos` — a pessoa seleciona documentos do resultado
       e abre uma sessão que responde com a citação do bloco exato, e a citação
       abre no documento no parágrafo certo; sem trecho recuperado que sustente a
       afirmação, a sessão responde que não encontrou; perder o acesso a um
       documento o remove da sessão
-      **Depende de:** `022-indice-e-recuperacao` e `021-provedor-de-modelo` — não
+      **Depende de:** `021-indice-e-recuperacao` e `020-provedor-de-modelo` — não
       há resposta sem recuperação, nem recuperação respondida sem modelo conectado.
 
 O texto do item é a entrada do discovery. Entrada ambígua produz Example Mapping

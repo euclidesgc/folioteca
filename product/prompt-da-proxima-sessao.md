@@ -112,6 +112,26 @@ Texto curto e explicativo, com a referência para quem quiser o detalhe. A
 seção *Pendências de produto abertas* do roadmap é para o que precisa de
 decisão do dono; item de trabalho vai na lista de itens.
 
+## Bloqueio é tranca, e você cuida do ciclo inteiro
+
+Rótulo `blocked-on-*` num PR **reprova a verificação obrigatória** e o merge
+não sai. Não é bilhete; o workflow `bloqueio.yml` faz valer.
+
+Quando aparecer um bloqueio, o ciclo é seu, do começo ao fim:
+
+1. **Registre o bloqueio** — a divergência, e o rótulo no PR.
+2. **Decida onde mora a solução.** Se cabe no trabalho em andamento, resolva
+   ali mesmo, na branch onde o problema nasceu — não invente item de roadmap
+   para o que você consegue fechar agora. Se a solução é de verdade futura,
+   escreva o item **na posição de precedência certa**, e o merge espera ele.
+3. **Resolva.** O rótulo sai quando o problema acabou, nunca porque alguém o
+   tirou para destravar.
+4. **Mergeie** o que estiver verde, desbloqueado e no fundo da pilha, quando
+   for necessário, conveniente ou obrigatório.
+
+O antipadrão que isto existe para impedir: tirar o rótulo e mergear. A trava
+não é do rótulo, é do problema.
+
 ## Antes de dar qualquer coisa por pronta
 
 ```bash
