@@ -17,7 +17,7 @@ estado vive em `product/state.json` e `/harness:status` o resume.
 6. A DoD global é do CI e não se repete no plano.
 7. Documento canônico não tem cicatriz: reescreve-se no presente.
 8. Docs não mentem — reconciliação no mesmo PR.
-9. Uma fase é um PR; PRs simultâneos vão em pilha.
+9. Uma fase é um PR. A pilha é `gh stack`, nunca `--base` à mão.
 10. "Pronto" é build verde com testes passando, nunca opinião.
 
 ## Código
@@ -25,7 +25,8 @@ estado vive em `product/state.json` e `/harness:status` o resume.
 11. Zero comentário. Exceção única: o **porquê** que o código não mostra —
     decisão de arquitetura, contorno de defeito externo, restrição de
     plataforma, invariante não óbvia. Nunca a mecânica.
-12. Sem TODO. Pendência vira divergência ou item de roadmap.
+12. Sem TODO. Pendência sobrando vira item de roadmap, na posição de
+    precedência certa, antes de a fase fechar.
 13. Autorização é do servidor; checagem no cliente é experiência de uso.
 14. Segredo nunca no repositório.
 15. Sem dependência não declarada.

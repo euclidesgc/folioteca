@@ -49,17 +49,26 @@ Terminou: comite, abra o PR, **pare**. Não encadeie dentro da sessão — quem
 encadeia é `scripts/loop/proxima-sessao.sh`, e o ganho de contexto vem
 exatamente de a sessão morrer curta.
 
-## Git: PRs em pilha
+## Git: a pilha é gerenciada pelo `gh stack`, nunca à mão
 
 Base da pilha é `develop`. Nomes de branch: `<nnn-slug>/planejamento` para os
-estágios de documento, `<nnn-slug>/fase-N-<slug>` para cada fase. **Cada PR
-nasce sobre o anterior**, não sobre `develop`, quando depende dele.
+estágios de documento, `<nnn-slug>/fase-N-<slug>` para cada fase.
+
+**Crie a branch com `gh stack add`, nunca com `git checkout -b`.** As duas
+produzem uma branch; só a primeira produz uma **pilha**. Montada à mão com
+`gh pr create --base`, a corrente *parece* certa e não é gerenciada: quando uma
+base muda — e ela muda a cada correção pedida na revisão — ninguém reempilha o
+que está acima, e os PRs de cima passam a mostrar o diff errado.
 
 ```bash
-git checkout -b 001-esqueleto-do-monorepo/fase-2-api develop   # ou a branch da fase anterior
-# ... trabalho ...
-gh stack submit --auto
+gh stack add 001-esqueleto-do-monorepo/fase-3-web   # cria no topo e faz checkout
+# ... trabalho, commits ...
+gh stack submit                                      # empurra e liga tudo no GitHub
+gh stack view                                        # confere a corrente
 ```
+
+Se a pilha ainda não existe: `gh stack init --base develop <branch-de-baixo> …`,
+que adota branches já existentes de baixo para cima.
 
 **Nunca mergeie e nunca empurre com `--force`.** Merge é irreversível para quem
 está dormindo; a pilha existe para o merge ser decisão do dono, acordado.
@@ -81,6 +90,27 @@ Commits em inglês, terminando com
 5. **Raio de impacto** — o que mais no repositório passa a depender disto.
 6. **Validações de campo pendentes** — o que só o navegador ou o aparelho real
    provam, ou "Nenhuma nova".
+
+## Pendência que sobra vira item de roadmap, sempre
+
+Toda vez que o trabalho revelar algo que precisa ser feito e não cabe nesta
+fase — dívida deixada de propósito, defeito fora de escopo, norma que falta,
+verificação que não deu para fazer — **escreva uma entrada em
+`product/roadmap.md` antes de fechar a fase**. Sem isso a pendência vive só na
+prosa de um PR que ninguém relê, e some.
+
+A entrada é curta e vai **no ponto de precedência correto**, não no fim da
+lista: a posição diz o que precisa existir antes dela.
+
+```
+- [ ] `0nn-slug` — a frase do que a pessoa passa a conseguir fazer
+      **Depende de:** `0mm-outro` — o motivo em uma linha
+      **Origem:** fase N de `0kk-item`, ver `04-divergencias/D-00n.md`
+```
+
+Texto curto e explicativo, com a referência para quem quiser o detalhe. A
+seção *Pendências de produto abertas* do roadmap é para o que precisa de
+decisão do dono; item de trabalho vai na lista de itens.
 
 ## Antes de dar qualquer coisa por pronta
 
