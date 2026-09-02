@@ -11,6 +11,10 @@ Vale ao fechar qualquer fase que toque interface, e ao revisar um componente
 novo. A verificação é parte da Definition of Done global: **violação de
 severidade crítica ou séria reprova**.
 
+O `e2e/a11y.spec.ts` roda na mesma suíte de Playwright dos critérios
+comportamentais, e é a exceção declarada lá: ele é verificação de DoD, não
+critério de fase.
+
 ## A regra
 
 1. **`@axe-core/playwright` roda no navegador de verdade**, em cada rota

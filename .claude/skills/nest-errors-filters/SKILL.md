@@ -51,10 +51,10 @@ export abstract class DomainError extends Error {
   }
 }
 
-export class NotFoundError extends DomainError {}
-export class ConflictError extends DomainError {}
-export class ForbiddenError extends DomainError {}
-export class UnprocessableError extends DomainError {}
+export abstract class NotFoundError extends DomainError {}
+export abstract class ConflictError extends DomainError {}
+export abstract class ForbiddenError extends DomainError {}
+export abstract class UnprocessableError extends DomainError {}
 ```
 
 E o erro concreto da feature:
@@ -91,24 +91,30 @@ Resposta real disso em produção: `Unique constraint failed on the fields:
 **Certo** — mapa explícito, corpo estável, log com o detalhe:
 
 ```ts
-const STATUS_BY_FAMILY = new Map<Function, number>([
+const STATUS_BY_FAMILY: Array<[abstract new (...args: never[]) => DomainError, number]> = [
   [NotFoundError, 404],
   [ConflictError, 409],
   [ForbiddenError, 403],
   [UnprocessableError, 422],
-]);
+];
+
+function statusFor(error: DomainError): number {
+  const match = STATUS_BY_FAMILY.find(([family]) => error instanceof family);
+  return match ? match[1] : 400;
+}
 
 @Catch()
 export class DomainExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(DomainExceptionFilter.name);
 
   catch(error: unknown, host: ArgumentsHost): void {
-    const response = host.switchToHttp().getResponse<Response>();
-    const request = host.switchToHttp().getRequest<Request>();
-    const correlationId = request.correlationId;
+    const http = host.switchToHttp();
+    const response = http.getResponse<Response>();
+    const request = http.getRequest<Request & { correlationId?: string }>();
+    const correlationId = request.correlationId ?? 'unknown';
 
     if (error instanceof DomainError) {
-      const status = statusFor(error) ?? 400;
+      const status = statusFor(error);
       this.logger.warn({ correlationId, code: error.code, details: error.details });
       response.status(status).json({ code: error.code, correlationId });
       return;

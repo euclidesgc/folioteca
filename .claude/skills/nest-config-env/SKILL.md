@@ -124,6 +124,7 @@ quebra alto, que é o efeito desejado da regra 1.
 
 ## Ponteiros
 
+- `templates/config.module.ts` — módulo de configuração com o esquema validado no boot.
 - `templates/environment.schema.ts`, `templates/environment-variables.ts` e
   `templates/.env.example`.
 - Segredo consumido pela estratégia de autenticação: skill `nest-auth`.

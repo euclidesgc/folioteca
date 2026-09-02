@@ -1,6 +1,7 @@
 import axios, { AxiosError } from 'axios';
 
 import { env } from '@/shared/config/env';
+import { endSession, getAccessToken } from '@/shared/stores/session-store';
 
 export type ApiError =
   | { kind: 'validation'; fields: Record<string, string> }
@@ -42,7 +43,17 @@ export const apiClient = axios.create({
   withCredentials: true,
 });
 
+apiClient.interceptors.request.use((config) => {
+  const token = getAccessToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => Promise.reject(toApiError(error)),
+  (error) => {
+    const apiError = toApiError(error);
+    if (apiError.kind === 'unauthorized') endSession();
+    return Promise.reject(apiError);
+  },
 );

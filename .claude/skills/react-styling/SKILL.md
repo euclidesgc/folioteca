@@ -85,6 +85,7 @@ export const buttonVariants = cva(
 );
 
 export type ButtonVariants = VariantProps<typeof buttonVariants>;
+export type ButtonProps = ComponentProps<'button'> & ButtonVariants;
 ```
 
 ```tsx

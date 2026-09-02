@@ -38,7 +38,7 @@ export class DomainExceptionFilter implements ExceptionFilter {
       const status = error.getStatus();
       const body = error.getResponse();
       this.logger.warn({ correlationId, status, body });
-      response.status(status).json({ code: codeForStatus(status), correlationId, details: body });
+      response.status(status).json({ code: codeForStatus(status), correlationId });
       return;
     }
 

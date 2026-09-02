@@ -109,8 +109,10 @@ if (isError) {
       return <EmptyState title="Você não tem acesso a este pedido." action={<RequestAccessButton orderId={id} />} />;
     case 'network':
       return <EmptyState title="Sem conexão com o servidor." action={<Button onClick={refetch}>Tentar de novo</Button>} />;
-    default:
+    case 'server':
       return <EmptyState title="O servidor falhou ao responder." description={`Código ${error.traceId ?? 'indisponível'}.`} action={<Button onClick={refetch}>Tentar de novo</Button>} />;
+    default:
+      return <EmptyState title="Não foi possível carregar este pedido." action={<Button onClick={refetch}>Tentar de novo</Button>} />;
   }
 }
 ```

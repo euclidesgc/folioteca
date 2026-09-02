@@ -25,7 +25,9 @@ critério.
 4. **Nada de `waitForTimeout`.** Espera é por asserção com `expect(...)`, que já
    reexecuta até o prazo.
 5. **Cada caso monta o próprio estado inicial**, por API ou por estado de
-   armazenamento pré-gravado, e não depende da ordem de execução.
+   armazenamento pré-gravado, e não depende da ordem de execução. Reset global
+   só com a suíte em série; em paralelo, cada caso semeia dados com
+   identificador próprio e não apaga nada de ninguém.
 
 ## O escopo — o que vem para cá e o que não vem
 
@@ -47,9 +49,10 @@ ramo de erro de uma query, variante de componente. Tudo isso é Vitest com
 Testing Library, e mais rápido.
 
 **Isto não é suíte de regressão.** A suíte não cresce por precaução: ela tem
-exatamente os casos dos critérios `comportamental` dos planos aprovados. Uma
-suíte de Playwright que tenta cobrir tudo fica lenta, fica instável, e o time
-passa a reexecutá-la até passar — que é o mesmo que não tê-la.
+exatamente os casos dos critérios `comportamental` dos planos aprovados — a
+exceção é `e2e/a11y.spec.ts`, que é verificação de DoD e não critério de fase.
+Uma suíte de Playwright que tenta cobrir tudo fica lenta, fica instável, e o
+time passa a reexecutá-la até passar — que é o mesmo que não tê-la.
 
 ## Exemplo
 
@@ -59,7 +62,7 @@ passa a reexecutá-la até passar — que é o mesmo que não tê-la.
 test('login', async ({ page }) => {
   await page.goto('/login');
   await page.fill('#email', 'ana@exemplo.com');
-  await page.fill('#password', 'segredo123456');
+  await page.fill('#password', process.env.E2E_PASSWORD ?? '');
   await page.click('.btn-primary');
   await page.waitForTimeout(2000);
   expect(await page.url()).toContain('/orders');
@@ -80,7 +83,7 @@ test('dado deslogado em /orders/A-1, quando faz login, então volta para /orders
   await expect(page).toHaveURL(/\/login/);
 
   await page.getByLabel('E-mail').fill('ana@exemplo.com');
-  await page.getByLabel('Senha').fill('segredo-de-teste-123');
+  await page.getByLabel('Senha').fill(process.env.E2E_PASSWORD ?? '');
   await page.getByRole('button', { name: 'Entrar' }).click();
 
   await expect(page).toHaveURL('/orders/A-1');

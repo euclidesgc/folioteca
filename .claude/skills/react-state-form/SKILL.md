@@ -79,9 +79,14 @@ export function SignUpForm() {
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors },
   } = useForm<SignUpValues>({ resolver: zodResolver(signUpSchema) });
-  const signUp = useSignUp();
+
+  const signUp = useSignUp({
+    onFieldError: (field, message) => setError(field, { type: 'server', message }),
+    onUnknownError: (message) => setError('root', { message }),
+  });
 
   return (
     <form onSubmit={handleSubmit((values) => signUp.mutate(values))} noValidate>
@@ -114,16 +119,20 @@ tem como saber. A resposta do servidor devolve o erro **por campo**, e o
 formulário o coloca no campo com `setError`, não num aviso genérico no topo.
 
 ```ts
+const {
+  setError,
+  formState: { errors },
+} = useForm<SignUpValues>({ resolver: zodResolver(signUpSchema) });
+
 const signUp = useSignUp({
-  onError: (error) => {
-    if (isFieldError(error)) {
-      setError(error.field, { type: 'server', message: error.message });
-      return;
-    }
-    setError('root', { message: 'Não foi possível criar a conta agora.' });
-  },
+  onFieldError: (field, message) => setError(field, { type: 'server', message }),
+  onUnknownError: (message) => setError('root', { message }),
 });
 ```
+
+`onFieldError` recebe o campo e a mensagem já separados pelo hook de mutação;
+`onUnknownError` é o que sobra, e vai para `root` — que o formulário mostra
+acima do botão.
 
 O contrato de erro por campo vem do OpenAPI; veja a skill `react-api-layer`.
 

@@ -40,6 +40,8 @@ revisar qualquer código que leia `user.role`.
    `react-state-app` —, nunca de `localStorage` espalhado pelos componentes.
 5. **Token de acesso em memória**, não em `localStorage`; o refresh fica em
    cookie `HttpOnly` emitido pelo servidor.
+6. **A fatia de sessão mora em `src/shared/stores/session-store.ts`**, porque
+   `shared` não pode importar de `features` (G5).
 
 ## Exemplo
 
@@ -72,7 +74,7 @@ export function ProtectedRoute({ roles, children }: ProtectedRouteProps) {
 
   if (status === 'loading') return <FullPageSpinner label="Verificando sua sessão…" />;
 
-  if (status === 'anonymous') {
+  if (status === 'anonymous' || !user) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 

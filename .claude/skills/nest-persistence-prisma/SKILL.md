@@ -137,6 +137,7 @@ cliente mockado verifica que você escreveu o que escreveu.
 
 ## Ponteiros
 
+- `templates/schema.prisma` — o esquema, fonte dos tipos gerados.
 - `templates/prisma.service.ts`, `templates/prisma.module.ts` e
   `templates/feature.repository.ts` desta skill.
 - Fronteira de camada e barril: skill `nest-module-structure`.

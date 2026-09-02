@@ -13,5 +13,5 @@ export function configureApp(app: INestApplication): void {
   );
 
   app.useGlobalFilters(new DomainExceptionFilter());
-  app.setGlobalPrefix('v1', { exclude: ['health'] });
+  app.setGlobalPrefix('v1', { exclude: ['health', 'health/live', 'health/ready'] });
 }
