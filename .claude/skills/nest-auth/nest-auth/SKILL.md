@@ -53,11 +53,13 @@ create(@Body() body: CreateFeatureDto) {
 
 ```ts
 @Post('features')
-@UseGuards(JwtAuthGuard)
 create(@CurrentUser() user: AuthenticatedUser, @Body() body: CreateFeatureDto) {
   return this.features.create(user.id, body);
 }
 ```
+
+Não há `@UseGuards` aqui: o guard de autenticação é global (veja abaixo), e o
+que é público leva `@Public()`.
 
 O mesmo vale na leitura: `findByIdForOwner(id, user.id)` em vez de
 `findById(id)` seguido de comparação esquecível. Quando a propriedade entra na
@@ -124,5 +126,10 @@ O filtro traduz `NotArticleOwnerError` para 403. O serviço não conhece o núme
 
 - `templates/jwt.strategy.ts`, `templates/jwt-auth.guard.ts`,
   `templates/roles.guard.ts` e `templates/current-user.decorator.ts`.
+- `templates/public.decorator.ts` e `templates/roles.decorator.ts` — as chaves de
+  metadado que os guards leem; chave divergente faz o guard global ignorar a
+  rota pública em silêncio.
+- `templates/authenticated-user.ts` — o formato do sujeito autenticado que o
+  controller recebe, e que nunca vem do corpo da requisição.
 - Erro de domínio para código HTTP: skill `nest-errors-filters`.
 - Segredo em variável de ambiente validada: skill `nest-config-env`.

@@ -121,6 +121,7 @@ beforeEach(async () => {
 
 ## Ponteiros
 
+- `templates/seed.ts` — monta usuário e token para a suíte de integração.
 - `templates/test-app.ts`, `templates/feature.e2e-spec.ts` e
   `templates/jest-e2e.json`.
 - Regra isolada e barata: skill `nest-testing-unit`.

@@ -19,8 +19,8 @@ export async function startTestApp(): Promise<TestApp> {
     .withPassword('app')
     .start();
 
-  // O PrismaService lê DATABASE_URL na construção: a variável precisa apontar
-  // para a porta mapeada antes de o módulo Nest ser compilado.
+  // motivo: o PrismaService lê DATABASE_URL na construção, então a variável
+  // precisa apontar para a porta mapeada antes de o módulo Nest ser compilado.
   process.env.DATABASE_URL = container.getConnectionUri();
   execSync('pnpm prisma migrate deploy', { stdio: 'inherit' });
 

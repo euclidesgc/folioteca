@@ -10,7 +10,7 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
     .addServer('/v1')
     .build();
 
-  return SwaggerModule.createDocument(app, config, { operationIdFactory: (_c, method) => method });
+  return SwaggerModule.createDocument(app, config);
 }
 
 export function mountSwaggerUi(app: INestApplication, document: OpenAPIObject): void {

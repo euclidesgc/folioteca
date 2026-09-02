@@ -13,8 +13,9 @@ ela é mudança de contrato.
 
 ## As regras
 
-1. **Mudança de API começa no contrato.** O documento OpenAPI é a primeira coisa
-   que muda no PR, e a implementação vem depois com um alvo declarado.
+1. **A mudança de API começa pela decisão de contrato** — o DTO e as anotações
+   `@Api*` são escritos antes da regra de negócio, e `openapi/openapi.json` é
+   regenerado no mesmo commit. O documento nunca é editado à mão.
 2. **O documento é gerado pelo `@nestjs/swagger` e commitado** em
    `openapi/openapi.json`. Gerado, mas versionado — é o que dá diff revisável.
 3. **`oasdiff` classifica a mudança** entre aditiva e quebra, no CI.
@@ -82,9 +83,14 @@ create(@CurrentUser() user: AuthenticatedUser, @Body() body: CreateFeatureDto) {
 }
 ```
 
-`operationId` é o nome do método no cliente gerado. Sem ele, o gerador inventa
-algo como `featureControllerCreate`, e renomear o controller renomeia a função
-de todo consumidor — uma quebra de contrato causada por refatoração interna.
+**Toda operação declara o seu `operationId` em `@ApiOperation`**, e o documento é
+criado sem `operationIdFactory`. `operationId` é o nome do método no cliente
+gerado. Sem ele, o gerador inventa algo como `featureControllerCreate`, e
+renomear o controller renomeia a função de todo consumidor — uma quebra de
+contrato causada por refatoração interna. Uma fábrica que devolve o nome do
+método é pior ainda: todo `create` de todo controller vira `operationId:
+"create"`, ids repetidos invalidam o documento e os métodos do cliente gerado
+colidem entre si.
 
 ## O que documentar em cada DTO
 

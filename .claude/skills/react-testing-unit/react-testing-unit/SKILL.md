@@ -149,6 +149,9 @@ export const listOrdersFails = (status: number) =>
 
 - `templates/render-with-providers.tsx` — `render` com provedores e cliente novo.
 - `templates/msw-handlers.ts` — handlers e fábricas em arquivo dedicado.
+- `templates/server.ts` — o servidor de MSW com `onUnhandledRequest: 'error'`,
+  que é o que separa "requisição não prevista reprova" de "imprime no
+  console e segue".
 - `templates/component.test.tsx` — conjunto com as três naturezas.
 - Console limpo durante os testes: skill `react-error-handling`.
 - Verificação automatizada de acessibilidade: skill `react-testing-a11y`.

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import { useSessionUser, type UserRole } from '@/features/auth';
+import { useSessionUser, type UserRole } from '@/shared/stores/session-store';
 
 type RequireRoleProps = {
   roles: UserRole[];

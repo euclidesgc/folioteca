@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# O motor do laço autônomo. Casca fina: a decisão mora em
-# scripts/decide-next-action.mjs, que é uma função pura sobre o estado.
+# O motor da corrida autônoma. Casca fina: a decisão mora em
+# scripts/loop/decide-next-action.mjs, que é uma função pura sobre o estado.
 #
 # Não acrescente decisão aqui.
 #
@@ -9,22 +9,24 @@
 #   proxima-sessao.sh --ate N    no máximo N rodadas encadeadas (padrão: 1)
 #
 # O QUE ELE NUNCA FAZ: mergear PR, e empurrar com --force. A pilha existe para
-# o merge ser uma decisão do dev, tomada de uma vez, acordado.
+# o merge ser uma decisão do dev, tomada de uma vez, acordado — e é
+# scripts/merge-se-liberado.sh quem mergeia, quando o dev mandar.
 #
 # CADA RODADA É UMA SESSÃO NOVA. `claude -p` abre processo novo e o prompt é a
 # única entrada — é daí que vem a economia de contexto.
 #
 # ⚠️ A sessão roda com --dangerously-skip-permissions, porque não há ninguém
-# acordado para aprovar cada escrita. Reveja antes do primeiro deploy.
+# acordado para aprovar cada escrita. Os hooks do harness continuam valendo
+# (escopo de agent, documento aprovado, comando destrutivo); o que deixa de
+# existir é a pergunta ao humano. Reveja antes da primeira noite.
 #
 # gate3-ok: o bloco abaixo é o registro de por que o motor sobrevive a uma
-# rodada ruim, e não a mecânica de como. Sem ele, a próxima pessoa a ler
-# desfaz a recuperação achando que é complicação desnecessária.
+# rodada ruim, e não a mecânica de como.
 #
 # POR QUE ELE SE RECUPERA
-# Na noite de 02/09/2026 uma rodada morreu às 07:13. O tree ficou sujo, o motor
-# recusou partir — que era o comportamento projetado — e a corrida parou por
-# cinco horas com o dono dormindo. Duas mudanças saíram daí:
+# Na primeira noite real uma rodada morreu às 07:13. A árvore ficou suja, o
+# motor recusou partir — que era o comportamento projetado — e a corrida parou
+# por cinco horas com o dono dormindo. Duas mudanças saíram daí:
 #   1. rodada que falha é tentada mais UMA vez, não a noite inteira;
 #   2. trabalho a meio caminho vira commit `wip` na branch da própria fase, em
 #      vez de bloquear tudo. Não é validado nem mergeado: só deixa de ser refém
@@ -55,6 +57,8 @@ done
 batimento="$raiz/.harness/runtime/motor-batimento"
 mkdir -p "$(dirname "$batimento")"
 
+# Vigia externo lê o progresso com `cat`, nunca com `pgrep`: o padrão do pgrep
+# casa com o próprio comando que o executa, e enganou três verificações.
 marca() { printf '%s %s\n' "$(date -Iseconds)" "$1" > "$batimento"; }
 
 salva_meio_caminho() {
@@ -70,9 +74,7 @@ salva_meio_caminho() {
 
 The round that produced this died before finishing. Committed so the tree stops
 blocking the next round; the phase resumes from here and the blind validator
-judges the branch tip, not this commit.
-
-Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>" || return 1
+judges the branch tip, not this commit." || return 1
   printf 'motor: trabalho a meio caminho salvo como wip em %s.\n' "$branch" >&2
 }
 
@@ -91,7 +93,7 @@ while [ "$rodada" -lt "$ate" ]; do
   printf '\n═══ rodada %s de %s ═══\n' "$rodada" "$ate"
   marca "rodada $rodada: decidindo"
 
-  decisao="$(node scripts/decide-next-action.mjs)"
+  decisao="$(node scripts/loop/decide-next-action.mjs)"
   codigo=$?
   printf '%s\n' "$decisao"
 
@@ -130,7 +132,11 @@ while [ "$rodada" -lt "$ate" ]; do
   fi
 
   marca "rodada $rodada: empilhando o PR"
-  gh stack submit --auto || printf 'motor: gh stack submit falhou; os commits continuam locais.\n' >&2
+  if gh stack view >/dev/null 2>&1; then
+    gh stack submit --auto || printf 'motor: gh stack submit falhou; os commits continuam locais.\n' >&2
+  else
+    printf 'motor: a branch corrente não está numa pilha; os commits continuam locais. `gh stack init --base develop <branch>` adota o que existe.\n' >&2
+  fi
 done
 
 marca "concluído: $rodada rodada(s)"

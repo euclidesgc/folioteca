@@ -20,8 +20,9 @@ contra banco real (`nest-testing-integration`).
 3. **Todo conjunto tem as três naturezas**: contrato e propriedades, caminho
    feliz, casos de borda. Faltando uma, o reviewer reprova mesmo com cobertura
    alta.
-4. **Mock em arquivo dedicado**, `test/mocks/feature.repository.mock.ts` —
-   nunca na pasta `__mocks__`, que o Jest trata como automock.
+4. **Mock em arquivo dedicado**, `test/mocks/feature.repository.mock.ts` — nunca
+   na pasta `__mocks__`, que acopla o dublê ao caminho do módulo e some do
+   import, então quem lê o teste não vê de onde o comportamento veio.
 5. **Nome em prosa**: `deve <resultado> quando <condição>`.
 
 ## Por quê

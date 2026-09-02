@@ -3,9 +3,9 @@ name: NestJS
 on:
   push:
     branches: [main, develop]
-    paths: ["apps/api/**", ".github/workflows/ci-nestjs.yml"]
+    paths: ["apps/api/**", "scripts/gates/**", ".github/workflows/ci-nestjs.yml"]
   pull_request:
-    paths: ["apps/api/**", ".github/workflows/ci-nestjs.yml"]
+    paths: ["apps/api/**", "scripts/gates/**", ".github/workflows/ci-nestjs.yml"]
 
 defaults:
   run:
@@ -164,10 +164,33 @@ jobs:
       # O contrato commitado precisa ser o que o código gera. Divergência aqui
       # significa que alguém mudou a API sem regenerar — e o cliente quebra em
       # runtime, no consumidor que ninguém testou.
+      # `git diff --exit-code` sai 0 tanto quando gerou igual quanto quando o
+      # gerador não escreveu nada; a prova de que ele rodou é o arquivo ter
+      # sido reescrito. É a segunda forma da tabela do prompt de sessão.
       - name: Contrato commitado é o gerado
+        working-directory: .
         run: |
-          pnpm run openapi:generate
-          git diff --exit-code openapi.json || {
+          source scripts/gates/medir.sh
+          antes="$(date +%s)"
+          sleep 1
+          (cd apps/api && pnpm run openapi:generate)
+          exige_escrita apps/api/openapi.json "$antes"
+          git diff --exit-code -- apps/api/openapi.json || {
             echo "::error::O OpenAPI mudou. Rode 'pnpm run openapi:generate' e comite, junto com os clientes regenerados."
             exit 1
           }
+
+  gates:
+    needs: guarda
+    if: needs.guarda.outputs.pronto == 'true'
+    name: Gates arquiteturais
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gates
+        working-directory: .
+        env:
+          HARNESS_DIFF_BASE: origin/${{ github.base_ref || 'develop' }}...HEAD
+        run: bash scripts/gates/gates_runner.sh

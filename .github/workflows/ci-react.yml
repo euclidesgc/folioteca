@@ -3,9 +3,9 @@ name: React
 on:
   push:
     branches: [main, develop]
-    paths: ["apps/web/**", ".github/workflows/ci-react.yml"]
+    paths: ["apps/web/**", "scripts/gates/**", ".github/workflows/ci-react.yml"]
   pull_request:
-    paths: ["apps/web/**", ".github/workflows/ci-react.yml"]
+    paths: ["apps/web/**", "scripts/gates/**", ".github/workflows/ci-react.yml"]
 
 defaults:
   run:
@@ -121,3 +121,18 @@ jobs:
           name: playwright-report
           path: "apps/web/playwright-report/"
           retention-days: 7
+
+  gates:
+    needs: guarda
+    if: needs.guarda.outputs.pronto == 'true'
+    name: Gates arquiteturais
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gates
+        working-directory: .
+        env:
+          HARNESS_DIFF_BASE: origin/${{ github.base_ref || 'develop' }}...HEAD
+        run: bash scripts/gates/gates_runner.sh

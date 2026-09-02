@@ -41,7 +41,11 @@ describe('FeatureService', () => {
         aFeature({ id: 'a', createdAt: new Date('2026-01-01T00:00:00.000Z') }),
       ]);
 
-      const views = await service.list('owner-1', { limit: 20 });
+      const views = await service.list('owner-1', {
+        limit: 20,
+        sortBy: 'createdAt',
+        includeArchived: false,
+      });
 
       expect(views.map((view) => view.id)).toEqual(['b', 'a']);
     });
@@ -51,7 +55,9 @@ describe('FeatureService', () => {
     it('deve devolver lista vazia quando o dono não tem nenhuma feature', async () => {
       repository.listByOwner.mockResolvedValue([]);
 
-      await expect(service.list('owner-1', { limit: 20 })).resolves.toEqual([]);
+      await expect(
+        service.list('owner-1', { limit: 20, sortBy: 'createdAt', includeArchived: false }),
+      ).resolves.toEqual([]);
     });
 
     it('deve lançar FeatureNotFoundError quando a feature é de outro dono', async () => {

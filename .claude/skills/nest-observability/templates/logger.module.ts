@@ -24,7 +24,11 @@ import type { EnvironmentVariables } from '../config/environment-variables';
             censor: '[redacted]',
           },
           serializers: {
-            req: (req) => ({ id: req.id, method: req.method, route: req.routerPath }),
+            req: (req) => ({
+              id: req.id,
+              method: req.method,
+              route: req.route?.path ?? req.originalUrl?.split('?')[0],
+            }),
             res: (res) => ({ statusCode: res.statusCode }),
           },
         },

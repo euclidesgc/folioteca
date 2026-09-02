@@ -178,8 +178,11 @@ na tela quando a requisição falha.
 
 ## Ponteiros
 
-- `templates/query-keys.ts` — a fábrica de chaves em cascata.
-- `templates/use-query-hook.ts` — query e mutação com invalidação.
+- `templates/orders-api.ts` — as funções de requisição da feature, que o hook consome.
+- `templates/order-keys.ts` — a fábrica de chaves em cascata, no nome
+  `<feature>-keys.ts` que a regra 1 exige.
+- `templates/use-query-hook.ts` — query e mutação com invalidação, consumindo as
+  funções de requisição da feature.
 - Onde a função de requisição mora: skill `react-api-layer`.
 - Como a tela mostra o erro: skill `react-error-handling`.
 - Como o teste simula a rede: skill `react-testing-unit`.

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 
 import { FullPageSpinner } from '@/shared/components/full-page-spinner';
-import { useSession, type UserRole } from '@/features/auth';
+import { useSession, type UserRole } from '@/shared/stores/session-store';
 
 type ProtectedRouteProps = {
   roles?: UserRole[];

@@ -15,7 +15,7 @@ de código que roda no navegador.
 
 ## A regra
 
-Três zonas, e só três:
+Três zonas de produção, e só três:
 
 ```
 src/
@@ -32,15 +32,23 @@ src/
 │       ├── hooks/              hooks que só esta feature usa
 │       ├── types/              tipos desta feature
 │       └── index.ts            o barril público — a única porta de entrada
-└── app/
-    ├── routes/                 as rotas, que compõem features
-    ├── providers/              QueryClientProvider, router, tema
-    └── main.tsx
+├── app/
+│   ├── routes/                 as rotas, que compõem features
+│   ├── providers/              QueryClientProvider, router, tema
+│   └── main.tsx
+└── testing/                    infraestrutura de teste, fora do fluxo
+    ├── handlers/               handlers de MSW e fábricas, por feature
+    ├── server.ts               o servidor de MSW da suíte
+    └── render.tsx              `render` com os provedores
 ```
 
 **O fluxo de import é unidirecional: `shared → features → app`.** `shared` não
 conhece ninguém. Uma feature conhece `shared` e o **barril** de outra feature.
 `app` conhece as duas. Nada volta.
+
+**`src/testing/` é a quarta pasta de topo, e a única** — infraestrutura de teste
+(handlers de MSW, `render` com provedores, fábricas). Ela não é importada por
+código de produção, e por isso não participa do fluxo `shared → features → app`.
 
 **Uma feature expõe só o que está no `index.ts`.** Tudo o mais é interior, e
 interior não se importa de fora.
@@ -136,8 +144,9 @@ formas diferentes. O fragmento pronto está em `templates/eslint-boundaries.js`.
 1. **`// eslint-disable-next-line` na linha do import.** Desliga a regra em
    silêncio; o gate não lê comentário de ESLint.
 2. **Import relativo que foge do alias.** `../../cart/types/cart-item` não casa
-   com o padrão `@/features/*/*`, mas casa com a expressão do gate, que procura
-   `features/<algo>/<algo>` em qualquer forma de caminho.
+   com `@/features/*/*` no ESLint **nem** com a expressão do gate, que procura o
+   segmento `features/`. É o furo conhecido dos dois: use sempre o alias `@/`, e
+   o revisor cobra o relativo entre features na leitura.
 3. **Arquivo fora do escopo do lint** — o que estiver em `ignores` do
    `eslint.config.js` simplesmente não é lintado.
 4. **A própria configuração afrouxada.** Quem edita `eslint.config.js` para
@@ -150,8 +159,9 @@ a diferença entre um desvio registrado e um desvio escondido.
 
 ## Erros comuns
 
-- **Criar `src/utils/` ou `src/components/` fora de `shared`.** Vira a quarta
-  zona, sem regra de import, e ela cresce até conter metade do aplicativo.
+- **Criar `src/utils/` ou `src/components/` fora de `shared`.** Vira mais uma
+  pasta de topo sem regra de import — e `src/testing/` é a única permitida — e
+  ela cresce até conter metade do aplicativo.
 - **Promover para `shared` no primeiro reuso.** Duas features usando o mesmo
   componente ainda podem querer coisas diferentes dele. Promova na terceira, ou
   quando a forma parar de mudar.

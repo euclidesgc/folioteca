@@ -31,7 +31,7 @@ Como não há Next neste pack, **não existe componente de servidor nem ação d
 
 Todo conjunto de teste tem as **três naturezas**: contrato e propriedades, caminho feliz, e casos de borda. Faltando uma, a revisão reprova mesmo com cobertura alta. Consulte por papel e por texto acessível (`getByRole` com `name`, `getByLabelText`), nunca por classe CSS — a consulta por papel é verificação de acessibilidade de graça, porque só encontra o elemento se ele tiver papel e nome acessível. Rede simulada pelo MSW, com handlers em arquivo dedicado.
 
-**Zero comentário de mecânica.** Comentário existe para o porquê que o código não mostra: decisão de arquitetura, contorno de defeito externo, restrição de plataforma, invariante não óbvia — e começa por uma marca de justificativa (`motivo:`, `decisão:`, `contorno:`, `limitação:`). O portão G3 reprova o resto. Nenhuma pendência marcada no código: o portão G4 não tem escape.
+**Zero comentário de mecânica.** Comentário existe para o porquê que o código não mostra: decisão de arquitetura, contorno de defeito externo, restrição de plataforma, invariante não óbvia — e começa por uma marca de justificativa (`por quê:`, `motivo:`, `decisão:`, `contorno:`, `invariante:`, `limitação:`), ou pelo escape nomeado `gate3-ok`. O portão G3 reprova o resto. Nenhuma pendência marcada no código: o portão G4 não tem escape.
 
 **Rode o que existe antes de dar por pronto.** `pnpm typecheck`, `pnpm lint`, `pnpm test` e `bash scripts/gates/gates_runner.sh`. Estreite a saída na origem — reporter compacto, `| tail` — nunca resumindo depois. Comando que não rodou é reportado como não rodado, com a mensagem que o ambiente deu; nunca presuma que teria passado.
 

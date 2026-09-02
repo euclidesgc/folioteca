@@ -22,8 +22,11 @@ Plugin **generic-harness**. **Leia o estado antes de qualquer outra coisa:**
 
 ```bash
 python3 "$CLAUDE_PLUGIN_ROOT/scripts/state/state.py" read
-node scripts/decide-next-action.mjs
+node scripts/loop/decide-next-action.mjs
 ```
+
+O hook de início de sessão exporta `CLAUDE_PLUGIN_ROOT` para o shell; fora de
+uma sessão, o caminho está em `.harness/runtime/plugin-root.json`.
 
 A segunda linha diz o que **esta** sessão faz. Conduza pelo `/harness:start`,
 carregando a skill `harness-orchestrator`. Não pule estágio; `state.py` recusa
@@ -36,11 +39,19 @@ ninguém.** Onde o fluxo pediria decisão ou aprovação humana:
 
 1. **Decida** você, com `00-visao-de-produto.md` e `CLAUDE.md` como régua.
    Prefira sempre a convenção mais comum e mais reversível.
-2. **Aprove** com `state.py approve --stage <e> --file <caminho>`, sempre com
-   `--file` — sem ele a aprovação não amarra a um conteúdo.
+2. **Aprove** com `state.py approve --stage <e> --file <caminho> --por autonomo`,
+   sempre com `--file` — sem ele a aprovação não amarra a um conteúdo — e
+   sempre com `--por autonomo`: o `state.py` recusa aprovação sem autor, e é
+   esse campo que separa, de manhã, o que gente decidiu do que a máquina
+   decidiu sozinha.
 3. **Registre** em `product/items/<id>/decisoes-autonomas.md`: uma linha por
    decisão, com a alternativa descartada e o porquê, e uma linha por aprovação
    autônoma. É o que o dono lê de manhã. Atualize a cada decisão, não no fim.
+4. **Divergência `normal`**: ratifique na opção recomendada com
+   `state.py diverge-set --id D-nnn --status APROVADA --por autonomo`,
+   reconcilie e siga. O PR nasce e **permanece** `blocked-on-D-nnn` até o dono
+   ratificar com `--por humano`; é assim que deve ser, e o `check` lista o que
+   espera esse olhar. Divergência `contrato`: registre e pare (ver o fim).
 
 ## Uma sessão faz uma unidade de trabalho, e para
 
@@ -76,7 +87,7 @@ está dormindo; a pilha existe para o merge ser decisão do dono, acordado.
 Commits em inglês, terminando com
 `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`.
 
-## O corpo de todo PR tem seis seções
+## O corpo de todo PR tem sete seções
 
 1. **O que foi implementado** — o item, a fase, e o que ela fecha. Diga sobre
    qual PR ela está empilhada.
@@ -90,6 +101,8 @@ Commits em inglês, terminando com
 5. **Raio de impacto** — o que mais no repositório passa a depender disto.
 6. **Validações de campo pendentes** — o que só o navegador ou o aparelho real
    provam, ou "Nenhuma nova".
+7. **Pendências que viraram roadmap** — cada uma com o ID do item que a
+   registra, ou "Nenhuma". Pendência sem ID é pendência que ninguém reencontra.
 
 ## Pendência que sobra vira item de roadmap, sempre
 

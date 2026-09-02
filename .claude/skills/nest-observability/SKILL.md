@@ -22,8 +22,9 @@ diagnosticar em produção — e vale na revisão de qualquer diff, porque
 3. **Campo sensível nunca é logado.** Senha, hash, token, cabeçalho
    `authorization`, cookie, número de documento, número de cartão. O corpo
    inteiro da requisição também não.
-4. **Saúde é endpoint**, não gráfico. `/health` responde se o processo está de
-   pé e se as dependências que ele precisa respondem.
+4. **Saúde são dois endpoints**, não um: `/health/live` responde se o processo
+   respira, sem tocar dependência; `/health/ready` responde se as dependências
+   críticas respondem. Ambos públicos, nenhum dos dois expondo topologia.
 
 ## Por quê
 
@@ -82,10 +83,10 @@ alguém escrever amanhã sem lembrar da regra.
 `@nestjs/terminus` com uma verificação por dependência crítica:
 
 ```ts
-@Get('health')
+@Get('ready')
 @Public()
 @HealthCheck()
-check() {
+ready() {
   return this.health.check([
     () => this.prismaHealth.pingCheck('database', this.prisma),
   ]);

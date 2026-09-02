@@ -132,7 +132,13 @@ mantém o acoplamento — use só com a decisão registrada.
 
 ## Ponteiros
 
-- Esqueleto do quarteto: `templates/` desta skill.
+- `templates/feature.controller.ts` — controller que só traduz HTTP.
+- `templates/feature.module.ts` — a fiação do módulo.
+- `templates/feature.repository.ts` — só a assinatura pública do repositório,
+  único ponto que toca o cliente de banco; o corpo é o template homônimo da
+  skill `nest-persistence-prisma`, dona de `select`, transação e mapeamento.
+- `templates/feature.service.ts` — o serviço, onde a decisão mora.
+- `templates/index.ts` — o barril público da feature.
 - Persistência e tipos gerados: skill `nest-persistence-prisma`.
 - Validação da entrada do controller: skill `nest-validation`.
 - Erro de domínio para HTTP: skill `nest-errors-filters`.
