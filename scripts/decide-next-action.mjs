@@ -35,6 +35,12 @@ const STAGE_ORDER = ['discovery', 'prd', 'spec', 'plan', 'execute', 'done'];
 
 const stop = (reason, extra = {}) => ({ action: 'stop', reason, ...extra });
 
+export const countPhases = (root = ROOT, item = '') => {
+  const file = join(root, 'product', 'items', item, '03-plan.md');
+  if (!existsSync(file)) return 0;
+  return [...readFileSync(file, 'utf8').matchAll(/^##+ +Fase +(\d+)/gm)].length;
+};
+
 export const readRoadmapQueue = (root = ROOT) => {
   const file = join(root, 'product', 'roadmap.md');
   if (!existsSync(file)) return [];
@@ -94,11 +100,23 @@ export const decide = (state, root = ROOT, queue = readRoadmapQueue(root)) => {
     }
   }
 
+  /* A fase corrente aprovada não é a próxima tarefa: é a anterior. Sem este
+     passo o motor reabre a fase que acabou de fechar e a noite anda em círculo
+     — que é como o ensaio a seco de 02/09 flagrou o defeito. */
+  const current = item.current_phase;
+  const aprovada = current !== null && phases[String(current)]?.status === 'aprovada';
+  const alvo = aprovada ? Number(current) + 1 : current;
+  const total = countPhases(root, id);
+
+  if (total > 0 && alvo !== null && alvo > total) {
+    return { action: 'close', item: id, stage, reason: `as ${total} fases estão aprovadas` };
+  }
+
   return {
     action: 'phase',
     item: id,
     stage,
-    phase: item.current_phase,
+    phase: alvo,
     plan: join('product', 'items', id, '03-plan.md'),
   };
 };
