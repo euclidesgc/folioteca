@@ -33,7 +33,7 @@ fi
 vermelhos="$(gh pr checks "$pr" 2>/dev/null | awk -F'\t' '$2=="fail"{print $1}')"
 if [ -n "$vermelhos" ]; then
   printf 'RECUSADO: o PR #%s tem verificação vermelha:\n' "$pr" >&2
-  printf '  %s\n' $vermelhos >&2
+  printf '%s\n' "$vermelhos" | sed 's/^/  /' >&2
   exit 1
 fi
 
