@@ -45,6 +45,7 @@ linha 24 e publica o Postgres com a extensão `vector` em `localhost:5433`.
       `"engines": { "node": ">=24" }` e `"packageManager": "pnpm@9.12.0"`;
       `.nvmrc` na raiz contém `24`; `.npmrc` na raiz contém a linha
       `engine-strict=true`.
+      > Reconciliado em D-001.
 - [ ] `comportamental` — RF-03.2
       *Dado* o repositório na raiz, com `.npmrc` contendo `engine-strict=true` e
       `package.json` declarando `"engines": { "node": ">=24" }`
@@ -143,6 +144,7 @@ contrato que descreve essa rota.
       `apps/api/src/app.module.ts` registra `ConfigModule.forRoot` com
       `validationSchema: environmentSchema` e
       `validationOptions: { abortEarly: false, allowUnknown: true }`.
+      > Reconciliado em D-003.
 - [ ] `comportamental` — RF-05.2 e RF-05.3
       *Dado* o arquivo `.env` na raiz do repositório com as linhas
       `NODE_ENV=development` e `PORT=3000` e sem nenhuma linha que comece com
@@ -194,19 +196,28 @@ contrato que descreve essa rota.
 
 ### Etapas
 
-- [ ] 2.1 Modificar `apps/api/package.json`: declarar `@nestjs/common`,
-      `@nestjs/core`, `@nestjs/platform-express`, `@nestjs/config`,
-      `@nestjs/swagger`, `joi`, `reflect-metadata` e `rxjs` como dependências;
-      `@nestjs/cli`, `@nestjs/testing`, `typescript`, `jest`, `ts-jest`,
-      `supertest`, `@types/node`, `@types/jest`, `@types/supertest`, `eslint` e
-      `typescript-eslint` como dependências de desenvolvimento; e os scripts
-      `dev` (`nest start --watch`), `start` (`nest start`), `build`
-      (`nest build`), `lint`, `typecheck` (`tsc --noEmit`), `test`,
-      `test:integration` e `openapi:generate`.
+- [ ] 2.1 Modificar `apps/api/package.json`: declarar `@nestjs/common@11.x`,
+      `@nestjs/core@11.x`, `@nestjs/platform-express@11.x`,
+      `@nestjs/config@4.0.4`, `@nestjs/swagger@11.4.7`, `class-validator`,
+      `class-transformer`, `joi`, `reflect-metadata` e `rxjs` como
+      dependências; `@nestjs/cli@11.x`, `@nestjs/testing@11.x`, `ts-node`,
+      `typescript`, `jest`, `ts-jest`, `supertest`, `@types/node`,
+      `@types/jest`, `@types/supertest`, `eslint` e `typescript-eslint` como
+      dependências de desenvolvimento; e os scripts `dev` (`nest start
+      --watch`), `start` (`nest start`), `build` (`nest build`), `lint`,
+      `typecheck` (`tsc --noEmit`), `test`, `test:integration` e
+      `openapi:generate`
+      (`ts-node --transpile-only scripts/generate-openapi.ts`).
       Justificativa: regra 15 — nada não declarado; os nomes de script são os que
       os fluxos de CI do pack de NestJS invocam, e `start` compila e executa num
       passo só porque `pnpm --filter api start` é texto de RF-05.3, sem build
-      anterior.
+      anterior; a linha 11.x do conjunto NestJS é a que aceita
+      `validationOptions` como objeto plano; `class-validator` e
+      `class-transformer` são o par que o `ValidationPipe` global carrega na
+      construção; `ts-node --transpile-only` executa um script `.ts` avulso com
+      os decoradores e os metadados intactos, sem pagar de novo a checagem de
+      tipos que o script `typecheck` já cobre.
+      > Reconciliado em D-003, D-005 e D-006.
 - [ ] 2.2 Criar `apps/api/tsconfig.json`, `apps/api/nest-cli.json`,
       `apps/api/eslint.config.mjs`, `apps/api/jest.config.js` e
       `apps/api/test/jest-e2e.json`.
@@ -217,16 +228,17 @@ contrato que descreve essa rota.
 - [ ] 2.3 Criar `apps/api/src/config/environment.schema.ts` e
       `apps/api/src/config/environment-variables.ts` com `NODE_ENV` e
       `DATABASE_URL` obrigatórias, `PORT` com valor padrão `3000`, e a opção Joi
-      `errors: { wrap: { label: '' } }`.
+      `errors: { wrap: { label: false } }`.
       Justificativa: o schema exige só o que o código desta API lê — pedir
       `JWT_SECRET` ou `SMTP_*`, que estão no modelo como documentação do que vem,
       faria a API recusar subir por segredo que nenhuma linha consome; duas
       obrigatórias, e não uma, é o que dá ao `abortEarly: false` uma lista com
       mais de um nome para imprimir, que é o comportamento que RF-05.3 cobra;
       `NODE_ENV` já vem preenchida no modelo versionado, então nenhum clone
-      recém-feito quebra por exigi-la; sem `wrap.label` vazio a mensagem do Joi
-      sai com o nome entre aspas e deixa de ser a linha `DATABASE_URL is
-      required` que RF-05.3 exige.
+      recém-feito quebra por exigi-la; com `wrap.label` desativado a mensagem do
+      Joi sai sem o nome entre aspas, e é a linha `DATABASE_URL is required` que
+      RF-05.3 exige.
+      > Reconciliado em D-002.
 - [ ] 2.4 Criar `apps/api/src/app.module.ts` registrando `ConfigModule.forRoot`
       com `isGlobal: true`, `envFilePath: ['../../.env']`,
       `validationSchema` e `validationOptions: { abortEarly: false, allowUnknown: true }`.
@@ -235,6 +247,7 @@ contrato que descreve essa rota.
       raiz, e duplicá-lo por app faria variável nova entrar em dois lugares;
       `allowUnknown` impede que as variáveis de itens futuros do modelo reprovem
       o boot.
+      > Reconciliado em D-003.
 - [ ] 2.5 Criar `apps/api/src/health/dto/health-response.dto.ts` com a classe
       `HealthResponse` e `@ApiProperty()` na propriedade `status`.
       Justificativa: o nome do schema no documento OpenAPI é o nome da classe —
@@ -249,22 +262,27 @@ contrato que descreve essa rota.
       `operationId` explícito porque sem ele o gerador batiza o método do cliente
       a partir do nome do controller, e renomear o controller viraria quebra de
       contrato para o consumidor.
-- [ ] 2.7 Criar `apps/api/src/main.ts` com `NestFactory.create(AppModule, { abortOnError: false })`
+- [ ] 2.7 Criar `apps/api/src/main.ts` com
+      `NestFactory.create(AppModule, { abortOnError: false, logger: false })`
       dentro de `try`/`catch`, imprimindo no `catch` uma linha por variável
       faltante e nada além disso, e encerrando com `process.exit(1)`; e
       `ValidationPipe` global com `whitelist: true` e
       `forbidNonWhitelisted: true`.
       Justificativa: com `abortOnError: true` o Nest imprime o erro de
-      inicialização com stack trace, que é exatamente o que RF-06.2 proíbe; o
-      `catch` transforma a exceção de validação na lista de nomes e nada mais, e
-      o `process.exit(1)` acontece antes de `app.listen`, que é o que mantém a
-      porta 3000 fechada.
+      inicialização com stack trace, que é exatamente o que RF-06.2 proíbe;
+      `logger: false` silencia o logger estático do Nest, que registra a
+      exceção de inicialização antes disso e incondicionalmente, e é o que
+      mantém a saída restrita ao que o `catch` imprime; o `catch` transforma a
+      exceção de validação na lista de nomes e nada mais, e o `process.exit(1)`
+      acontece antes de `app.listen`, que é o que mantém a porta 3000 fechada.
+      > Reconciliado em D-004.
 - [ ] 2.8 Criar `apps/api/src/swagger.ts` com `buildOpenApiDocument` e
       `apps/api/scripts/generate-openapi.ts` escrevendo `apps/api/openapi.json`
       com `JSON.stringify(document, null, 2)` seguido de uma quebra de linha.
       Justificativa: RF-07.3 exige que a regeneração sobre código inalterado
       produza arquivo idêntico — serialização fixa é o que torna o diff do job de
       contrato mecânico (D4).
+      > Reconciliado em D-006.
 - [ ] 2.9 Criar `apps/api/openapi.json` executando
       `pnpm --filter api run openapi:generate`, sem edição manual do arquivo.
       Justificativa: contrato escrito à mão diverge do código no primeiro dia e

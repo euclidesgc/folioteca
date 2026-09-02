@@ -25,6 +25,22 @@ test/       integração por Supertest e Testcontainers
 
 ## Estado
 
-Vazio. O bootstrap — dependências, `nest-cli.json`, configuração validada no
-boot, esquema inicial — é item de roadmap, e passa por spec e plano antes de
-qualquer código. `/harness:roadmap` registra; `/harness:start` executa.
+A configuração é validada no boot: `apps/api/src/config/environment.schema.ts`
+exige `NODE_ENV` e `DATABASE_URL`, com `PORT` padrão em `3000`; faltando
+qualquer uma das obrigatórias, o processo termina antes de abrir a porta e
+imprime uma linha por variável ausente. O `.env` consumido é o único da raiz do
+repositório.
+
+`GET /health` responde `{"status":"ok"}` em `localhost:3000`.
+
+O contrato OpenAPI está versionado em `apps/api/openapi.json` e se regenera
+com:
+
+```
+pnpm --filter api run openapi:generate
+```
+
+Rode o comando e confira `git diff apps/api/openapi.json` antes de abrir o PR —
+divergência entre o gerado e o commitado é reprovação de contrato.
+
+Prisma, esquema de banco e as demais features ainda são item de roadmap.

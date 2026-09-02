@@ -55,6 +55,26 @@ implementação e antes do validador. Todas são reversíveis numa linha.
 Nenhum destes cabe na Fase 1, e nenhum vira TODO no código (regra 12). Ficam
 aqui, e no PR, para virar decisão do dono.
 
+- **A premissa que sustentou `D-001` deixou de valer nesta fase — e isto é o
+  primeiro item que eu levaria à sua mesa.** A ratificação de `D-001`, tomada
+  horas antes, se apoiou num fato explícito: *"a superfície de risco é hoje
+  nula: as três advisories de integridade dependem de dependência de terceiro
+  sendo resolvida, e o lockfile tem zero"*. A Fase 2 levou o `pnpm-lock.yaml` de
+  **zero para 673 pacotes**. A condição que tornava as advisories inertes é
+  exatamente a que esta fase remove. Agrava: não há `onlyBuiltDependencies` no
+  `pnpm-workspace.yaml` nem `ignore-scripts` no `.npmrc`, e em pnpm 9 os scripts
+  de ciclo de vida de dependência **rodam por padrão** — foi o pnpm 10 que
+  inverteu para lista de permissão. Hoje nenhum dos 673 pacotes declara
+  `install` ou `postinstall` (a árvore instalada foi verificada), mas qualquer
+  transitiva futura executa código na sua máquina e no runner de CI sem
+  aprovação. **A correção que caberia sem tocar em nada do que já foi
+  aprovado é `pnpm@9.15.0`**: fecha `CVE-2024-53866` (envenenamento de cache
+  global com evasão de `ignore-scripts`), que é justamente a que os scripts de
+  instalação tornaram viva, e fica dentro da linha 9 — não muda
+  `lockfileVersion: 9.0`. As outras três advisories de integridade exigem major.
+  Não apliquei porque a versão está fixada num critério de aceite já aprovado e
+  validado por agent cego, e mudar critério aprovado é sua decisão. **Uma linha
+  no `package.json` resolve, quando você disser.**
 - **`ignore-scripts=true` no `.npmrc`.** Fecharia a classe de ataque
   `event-stream`/Shai-Hulud, em que o `postinstall` de uma dependência
   transitiva executa com o uid de quem instala. Não foi aplicado porque muda a
@@ -94,12 +114,49 @@ Cada linha aqui é um `state.py approve` que o humano **não** deu.
 | `plan` | `03-plan.md` — 5 fases em pilha, 36 critérios tipados (14 estruturais, 10 comando, 12 comportamentais), os 13 RF cobertos. Aprovado depois de duas rodadas do `criteria-auditor`: a primeira reprovou por oito apontamentos, a segunda por uma regressão, e a terceira leitura fechou | 02/09/2026 |
 | `fase 1` | `05-veredictos/fase-1.md` — veredicto `APROVADO` do `phase-validator` cego, que executou os nove critérios por conta própria; `validated_sha` `d10ba2b` | 02/09/2026 |
 | `D-001` | Ratificação da divergência na opção recomendada (a) — `pnpm@9.12.0` permanece. Descartei (b), subir para pnpm 10/11, porque reprovaria um critério estrutural já validado por agent cego, invalidaria o `validated_sha` da Fase 1 e o formato do `pnpm-lock.yaml`, e forçaria mudança na Fase 5; e (c), só o digest `+sha512.`, porque protege o binário do gerenciador e não as dependências, ao custo de tornar ambíguo o texto literal do critério. A superfície de risco é hoje nula: as três advisories de integridade dependem de dependência de terceiro sendo resolvida, e o lockfile tem zero | 02/09/2026 |
+| `D-002` a `D-006` | Ratificação das cinco divergências da Fase 2, cada uma na opção recomendada do arquivo `04-divergencias/D-nnn.md`. Nenhuma é de tipo `contrato`, então nenhuma parou a fase; nenhum critério de aceite precisou mudar | 02/09/2026 |
+| `plan` (reaprovação) | `03-plan.md` reaprovado depois da reconciliação de `D-001` a `D-006`, novo `sha` `7b1f9f2`. A reaprovação é o que fecha a exceção nomeada que destravou a escrita no plano; sem ela, o documento teria mudado por fora do `sha` que o "sim" original amarrou | 02/09/2026 |
+| `fase 2` | `05-veredictos/fase-2.md` — preenchido quando o `phase-validator` cego devolver o veredicto | 02/09/2026 |
 
 ## Decisões da Fase 2
 
 | # | Decidido | Alternativa descartada | Por quê |
 |---|---|---|---|
 | D22 | **O CI do GitHub permanece vermelho até a Fase 5**, e os PRs das Fases 2, 3 e 4 declaram isso na seção de validações pendentes | Antecipar as etapas 5.1 e 5.4 para a Fase 2, consertando os fluxos agora | Os cinco jobs falham no passo `setup-node`, antes de qualquer verificação, com `Some specified paths were not resolved`: `cache-dependency-path` aponta para `apps/api/pnpm-lock.yaml` e `apps/web/pnpm-lock.yaml`, que não existem — o lockfile é único, na raiz. O `phase-validator` da Fase 1 já registrou o defeito. Consertar agora poria `.github/workflows/**` no diff da Fase 2, que é escopo declarado da Fase 5, e a regra 2 do `CLAUDE.md` é fronteira de escrita por escopo. A prova de qualidade não se perde: o validador cego executa os portões na máquina, que é de onde veio a evidência dos nove critérios da Fase 1. |
+
+### Divergências ratificadas na Fase 2
+
+Cinco, todas de tipo `normal` — nenhuma toca o contrato OpenAPI, e por isso
+nenhuma parou a fase. Todas foram detectadas pelo `nest-implementer` ao executar
+as etapas, ratificadas na opção recomendada e reconciliadas no `03-plan.md` no
+mesmo PR. O padrão delas é o mesmo: **o plano fixou um método e o método não
+existia na versão real da ferramenta.** Os critérios de aceite, esses,
+sobreviveram todos — nenhum precisou mudar.
+
+| # | O que o plano fixava | O que a realidade impôs | Alternativa descartada |
+|---|---|---|---|
+| `D-002` | A opção Joi `errors: { wrap: { label: '' } }` na etapa 2.3 | String vazia faz o Joi lançar **na construção do schema**: o processo quebraria sempre, inclusive com o `.env` completo. A forma documentada é `label: false`, e ela produz exatamente a linha `DATABASE_URL is required` que o critério cobra | Reescrever a mensagem à mão por chave, com `.messages()` — duplica o texto do requisito em cada campo e faz variável nova nascer sem a regra |
+| `D-003` | A etapa 2.1 lista as dependências NestJS **sem fixar versão** | O `@nestjs/config` 12.0.0 reformulou `validationOptions` para o protocolo Standard Schema: o objeto plano que o critério estrutural cobra literalmente não compila (`TS2353`), e o erro de tipo impede `nest build` e `nest start` — derrubando também os quatro critérios comportamentais. Conjunto fixado na linha 11.x | Adotar a linha 12 e reescrever o registro: reprova um critério aprovado, e mudar critério aprovado é decisão sua, não de um agent de madrugada |
+| `D-004` | `NestFactory.create(AppModule, { abortOnError: false })` bastaria para suprimir o stack trace (etapa 2.7) | `abortOnError: false` só troca `process.abort()` por exceção relançada; o `ExceptionHandler` do Nest chama `Logger.error` **antes e incondicionalmente**. O critério exige uma única linha em `/tmp/boot.log`, sem nenhuma começando com quatro espaços e `at `. Resolvido com `logger: false` na mesma chamada | Escrever um `LoggerService` próprio que filtre erro de inicialização — constrói agora a peça que o log estruturado com correlação vai construir na hora certa |
+| `D-005` | A etapa 2.1 não lista `class-validator` nem `class-transformer` | O construtor do `ValidationPipe` (que a etapa 2.7 exige) carrega os dois **na construção**; sem eles o `@nestjs/common` executa `process.exit(1)` direto, sem lançar — o `try`/`catch` não alcança. Com o `logger: false` de `D-004` no lugar, o processo morria **mudo** e os cinco critérios comportamentais reprovavam sem sintoma | Adiar o `ValidationPipe` para a fase que tiver a primeira entrada de usuário — faria a proteção depender de alguém lembrar dela no item `002` |
+| `D-006` | A etapa 2.8 cria um script `.ts` e a etapa 2.1 não declara nada que o execute | `ts-jest` só roda dentro do Jest, o `@nestjs/cli` compila a aplicação, e `node --experimental-strip-types` não processa `emitDecoratorMetadata` — sem os metadados dos decoradores o contrato sai sem schema. Resolvido com `ts-node --transpile-only` | Compilar antes e executar o JavaScript de `dist/` — contrato gerado de artefato velho é justamente a divergência silenciosa que o gate de contrato existe para pegar |
+
+**A decisão sua que `D-003` deixa aberta:** a atualização para NestJS 12 tem o
+mesmo formato de `D-001` — é barata agora, com uma rota e um schema, e cresce a
+cada fase. O lugar dela é um item de roadmap.
+
+### Divergências da revisão e da auditoria de segurança
+
+Quatro a mais, todas `normal`, todas com medição por trás. Elas não vieram do
+plano estar errado sobre *o quê* — vieram de a auditoria medir o **custo** de
+soluções que pareciam baratas.
+
+| # | O que estava assim | O que a medição mostrou | Alternativa descartada |
+|---|---|---|---|
+| `D-007` | `logger: false` no `NestFactory.create`, ratificado em `D-004` para limpar o stack trace do boot | `logger: false` chama `Logger.overrideLogger(false)`, que zera o `Logger` **estático e global**: o efeito dura o processo inteiro, não o boot. Medido em processos isolados — com ele, uma exceção não tratada devolve `500` ao cliente e loga **0 byte**; sem ele, 2982 bytes. Quem sonda a API provocando 500s não deixa rastro nenhum. A validação migrou para antes do `NestFactory`, e o `logger: false` saiu | Reativar o logger depois do `listen` — depende de uma linha que ninguém lembra de manter, e o intervalo até lá continua mudo |
+| `D-008` | `ValidationPipe` registrado por `app.useGlobalPipes` no `main.ts` | O teste de integração monta **outra** aplicação, sem pipe. Medido com um DTO e payload com campos extras: o app do teste devolve `201` aceitando `role` e `organizationId`; o de produção devolve `400`. Hoje é inócuo — `GET /health` não tem corpo —, mas quando `002` trouxer o primeiro `POST` a suíte vai aprovar um app que aceita mass-assignment enquanto produção roda outro. Migrado para provider `APP_PIPE` no módulo | Chamar `useGlobalPipes` também no teste — fecha este teste e deixa o próximo aberto |
+| `D-009` | `generate-openapi.ts` boota o `AppModule` inteiro para gerar o contrato | O `AppModule` carrega o `ConfigModule` com `validationSchema`, então gerar o contrato exige `DATABASE_URL` e `NODE_ENV` para produzir um documento que não toca banco. O `.env` é gitignored, logo **o job de contrato do CI falha** — verifiquei escondendo o `.env`: `Exit status 1`. O caminho de menor resistência para quem topar com isso é colar uma connection string no workflow | Definir variáveis fictícias no script — faz o comando passar escondendo o acoplamento |
+| `D-010` | `envFilePath: ['../../.env']` | Caminho relativo resolve contra o `cwd`, não contra o módulo: com o cwd na raiz do repositório, `../../.env` aponta para `/home/euclidesgc/.env` — **fora do projeto** —, e com `allowUnknown: true` toda chave desse arquivo alheio entra sem filtro. Não é explorável hoje, e passa a ser com um `Dockerfile` de `WORKDIR /app` ou um runner compartilhado. Resolvido de forma absoluta a partir do módulo | Duplicar o `.env` dentro de `apps/api` — desfaz a decisão que a própria etapa 2.4 justifica |
 
 ### Achados encaminhados, não aplicados
 
