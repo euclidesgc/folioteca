@@ -132,6 +132,34 @@ Quando aparecer um bloqueio, o ciclo é seu, do começo ao fim:
 O antipadrão que isto existe para impedir: tirar o rótulo e mergear. A trava
 não é do rótulo, é do problema.
 
+## Portão declara o que mediu, e a segunda reincidência vira worktree
+
+Um portão faz **duas** perguntas, e quase todo mundo escreve só a segunda:
+*consegui medir?* e *o que medi?* Quando a primeira fica implícita, o predicado
+responde igual para "procurei e não achei" e para "não consegui procurar" — e o
+portão aprova por não ter medido.
+
+Use `scripts/gates/medir.sh` em todo portão novo: `exige_caminho`,
+`exige_comando`, `exige_escrita` e `conta_sob` fazem a primeira pergunta falhar
+fechada, ancoradas na raiz do repositório e não no diretório corrente, que muda
+debaixo de você. E **imprima o que mediu** — portão que não diz o número não
+pode ser auditado.
+
+Três formas que já enganaram este repositório:
+
+| Forma | Por que mente |
+|---|---|
+| `find <dir> -name '*.ts'` | vazio se não há fonte **e** se o diretório não existe |
+| `<gera> && git diff --exit-code <arq>` | zero se está idêntico **e** se o gerador não escreveu nada — use `exige_escrita` |
+| contador de "sem progresso" que inclui CPU | CPU sempre sobe, então o limite nunca é atingido |
+
+**A regra inegociável da reincidência:** quando o mesmo erro acontecer pela
+**segunda** vez, pare de remendar o caso. Abra uma worktree, em paralelo, e
+resolva a causa raiz — com asserção, com teste que prove que ela morde, e com a
+regra escrita onde a próxima sessão a leia. Depois libere a worktree. Corrigir a
+terceira ocorrência do mesmo defeito custa mais que consertar a classe inteira,
+e ensina que remendar é aceitável.
+
 ## Antes de dar qualquer coisa por pronta
 
 ```bash

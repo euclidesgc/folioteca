@@ -39,7 +39,8 @@ estado vive em `product/state.json` e `/harness:status` o resume.
     custo de varrer arquivos.
 18. Saída de comando se estreita na origem (`--stat`, `-n`, reporter compacto,
     `| tail`), nunca por camada que resume depois.
-19. Antes de dar algo por pronto, rode `bash scripts/gates/gates_runner.sh`.
+19. Rode `bash scripts/gates/gates_runner.sh` antes de dar algo por pronto.
+    Portão que não conseguiu medir reprova.
 20. `/harness:doctor` diagnostica ambiente, hooks e coerência do estado.
 
 O detalhe de cada regra — o porquê, o exemplo certo e errado, as isenções —
