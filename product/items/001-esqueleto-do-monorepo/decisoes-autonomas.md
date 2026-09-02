@@ -39,6 +39,50 @@ obrigou a resolver. Todas são reversíveis numa fase.
 | D17 | **O schema de configuração validado no boot declara exatamente `NODE_ENV`, `PORT` e `DATABASE_URL`**, com `allowUnknown: true` para as demais linhas do modelo; `NODE_ENV` e `DATABASE_URL` são obrigatórias e só `PORT` tem padrão (`3000`) | Exigir no boot todas as variáveis que o `.env.example` lista; ou deixar só `DATABASE_URL` obrigatória | O modelo já traz `JWT_SECRET`, `SMTP_*` e `ENCRYPTION_KEY`, que são do item `002` em diante. Exigi-las agora faria a API recusar subir por segredo que nenhuma linha de código lê — falha de configuração inventada, o oposto do que RF-05 quer. O critério estrutural da Fase 2 usa a palavra "exatamente", o que também impede alguém acrescentá-las por engano depois. Duas obrigatórias, e não uma: RF-05.3 exige que a saída liste **todas** as variáveis faltantes, uma por linha, e com uma só obrigatória o cenário de duas faltantes é impossível de provocar — o `abortEarly: false` ficaria sem teste que justificasse sua existência. `NODE_ENV=development` já está no modelo, então nenhum clone limpo quebra. |
 | D18 | **RF-11.4 se verifica em duas metades locais**: um `comportamental` que quebra a verificação de uma frente e observa o comando do fluxo sair não-zero, mais o `comando` estático que prova ausência de `continue-on-error` e de `\|\| true` nos três fluxos | Empurrar um commit quebrado ao GitHub para ver a execução do CI ficar vermelha | O validador de fase roda **antes** de o PR da fase existir, e sujar o histórico remoto para provar um critério é o oposto de reversível. A propagação de um job vermelho para a execução inteira é semântica padrão do GitHub Actions, e o que poderia desligá-la é exatamente `continue-on-error` e `\|\| true` — as duas metades juntas cobrem a frase que uma sozinha não cobre. |
 
+## Decisões de execução — Fase 1
+
+As três saíram da auditoria de segurança da fase, que rodou depois da
+implementação e antes do validador. Todas são reversíveis numa linha.
+
+| # | Decidido | Alternativa descartada | Por quê |
+|---|---|---|---|
+| D19 | **O Postgres publica em `127.0.0.1:5433`**, não em `0.0.0.0` | Manter a publicação em todas as interfaces, como o exemplo corrente do Compose | O `security-auditor` provou o alcance na máquina: `ss -ltn` mostrava `0.0.0.0:5433`, a estação tem dois endereços na `192.168.1.0/24`, e o `ufw` está ativo mas **não vale para porta publicada por contêiner** — o DNAT do Docker entra antes das regras dele. Com a credencial `folioteca:senha` versionada no modelo e sendo o superusuário do cluster, qualquer aparelho na mesma rede entraria e usaria `COPY ... TO PROGRAM`. O critério estrutural cobra a publicação `5433:5432`, que a linha continua contendo. |
+| D20 | **O diretório de inicialização do Postgres é montado só para leitura** (`:ro`) | Montagem padrão, leitura e escrita | Mesma cadeia do D19: montado com escrita, o superusuário do banco escreve dentro de `docker/postgres/init/` na árvore de trabalho — arquivo que o próximo volume novo executa como SQL e que um `git add .` distraído comita. O `:ro` fecha o caminho de volta sem tirar nada: a imagem só lê esse diretório. |
+| D21 | **O script `dev` materializa o `.env` com `install -m 600`**, não com `cp` | O método literal `cp .env.example .env` que a etapa 1.2 do plano fixa | O `cp` herda o modo do modelo (`-rw-rw-r--`), e o arquivo que nasce dali é o que vai guardar `JWT_SECRET` e `ENCRYPTION_KEY` a partir do item `002` — legível por qualquer uid da máquina. A etapa 1.2 fixa um **método**, não um critério: o critério de RF-02.1 cobra `docker compose up -d --wait` e `pnpm -r --parallel` no script, e os dois seguem lá. A guarda `[ -f .env ] ||` contra sobrescrita permanece. |
+
+### Achados de segurança encaminhados, não aplicados nesta fase
+
+Nenhum destes cabe na Fase 1, e nenhum vira TODO no código (regra 12). Ficam
+aqui, e no PR, para virar decisão do dono.
+
+- **`ignore-scripts=true` no `.npmrc`.** Fecharia a classe de ataque
+  `event-stream`/Shai-Hulud, em que o `postinstall` de uma dependência
+  transitiva executa com o uid de quem instala. Não foi aplicado porque muda a
+  política de instalação do monorepo inteiro e quebra em silêncio o que depende
+  de passo de pós-instalação — `prisma generate` na Fase 2, o binário do esbuild
+  na Fase 3 —, e o plano aprovado não prevê a allowlist que compensaria. É
+  barato agora e caro depois da Fase 2: **decisão do dono**, e o lugar dela é um
+  item de roadmap.
+- **Nenhum portão cobre a regra 14 ("segredo nunca no repositório").** Os
+  portões existentes são G3, G4, G5 e G7, e os fluxos de CI não rodam `gitleaks`
+  nem verificam `.env` rastreado — a regra é sustentada só por disciplina. Um
+  portão que rode `gitleaks detect --no-git` e reprove `.env` sob `git ls-files`
+  fecharia isso. Fora do escopo da Fase 1, que não toca `scripts/gates/`.
+- **`.env` único da raiz com `JWT_SECRET` vazio.** O auditor aponta que, quando
+  o item `002` introduzir o token de sessão, um schema que valide só *presença*
+  aceita `''`, e HS256 com chave vazia é assinatura forjável por qualquer um.
+  Não é defeito desta fase: por D17, o schema de boot declara exatamente
+  `NODE_ENV`, `PORT` e `DATABASE_URL`, e nenhuma linha lê `JWT_SECRET`. Fica
+  registrado como a exigência que o item `002` tem de cumprir — comprimento
+  mínimo, não presença.
+
+### Divergência aberta na fase
+
+- **`D-001` — a versão de pnpm fixada no plano acumula advisories abertas.**
+  Tipo `normal`, status `PENDENTE`. A fase seguiu na opção recomendada, que é
+  manter `pnpm@9.12.0`, e o PR nasce marcado `blocked-on-D-001`. O arquivo é
+  `04-divergencias/D-001.md`.
+
 ## Aprovações registradas em modo autônomo
 
 Cada linha aqui é um `state.py approve` que o humano **não** deu.
