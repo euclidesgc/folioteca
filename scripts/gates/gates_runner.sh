@@ -16,15 +16,16 @@
 # Cada gate é um script independente que recebe a lista de arquivos por stdin
 # e imprime uma linha por violação, no formato `arquivo:linha:trecho`.
 #
-# Depois dos gates declarados vem o portão de segredo, que não cabe no molde
-# acima: `.harness/gates.json` fala de arquivos por stdin e violações por
-# stdout, com o código de saída ignorado, e metade do que o portão de segredo
-# precisa dizer é que **não conseguiu medir**. Declarado ali, a reprovação por
-# medição impossível viraria aprovação silenciosa; por isso ele é invocado
-# aqui, com o código de saída propagado.
+# Depois dos gates declarados vêm os portões diretos — quarentena de
+# dependência, ações do CI em SHA e segredo —, que não cabem no molde acima:
+# `.harness/gates.json` fala de arquivos por stdin e violações por stdout, com o
+# código de saída ignorado, e metade do que cada um deles precisa dizer é que
+# **não conseguiu medir**. Declarados ali, a reprovação por medição impossível
+# viraria aprovação silenciosa; por isso são invocados aqui, com o código de
+# saída propagado.
 #
 # Modos:
-#   gates_runner.sh                  roda os gates e o portão de segredo
+#   gates_runner.sh                  roda os gates e os três portões diretos
 #   gates_runner.sh --diff-only      força avaliação apenas do diff
 #   gates_runner.sh --all            força avaliação da árvore inteira
 #   gates_runner.sh --count-json     imprime a contagem por gate/arquivo (baseline)
@@ -35,7 +36,10 @@
 # constroem as outras duas, e sem a flag reprovariam por artefato ausente em
 # todo PR — reprovação verdadeira sobre uma pergunta que aquele job não deveria
 # estar fazendo. Quem cobra o portão de segredo é a execução sem flag, que
-# `.github/workflows/portoes.yml` roda depois dos três builds.
+# `.github/workflows/portoes.yml` roda depois dos três builds. A quarentena e as
+# ações em SHA continuam cobradas nos dois modos: nenhuma das duas lê artefato de
+# build, e tirá-las do modo sem artefatos deixaria os três fluxos por frente —
+# por onde quase todo PR passa — sem cobrança sobre os dois números.
 
 set -uo pipefail
 
@@ -230,6 +234,9 @@ VEREDICTO=$?
 case "$MODE" in
   count|baseline) exit "$VEREDICTO" ;;
 esac
+
+bash "$ROOT/scripts/gates/quarentena.sh" || VEREDICTO=1
+bash "$ROOT/scripts/gates/acoes_em_sha.sh" || VEREDICTO=1
 
 if [ "$SEM_ARTEFATOS" -eq 1 ]; then
   echo "portão de segredo: não cobrado neste modo — quem o roda constrói antes o que ele varre."

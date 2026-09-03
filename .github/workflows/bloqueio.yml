@@ -18,7 +18,7 @@ jobs:
       # A verificação passou a morar em `scripts/gates/`, testada, então o job
       # precisa da árvore. Enquanto ela era uma linha de shell no YAML, não
       # precisava — e era exatamente por caber numa linha que ninguém a testou.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: A trava morde o rótulo indentado
         run: bash scripts/gates/__tests__/bloqueio.test.sh
       - name: Nenhum rótulo blocked-on-*

@@ -22,3 +22,13 @@ allowBuilds:
 # terceiro entrar no gerador.
 overrides:
   js-yaml: ">=4.3.2"
+
+# Versão publicada há menos de sete dias não entra na resolução. As campanhas
+# recentes de publicação maliciosa em npm foram detectadas e despublicadas
+# dentro dessa janela, e é dela que a espera tira o número: 10080 minutos. Mais
+# que isso começa a atrasar correção de segurança legítima, que também chega por
+# versão nova. Quem for tentado a baixar o valor precisa encontrar o argumento
+# aqui, junto do número — e `scripts/gates/quarentena.sh` compara a leitura de
+# `pnpm config get minimumReleaseAge` com ele, porque `undefined` não distingue
+# "não configurei" de "troquei um caractere".
+minimumReleaseAge: 10080

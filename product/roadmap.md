@@ -54,6 +54,21 @@ PR e commit já escritos.
       a vulnerável que já está no lockfile — são portas diferentes, e só uma
       delas fecha em `023`.
 
+- [ ] `041-a-rotina-alcanca-os-pacotes-de-javascript` — as dependências das três
+      frentes voltam à versão corrente por PR de robô, como as ações do CI já
+      voltam, em vez de envelhecerem até alguém reparar
+      **Depende de:** `027-vulnerabilidade-conhecida-reprova-no-ci` — é a
+      auditoria que dá a quem julga o PR o critério escrito para aprovar ou
+      recusar; sem ela o robô abre PR semanal que ninguém sabe decidir (D14).
+      **Origem:** fase 5 de `023-endurecimento-antes-da-sessao`, ver
+      `04-divergencias/D-011.md`. A quarentena de sete dias obrigou a rebaixar
+      quatro dependências fixadas dentro da janela — `jest` para `30.4.2`, `next`
+      e `@next/eslint-plugin-next` para `16.3.3`, `typescript-eslint` para
+      `8.68.0` e `@vitejs/plugin-react` para `6.1.0`. Todas já amadureceram
+      quando alguém ler isto, e nada as trará de volta: o `.github/dependabot.yml`
+      que a mesma fase criou declara só `github-actions`. Enquanto este item não
+      existir, subir versão de dependência continua sendo trabalho à mão.
+
 - [ ] `024-o-lint-reprova-o-que-diz-cobrar` — o script `lint` das três frentes
       reprova o que hoje ele apenas avisa, e a marca de comentário de
       justificativa que o portão G3 reconhece vale também em inglês

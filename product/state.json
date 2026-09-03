@@ -293,19 +293,19 @@
           "por": "autonomo"
         },
         "spec": {
-          "at": "2026-09-03T22:08:04Z",
-          "sha": "1929f7ad1e3a294d37a7936800be7aef88db3adc",
+          "at": "2026-09-03T16:23:34Z",
+          "sha": "79b328ca1cda866cd3d0667cb2c5d595a88989cf",
           "file": "product/items/023-endurecimento-antes-da-sessao/02-spec.md",
           "por": "autonomo"
         },
         "plan": {
-          "at": "2026-09-03T22:08:04Z",
-          "sha": "326deac98d33b31057aa16674901d0e4d5fb8ec3",
+          "at": "2026-09-03T16:23:34Z",
+          "sha": "0a054f5d9faf6b58fd21c6041e56d8f2bb1fa602",
           "file": "product/items/023-endurecimento-antes-da-sessao/03-plan.md",
           "por": "humano"
         }
       },
-      "current_phase": 4,
+      "current_phase": 5,
       "phases": {
         "1": {
           "status": "aprovada",
@@ -366,6 +366,17 @@
             "apps/site": "c40cb4778ae97ac94831f01ef68f76e34d956ab8",
             "apps/web": "0cf0f8ba163abd68660669963dd7b6b138664388"
           }
+        },
+        "5": {
+          "status": "em_execucao",
+          "reproved_count": 0,
+          "verdict": null,
+          "verdict_file": null,
+          "validated_sha": null,
+          "pr": null,
+          "blocked_on": [
+            "D-011"
+          ]
         }
       },
       "divergences": {
@@ -465,6 +476,14 @@
           "aprovada_at": "2026-09-03T17:03:36Z",
           "ratificada_por": "humano",
           "ratificacao_humana_at": "2026-09-03T19:23:49Z"
+        },
+        "D-011": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 5,
+          "detected_at": "2026-09-03T17:57:37Z",
+          "aprovada_at": "2026-09-03T17:57:37Z",
+          "ratificada_por": "autonomo"
         }
       },
       "criteria_exception": null
