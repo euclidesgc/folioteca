@@ -17,5 +17,17 @@ jobs:
         run: bash scripts/gates/__tests__/medir.test.sh
       - name: a fronteira de agent nomeia agents que existem
         run: bash scripts/gates/__tests__/fronteira-de-agent.test.sh
+      - name: G8 morde o documento de divergência que mente
+        run: bash scripts/gates/__tests__/status-de-divergencia.test.sh
       - name: o estado ancora na raiz do repositório, não no diretório corrente
         run: bash scripts/harness/__tests__/state.test.sh
+
+  divergencias:
+    name: O D-nnn.md e o state.json dizem o mesmo status
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: G8 sobre todas as divergências
+        run: |
+          violacoes="$(bash scripts/gates/gate8_divergence_status.sh < /dev/null)"
+          [ -z "$violacoes" ] || { printf '%s\n' "$violacoes"; exit 1; }

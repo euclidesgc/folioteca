@@ -16,7 +16,8 @@ estado vive em `product/state.json` e `/harness:status` o resume.
    adjetivo não é critério.
 6. A DoD global é do CI e não se repete no plano.
 7. Documento canônico não tem cicatriz: reescreve-se no presente.
-8. Docs não mentem — reconciliação no mesmo PR.
+8. Docs não mentem — reconciliação no mesmo PR. O `D-nnn.md` e o
+   `product/state.json` dizem o mesmo status da divergência, e o portão G8 cobra.
 9. Uma fase é um PR. A pilha é `gh stack`, nunca `--base` à mão.
 10. "Pronto" é build verde com testes passando, nunca opinião.
 
