@@ -292,8 +292,10 @@
           "por": "autonomo"
         },
         "plan": {
-          "at": null,
-          "sha": null
+          "at": "2026-09-03T11:06:48Z",
+          "sha": "42b11ae92acc86ed0c1935d3ed123649e02d40dc",
+          "file": "product/items/023-endurecimento-antes-da-sessao/03-plan.md",
+          "por": "autonomo"
         }
       },
       "current_phase": null,
