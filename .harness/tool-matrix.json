@@ -19,7 +19,8 @@
         "mcp__code-review-graph__get_minimal_context_tool",
         "mcp__code-review-graph__get_impact_radius_tool",
         "mcp__code-review-graph__detect_changes_tool"
-      ]
+      ],
+      "origem": "nucleo"
     },
     "doc-writer": {
       "writes": [
@@ -31,7 +32,8 @@
         "WebFetch",
         "WebSearch"
       ],
-      "mcp_allow": []
+      "mcp_allow": [],
+      "origem": "nucleo"
     },
     "plan-writer": {
       "writes": [
@@ -47,7 +49,8 @@
         "mcp__code-review-graph__get_impact_radius_tool",
         "mcp__code-review-graph__get_architecture_overview_tool",
         "mcp__code-review-graph__get_knowledge_gaps_tool"
-      ]
+      ],
+      "origem": "nucleo"
     },
     "phase-validator": {
       "writes": [],
@@ -62,7 +65,8 @@
       ],
       "mcp_allow": [
         "mcp__code-review-graph__query_graph_tool"
-      ]
+      ],
+      "origem": "nucleo"
     },
     "criteria-auditor": {
       "writes": [],
@@ -76,7 +80,8 @@
         "WebFetch",
         "WebSearch"
       ],
-      "mcp_allow": []
+      "mcp_allow": [],
+      "origem": "nucleo"
     },
     "divergence-auditor": {
       "writes": [],
@@ -89,7 +94,8 @@
         "WebFetch",
         "WebSearch"
       ],
-      "mcp_allow": []
+      "mcp_allow": [],
+      "origem": "nucleo"
     },
     "doc-reconciler": {
       "writes": [
@@ -101,7 +107,8 @@
         "WebFetch",
         "WebSearch"
       ],
-      "mcp_allow": []
+      "mcp_allow": [],
+      "origem": "nucleo"
     },
     "security-auditor": {
       "writes": [],
@@ -116,7 +123,8 @@
         "mcp__code-review-graph__query_graph_tool",
         "mcp__code-review-graph__get_impact_radius_tool",
         "mcp__code-review-graph__semantic_search_nodes_tool"
-      ]
+      ],
+      "origem": "nucleo"
     },
     "test-runner": {
       "writes": [],
@@ -129,7 +137,8 @@
         "WebFetch",
         "WebSearch"
       ],
-      "mcp_allow": []
+      "mcp_allow": [],
+      "origem": "nucleo"
     },
     "react-implementer": {
       "writes": [
@@ -145,7 +154,8 @@
         "mcp__code-review-graph__semantic_search_nodes_tool",
         "mcp__code-review-graph__query_graph_tool",
         "mcp__code-review-graph__get_minimal_context_tool"
-      ]
+      ],
+      "origem": "pack"
     },
     "react-reviewer": {
       "writes": [],
@@ -163,7 +173,8 @@
         "mcp__code-review-graph__detect_changes_tool",
         "mcp__code-review-graph__get_impact_radius_tool",
         "mcp__code-review-graph__query_graph_tool"
-      ]
+      ],
+      "origem": "pack"
     },
     "nest-implementer": {
       "writes": [
@@ -179,7 +190,8 @@
         "mcp__code-review-graph__semantic_search_nodes_tool",
         "mcp__code-review-graph__query_graph_tool",
         "mcp__code-review-graph__get_minimal_context_tool"
-      ]
+      ],
+      "origem": "pack"
     },
     "nest-reviewer": {
       "writes": [],
@@ -197,7 +209,8 @@
         "mcp__code-review-graph__detect_changes_tool",
         "mcp__code-review-graph__get_impact_radius_tool",
         "mcp__code-review-graph__query_graph_tool"
-      ]
+      ],
+      "origem": "pack"
     },
     "contract-guardian": {
       "writes": [
@@ -209,7 +222,8 @@
         "WebFetch",
         "WebSearch"
       ],
-      "mcp_allow": []
+      "mcp_allow": [],
+      "origem": "pack"
     }
   }
 }
