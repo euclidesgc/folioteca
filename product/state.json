@@ -58,10 +58,7 @@
           "verdict_file": "product/items/001-esqueleto-do-monorepo/05-veredictos/fase-3.md",
           "validated_sha": "fef04e605e635ebbfff3396eb3f4b9d41d9d685c",
           "pr": null,
-          "blocked_on": [
-            "D-011",
-            "D-012"
-          ],
+          "blocked_on": [],
           "verdict_at": "2026-09-03T07:39:11Z",
           "validated_trees": {
             "apps/api": "5834265686640bd4edbee3e5fc00f1a94de3e48a",
@@ -317,12 +314,7 @@
           "verdict_file": "product/items/023-endurecimento-antes-da-sessao/05-veredictos/fase-1.md",
           "validated_sha": "2bb7fe48c299a34a91227d4e2d82a68dd4c0f0ef",
           "pr": null,
-          "blocked_on": [
-            "D-002",
-            "D-003",
-            "D-005",
-            "D-006"
-          ],
+          "blocked_on": [],
           "verdict_at": "2026-09-03T12:18:47Z",
           "validated_trees": {
             "apps/api": "94d817949b25e9e6f2c28fb9d817a444f2e4bb32",
@@ -348,8 +340,9 @@
           "phase": 1,
           "detected_at": "2026-09-03T11:36:28Z",
           "aprovada_at": "2026-09-03T11:36:31Z",
-          "ratificada_por": "autonomo",
-          "reconciliada_at": "2026-09-03T12:06:51Z"
+          "ratificada_por": "humano",
+          "reconciliada_at": "2026-09-03T12:06:51Z",
+          "ratificacao_humana_at": "2026-09-03T19:23:48Z"
         },
         "D-003": {
           "status": "RECONCILIADA",
@@ -357,8 +350,9 @@
           "phase": 1,
           "detected_at": "2026-09-03T11:36:28Z",
           "aprovada_at": "2026-09-03T11:36:31Z",
-          "ratificada_por": "autonomo",
-          "reconciliada_at": "2026-09-03T12:06:51Z"
+          "ratificada_por": "humano",
+          "reconciliada_at": "2026-09-03T12:06:51Z",
+          "ratificacao_humana_at": "2026-09-03T19:23:48Z"
         },
         "D-004": {
           "status": "RECONCILIADA",
@@ -366,8 +360,9 @@
           "phase": 4,
           "detected_at": "2026-09-03T11:36:28Z",
           "aprovada_at": "2026-09-03T11:36:31Z",
-          "ratificada_por": "autonomo",
-          "reconciliada_at": "2026-09-03T12:06:51Z"
+          "ratificada_por": "humano",
+          "reconciliada_at": "2026-09-03T12:06:51Z",
+          "ratificacao_humana_at": "2026-09-03T19:23:48Z"
         },
         "D-005": {
           "status": "RECONCILIADA",
@@ -375,8 +370,9 @@
           "phase": 1,
           "detected_at": "2026-09-03T11:45:12Z",
           "aprovada_at": "2026-09-03T11:45:12Z",
-          "ratificada_por": "autonomo",
-          "reconciliada_at": "2026-09-03T12:06:51Z"
+          "ratificada_por": "humano",
+          "reconciliada_at": "2026-09-03T12:06:51Z",
+          "ratificacao_humana_at": "2026-09-03T19:23:49Z"
         },
         "D-006": {
           "status": "RECONCILIADA",
@@ -384,8 +380,9 @@
           "phase": 1,
           "detected_at": "2026-09-03T11:56:47Z",
           "aprovada_at": "2026-09-03T11:56:47Z",
-          "ratificada_por": "autonomo",
-          "reconciliada_at": "2026-09-03T12:06:51Z"
+          "ratificada_por": "humano",
+          "reconciliada_at": "2026-09-03T12:06:51Z",
+          "ratificacao_humana_at": "2026-09-03T19:23:49Z"
         }
       },
       "criteria_exception": null
