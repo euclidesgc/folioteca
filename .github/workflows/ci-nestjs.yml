@@ -3,13 +3,30 @@ name: NestJS
 on:
   push:
     branches: [main, develop]
-    paths: ["apps/api/**", "scripts/gates/**", ".github/workflows/ci-nestjs.yml"]
+    paths:
+      - "apps/api/**"
+      - "apps/web/src/shared/api/generated/**"
+      - "scripts/gates/**"
+      - ".github/workflows/ci-nestjs.yml"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
   pull_request:
-    paths: ["apps/api/**", "scripts/gates/**", ".github/workflows/ci-nestjs.yml"]
+    paths:
+      - "apps/api/**"
+      - "apps/web/src/shared/api/generated/**"
+      - "scripts/gates/**"
+      - ".github/workflows/ci-nestjs.yml"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
 
-defaults:
-  run:
-    working-directory: apps/api
+# O teto de permissão fica escrito aqui, e não na configuração da organização:
+# lá ele muda por um clique que não aparece em diff nenhum, e o dia em que
+# virar "read and write" é o dia em que uma ação de terceiro comprometida
+# escreve na branch com o token que o checkout deixou no disco.
+permissions:
+  contents: read
 
 jobs:
   # Simétrica à guarda do fluxo da web, e pela mesma razão: `apps/api` nasce
@@ -23,12 +40,7 @@ jobs:
       pronto: ${{ steps.olha.outputs.pronto }}
     steps:
       - uses: actions/checkout@v4
-      # `working-directory` do topo do arquivo vale para todo `run`, inclusive
-      # este. Sem o `.` a busca vira `apps/api/apps/api/src` e nunca acha nada — a guarda
-      # respondia "não há código" para tudo, e os portões saíam verdes por não
-      # terem medido. É o defeito que a guarda existia para impedir.
       - id: olha
-        working-directory: .
         run: |
           source scripts/gates/medir.sh
           # exige_caminho reprova se apps/api sumir: aí não é "não há código", é
@@ -48,9 +60,66 @@ jobs:
             echo "::notice::apps/api não tem código-fonte ainda (medido: 0). Os portões dele passam a valer na fase que o construir."
           fi
 
-  qualidade:
+  # Contrato divergente reprova antes de qualquer teste rodar: um cliente gerado
+  # de um contrato que o código não produz mais quebra em runtime, no consumidor
+  # que ninguém testou, e gastar minutos de teste sobre essa premissa só atrasa a
+  # notícia. `qualidade` e `integracao` dependem deste job e de mais nada: um
+  # `needs` pulado ou reprovado pula quem depende dele, e é essa aresta — não uma
+  # condição repetida em cada job — que faz o veredicto da guarda chegar lá.
+  contrato:
     needs: guarda
     if: needs.guarda.outputs.pronto == 'true'
+    name: Contrato OpenAPI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: "pnpm-lock.yaml"
+
+      - name: Dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: Os pacotes deste fluxo estão no workspace
+        run: |
+          source scripts/gates/medir.sh
+          exige_pacote_pnpm api "o pacote da API"
+          exige_pacote_pnpm web "o pacote da web, cujo cliente o contrato gera"
+
+      # São dois pares versionados, não um: código→contrato e contrato→cliente.
+      # `git diff --exit-code` sai 0 tanto quando gerou igual quanto quando o
+      # gerador não escreveu nada, então cada par exige antes a prova de que o
+      # gerador rodou.
+      - name: Os dois pares versionados são o que o código gera
+        run: |
+          source scripts/gates/medir.sh
+          antes="$(date +%s)"
+          sleep 1
+          pnpm contract
+          exige_escrita apps/api/openapi.json "$antes"
+          exige_escrita apps/web/src/shared/api/generated/types.gen.ts "$antes"
+          git diff --exit-code apps/api/openapi.json || {
+            echo "::error::O contrato apps/api/openapi.json não é o que o código da API gera. Rode 'pnpm contract' e comite o par inteiro."
+            exit 1
+          }
+          git diff --exit-code apps/web/src/shared/api/generated || {
+            echo "::error::O cliente apps/web/src/shared/api/generated não é o que o contrato gera. Rode 'pnpm contract' e comite o par inteiro."
+            exit 1
+          }
+          # `git diff` só enxerga arquivo rastreado. Um gerador que passe a
+          # emitir um arquivo novo deixaria os dois pares batendo e o cliente
+          # commitado incompleto.
+          if git status --porcelain --untracked-files=all -- apps/api/openapi.json apps/web/src/shared/api/generated | grep -q '^??'; then
+            git status --porcelain --untracked-files=all -- apps/api/openapi.json apps/web/src/shared/api/generated
+            echo "::error::A geração produziu arquivo que não está versionado. Comite-o junto do par."
+            exit 1
+          fi
+
+  qualidade:
+    needs: contrato
     name: Lint, tipos e testes
     runs-on: ubuntu-latest
     steps:
@@ -65,21 +134,24 @@ jobs:
           cache-dependency-path: "pnpm-lock.yaml"
 
       - name: Dependências
-        working-directory: .
         run: pnpm install --frozen-lockfile
 
+      - name: Os pacotes deste fluxo estão no workspace
+        run: |
+          source scripts/gates/medir.sh
+          exige_pacote_pnpm api "o pacote da API"
+
       - name: Lint
-        run: pnpm lint
+        run: pnpm --filter api run lint
 
       - name: Tipos
-        run: pnpm exec tsc --noEmit
+        run: pnpm --filter api run typecheck
 
       - name: Testes de unidade
-        run: pnpm test
+        run: pnpm --filter api run test
 
   integracao:
-    needs: guarda
-    if: needs.guarda.outputs.pronto == 'true'
+    needs: contrato
     name: Integração
     runs-on: ubuntu-latest
     # O banco é real, com a extensão de vetores, porque é o que a plataforma
@@ -90,11 +162,12 @@ jobs:
         image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: folioteca
-          # Sem literal de senha em arquivo versionado. O banco é efêmero e
-          # morre com o runner, mas senha escrita à mão num YAML é achado de
-          # scanner com razão — e a exceção "esta aqui é inofensiva" é como
-          # todas as outras começam. O valor sai do identificador da execução:
-          # único por corrida, e nada a rotacionar.
+          # Credencial descartável de um banco que só este runner efêmero
+          # alcança — não é segredo, e não pode virar um. O identificador da
+          # corrida é público (está na URL da execução) e viaja inteiro na
+          # DATABASE_URL abaixo, então o que protege este banco é o isolamento
+          # de rede do runner, não o valor. No dia em que o job mudar para
+          # runner próprio, o `ports:` publicado é o que precisa sair.
           POSTGRES_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}
           POSTGRES_DB: folioteca
         ports: ["5432:5432"]
@@ -114,18 +187,22 @@ jobs:
           cache-dependency-path: "pnpm-lock.yaml"
 
       - name: Dependências
-        working-directory: .
         run: pnpm install --frozen-lockfile
+
+      - name: Os pacotes deste fluxo estão no workspace
+        run: |
+          source scripts/gates/medir.sh
+          exige_pacote_pnpm api "o pacote da API"
 
       # Os testes de integração sobem o banco em contêiner: rodar contra um
       # dublê provaria menos do que o critério comportamental exige.
       - name: Testes de integração
         run: |
-          if [ ! -d test ] || [ -z "$(find test -name '*.e2e-spec.ts' -print -quit)" ]; then
+          if [ ! -d apps/api/test ] || [ -z "$(find apps/api/test -name '*.e2e-spec.ts' -print -quit)" ]; then
             echo "::notice::Nenhum teste de integração neste app ainda — nada a medir."
             exit 0
           fi
-          pnpm test:integration
+          pnpm --filter api run test:integration
 
       # Migration pendente é o defeito que só aparece no deploy. Aqui ele
       # aparece no PR.
@@ -134,51 +211,23 @@ jobs:
       # percebe. Aqui ele diz, no log e em aviso do GitHub, que não mediu.
       - name: Migrations aplicáveis
         run: |
-          if [ ! -f prisma/schema.prisma ]; then
+          if [ ! -f apps/api/prisma/schema.prisma ]; then
             echo "::notice::Prisma ainda não existe neste repositório — nada a medir. Este portão passa a valer no item que introduzir o esquema."
             exit 0
           fi
-          pnpm exec prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel ./prisma/schema.prisma --exit-code || {
-            echo "::error::O esquema tem mudanças sem migration correspondente."
-            exit 1
-          }
-
-  contrato:
-    needs: guarda
-    if: needs.guarda.outputs.pronto == 'true'
-    name: Contrato OpenAPI
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: pnpm
-          cache-dependency-path: "pnpm-lock.yaml"
-
-      - name: Dependências
-        working-directory: .
-        run: pnpm install --frozen-lockfile
-
-      # O contrato commitado precisa ser o que o código gera. Divergência aqui
-      # significa que alguém mudou a API sem regenerar — e o cliente quebra em
-      # runtime, no consumidor que ninguém testou.
-      # `git diff --exit-code` sai 0 tanto quando gerou igual quanto quando o
-      # gerador não escreveu nada; a prova de que ele rodou é o arquivo ter
-      # sido reescrito. É a segunda forma da tabela do prompt de sessão.
-      - name: Contrato commitado é o gerado
-        working-directory: .
-        run: |
-          source scripts/gates/medir.sh
-          antes="$(date +%s)"
-          sleep 1
-          (cd apps/api && pnpm run openapi:generate)
-          exige_escrita apps/api/openapi.json "$antes"
-          git diff --exit-code -- apps/api/openapi.json || {
-            echo "::error::O OpenAPI mudou. Rode 'pnpm run openapi:generate' e comite, junto com os clientes regenerados."
-            exit 1
-          }
+          codigo=0
+          pnpm --filter api exec prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel ./prisma/schema.prisma --exit-code || codigo=$?
+          case "$codigo" in
+            0) echo "medido: o esquema e as migrations dizem a mesma coisa." ;;
+            2)
+              echo "::error::O esquema tem mudanças sem migration correspondente."
+              exit 1
+              ;;
+            *)
+              echo "::error::prisma migrate diff não conseguiu medir (código $codigo) — não é drift, é medição impossível."
+              exit 1
+              ;;
+          esac
 
   gates:
     needs: guarda
@@ -190,7 +239,6 @@ jobs:
         with:
           fetch-depth: 0
       - name: Gates
-        working-directory: .
         env:
           HARNESS_DIFF_BASE: origin/${{ github.base_ref || 'develop' }}...HEAD
         run: bash scripts/gates/gates_runner.sh

@@ -126,6 +126,10 @@ Cada linha aqui é um `state.py approve` que o humano **não** deu.
 | `D-015` | Ratificação da divergência do `.gitignore` na opção recomendada (a) — a linha ganha etapa em vez de ficar só na decisão. O PR da Fase 4 nasce `blocked-on-D-015` | 03/09/2026 |
 | `plan` (três reaprovações) | `03-plan.md` reaprovado depois de cada reconciliação da Fase 4: por `D-014` (critérios de clone limpo, sha `2302c2d`), por `D-013` (etapa 4.1, sha `2444b44`) e por `D-015` (etapa 4.2, sha `3c86f00`). Cada reaprovação fecha a exceção que destravou a escrita e reamarra o "sim" ao conteúdo em vigor | 03/09/2026 |
 | `fase 4` | `05-veredictos/fase-4.md` — veredicto `APROVADO` do `phase-validator` cego, que mediu os cinco critérios por conta própria: verificou as portas livres antes do critério 4, executou os dois clones literais, e confirmou pelo `docker volume ls` que o zero do comando veio do clone e não de resto de execução anterior. `validated_sha` `4f15d09` | 03/09/2026 |
+| `D-016` | Ratificação da divergência do critério estrutural de RF-11.2 na opção recomendada (a) — o critério passa a nomear os cinco jobs do fluxo da API e os quatro do da web, em vez de proibir `guarda` e `gates`. O PR da Fase 5 nasce `blocked-on-D-016` e assim permanece até você ratificar com `--por humano` | 03/09/2026 |
+| `D-017` | Ratificação da divergência do critério comportamental de RF-10 na opção recomendada (a) — o *Dado* passa a registrar a linha no índice, sem o que o gerador a apaga antes do diff e o critério sai 0 medindo o gerador em vez do portão. O PR da Fase 5 nasce `blocked-on-D-017` | 03/09/2026 |
+| `D-018` | Ratificação da divergência de escopo na opção recomendada (a) — a asserção `exige_pacote_pnpm` e o teste dela ganham a etapa 5.0 em vez de entrarem no diff sem etapa. O PR da Fase 5 nasce `blocked-on-D-018` | 03/09/2026 |
+| `plan` (reaprovação) | `03-plan.md` reaprovado depois da reconciliação de `D-016`, `D-017` e `D-018`, novo `sha` `624f273`. Três trechos da Fase 5 mudaram: o critério estrutural de RF-11.2, o *Dado* do critério comportamental de RF-10 e a lista de etapas, que ganhou a `5.0` | 03/09/2026 |
 
 ## Decisões da Fase 2
 
@@ -329,6 +333,98 @@ número 28, o próximo livre, e não o 21 — a numeração do `CLAUDE.md` é gl
 seção React ocupa 21 a 27, e esses números são citados como identificadores pelo
 `03-plan.md`, que está amarrado por `sha`. A lista lê 17, 18, 19, 20, 28. Se
 preferir renumerar, o trabalho é mecânico e exige reaprovar o plano.
+
+## Decisões da Fase 5
+
+| # | Decisão | Alternativa descartada | Por quê |
+|---|---|---|---|
+| D37 | **`guarda` e `gates` continuam nos dois fluxos**, e o critério estrutural passa a nomeá-los | Apagar os dois jobs para casar com a lista fechada que o critério trazia | Registrado como `D-016`. `gates` roda o dispatcher dos portões arquiteturais que o `CLAUDE.md` manda rodar; `guarda` é a correção que a Fase 2 registrou depois de um `working-directory` herdado fazer a busca olhar para `apps/api/apps/api` e responder "não há código" em toda branch. Cumprir a lista ao pé da letra apagaria verificação real por causa de uma tradução do requisito — a spec diz "sem etapa adicional definida por este item", não "só estes jobs". |
+| D38 | **A corrente do fluxo da API é `guarda → contrato → qualidade` e `integracao`**, com o job `contrato` repassando o veredicto da guarda em `outputs` | Declarar `needs: [guarda, contrato]` nos dois jobs de baixo | O critério pede `needs: contrato`, e a condição de cada job precisa do veredicto da guarda. Repassar o output pelo `contrato` dá as duas coisas com uma aresta só, e deixa a leitura do grafo igual ao que o requisito não funcional descreve: contrato divergente reprova antes de qualquer teste rodar. |
+| D39 | **O fluxo do hotsite mede os portões com `--all`**, não com o diff | Usar `HARNESS_DIFF_BASE` como os outros dois fluxos | O hotsite não tem pack, e o que o governa são G3 e G4 sobre `apps/site/src/**`. O modo de diff depende de uma base que um push em branch recém-criada não tem, e base ausente é medição impossível, não árvore limpa — o critério da Fase 5 já pedia `--all` por isso. |
+| D40 | **`exige_pacote_pnpm` entra em `scripts/gates/medir.sh`, com dois casos de teste**, e é chamada nos seis jobs que usam `pnpm --filter` | Escrever a verificação como shell solto dentro de cada YAML | Registrado como `D-018`. `pnpm --filter <inexistente> <script>` sai com código 0: um pacote fora do `pnpm-workspace.yaml` deixaria o fluxo verde sem ter rodado nada. É a quarta forma da tabela de portões que aprovam por não ter medido, e a defesa deste projeto para a classe é asserção testada em `medir.sh` — o `portoes.yml` já roda esse teste em todo PR. A medição usa um marcador impresso pelo próprio comando, porque contar as linhas da saída aprovaria pelo aviso "No projects matched the filters", que o pnpm imprime na saída padrão. |
+| D41 | **O `README.md` da raiz nomeia a porta `5433` do Postgres e explica por que não é a `5432`** | Listar as quatro portas sem justificar a do banco | Um Postgres já instalado na máquina ocupa a 5432, e o conflito só apareceria na primeira consulta, longe da causa. A promessa de "um comando sobe tudo" só se cumpre se o desvio da convenção estiver escrito onde quem clona olha primeiro. |
+
+### O CI achou o que a revisão só avisou — e é a terceira do mesmo tipo
+
+O PR #17 abriu, os três fluxos rodaram e o **portão dos portões reprovou**: três
+casos de `medir.test.sh` falharam no runner porque `portoes.yml` faz `checkout`
+e mais nada, e a asserção nova conversa com o `pnpm`. `exige_comando pnpm`
+reprovou antes de qualquer medição — o comportamento correto dela, acusando o
+ambiente em voz alta em vez de aprovar calada.
+
+A revisão da fase tinha avisado, no apontamento 8: *"o caso 'passa com um pacote
+real' amarra o teste unitário do portão a um `pnpm install` feito no sandbox — se
+as dependências não estiverem lá, ele reprova por ambiente e não por asserção."*
+Apliquei os outros nove apontamentos e deixei esse de fora. Está registrado
+porque o custo de ignorar um aviso preciso é exatamente uma rodada de CI.
+
+A correção é `D-019`: `portoes.yml` ganha `pnpm/action-setup` e `setup-node`,
+sem `pnpm install` — `pnpm --filter <pacote> exec` resolve pelo
+`pnpm-workspace.yaml`, e o teste inteiro passa num clone sem `node_modules`,
+verificado antes de escrever a correção.
+
+**E esta é a terceira divergência de escopo da mesma forma** — `D-015` na Fase 4,
+`D-018` e `D-019` nesta. Sempre: o plano lista os arquivos da fase, o trabalho
+toca um arquivo adjacente que nenhuma etapa nomeia. `D-019` é a mais reveladora,
+porque a etapa 5.0 já existia por causa de `D-018` e mesmo assim ficou
+incompleta: declarou o instrumento e o teste, e esqueceu o fluxo que executa o
+teste. A regra da reincidência manda parar de remendar o caso — a causa está no
+formato da etapa, que é do plugin e este repositório não edita. Foi para
+`.harness/proposals/2026-09-03-002.md`, endereçada a `plan-authoring`,
+`plan-writer` e `criteria-auditor`.
+
+**O veredicto da fase não foi refeito.** Ele mediu os dez critérios sobre
+`85dddfa`, e nenhum deles toca `portoes.yml` — as três frentes de código estão
+com a mesma árvore que ele validou, e `state.py check` não acusa. O que mudou
+depois dele é o fluxo que roda o teste do portão, verificado no CI real: a
+execução seguinte do PR #17 é a evidência.
+
+| # | Decisão | Alternativa descartada | Por quê |
+|---|---|---|---|
+| D44 | **`portoes.yml` ganha o pnpm, sem `pnpm install`** | Instalar as dependências no fluxo, como os outros três fazem | `pnpm --filter <pacote> exec` resolve o pacote pelo `pnpm-workspace.yaml`; instalar dependência atrasaria em minutos o portão mais barato do repositório para não mudar nenhum resultado. Verificado num clone sem `node_modules`: as 15 asserções passam. |
+
+### Observações do validador cego, decididas e mantidas
+
+O veredicto da Fase 5 é `APROVADO` sem defeito. Ele registra duas assimetrias
+que nenhum critério cobre, e as duas ficam como estão — com a razão escrita
+aqui, para não voltarem como dúvida:
+
+| # | Decisão | Alternativa descartada | Por quê |
+|---|---|---|---|
+| D42 | **O gatilho `push` dos três fluxos continua restrito a `main` e `develop`** | Tirar o filtro de branch e verificar a cada push em qualquer branch | O `pull_request` não tem filtro de branch: toda branch de trabalho é verificada assim que vira PR, que é quando o resultado tem para quem servir. Sem o filtro, cada push numa branch de PR dispara os fluxos duas vezes — uma pelo `push`, outra pelo `pull_request` —, dobrando o consumo para produzir o mesmo veredicto. É a configuração mais comum e a mais reversível: uma linha volta atrás. |
+| D43 | **O fluxo do hotsite não tem job `guarda`** | Copiar a guarda dos outros dois fluxos para o do site | A guarda dos outros dois existe porque `apps/api` e `apps/web` nasceram declarados no workspace e vazios, e o CI reprovava por medir o que não existia. O hotsite nasce com código na mesma fase que o cria, então não há a janela que a guarda cobria. O que resta — pacote fora do workspace, diretório ausente — é medido por `exige_caminho` e `exige_pacote_pnpm` no primeiro passo do job, que reprovam em voz alta em vez de pular. |
+
+### Divergências ratificadas na Fase 5
+
+| # | O que estava assim | O que a realidade impôs | Alternativa descartada |
+|---|---|---|---|
+| `D-016` | O critério estrutural de RF-11.2 lista três jobs no fluxo da API e dois no da web, e proíbe qualquer outro | Os dois fluxos têm `guarda` e `gates` desde as fases 2 e 3, e ambos são verificação real. O critério passa a nomear os cinco e os quatro jobs que cada fluxo declara | Apagar `guarda` e `gates`, que tiraria do CI os portões arquiteturais e a proteção contra medição impossível |
+| `D-017` | O critério comportamental de RF-10 acrescenta a linha `Divergente` ao cliente gerado e espera o par sair não-zero | Executado assim, o comando sai **0**: `openapi-ts` reescreve o arquivo inteiro e apaga a linha antes de o `git diff` comparar árvore e índice. O *Dado* passa a registrar a linha no índice, que é o estado de um checkout do CI | Medir com `git diff --exit-code HEAD -- <caminho>`, que morde mas deixa o critério com um comando diferente do que o job executa |
+| `D-018` | As seis etapas da Fase 5 falam de `.github/workflows/**` e do `README.md` da raiz | O diff tem dois arquivos fora dali — `scripts/gates/medir.sh` e o teste dele —, sem os quais os passos com `pnpm --filter` aprovariam sem medir. Uma etapa 5.0 passa a descrevê-los | Deixar os dois arquivos sem etapa, repetindo o precedente que `D-015` recusou na fase anterior |
+| `D-019` | Nenhuma etapa da Fase 5 menciona `.github/workflows/portoes.yml` | O fluxo que roda `medir.test.sh` em todo PR só faz `checkout`, e a asserção nova conversa com o `pnpm`: as três falhas do CI foram de ambiente, não de asserção. A etapa 5.0 passa a nomear o fluxo e a ferramenta que ele precisa ter | Tirar do teste os casos que falam com o pnpm, deixando a asserção sem prova de que morde; ou pular esses casos quando a ferramenta falta, que é o antipadrão escrito dentro do arquivo que o combate |
+
+### Apontamentos da revisão e da auditoria da Fase 5, aplicados
+
+| Onde | O que estava errado | O que passou a valer |
+|---|---|---|
+| `scripts/gates/medir.sh` | `pnpm --filter <f> exec sh` resolve `sh` pelo PATH, e `pnpm exec` põe o `node_modules/.bin` do pacote na frente dele: uma dependência que declarasse `"bin": {"sh": ...}` responderia no lugar do shell, dando execução de código no passo que existe só para medir | `/bin/sh` por caminho absoluto, com um caso de teste que sequestra o PATH e prova que a asserção o ignora |
+| `scripts/gates/medir.sh` | `casados="$(… \| grep -c …)"`: `grep -c` sai 1 quando conta zero, e o `run:` do GitHub roda `bash -e`. A asserção morria na atribuição e o passo ficava vermelho **sem imprimir uma linha** — reprovação muda, indistinguível de crash da ferramenta | A contagem tolera o não-zero do `grep`, a saída do pnpm é preservada e impressa quando a medição falha, e três casos novos rodam sob `bash -e` exigindo que a mensagem apareça. Removido o `\|\| true`, dois deles falham |
+| `.github/workflows/*.yml` | Nenhum dos fluxos declarava `permissions`. O padrão de hoje é leitura, mas ele vive na configuração da organização, muda por um clique e não aparece em diff | `permissions: contents: read` no topo dos três, onde a revisão de PR alcança |
+| `.github/workflows/*.yml` | Os filtros `paths` não listavam `pnpm-lock.yaml`, `package.json` nem `pnpm-workspace.yaml`: um push que mexesse só no lockfile ou no script `contract` da raiz não disparava fluxo nenhum | Os três arquivos da raiz entraram nos filtros dos três fluxos |
+| `ci-nestjs.yml`, job `contrato` | `git diff --exit-code` só enxerga arquivo rastreado: um gerador que passasse a emitir um arquivo novo deixaria os dois pares batendo e o cliente commitado incompleto | Uma verificação de `git status --porcelain --untracked-files=all` reprova arquivo gerado que ninguém versionou |
+| `ci-nestjs.yml`, passo `Migrations aplicáveis` | `prisma migrate diff … \|\| { echo "há drift"; }` transformava erro de execução em drift, e mandaria o próximo dev gerar uma migration que não resolveria nada | O código de saída é lido: 0 é igualdade, 2 é drift, e qualquer outro é medição impossível, dita com esse nome |
+| `ci-nestjs.yml`, jobs `qualidade` e `integracao` | `if: needs.contrato.outputs.pronto == 'true'` era tautologia — `contrato` só roda quando a guarda aprovou, e repassava o mesmo valor. Lógica morta que **parecia** ser o mecanismo de propagação | O `if` e o `outputs` saíram; quem propaga o pulo e a reprovação é a aresta `needs`, e o comentário do job diz isso |
+| `ci-react.yml`, passo `Direção de dependência` | A guarda `[ -f apps/web/.dependency-cruiser.cjs ]` pulava em silêncio, e o arquivo não existe: o passo nunca rodou uma vez, sob um comentário que promete análise de ciclo e fronteira | O passo anuncia em `::notice::` que não mediu e nomeia o item `025` do roadmap, que é onde a análise passa a existir |
+| `ci-react.yml`, passo `Testes` | `pnpm --filter web run test -- --reporter=dot` repassa o `--` ao vitest, que o lê como separador de posicionais: o reporter compacto nunca foi aplicado | `pnpm --filter web exec vitest run --reporter=dot`, e a saída sai em pontos |
+| `ci-nestjs.yml`, serviço `postgres` | O comentário justificava a senha por ser "única por corrida, e nada a rotacionar". `github.run_id` é público — está na URL da execução — e viaja inteiro na `DATABASE_URL` | A justificativa passa a ser a verdadeira: credencial descartável de um banco que só o runner efêmero alcança, com a nota de que o `ports:` publicado é o que precisa sair se o job mudar para runner próprio |
+
+### Achados da Fase 5 encaminhados, não aplicados
+
+| Achado | Por que não nesta fase | Onde foi parar |
+|---|---|---|
+| As 25 referências a ação de terceiro no CI usam tag móvel (`@v4`); quem comprometer a ação repointa a tag e executa no runner depois de o `checkout` ter gravado o token no disco | Fixar em SHA é manutenção contínua — precisa de rotina de atualização junto, senão o repositório congela em versões com defeito conhecido. Enxertar isso aqui entrega metade | Item `023-endurecimento-antes-da-sessao`, que já é o item de cadeia de suprimentos |
+| `gates_runner.sh` no modo por diff cai para `git diff --name-only HEAD`, sempre vazio num runner: universo de zero arquivos e portões verdes sem terem olhado nada | Latente: `.harness/config.json` declara `greenfield`, e nesse modo o dispatcher mede a árvore inteira e diz quantos arquivos considerou. Corrigir agora seria mexer no dispatcher fora de qualquer etapa desta fase | Item `026-o-modo-de-diff-dos-portoes-mede-ou-reprova` |
+| `apps/web` não tem `.dependency-cruiser.cjs` nem declara `dependency-cruiser` | A configuração das regras de fronteira é decisão da frente React, não do CI, e o portão G5 já cobre a direção `shared → features → app` por script | Item `025-a-direcao-de-dependencia-e-medida` |
 
 ## Por que o loop parou
 

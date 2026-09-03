@@ -1,0 +1,60 @@
+name: Site
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "apps/site/**"
+      - "scripts/gates/**"
+      - ".github/workflows/ci-site.yml"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+  pull_request:
+    paths:
+      - "apps/site/**"
+      - "scripts/gates/**"
+      - ".github/workflows/ci-site.yml"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  verificacao:
+    name: Tipos, build e portões
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: "pnpm-lock.yaml"
+
+      - name: Dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: O pacote deste fluxo está no workspace
+        run: |
+          source scripts/gates/medir.sh
+          exige_caminho apps/site/package.json "o manifesto do hotsite"
+          exige_pacote_pnpm site "o pacote do hotsite"
+
+      - name: Tipos
+        run: pnpm --filter site typecheck
+
+      - name: Build
+        run: pnpm --filter site build
+
+      # `--all` em vez do diff: o hotsite não tem pack, e o que o governa aqui
+      # são G3 e G4 declarados sobre `apps/site/src/**`. Medir só o diff faria o
+      # portão depender de uma base que um push em branch recém-criada não tem,
+      # e base ausente é medição impossível, não árvore limpa.
+      - name: Portões arquiteturais
+        run: bash scripts/gates/gates_runner.sh --all

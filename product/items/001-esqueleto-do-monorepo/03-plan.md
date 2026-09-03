@@ -554,10 +554,11 @@ divergente antes dos testes.
 - [ ] `comando` — RF-01.1 —
       `rtk proxy bash -c '! grep -rq "apps/[a-z]*/pnpm-lock.yaml" .github/workflows'`
       sai com código 0.
-- [ ] `estrutural` — RF-11.2 — `.github/workflows/ci-nestjs.yml` declara os jobs
-      `contrato`, `qualidade` e `integracao` e nenhum outro;
-      `.github/workflows/ci-react.yml` declara os jobs `qualidade` e
-      `comportamental` e nenhum outro.
+- [ ] `estrutural` — RF-11.2 — `.github/workflows/ci-nestjs.yml` declara os
+      jobs `contrato`, `qualidade`, `integracao`, `guarda` e `gates`, e nenhum
+      outro; `.github/workflows/ci-react.yml` declara os jobs `qualidade`,
+      `comportamental`, `guarda` e `gates`, e nenhum outro.
+      > Reconciliado em D-016.
 - [ ] `estrutural` — RF-11.3 — `.github/workflows/ci-site.yml` contém os
       comandos `pnpm --filter site build`, `pnpm --filter site typecheck` e
       `bash scripts/gates/gates_runner.sh --all`.
@@ -587,17 +588,37 @@ divergente antes dos testes.
       contém `/version`
 - [ ] `comportamental` — RF-10.1 e RF-10.2
       *Dado* a linha `export type Divergente = string;` acrescentada ao fim de
-      `apps/web/src/shared/api/generated/types.gen.ts`
+      `apps/web/src/shared/api/generated/types.gen.ts` e registrada no índice
+      com `git add apps/web/src/shared/api/generated/types.gen.ts`
       *Quando*
       `rtk proxy bash -c 'pnpm --filter web run api:generate && git diff --exit-code apps/web/src/shared/api/generated'`
       é executado na raiz
       *Então* o comando termina com código de saída diferente de zero e a saída
       contém `Divergente`
+      > Reconciliado em D-017.
 
 > A DoD global é do CI e não se repete aqui.
 
 ### Etapas
 
+- [ ] 5.0 Acrescentar a asserção `exige_pacote_pnpm` a
+      `scripts/gates/medir.sh` e os dois casos correspondentes — reprova
+      quando o filtro não casa pacote nenhum, passa quando casa — a
+      `scripts/gates/__tests__/medir.test.sh`; chamar a asserção nos jobs que
+      usam `pnpm --filter`, logo depois de instalar as dependências; e dar ao
+      fluxo `.github/workflows/portoes.yml`, que roda esse teste em todo PR, o
+      `pnpm/action-setup` e o `setup-node` de que a asserção precisa — sem
+      `pnpm install`, porque `pnpm --filter <pacote> exec` resolve o pacote pelo
+      `pnpm-workspace.yaml`.
+      Justificativa: `pnpm --filter <inexistente> <script>` sai com código 0,
+      então um pacote fora de `pnpm-workspace.yaml` deixaria o fluxo verde sem
+      ter rodado typecheck, build nem portão — a mesma classe das três formas
+      que o `CLAUDE.md` cataloga, e a defesa do projeto para ela é asserção em
+      `medir.sh` com teste que prove que morde, não shell repetido dentro do
+      YAML. O instrumento viaja com a medição que ele sustenta: asserção que
+      conversa com uma ferramenta exige que o fluxo do portão a tenha, senão a
+      reprovação acusa o ambiente em vez da asserção.
+      > Reconciliado em D-018 e D-019.
 - [ ] 5.1 Modificar `.github/workflows/ci-nestjs.yml`: `node-version: "24"` nos
       três jobs, `cache-dependency-path: "pnpm-lock.yaml"`, remoção de
       `defaults.run.working-directory` e uso de `pnpm --filter api <script>` em
