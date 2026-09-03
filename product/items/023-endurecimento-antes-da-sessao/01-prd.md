@@ -78,19 +78,31 @@ O conjunto é `Content-Security-Policy`, `X-Content-Type-Options: nosniff`,
 `Permissions-Policy` negando câmera, microfone e geolocalização.
 
 O hotsite entrega os cinco em toda resposta, porque é Next renderizado no
-servidor e os declara em `headers()`. `Strict-Transport-Security` se soma a eles
-apenas em build de produção: emitido em `http://localhost`, ele fixa no navegador
-de quem desenvolve uma regra que quebra o ambiente e persiste em cache.
+servidor. `X-Content-Type-Options: nosniff`, `Referrer-Policy:
+strict-origin-when-cross-origin`, `X-Frame-Options: DENY` e
+`Permissions-Policy` são constantes e saem de `headers()` em `next.config.ts`.
+`Content-Security-Policy` sai de `middleware.ts`, com um nonce gerado a cada
+requisição: o HTML que o App Router serve carrega um script embutido — o
+payload de streaming pelo qual a página hidrata —, e uma política declarada em
+`headers()` grava a mesma string em toda resposta, incapaz de autorizar um
+script cujo valor muda a cada requisição sem abrir mão de `script-src 'self'`.
+O custo é que as rotas que consomem o nonce deixam de ser prerenderizadas
+estaticamente. `Strict-Transport-Security` se soma aos cinco apenas em build de
+produção: emitido em `http://localhost`, ele fixa no navegador de quem
+desenvolve uma regra que quebra o ambiente e persiste em cache.
 
 `apps/web` é SPA estática e não tem servidor próprio, então o conjunto se reparte
 por onde cada cabeçalho consegue existir. O que chega ao navegador em produção é
 a **política de conteúdo**, pela `<meta http-equiv>` injetada no `index.html`
 durante o build (D1): ela viaja dentro do HTML e independe de quem serve o
-`dist/`. Os outros cabeçalhos valem nos dois servidores que existem hoje — o de
+`dist/`. `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options` e
+`Permissions-Policy` valem nos dois servidores que existem hoje — o de
 desenvolvimento e o de pré-visualização —, por `server.headers` e
-`preview.headers` do `vite.config.ts`. `X-Frame-Options`, `Strict-Transport-Security`
-e um `frame-ancestors` que valha como cabeçalho de resposta só existem se um host
-os emitir, e esse host é não-escopo deste item.
+`preview.headers` do `vite.config.ts`, porque os dois emitem cabeçalho de
+resposta como qualquer servidor. `Strict-Transport-Security` e um
+`frame-ancestors` que valha como cabeçalho de resposta — em vez da diretiva
+dentro da política de conteúdo — só existem se o artefato `dist/` for servido em
+produção por um host, e esse host é não-escopo deste item.
 
 A API recebe `helmet` e, com ele, o subconjunto que faz sentido para resposta
 JSON: `nosniff` presente, `X-Powered-By` ausente. Ela não serve HTML, então não
@@ -98,6 +110,8 @@ recebe política de conteúdo. A dependência entra em vez de os cabeçalhos ser
 escritos à mão porque o conjunto correto muda com o tempo e alguém precisa
 acompanhá-lo; escrevê-lo à mão é assumir esse acompanhamento sem ninguém
 designado.
+
+> Reconciliado em D-001.
 
 ### A política de conteúdo do app nomeia a origem da API
 
@@ -167,7 +181,7 @@ vez de aplicá-lo pela metade.
 | Assunto | Regra do discovery | Decisões |
 |---|---|---|
 | Origem autorizada em lista | R1 | D3 |
-| Cabeçalhos nas frentes de navegador e na API | R2 | D1 |
+| Cabeçalhos nas frentes de navegador e na API | R2 | D1, D-001 |
 | Política de conteúdo derivada de `VITE_API_URL` | R3 | D1, D2, D9 |
 | Portão de segredo sobre fontes e artefatos | R4 | D6, D7, D8, D12 |
 | Quarentena de dependência | R5 | D4 |
@@ -175,11 +189,13 @@ vez de aplicá-lo pela metade.
 
 ## Não-escopo
 
-- **`frame-ancestors` como cabeçalho de resposta, `X-Frame-Options` e HSTS para
-  `apps/web` não entram.** Nenhum dos três vale em `<meta>`, e entregá-los exige
-  saber quem serve o `dist/` em produção — CDN com arquivo de cabeçalhos, nginx
-  ou o mesmo processo da API. Escolher host é decisão de deploy, que é do dono, e
-  está registrada nas pendências de produto abertas do `roadmap.md` (D1).
+- **`frame-ancestors` como cabeçalho de resposta e `Strict-Transport-Security`
+  para o artefato `dist/` de `apps/web` não entram.** Nenhum dos dois vale em
+  `<meta>`, e entregá-los exige saber quem serve o `dist/` em produção — CDN com
+  arquivo de cabeçalhos, nginx ou o mesmo processo da API. `X-Frame-Options` já
+  vale nos dois servidores do Vite que existem hoje; falta só o host de
+  produção. Escolher host é decisão de deploy, que é do dono, e está registrada
+  nas pendências de produto abertas do `roadmap.md` (D1).
 - **Vulnerabilidade conhecida no lockfile não entra** — nem `pnpm audit`, nem
   `osv-scanner`. É o item `027-vulnerabilidade-conhecida-reprova-no-ci`, que
   depende deste. A quarentena atrasa a versão maliciosa e não diz nada sobre a
@@ -269,5 +285,5 @@ Três coisas ficam para o dono, sem reabrir nenhuma delas:
   INVEST passa, por margem, e quebrar mexe no roadmap, que é dele.
 - **O robô de atualização de ações (D5).** É o único elemento novo agindo sobre o
   repositório de fora.
-- **Os três cabeçalhos que só o host de produção entrega**, já registrados como
+- **Os dois cabeçalhos que só o host de produção entrega**, já registrados como
   pendência de produto no `roadmap.md`, dependentes da escolha de deploy.

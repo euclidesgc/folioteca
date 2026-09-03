@@ -18,12 +18,12 @@ Nada aqui é suposição: cada linha foi lida no repositório antes de virar car
 |---|---|
 | Cabeçalhos de segurança | **Nenhum**, nas três frentes. `apps/api/package.json` não declara `helmet`; `apps/site/next.config.ts` tem só `agentRules: false` e nenhum `headers()`; `apps/web/index.html` não tem `<meta http-equiv>` e `apps/web/vite.config.ts:26-29` declara `server` sem `headers` |
 | Política de conteúdo | **Nenhuma**. Zero ocorrências de `Content-Security-Policy` em código, HTML ou configuração |
-| Origem autorizada | `apps/api/src/cors.ts:9-12` — `origin: [config.get("WEB_ORIGIN")]`, array de **um** elemento. `environment.schema.ts:8-11` valida `WEB_ORIGIN` como `Joi.string()` com padrão `^https?:\/\/[^/]+$` e default `http://localhost:5173`. `environment-variables.ts:5` tipa `WEB_ORIGIN: string` |
+| Origem autorizada | `apps/api/src/cors.ts:10-13` — `origin: [config.get("WEB_ORIGIN")]`, array de **um** elemento. `environment.schema.ts:10-12` valida `WEB_ORIGIN` como `Joi.string()` com padrão `^https?:\/\/[^/]+$` e default `http://localhost:5173`. `environment-variables.ts:5` tipa `WEB_ORIGIN: string` |
 | Varredura de segredo | **Nenhuma no repositório**. Sem `gitleaks`, `trufflehog` ou `semgrep` em workflow, script ou configuração; nada que esteja versionado olha árvore de fontes, histórico ou artefato de build. `gitleaks 8.30.1` já está na máquina de desenvolvimento. Existe uma verificação externa — `GitGuardian Security Checks`, app instalado na conta do GitHub, que aparece nos PRs e não está em arquivo nenhum daqui; ver R4 para o que ela não cobre |
 | Artefato publicado | **Não há publicação.** O único `upload-artifact` é `ci-react.yml:141`, condicional a `if: failure()`, com o relatório do Playwright. Os builds saem em `apps/api/dist`, `apps/web/dist` e `apps/site/.next`, e o job os descarta |
 | Ações do CI | **27** referências `uses:` em cinco fluxos, **27 tags móveis** (`@v4`), zero SHA. São `actions/checkout` (12), `actions/setup-node` (7), `pnpm/action-setup` (7) e `actions/upload-artifact` (1) |
 | Quarentena de dependência | **Nenhuma**. `minimumReleaseAge` ausente de `.npmrc`, `pnpm-workspace.yaml` e `package.json`; sem Dependabot nem Renovate em `.github/`. `packageManager: pnpm@11.25.0`, Node 24 no CI |
-| Variáveis expostas ao navegador | Só `VITE_API_URL`, lida em `apps/web/src/shared/config/env.ts:2` e exigida no build por `vite.config.ts:4-20`. `NEXT_PUBLIC_SITE_URL` e `NEXT_PUBLIC_APP_URL` existem no `.env.example` e **nenhum arquivo de `apps/site` as lê** |
+| Variáveis expostas ao navegador | Só `VITE_API_URL`, lida em `apps/web/src/shared/config/env.ts:2` e exigida no build por `vite.config.ts:5-21`. `NEXT_PUBLIC_SITE_URL` e `NEXT_PUBLIC_APP_URL` existem no `.env.example` e **nenhum arquivo de `apps/site` as lê** |
 
 O roadmap diz 25 referências a ação de terceiro; hoje são **27**. As duas a mais
 entraram em `portoes.yml` pela divergência `D-019` da Fase 5, que deu ao portão
@@ -78,7 +78,7 @@ apenas quando o `Origin` recebido está nela, e o valor devolvido é o do
   o exemplo que distingue lista que compara de lista que ecoa.
 - **E1.3** — Com `WEB_ORIGIN=http://localhost:5173,https://app.exemplo/` — barra
   final no segundo item —, a API **recusa subir** e a saída nomeia `WEB_ORIGIN`.
-  O padrão `^https?:\/\/[^/]+$` de `environment.schema.ts:3` passa a valer para
+  O padrão `^https?:\/\/[^/]+$` de `environment.schema.ts:4` passa a valer para
   cada item da lista, não para a string inteira.
 - **E1.4** — Com `WEB_ORIGIN=http://localhost:5173` — um valor só, sem vírgula —
   a API sobe e E1.1 continua valendo para essa origem. Um `.env` já
@@ -94,8 +94,13 @@ navegador do desenvolvedor uma regra que quebra o ambiente e persiste em cache.
 
 - **E2.1** — `pnpm --filter site build && pnpm --filter site start` e
   `curl -sI http://localhost:3001/` devolve as cinco linhas de cabeçalho acima.
-  O hotsite é Next renderizado no servidor: elas saem de `headers()` em
-  `apps/site/next.config.ts`.
+  O hotsite é Next renderizado no servidor: `X-Content-Type-Options`,
+  `Referrer-Policy`, `X-Frame-Options` e `Permissions-Policy` saem de
+  `headers()` em `apps/site/next.config.ts`; `Content-Security-Policy` sai de
+  `apps/site/src/middleware.ts`, com um nonce gerado a cada requisição — o HTML do
+  App Router carrega um script embutido que hidrata a página, e uma política
+  declarada em `headers()` não tem como autorizá-lo sem abrir mão de
+  `script-src 'self'`.
 - **E2.2** — `pnpm --filter api build` e a API respondendo em `:3000`:
   `curl -sI http://localhost:3000/health` traz `X-Content-Type-Options: nosniff`
   e não traz `X-Powered-By`. A API não serve HTML, então ela não recebe política

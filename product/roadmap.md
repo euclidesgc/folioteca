@@ -94,6 +94,21 @@ PR e commit já escritos.
       sempre vazio — universo de zero arquivos, e os portões saem verdes sem ter
       olhado arquivo algum.
 
+- [ ] `028-a-norma-carrega-a-tabela-que-os-portoes-citam` — quem lê um portão
+      encontra no `CLAUDE.md` da raiz a tabela das três formas de portão que
+      mentem, que dois arquivos deste repositório já afirmam estar lá
+      **Depende de:** `001-esqueleto-do-monorepo` — é lá que `medir.sh` e o
+      plano que o cita nascem.
+      **Origem:** estágio `spec` de `023-endurecimento-antes-da-sessao`, decisão
+      `D20` em `decisoes-autonomas.md`. `scripts/gates/medir.sh:74` e
+      `product/items/001-esqueleto-do-monorepo/03-plan.md:615` apontam a tabela
+      para o `CLAUDE.md` da raiz; ela não está lá — vive no template do plugin
+      do harness, fora deste repositório. Quem seguir a referência não encontra
+      nada, e a regra 19 fica sem o exemplo que a torna acionável. A alternativa
+      é corrigir as duas referências para onde a tabela realmente mora, mas uma
+      delas está num plano aprovado que não se edita fora de janela de exceção,
+      e apontar para fora do repositório deixa a norma dependente de um plugin.
+
 - [ ] `002-conta-e-organizacao` — quem se cadastra cria a organização e vira o
       seu primeiro administrador; o endereço é confirmado por e-mail, a senha se
       recupera sozinha, e a tela responde a mesma coisa exista ou não a conta
@@ -281,20 +296,22 @@ revoga o acesso que vinha dele, e a concessão individual sobrevive" diz.
 O que precisa de decisão do dono antes de virar spec. Não é fase, não é item, e
 não bloqueia trabalho que não dependa dela.
 
-- **Três cabeçalhos do `apps/web` não têm onde morar enquanto não houver host.**
-  `apps/web` é uma SPA estática e não tem servidor nenhum: `vite.config.ts:26-29`
-  declara porta e mais nada, e o e2e sobe `vite dev`. O item `023` resolve o que
-  a página consegue carregar sozinha — a política de conteúdo vai como
-  `<meta http-equiv>` injetada no build, que atravessa qualquer host. Mas
-  `frame-ancestors`, `X-Frame-Options` e `Strict-Transport-Security` **só
-  existem como cabeçalho de resposta**: nenhum vale em `<meta>`, e sem eles a
-  página do produto pode ser enquadrada por um site alheio. Fechar isso exige
-  saber quem serve o `dist/` em produção — CDN com arquivo de cabeçalhos, nginx,
-  ou o mesmo processo da API —, e escolher host é decisão de deploy, que é sua.
+- **Dois cabeçalhos do `apps/web` não têm onde morar enquanto não houver host.**
+  `apps/web` é uma SPA estática e não tem servidor de produção: os dois que
+  existem são o de desenvolvimento e o de pré-visualização do Vite. O item `023`
+  resolve o que a página carrega sozinha — a política de conteúdo vai como
+  `<meta http-equiv>` injetada no build, que atravessa qualquer host — e o que
+  esses dois servidores emitem, `X-Frame-Options: DENY` entre eles. Mas
+  `frame-ancestors` como cabeçalho de resposta e `Strict-Transport-Security`
+  **só existem se um host os emitir**: nenhum dos dois vale em `<meta>`, e o
+  `dist/` servido em produção fica sem a trava de enquadramento que os dois
+  servidores de desenvolvimento já têm. Fechar isso exige saber quem serve o
+  `dist/` em produção — CDN com arquivo de cabeçalhos, nginx, ou o mesmo
+  processo da API —, e escolher host é decisão de deploy, que é sua.
   **A decisão é sua:** dizer qual é o host, e aí isto vira item; ou aceitar que a
   janela fique aberta até o primeiro deploy existir.
   **Origem:** discovery de `023-endurecimento-antes-da-sessao`, decisão autônoma
-  `D1`.
+  `D1`, refinada por `D18` no estágio `spec`.
 
 - **O template do harness ensina a trava quebrada a todo projeto novo.**
   `templates/ci/harness.yml` do plugin, linha 26, tem a mesma leitura de rótulos
@@ -320,6 +337,29 @@ não bloqueia trabalho que não dependa dela.
   `diverge-set` reescrever a linha do documento na mesma transação em que grava
   o estado, o que torna o G8 uma segunda linha de defesa; ou deixar como está, e
   o G8 é a única. **Origem:** Fase 3 de `001-esqueleto-do-monorepo`.
+
+- **O `state.py check` não enxerga divergência que nasceu fora de uma fase.**
+  O `check` alcança `divergences` num ponto só — o laço
+  `for divergence_id in entry.get("blocked_on")`, que percorre as **fases** do
+  item (`scripts/state/state.py:619-632` do plugin). Uma divergência detectada
+  num estágio de documento nasce com `phase: null` e, enquanto o item não tem
+  fase, não está no `blocked_on` de ninguém: o laço nunca a visita. Ela pode
+  estar `PENDENTE`, ou ratificada em modo autônomo esperando olho humano, e o
+  `check` responde `ok` do mesmo jeito. É a forma de falha que o `CLAUDE.md`
+  cataloga — o instrumento responde igual para "não há nada esperando" e para
+  "há, mas não olhei aí". A prova está nesta corrida: `D-001` de
+  `023-endurecimento-antes-da-sessao` foi ratificada por `autonomo`, e
+  `state.sh check` não a lista. A trava real do merge continua de pé, porque é o
+  rótulo `blocked-on-D-001` no PR que o `bloqueio.yml` faz valer — mas o rótulo
+  é posto à mão, e quem esquecesse não seria acusado por nada.
+  **A decisão é sua:** fazer o `check` percorrer `item["divergences"]` inteiro,
+  além do `blocked_on` das fases, ou aceitar que divergência de estágio de
+  documento dependa só do rótulo. Não a apliquei porque o `state.py` mora no
+  plugin, fora deste repositório, e a norma daqui é que a retrospectiva proponha
+  a mudança do harness, nunca a aplique de dentro de um item.
+  **Origem:** estágio `spec` de `023-endurecimento-antes-da-sessao`, ao ratificar
+  `D-001` — ver `product/items/023-endurecimento-antes-da-sessao/04-divergencias/D-001.md`.
+
 
 ## Validações de campo pendentes
 

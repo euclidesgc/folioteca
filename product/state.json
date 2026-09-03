@@ -275,19 +275,21 @@
     "023-endurecimento-antes-da-sessao": {
       "title": "Endurecimento antes da sessão: cabeçalhos de segurança e CSP no navegador, artefato de build medido contra segredo, origem autorizada em lista, quarentena de dependência e ações do CI fixadas em SHA",
       "track": "completa",
-      "stage": "spec",
+      "stage": "plan",
       "stacks": [],
       "created_at": "2026-09-03T09:33:47Z",
       "approvals": {
         "prd": {
-          "at": "2026-09-03T09:57:09Z",
-          "sha": "a9180bfa438303cf06c69c127a8d561cecc658d5",
+          "at": "2026-09-03T10:20:51Z",
+          "sha": "c1322f99d883caa0ae45a063604acae9a976946e",
           "file": "product/items/023-endurecimento-antes-da-sessao/01-prd.md",
           "por": "autonomo"
         },
         "spec": {
-          "at": null,
-          "sha": null
+          "at": "2026-09-03T10:20:51Z",
+          "sha": "b499ec3c367b083dc0d87565c72397ed66142a30",
+          "file": "product/items/023-endurecimento-antes-da-sessao/02-spec.md",
+          "por": "autonomo"
         },
         "plan": {
           "at": null,
@@ -296,7 +298,17 @@
       },
       "current_phase": null,
       "phases": {},
-      "divergences": {},
+      "divergences": {
+        "D-001": {
+          "status": "RECONCILIADA",
+          "kind": "normal",
+          "phase": null,
+          "detected_at": "2026-09-03T10:13:40Z",
+          "aprovada_at": "2026-09-03T10:13:40Z",
+          "ratificada_por": "autonomo",
+          "reconciliada_at": "2026-09-03T10:20:51Z"
+        }
+      },
       "criteria_exception": null
     }
   }
