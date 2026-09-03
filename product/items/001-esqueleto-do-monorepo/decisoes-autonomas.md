@@ -122,6 +122,10 @@ Cada linha aqui é um `state.py approve` que o humano **não** deu.
 | `plan` (reaprovação) | `03-plan.md` reaprovado depois da reconciliação de `D-011`, novo `sha` `3df7150`. Duas seções mudaram: o critério estrutural da Fase 2, que passa a nomear as quatro chaves do schema de configuração, e as etapas da Fase 3, que ganharam a `3.13` | 03/09/2026 |
 | `D-012` | Ratificação da divergência da trava de bloqueio na opção recomendada (a) — os dois defeitos corrigidos na branch onde nasceram. O PR **#13** permanece `blocked-on-D-012` até você ratificar com `--por humano` | 03/09/2026 |
 | `D-013` | Ratificação da divergência do lint do hotsite na opção recomendada (a) — `@next/eslint-plugin-next` sobre `typescript-eslint`. O PR da Fase 4 nasce `blocked-on-D-013` e assim permanece até você ratificar com `--por humano` | 03/09/2026 |
+| `D-014` | Ratificação da divergência dos critérios de clone limpo na opção recomendada (a) — os dois passam a medir num clone de verdade, feito com `git clone`. O PR da Fase 4 nasce `blocked-on-D-014` | 03/09/2026 |
+| `D-015` | Ratificação da divergência do `.gitignore` na opção recomendada (a) — a linha ganha etapa em vez de ficar só na decisão. O PR da Fase 4 nasce `blocked-on-D-015` | 03/09/2026 |
+| `plan` (três reaprovações) | `03-plan.md` reaprovado depois de cada reconciliação da Fase 4: por `D-014` (critérios de clone limpo, sha `2302c2d`), por `D-013` (etapa 4.1, sha `2444b44`) e por `D-015` (etapa 4.2, sha `3c86f00`). Cada reaprovação fecha a exceção que destravou a escrita e reamarra o "sim" ao conteúdo em vigor | 03/09/2026 |
+| `fase 4` | `05-veredictos/fase-4.md` — veredicto `APROVADO` do `phase-validator` cego, que mediu os cinco critérios por conta própria: verificou as portas livres antes do critério 4, executou os dois clones literais, e confirmou pelo `docker volume ls` que o zero do comando veio do clone e não de resto de execução anterior. `validated_sha` `4f15d09` | 03/09/2026 |
 
 ## Decisões da Fase 2
 
