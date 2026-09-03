@@ -498,11 +498,17 @@ nascida da branch da Fase 3.
 
 - [ ] 4.1 Modificar `apps/site/package.json`: declarar `next`, `react` e
       `react-dom` como dependências; `typescript`, `@types/react`,
-      `@types/node`, `eslint` e `eslint-config-next` como dependências de
-      desenvolvimento; e os scripts `dev` (`next dev -p 3001`), `build`,
-      `start`, `lint` e `typecheck` (`tsc --noEmit`).
-      Justificativa: regra 15; a porta 3001 fica no script porque RF-02.1 a fixa
-      e o padrão do Next é 3000, que já é da API.
+      `@types/node`, `eslint`, `@next/eslint-plugin-next` e
+      `typescript-eslint` como dependências de desenvolvimento; e os scripts
+      `dev` (`next dev -p 3001`), `build`, `start` (`next start -p 3001`),
+      `lint` e `typecheck` (`tsc --noEmit`).
+      Justificativa: regra 15; a porta 3001 fica em `dev` e em `start` porque
+      RF-02.1 a fixa e o padrão do Next é 3000, que já é da API — sem porta
+      explícita, `next start` cairia nela; `@next/eslint-plugin-next` e
+      `typescript-eslint` compõem o lint porque `eslint-plugin-react`, que o
+      preset `eslint-config-next` arrasta, para no ESLint 9, e `apps/web` e
+      `apps/api` já fixaram o ESLint 10.
+      > Reconciliado em D-013.
 - [ ] 4.2 Criar `apps/site/tsconfig.json`, `apps/site/next.config.ts` e
       `apps/site/eslint.config.mjs`.
       Justificativa: sem `tsconfig` próprio o `typecheck` que RF-11.3 exige não
