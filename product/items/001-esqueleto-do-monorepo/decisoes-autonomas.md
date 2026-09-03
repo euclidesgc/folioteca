@@ -117,6 +117,9 @@ Cada linha aqui é um `state.py approve` que o humano **não** deu.
 | `D-002` a `D-006` | Ratificação das cinco divergências da Fase 2, cada uma na opção recomendada do arquivo `04-divergencias/D-nnn.md`. Nenhuma é de tipo `contrato`, então nenhuma parou a fase; nenhum critério de aceite precisou mudar | 02/09/2026 |
 | `plan` (reaprovação) | `03-plan.md` reaprovado depois da reconciliação de `D-001` a `D-006`, novo `sha` `7b1f9f2`. A reaprovação é o que fecha a exceção nomeada que destravou a escrita no plano; sem ela, o documento teria mudado por fora do `sha` que o "sim" original amarrou | 02/09/2026 |
 | `fase 2` | `05-veredictos/fase-2.md` — preenchido quando o `phase-validator` cego devolver o veredicto | 02/09/2026 |
+| `fase 3` | `05-veredictos/fase-3.md` — veredicto `APROVADO` do `phase-validator` cego, que não confiou na suíte da própria fase: subiu a API e a web e dirigiu um Chromium próprio contra `localhost:5173`, medindo `role=status` com o texto `ok` e as duas requisições reais a `:3000`. `validated_sha` `fef04e6` | 03/09/2026 |
+| `D-011` | Ratificação da divergência do CORS na opção recomendada (a) — origem vinda de `WEB_ORIGIN` na configuração validada. O PR **#13** permanece `blocked-on-D-011` até você ratificar com `--por humano` | 03/09/2026 |
+| `plan` (reaprovação) | `03-plan.md` reaprovado depois da reconciliação de `D-011`, novo `sha` `3df7150`. Duas seções mudaram: o critério estrutural da Fase 2, que passa a nomear as quatro chaves do schema de configuração, e as etapas da Fase 3, que ganharam a `3.13` | 03/09/2026 |
 
 ## Decisões da Fase 2
 
