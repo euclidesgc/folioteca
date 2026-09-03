@@ -324,6 +324,8 @@ deixa de impedir a classe de ataque que a justifica.
 
 #### RF-12 · O `connect-src` é derivado de `VITE_API_URL` no instante do build
 
+> Reconciliado em D-007.
+
 **RF-12.1** — *dirigido a evento*
 
 Quando `VITE_API_URL=https://api.folioteca.exemplo pnpm --filter web build` é
@@ -342,10 +344,24 @@ Se `VITE_API_URL` está ausente quando `pnpm --filter web build` é executado,
 então o build deve falhar com código de saída diferente de zero, sem gravar
 `apps/web/dist/index.html`.
 
+**RF-12.4** — *comportamento indesejado*
+
+Se `VITE_API_URL` tem um valor que não é uma origem `http`/`https` simples —
+com curinga, esquema nu, caminho, consulta, fragmento, ou caractere que injeta
+diretiva ou tag — quando `pnpm --filter web build` é executado, então o build
+deve falhar com código de saída diferente de zero, sem gravar
+`apps/web/dist/index.html`.
+
 **Exemplo de origem:** E3.1 e E3.2 — a política é derivada da variável, não
 escrita à mão num segundo lugar que passa a divergir. RF-12.3 é o comportamento
 que `apps/web/vite.config.ts` já tem, com a mensagem `VITE_API_URL is required
-to build apps/web`, e que a política herda ao depender da mesma variável.
+to build apps/web`, reservada ao valor ausente. A forma do valor importa tanto
+quanto a presença dele: `VITE_API_URL` é interpolado sem escape dentro de
+`connect-src 'self' ${apiUrl}` e dentro do atributo `content="…"` da tag
+`<meta>` que a política grava no HTML — um valor com ponto e vírgula acrescenta
+uma décima diretiva à política, e um valor com aspa dupla fecha o atributo e
+injeta uma tag arbitrária no `<head>`. RF-12.4 recusa esse valor antes que ele
+chegue à política, com uma mensagem própria que nomeia o valor recusado.
 
 ### Assunto 4 — Um portão mede segredo nas fontes e no que o build produz (R4)
 
@@ -654,7 +670,7 @@ divergência de contrato e para o trabalho.
 | RF-25 | RF-25.1 | ubíquo | R2 (D-001) |
 | RF-10 | RF-10.1, RF-10.2 | evento, estado | R3 (E2.3, D1) |
 | RF-11 | RF-11.1, RF-11.2, RF-11.3 | ubíquo, ubíquo, ubíquo | R3 (E2.4, D2) |
-| RF-12 | RF-12.1, RF-12.2, RF-12.3 | evento, evento, indesejado | R3 (E3.1, E3.2) |
+| RF-12 | RF-12.1, RF-12.2, RF-12.3, RF-12.4 | evento, evento, indesejado, indesejado | R3 (E3.1, E3.2, D-007) |
 | RF-13 | RF-13.1, RF-13.2, RF-13.3 | ubíquo, ubíquo, ubíquo | R4 (D6, D8) |
 | RF-14 | RF-14.1, RF-14.2 | evento, evento | R4 (E4.1) |
 | RF-15 | RF-15.1, RF-15.2, RF-15.3 | evento, indesejado, indesejado | R4 (E4.1, E4.2, E4.3) |
@@ -666,6 +682,6 @@ divergência de contrato e para o trabalho.
 | RF-21 | RF-21.1, RF-21.2, RF-21.3 | indesejado, indesejado, evento | R6 (E6.3, E6.4) |
 | RF-22 | RF-22.1, RF-22.2, RF-22.3, RF-22.4 | ubíquo, ubíquo, ubíquo, ubíquo | R6 (E6.2, D5, D14) |
 
-Vinte e cinco requisitos, todos com raiz no escopo do PRD ou na divergência
-`D-001` ratificada. Sessenta e oito frases, das quais quinze são comportamento
-indesejado, e cada um dos seis assuntos tem pelo menos uma.
+Vinte e cinco requisitos, todos com raiz no escopo do PRD ou nas divergências
+`D-001` e `D-007` ratificadas. Sessenta e nove frases, das quais dezesseis são
+comportamento indesejado, e cada um dos seis assuntos tem pelo menos uma.

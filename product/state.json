@@ -293,14 +293,14 @@
           "por": "autonomo"
         },
         "spec": {
-          "at": "2026-09-03T10:20:51Z",
-          "sha": "b499ec3c367b083dc0d87565c72397ed66142a30",
+          "at": "2026-09-03T16:23:34Z",
+          "sha": "79b328ca1cda866cd3d0667cb2c5d595a88989cf",
           "file": "product/items/023-endurecimento-antes-da-sessao/02-spec.md",
           "por": "autonomo"
         },
         "plan": {
-          "at": "2026-09-03T12:06:52Z",
-          "sha": "2a4928f2e797c0001b4cd1a1ce8922ee7ad426c9",
+          "at": "2026-09-03T16:23:34Z",
+          "sha": "0a054f5d9faf6b58fd21c6041e56d8f2bb1fa602",
           "file": "product/items/023-endurecimento-antes-da-sessao/03-plan.md",
           "por": "humano"
         }
@@ -407,6 +407,15 @@
           "ratificada_por": "humano",
           "reconciliada_at": "2026-09-03T12:06:51Z",
           "ratificacao_humana_at": "2026-09-03T19:23:49Z"
+        },
+        "D-007": {
+          "status": "RECONCILIADA",
+          "kind": "normal",
+          "phase": 3,
+          "detected_at": "2026-09-03T16:16:39Z",
+          "aprovada_at": "2026-09-03T16:16:39Z",
+          "ratificada_por": "autonomo",
+          "reconciliada_at": "2026-09-03T16:23:34Z"
         }
       },
       "criteria_exception": null

@@ -229,6 +229,33 @@ PR e commit já escritos.
       por arquivo ou por entrada padrão, não por argumento de linha de comando,
       que é público para todo processo da máquina.
 
+- [ ] `036-a-fronteira-de-agent-mede-quem-escreve` — o guard de escopo recusa a
+      escrita pelo agent que a fez, e não pelo último agent despachado
+      **Depende de:** nada — o guard já existe nos hooks do harness.
+      **Origem:** fase 3 de `023-endurecimento-antes-da-sessao`. Com um
+      `react-implementer` vivo em segundo plano, a thread principal tentou gravar
+      `product/items/023-endurecimento-antes-da-sessao/04-divergencias/D-007.md`
+      e o guard recusou dizendo que `react-implementer` só escreve em
+      `apps/web/**` — atribuindo a quem orquestra o escopo de quem foi
+      despachado. O escopo é o certo; o sujeito é que está errado. O efeito
+      prático é pior do que a recusa: quem orquestra continua podendo escrever o
+      mesmo arquivo pelo shell, que o guard não cobre, então a fronteira empurra
+      para o caminho que ela não mede. Enquanto isso não muda, quem orquestra
+      espera o agent encerrar antes de gravar em `product/`.
+
+- [ ] `037-o-carregador-de-configuracao-do-vite-para-de-avisar` — o build de
+      `apps/web` sobe sem o aviso de importação sem extensão
+      **Depende de:** `023-endurecimento-antes-da-sessao` — é a fase 3 dele que
+      cria o import que dispara o aviso.
+      **Origem:** fase 3 de `023-endurecimento-antes-da-sessao`. `vite.config.ts`
+      passou a importar `./src/shared/config/build-api-url` para peneirar a
+      origem antes de ela virar política (`D-007`), e o Vite avisa que o
+      carregador nativo, que vai virar padrão, exige a extensão `.ts` no
+      especificador. Acrescentá-la hoje quebra o `typecheck` com `TS5097`, que
+      pede `allowImportingTsExtensions` no `tsconfig.json` — mudança de
+      configuração de tipos que não cabia numa fase de endurecimento de
+      cabeçalhos. O aviso é ruído em todo build até lá.
+
 - [ ] `002-conta-e-organizacao` — quem se cadastra cria a organização e vira o
       seu primeiro administrador; o endereço é confirmado por e-mail, a senha se
       recupera sozinha, e a tela responde a mesma coisa exista ou não a conta
@@ -438,6 +465,18 @@ não bloqueia trabalho que não dependa dela.
   janela fique aberta até o primeiro deploy existir.
   **Origem:** discovery de `023-endurecimento-antes-da-sessao`, decisão autônoma
   `D1`, refinada por `D18` no estágio `spec`.
+  **Quando isto virar item, o portão vai reprovar a correção certa.**
+  `exige_dist_sem_cabecalhos_constantes`, em
+  `apps/web/scripts/verificar-politica.sh`, recusa qualquer arquivo sob `dist/`
+  que nomeie os quatro cabeçalhos constantes — e um `_headers` no diretório
+  publicado é exatamente como Netlify e Cloudflare Pages recebem configuração de
+  cabeçalho. Abra a exceção para o arquivo de configuração do host escolhido, em
+  vez de afrouxar a asserção: ela existe para impedir que o artefato decida por
+  quem serve, e o arquivo do host é o único lugar onde essa decisão é legítima.
+  Medido no navegador na fase 3: a página em `vite preview` sob a política real
+  hidrata e busca a API sem violação, e o único erro de console é o Chromium
+  dizendo que `frame-ancestors` entregue por `<meta>` é ignorado — a confirmação
+  de que a janela existe.
 
 - **O template do harness ensina a trava quebrada a todo projeto novo.**
   `templates/ci/harness.yml` do plugin, linha 26, tem a mesma leitura de rótulos
@@ -531,3 +570,15 @@ verificação**.
   real.** O HTML renderizado no servidor está verificado por comando, e a página
   não tem folha de estilo, então não há o que quebrar visualmente; ainda assim
   ninguém a abriu. Cai em `015-hotsite`, que é quem lhe dá aparência.
+
+- **`023-endurecimento-antes-da-sessao`, Fase 3 — o primeiro estilo do app sob a
+  política.** A política do `apps/web` foi carregada num Chromium real, servida
+  por `vite preview`: a página hidrata, busca a API pelo `connect-src` e não
+  produz nenhuma violação. Mas o app tem hoje uma página, nenhuma folha de estilo
+  e nenhum atributo `style=`. `style-src 'self'` governa também os estilos
+  embutidos, por queda para `style-src-attr`: o primeiro componente que escrever
+  `style="…"`, ou a primeira biblioteca que injetar `<style>` em tempo de
+  execução, quebra **só no artefato de produção** — em `vite dev` não há política
+  para violar. Cai no primeiro item que der aparência ao app,
+  `002-conta-e-organizacao`, e a verificação é abrir `vite preview` com o console
+  aberto.

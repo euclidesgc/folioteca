@@ -1,6 +1,7 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import type { Plugin } from "vite";
+import { validateApiUrlForBuild } from "./src/shared/config/build-api-url";
 
 // decisão: sem HSTS — os dois servidores deste arquivo respondem em http
 // local, e a HSTS emitida em localhost fixa no navegador de quem desenvolve
@@ -24,8 +25,12 @@ function requireApiUrlOnBuild(): Plugin {
       apiUrl = config.env.VITE_API_URL;
     },
     buildStart() {
-      if (command === "build" && !apiUrl) {
-        this.error("VITE_API_URL is required to build apps/web");
+      if (command !== "build") {
+        return;
+      }
+      const result = validateApiUrlForBuild(apiUrl);
+      if (!result.ok) {
+        this.error(result.message);
       }
     },
   };
@@ -66,10 +71,21 @@ function injectContentSecurityPolicyOnBuild(): Plugin {
       // decisão: a serialização de HtmlTagDescriptor do Vite escapa aspas
       // simples para `&#39;`, o que quebraria `'self'` e `'none'` na política
       // — por isso a tag é montada como string, não devolvida como tag.
+      const tag = `<meta http-equiv="Content-Security-Policy" content="${policy}">`;
+
+      // decisão: a tag entra depois de <meta charset>, nunca antes — o
+      // comprimento da política, influenciado pelo valor de VITE_API_URL, não
+      // pode empurrar a declaração de charset para fora dos primeiros 1024
+      // bytes do documento, janela em que o navegador ainda a reconhece.
+      const charset = html.match(/<meta\s+charset=(["'])[^"']*\1\s*\/?>/i);
+      if (charset?.index !== undefined) {
+        const fim = charset.index + charset[0].length;
+        return `${html.slice(0, fim)}\n    ${tag}${html.slice(fim)}`;
+      }
+
       return html.replace(
         /<head(\s[^>]*)?>/i,
-        (match) =>
-          `${match}\n    <meta http-equiv="Content-Security-Policy" content="${policy}">`,
+        (match) => `${match}\n    ${tag}`,
       );
     },
   };

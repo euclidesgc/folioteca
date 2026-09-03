@@ -96,6 +96,34 @@ exige_meta_csp_unica() {
   return 1
 }
 
+# exige_origem_de_forma_valida <origem>
+# A política "canônica" deste arquivo é montada a partir da mesma origem que
+# o portão está julgando (_politica_canonica), então ela nunca reprova uma
+# origem perigosa — só uma divergência entre o artefato e o argumento. Esta
+# asserção mede a forma da origem em si, antes de qualquer comparação com o
+# artefato: sem esquema http/https só, sem curinga, sem esquema nu, sem
+# caminho/consulta/fragmento depois do host, e sem caractere que injeta
+# diretiva ou tag quando colado na política ou no atributo content="".
+exige_origem_de_forma_valida() {
+  local origem="$1"
+  echo "medido: origem candidata = '$origem'"
+
+  case "$origem" in
+  *';'* | *'"'* | *"'"* | *' '* | *'<'*)
+    printf '::error::a origem "%s" contém caractere perigoso (; " '"'"' espaço ou <), que injeta diretiva ou tag quando colado na política\n' "$origem" >&2
+    return 1
+    ;;
+  esac
+
+  if ! printf '%s' "$origem" | grep -Eq '^https?://[^/?#]+$'; then
+    printf '::error::a origem "%s" não tem a forma esquema://host — reprovado curinga, esquema nu, caminho, consulta, fragmento ou esquema que não seja http/https\n' "$origem" >&2
+    return 1
+  fi
+
+  echo "medido: a origem tem forma válida — esquema http/https, sem caminho, consulta ou fragmento"
+  return 0
+}
+
 # exige_politica_com_nove_diretivas <política>
 exige_politica_com_nove_diretivas() {
   local politica="$1" quantidade
@@ -343,6 +371,13 @@ principal() {
   if [ -z "$origem" ]; then
     _reprova "nenhuma origem informada — uso: verificar-politica.sh <origem usada no build de apps/web/dist>"
   fi
+
+  # Precisa vir antes de qualquer medição do artefato: uma origem que o
+  # portão não aceita não pode nem chegar a produzir veredicto sobre a
+  # política — senão o portão mediria "o artefato bate com o argumento" sem
+  # jamais perguntar se o próprio argumento é seguro.
+  exige_origem_de_forma_valida "$origem" ||
+    _reprova "a origem '$origem' não tem forma válida — a mensagem acima detalha o motivo"
 
   exige_comando curl
   exige_comando pnpm

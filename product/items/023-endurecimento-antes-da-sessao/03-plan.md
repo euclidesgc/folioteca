@@ -592,30 +592,61 @@ conteúdo cujo `connect-src` é derivado de `VITE_API_URL` no instante do build.
       razão que ele já está no `server` — sem ele o Vite escorrega para a porta
       seguinte, e um `curl` na porta nomeada mediria ausência de cabeçalho onde
       não há servidor, que é aprovar por não ter medido.
-- [ ] 3.2 Criar, no mesmo `apps/web/vite.config.ts` e ao lado de
-      `requireApiUrlOnBuild`, o plugin local
+- [ ] 3.2 Criar, em `apps/web/src/shared/config/build-api-url.ts`, a função
+      exportada `validateApiUrlForBuild(value: string | undefined):
+      ApiUrlValidation`.
+      > Reconciliado em D-007.
+      A função devolve `{ ok: true, value }` quando `value` é uma
+      origem `http`/`https` simples, e `{ ok: false, message }` nos demais
+      casos: valor ausente, com a mensagem `VITE_API_URL is required to build
+      apps/web`; valor presente e malformado — curinga, esquema nu, caminho,
+      consulta, fragmento ou caractere que injeta diretiva ou tag —, com uma
+      mensagem própria que nomeia o valor recusado. A peneira é a mesma dupla
+      de `apps/api/src/config/web-origins.ts`: `new URL(value)` sem lançar, e
+      `parsed.protocol` em `http:`/`https:` com `parsed.origin === value`. No
+      mesmo `apps/web/vite.config.ts`, `requireApiUrlOnBuild` chama
+      `validateApiUrlForBuild` em `buildStart`, sobre `config.env.VITE_API_URL`
+      lido em `configResolved`, e mata o build com `this.error(result.message)`
+      quando `result.ok` é falso. Criar, ao lado dela, o plugin local
       `function injectContentSecurityPolicyOnBuild(): Plugin`, que guarda
       `config.command` e `config.env.VITE_API_URL` em `configResolved` e, em
       `transformIndexHtml`, injeta em `<head>` a tag
       `<meta http-equiv="Content-Security-Policy" content="…">` **apenas** quando
       `command === "build"`; registrá-lo em `plugins` depois de
-      `requireApiUrlOnBuild()`.
+      `requireApiUrlOnBuild()`, para que o valor só chegue à política depois de
+      ter passado pela peneira.
       Justificativa: a política de produção proíbe o script embutido de que o
       recarregamento a quente do Vite depende, e uma meta válida nos dois lugares
       seria uma política frouxa nos dois (RF-10.2); ler a origem de
       `config.env.VITE_API_URL` é ler a mesma fonte que `requireApiUrlOnBuild` já
       lê, de modo que a política e a guarda não possam divergir — que é a razão
-      de RF-12 existir. Registrar depois da guarda garante que o build com a
-      variável ausente morre antes de haver política para injetar (RF-12.3).
-- [ ] 3.3 Escrever o valor da política como as nove diretivas de RF-11.1
+      de RF-12 existir. A peneira mora num módulo próprio, fora de
+      `vite.config.ts`, porque é o que permite testá-la sozinha, sem montar
+      configuração de Vite nem rodar um build, contra os valores que tentam
+      envenenar a política (RF-12.4). Registrar depois da guarda garante que o
+      build com a variável ausente ou malformada morre antes de haver política
+      para injetar (RF-12.3, RF-12.4).
+- [ ] 3.3 Escrever o valor da política como as nove diretivas de RF-11.1,
       separadas por `; `, com `connect-src 'self' ${apiUrl}` interpolado da
-      variável lida no passo anterior, e nenhuma décima diretiva.
+      origem validada no passo anterior, e nenhuma décima diretiva.
+      > Reconciliado em D-007.
+      Montar a tag como string — `<meta http-equiv="Content-Security-Policy"
+      content="${policy}">` —, e não como `HtmlTagDescriptor` devolvido ao
+      Vite, porque a serialização do Vite escapa aspa simples para `&#39;`, o
+      que quebraria `'self'` e `'none'` na política. Inserir a tag logo depois
+      da declaração `<meta charset="…">` do HTML, localizada pelo padrão
+      `/<meta\s+charset=(["'])[^"']*\1\s*\/?>/i`, e nunca antes dela; quando o
+      HTML não traz `<meta charset>`, inserir logo depois de `<head>`.
       Justificativa: a lista literal é o contrato de D2 e a spec diz
       **exatamente** nove, o que faz de cada diretiva a mais uma permissão que
       ninguém pediu; `frame-ancestors` fica na meta mesmo sem efeito de
       enquadramento porque RF-11.1 a nomeia e porque o cabeçalho equivalente
       depende do host de produção, que é não-escopo deste item — a diretiva
-      escrita hoje é o que a fase de deploy encontra pronta.
+      escrita hoje é o que a fase de deploy encontra pronta. A tag entra depois
+      do `<meta charset>`, nunca antes, porque o comprimento da política —
+      influenciado pela forma de `VITE_API_URL` — não pode empurrar a
+      declaração de charset para fora dos primeiros 1024 bytes do documento,
+      janela em que o navegador ainda a reconhece.
 - [ ] 3.4 Modificar `.github/workflows/ci-react.yml` acrescentando, logo depois
       do passo `Build` do job `qualidade`, um passo que afirma sobre
       `apps/web/dist/index.html`: a tag `<meta http-equiv="Content-Security-Policy">`
