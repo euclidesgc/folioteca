@@ -344,6 +344,17 @@ preferir renumerar, o trabalho é mecânico e exige reaprovar o plano.
 | D40 | **`exige_pacote_pnpm` entra em `scripts/gates/medir.sh`, com dois casos de teste**, e é chamada nos seis jobs que usam `pnpm --filter` | Escrever a verificação como shell solto dentro de cada YAML | Registrado como `D-018`. `pnpm --filter <inexistente> <script>` sai com código 0: um pacote fora do `pnpm-workspace.yaml` deixaria o fluxo verde sem ter rodado nada. É a quarta forma da tabela de portões que aprovam por não ter medido, e a defesa deste projeto para a classe é asserção testada em `medir.sh` — o `portoes.yml` já roda esse teste em todo PR. A medição usa um marcador impresso pelo próprio comando, porque contar as linhas da saída aprovaria pelo aviso "No projects matched the filters", que o pnpm imprime na saída padrão. |
 | D41 | **O `README.md` da raiz nomeia a porta `5433` do Postgres e explica por que não é a `5432`** | Listar as quatro portas sem justificar a do banco | Um Postgres já instalado na máquina ocupa a 5432, e o conflito só apareceria na primeira consulta, longe da causa. A promessa de "um comando sobe tudo" só se cumpre se o desvio da convenção estiver escrito onde quem clona olha primeiro. |
 
+### Observações do validador cego, decididas e mantidas
+
+O veredicto da Fase 5 é `APROVADO` sem defeito. Ele registra duas assimetrias
+que nenhum critério cobre, e as duas ficam como estão — com a razão escrita
+aqui, para não voltarem como dúvida:
+
+| # | Decisão | Alternativa descartada | Por quê |
+|---|---|---|---|
+| D42 | **O gatilho `push` dos três fluxos continua restrito a `main` e `develop`** | Tirar o filtro de branch e verificar a cada push em qualquer branch | O `pull_request` não tem filtro de branch: toda branch de trabalho é verificada assim que vira PR, que é quando o resultado tem para quem servir. Sem o filtro, cada push numa branch de PR dispara os fluxos duas vezes — uma pelo `push`, outra pelo `pull_request` —, dobrando o consumo para produzir o mesmo veredicto. É a configuração mais comum e a mais reversível: uma linha volta atrás. |
+| D43 | **O fluxo do hotsite não tem job `guarda`** | Copiar a guarda dos outros dois fluxos para o do site | A guarda dos outros dois existe porque `apps/api` e `apps/web` nasceram declarados no workspace e vazios, e o CI reprovava por medir o que não existia. O hotsite nasce com código na mesma fase que o cria, então não há a janela que a guarda cobria. O que resta — pacote fora do workspace, diretório ausente — é medido por `exige_caminho` e `exige_pacote_pnpm` no primeiro passo do job, que reprovam em voz alta em vez de pular. |
+
 ### Divergências ratificadas na Fase 5
 
 | # | O que estava assim | O que a realidade impôs | Alternativa descartada |
