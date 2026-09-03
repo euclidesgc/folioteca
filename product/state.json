@@ -189,22 +189,24 @@
           "ratificada_por": "humano"
         },
         "D-011": {
-          "status": "APROVADA",
+          "status": "RECONCILIADA",
           "kind": "normal",
           "phase": 3,
           "detected_at": "2026-09-03T06:55:43Z",
           "aprovada_at": "2026-09-03T06:55:43Z",
           "ratificada_por": "humano",
-          "ratificacao_humana_at": "2026-09-03T20:51:56Z"
+          "ratificacao_humana_at": "2026-09-03T20:51:56Z",
+          "reconciliada_at": "2026-09-03T19:24:55Z"
         },
         "D-012": {
-          "status": "APROVADA",
+          "status": "RECONCILIADA",
           "kind": "normal",
           "phase": 3,
           "detected_at": "2026-09-03T07:45:51Z",
           "aprovada_at": "2026-09-03T07:45:51Z",
           "ratificada_por": "humano",
-          "ratificacao_humana_at": "2026-09-03T20:51:56Z"
+          "ratificacao_humana_at": "2026-09-03T20:51:56Z",
+          "reconciliada_at": "2026-09-03T19:31:05Z"
         },
         "D-013": {
           "status": "RECONCILIADA",

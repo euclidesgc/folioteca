@@ -1020,21 +1020,50 @@ números.
 
 ### Etapas
 
-- [ ] 5.1 Modificar `pnpm-workspace.yaml` acrescentando
-      `minimumReleaseAge: 10080`, com o comentário do porquê no estilo dos três
-      blocos que já estão no arquivo.
+- [ ] 5.1 Modificar `pnpm-workspace.yaml` acrescentando `minimumReleaseAge:
+      10080` e `minimumReleaseAgeExclude: ["qs"]`, cada chave com o comentário
+      do porquê no estilo dos três blocos que já estão no arquivo — o da
+      isenção nomeia `GHSA-4mjr-xmp4-gh2g` e `GHSA-x5fp-wj9c-mxmx`, corrigidas
+      em `qs@6.16.0`, e a data em que ela deixa de valer, 05/09/2026.
+      > Reconciliado em D-011, D-012.
+      Rebaixar para a última versão madura as quatro famílias que a janela de
+      sete dias reprova com a chave declarada — `jest` para `30.4.2` em
+      `apps/api`; `next` e `@next/eslint-plugin-next` para `16.3.3` em
+      `apps/site`; `typescript-eslint` para `8.68.0` em `apps/api`,
+      `apps/site` e `apps/web`; e `@vitejs/plugin-react` para `6.1.0` em
+      `apps/web` — e reconstruir `pnpm-lock.yaml` com `pnpm install`.
       Justificativa: D4 — sete dias é a janela em que as campanhas recentes de
       publicação maliciosa em npm foram detectadas e as versões despublicadas; o
       comentário existe porque o número sozinho não diz de onde veio, e quem for
-      tentado a baixá-lo precisa encontrar o argumento no mesmo lugar.
+      tentado a baixá-lo precisa encontrar o argumento no mesmo lugar. Com toda
+      dependência deste repositório declarada em versão exata, não há faixa em
+      que o resolvedor escolha uma versão madura sozinho: as quatro famílias
+      acima caem dentro da janela no dia em que a chave entra, e `pnpm install
+      --frozen-lockfile` reprova sobre elas antes de qualquer outra coisa
+      rodar. Rebaixá-las é a quarentena mordendo onde ela foi feita para
+      morder — nada as traz de volta sozinho, e a subida é o item de roadmap
+      `041` (D-011). A mesma reconstrução do lockfile troca `qs@6.16.0` por
+      `qs@6.15.3` por resolução transitiva de `@nestjs/platform-express` →
+      `express` → `qs`, reintroduzindo as duas falhas que `6.16.0` corrige — a
+      isenção nominal traz a versão corrigida de volta sem desligar a janela
+      para mais nada, e a etapa 5.2 é o que impede a isenção seguinte de entrar
+      sem que alguém a escreva nos dois lugares (D-012).
 - [ ] 5.2 Criar `scripts/gates/quarentena.sh`, carregando
       `source scripts/gates/medir.sh`, com `exige_comando pnpm`, comparando a
       saída de `pnpm config get minimumReleaseAge` com `10080` e reprovando em
       qualquer outro valor, `undefined` incluído; imprimir o valor medido.
+      Comparar também a lista declarada em `minimumReleaseAgeExclude` com uma
+      constante própria do script — hoje `["qs"]` — e reprovar nomeando
+      qualquer nome que a lista declarada tenha e a constante não reconheça.
+      > Reconciliado em D-012.
       Justificativa: RF-19.2 — `undefined` não distingue "não configurei" de
       "configurei com um caractere trocado", e um portão que só verifica ausência
       de erro aprova as duas. Comparar com o número é o que separa as duas
-      respostas.
+      respostas. A constante própria para a lista de isenções é o que impede
+      `minimumReleaseAgeExclude: ["*"]` de desligar a política inteira sem
+      mudar o número que o portão já lê, e o que impede a isenção seguinte de
+      entrar sem que alguém a escreva nos dois lugares — em
+      `pnpm-workspace.yaml` e nesta constante (RF-18.4).
 - [ ] 5.3 Criar `scripts/gates/acoes_em_sha.sh`, carregando
       `source scripts/gates/medir.sh`, com
       `exige_caminho .github/workflows "os fluxos do CI"` e reprovando quando o

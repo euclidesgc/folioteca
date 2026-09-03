@@ -494,9 +494,13 @@ mecanismo o runner passa a cobrá-lo é decisão do plano. A verificação exter
 
 #### RF-18 · A quarentena declarada no workspace
 
+> Reconciliado em D-011, D-012.
+
 **RF-18.1** — *ubíquo*
 
-O repositório deve declarar `minimumReleaseAge: 10080` em `pnpm-workspace.yaml`.
+O repositório deve declarar em `pnpm-workspace.yaml` `minimumReleaseAge: 10080`
+e `minimumReleaseAgeExclude: ["qs"]`, com o motivo da isenção e a data em que
+ela deixa de valer — 05/09/2026 — escritos ao lado, em comentário.
 
 **RF-18.2** — *dirigido a evento*
 
@@ -505,11 +509,30 @@ a saída deve ser `10080`.
 
 **RF-18.3** — *dirigido a evento*
 
-Quando `pnpm install --frozen-lockfile` é executado com a chave declarada, o
-comando deve sair com código zero, sem revisitar nenhuma das 673 resoluções que
-o lockfile já fixa.
+Quando `pnpm install --frozen-lockfile` é executado com as duas chaves
+declaradas, o comando deve sair com código zero, sem revisitar nenhuma das
+resoluções que o lockfile já fixa — condição que exige que toda dependência do
+repositório, fixada em versão exata, seja uma versão publicada há pelo menos
+sete dias, ou esteja nomeada em `minimumReleaseAgeExclude`.
 
-**Exemplo de origem:** E5.1 e E5.3, com os sete dias vindos de D4.
+**RF-18.4** — *comportamento indesejado*
+
+Se `minimumReleaseAgeExclude` nomeia uma dependência que não está na lista que
+o portão da quarentena reconhece como isenção vigente, então o portão deve
+reprovar nomeando o nome a mais.
+
+**Exemplo de origem:** E5.1 e E5.3, com os sete dias vindos de D4. A condição
+de RF-18.3 vem de D-011: com toda dependência declarada em versão exata, não
+há faixa em que o resolvedor escolha uma versão madura sozinho, e a quarentena
+rejeita a instalação sempre que uma versão pinada cai dentro da janela de sete
+dias — a saída é rebaixar a dependência para a última versão madura ou
+isentá-la nominalmente, com prazo. A isenção de `qs` vem de D-012: a mesma
+reconstrução de lockfile que tirou as demais dependências da janela trocou
+`qs@6.16.0` por `qs@6.15.3` por resolução transitiva de
+`@nestjs/platform-express` → `express` → `qs`, reintroduzindo
+`GHSA-4mjr-xmp4-gh2g` e `GHSA-x5fp-wj9c-mxmx` — exploráveis sem credencial pela
+query de qualquer requisição —, que `qs@6.16.0` corrige. RF-18.4 é o que
+impede a isenção seguinte de entrar sem que alguém a escreva nos dois lugares.
 
 #### RF-19 · O portão exige o número, não a ausência de erro
 
@@ -680,12 +703,13 @@ divergência de contrato e para o trabalho.
 | RF-15 | RF-15.1, RF-15.2, RF-15.3 | evento, indesejado, indesejado | R4 (E4.1, E4.2, E4.3) |
 | RF-16 | RF-16.1, RF-16.2, RF-16.3, RF-16.4 | indesejado, indesejado, indesejado, evento | R4 (E4.4, E4.5); regra 19 |
 | RF-17 | RF-17.1, RF-17.2, RF-17.3, RF-17.4 | evento, evento, ubíquo, indesejado | R4 (D6, D7, D12) |
-| RF-18 | RF-18.1, RF-18.2, RF-18.3 | ubíquo, evento, evento | R5 (E5.1, E5.3, D4) |
+| RF-18 | RF-18.1, RF-18.2, RF-18.3, RF-18.4 | ubíquo, evento, evento, indesejado | R5 (E5.1, E5.3, D4, D-011, D-012) |
 | RF-19 | RF-19.1, RF-19.2 | ubíquo, indesejado | R5 (E5.2) |
 | RF-20 | RF-20.1, RF-20.2 | ubíquo, ubíquo | R6 (E6.1) |
 | RF-21 | RF-21.1, RF-21.2, RF-21.3 | indesejado, indesejado, evento | R6 (E6.3, E6.4) |
 | RF-22 | RF-22.1, RF-22.2, RF-22.3, RF-22.4 | ubíquo, ubíquo, ubíquo, ubíquo | R6 (E6.2, D5, D14) |
 
 Vinte e cinco requisitos, todos com raiz no escopo do PRD ou nas divergências
-`D-001` e `D-007` ratificadas. Sessenta e nove frases, das quais dezesseis são
-comportamento indesejado, e cada um dos seis assuntos tem pelo menos uma.
+`D-001`, `D-007`, `D-011` e `D-012` ratificadas. Setenta frases, das quais
+dezessete são comportamento indesejado, e cada um dos seis assuntos tem pelo
+menos uma.

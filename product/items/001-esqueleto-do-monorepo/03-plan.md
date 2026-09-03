@@ -448,6 +448,27 @@ um cliente HTTP único tipado pelo cliente gerado de `apps/api/openapi.json`.
       aplicação diferente da de produção aprova o que produção reprova — a
       lição registrada em D-008 neste projeto.
       > Reconciliado em D-011.
+- [ ] 3.14 Criar `scripts/gates/bloqueio.sh`, que lê a variável de ambiente
+      `ROTULOS` com um analisador JSON de verdade e reprova quando a lista tem
+      um rótulo `blocked-on-*` ou quando não consegue interpretar a variável;
+      criar `scripts/gates/__tests__/bloqueio.test.sh` com os casos que
+      exercitam o formato indentado que o `toJSON` do GitHub produz; modificar
+      `.github/workflows/bloqueio.yml` para fazer checkout da árvore e chamar
+      o script e o teste; e acrescentar `VITE_API_URL: http://localhost:3000`
+      ao passo `Build` do job `qualidade` de `.github/workflows/ci-react.yml`.
+      Justificativa: uma leitura de rótulo feita em shell dentro do YAML, com
+      `tr -d '[]"' | grep '^blocked-on-'`, não sobrevive à indentação que o
+      `toJSON` do GitHub produz — a linha nasce com espaço à frente e a âncora
+      `^` do `grep` não a encontra —, e é exatamente esse silêncio que a trava
+      do protocolo de divergência não pode ter; o parser dedicado com onze
+      casos de teste é o que prova que ela morde, inclusive nesse formato. O
+      passo `Build` do job `qualidade`, por sua vez, recusa subir sem
+      `VITE_API_URL` porque `apps/web/src/shared/config/env.ts` (etapa 3.5)
+      transforma a ausência da variável em exceção — sem ela o build que esta
+      fase produz reprova por falta de configuração, não por defeito de
+      código. Os dois arquivos de `.github/workflows/**` entram no diff desta
+      fase porque os dois defeitos nasceram dela, e é aqui que se corrigem.
+      > Reconciliado em D-012.
 
 ---
 
