@@ -282,7 +282,7 @@
     "023-endurecimento-antes-da-sessao": {
       "title": "Endurecimento antes da sessão: cabeçalhos de segurança e CSP no navegador, artefato de build medido contra segredo, origem autorizada em lista, quarentena de dependência e ações do CI fixadas em SHA",
       "track": "completa",
-      "stage": "execute",
+      "stage": "done",
       "stacks": [],
       "created_at": "2026-09-03T09:33:47Z",
       "approvals": {

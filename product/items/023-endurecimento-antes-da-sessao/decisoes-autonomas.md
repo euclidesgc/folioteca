@@ -368,3 +368,71 @@ plano, já registrada como autônoma.
   `pnpm-workspace.yaml` e da constante de `quarentena.sh`, ou reescrever a data
   com o motivo novo. É o comportamento desenhado, não um defeito — mas quem
   encontrar o vermelho precisa saber que ele foi agendado de propósito.
+
+## Encerramento do item — o que decidi sozinho, e o que é seu
+
+O `decide-next-action.mjs` mandou fechar: as cinco fases estão `aprovada`. O
+estágio `done` não tem aprovação — sai por `state.sh stage --stage done`, sem
+`--por`, então não há um "sim" autônomo a registrar aqui. O que há são quatro
+decisões e um achado.
+
+- **Fechei o item com o CI parado, em vez de parar a corrida.** Ao procurar a
+  evidência de runner que o encerramento de `001` usou, descobri que **nenhum
+  fluxo do GitHub Actions rodou nas fases 4 e 5**: os commits de cabeça `0489eb1`
+  e `d0ecaae` têm suíte de `gitguardian`, `railway-app`, `cursor` e `claude`, e
+  nenhuma de `github-actions`; a fase 3 tem quatro. O último run do repositório
+  inteiro é de 16:54Z. Descartei parar porque parar não conserta nada que esteja
+  ao meu alcance: a causa provável é cota de minutos de repositório privado em
+  plano de usuário, `settings/billing/actions` exige o escopo `user` que este
+  token não tem, e conceder escopo de conta ou pagar excedente é ato seu. As
+  cinco fases têm veredicto de validador cego com os portões locais executados —
+  que é a melhor evidência que esta máquina produz, e não substitui o runner.
+  Fechar registrando vale mais que travar em silêncio.
+- **A causa imediata virou *Pendência de produto aberta*, não item de roadmap.**
+  A régua da corrida diz que o que precisa de decisão do dono vai para lá, e item
+  de trabalho vai para a lista de itens. Resolver isto é abrir a aba Actions,
+  olhar o motivo que só ela mostra e escolher entre pagar o excedente, elevar o
+  teto de gasto ou tornar o repositório público — três caminhos com custo
+  diferente, nenhum deles meu. A entrada traz as quatro medições que descartam
+  configuração deste repositório como causa.
+- **O buraco de processo virou o item `047` e a proposta `2026-09-03-004`.**
+  Quatro camadas seguidas — `phase-validator`, `state.py check`,
+  `decide-next-action.mjs` e o estágio `done` da skill — respondem igual para "o
+  CI rodou verde" e para "o CI não existiu", e a DoD global inteira está delegada
+  a ele pela regra 6. É a forma de portão que o `CLAUDE.md` cataloga. O conserto
+  mora no plugin, então propus em vez de aplicar, como em `037`; o que cabe neste
+  repositório é a asserção que o encerramento passa a executar, e é o item `047`.
+  A proposta pede `CI_AUSENTE` como estado próprio, distinto de `REPROVADO`:
+  mandar um implementer "corrigir" a falta de runner gasta uma sessão contra um
+  problema que não é dele.
+- **Migrei quatro validações de campo, e não as cinco que o plano previa.** O
+  plano nomeou uma por fase; a da fase 2 — a hidratação do hotsite num navegador
+  real sob a política ativa — foi **medida** na própria fase, com Playwright
+  contra o build de produção e zero erro de console, então registrá-la como
+  pendente seria escrever uma dívida que já foi paga. A da fase 3 já estava no
+  roadmap. Entraram agora a da fase 4 e a da fase 5, mais duas que a execução
+  revelou e o plano não previa: o cache do Actions entre PR de fork e `main`, que
+  a auditoria de segurança admitiu ter raciocinado sem medir, e o teto de
+  permissão padrão da conta, que é configuração fora do repositório. As quatro
+  esperam o runner, e o runner está parado — a seção diz isso.
+
+**O `check` fecha o item com `ok: false`, e é o desenho.** Vinte problemas, todos
+da mesma forma: divergência ratificada em modo autônomo esperando o seu olho.
+São nove de `001` e nove de `023`, mais a queixa de que as árvores de `001` fase
+5 mudaram depois do veredicto — que é o efeito de estar numa branch posterior,
+não uma regressão. A tensão entre esse `ok: false` e a skill do orquestrador, que
+pede `check` sem problemas para sair do `done`, já está escrita na proposta
+`2026-09-03-003`, do encerramento de `001`; não a repito.
+
+### A sua próxima ação, em ordem
+
+1. **Abra a aba Actions do repositório.** Sem runner, nenhuma sessão consegue
+   satisfazer a regra 10 — "pronto é build verde" —, e a corrida seguinte herda a
+   mesma cegueira até o item `047` existir.
+2. **Ratifique as divergências com `--por humano`.** São dezoito, nove por item;
+   as que mais merecem o olhar neste item são `D-011` e `D-012`, que decidem a
+   quarentena de sete dias e a isenção nominal que a fura por prazo.
+3. **A isenção de `qs` vence em 05/09/2026.** É um vermelho agendado de
+   propósito: a partir dessa data o portão de quarentena reprova em todo PR até
+   alguém tirar `qs` de `pnpm-workspace.yaml` e da constante de `quarentena.sh`,
+   ou reescrever a data com o motivo novo.

@@ -26,7 +26,7 @@ PR e commit já escritos.
 - [x] `001-esqueleto-do-monorepo` — os três apps sobem, o contrato OpenAPI é
       gerado e o cliente é gerado dele, e o CI fica verde nos três
 
-- [-] `023-endurecimento-antes-da-sessao` — o navegador recebe cabeçalhos de
+- [x] `023-endurecimento-antes-da-sessao` — o navegador recebe cabeçalhos de
       segurança e política de conteúdo, o artefato de build é medido contra
       segredo antes de publicar, a origem autorizada aceita uma lista em vez de
       um valor só, e dependência recém-publicada cumpre quarentena antes de
@@ -331,6 +331,27 @@ PR e commit já escritos.
       também o não rastreado, ou dizer quantos ficaram de fora e recusar o verde
       quando houver algum — a segunda é mais barata e não muda o que cada portão
       julga. Enquanto isso não muda, roda-se o portão **depois** do `git add`.
+
+- [ ] `047-o-veredicto-de-fase-mede-se-o-ci-chegou-a-rodar` — quem fecha uma fase
+      pergunta ao GitHub se alguma suíte do Actions rodou no PR, e reprova quando
+      a resposta é nenhuma
+      **Depende de:** nada — a pergunta é uma chamada à API do GitHub sobre um PR
+      que já existe.
+      **Origem:** encerramento de `023-endurecimento-antes-da-sessao`. As fases 4
+      e 5 foram declaradas aprovadas com os portões rodados nesta máquina, e os
+      PRs #23 e #24 **não têm nenhuma suíte do `github-actions`** — o último run
+      do repositório inteiro é de 16:54 do dia 3, na fase 3. Nada no processo
+      perguntou: o veredicto cego mede critério de aceite, o `state.py check` mede
+      coerência do estado, e a DoD global é "do CI" (regra 6 do `CLAUDE.md`) —
+      que é exatamente a parte que ninguém confere ter acontecido. É a mesma
+      classe de `036`: a ausência de vermelho foi lida como verde, quando o certo
+      era ler como *não medido*. A pergunta que fecha a janela é
+      `gh api repos/<dono>/<repo>/commits/<sha>/check-suites`, procurando por
+      `app.slug == "github-actions"`; ela precisa de rede e token, como o portão
+      de `042`, então é veredicto de fase e não portão hermético. O passo que
+      falta mora no plugin do harness, fora deste repositório, e vai à
+      retrospectiva junto com `037` — o que cabe aqui é a asserção que o
+      encerramento de item passa a executar antes de marcar `[x]`.
 
 - [ ] `037-a-fronteira-de-agent-mede-quem-escreve` — o guard de escopo recusa a
       escrita pelo agent que a fez, e não pelo último agent despachado
@@ -695,6 +716,29 @@ não bloqueia trabalho que não dependa dela.
   **Origem:** estágio `spec` de `023-endurecimento-antes-da-sessao`, ao ratificar
   `D-001` — ver `product/items/023-endurecimento-antes-da-sessao/04-divergencias/D-001.md`.
 
+- **O GitHub Actions parou de executar neste repositório, e a corrida seguiu no
+  escuro.** Medido: o último run de qualquer fluxo é `NestJS`/`React` em
+  `develop`, às 16:54Z de 03/09/2026. Os commits de cabeça das fases 4 e 5 —
+  `0489eb1` e `d0ecaae` — têm suíte de `gitguardian`, `railway-app`, `cursor` e
+  `claude`, e **nenhuma de `github-actions`**; a fase 3 tem quatro. Não é
+  configuração deste repositório: `actions/permissions` responde
+  `{"enabled": true}`, os cinco fluxos estão `active`, o YAML dos cinco carrega
+  sem erro, e `portoes.yml` e `bloqueio.yml` não têm filtro de caminho que
+  pudesse pular. A causa provável é cota — repositório privado em plano de
+  usuário, cujos minutos incluídos acabam sem aviso no PR — e ela não se lê
+  daqui: `settings/billing/actions` exige o escopo `user`, que este token não
+  tem, e conceder escopo de conta não é decisão de quem roda a corrida.
+  **A decisão é sua:** abrir a aba Actions do repositório, ver o motivo que só
+  ela mostra, e resolver — pagar o excedente, elevar o teto de gasto, ou tornar
+  o repositório público, que zera o custo de minuto. Enquanto isso não acontece,
+  **os PRs #23 e #24 não têm CI**, e a regra 10 do `CLAUDE.md` — "pronto é build
+  verde" — não pode ser satisfeita por nenhuma sessão, autônoma ou não. Os
+  portões locais equivalentes rodaram e passaram nas duas fases, o que é a
+  melhor evidência que esta máquina produz e não substitui o runner.
+  **Origem:** encerramento de `023-endurecimento-antes-da-sessao`. O conserto do
+  processo — perguntar ao GitHub se rodou, em vez de supor — é o item
+  `047-o-veredicto-de-fase-mede-se-o-ci-chegou-a-rodar`.
+
 
 ## Validações de campo pendentes
 
@@ -739,3 +783,37 @@ verificação**.
   para violar. Cai no primeiro item que der aparência ao app,
   `002-conta-e-organizacao`, e a verificação é abrir `vite preview` com o console
   aberto.
+
+- **`023-endurecimento-antes-da-sessao`, Fase 4 — a instalação do `gitleaks` no
+  runner do GitHub.** O download da release fixada, a conferência do checksum, o
+  checksum divergente reprovando e os quatro universos de varredura estão medidos
+  nesta máquina. O que só o runner prova é o binário `linux_x64` rodando em
+  `ubuntu-latest` e o `${{ runner.temp }}/gitleaks-bin` chegando ao `PATH` do
+  passo seguinte pelo `$GITHUB_PATH` — e o tempo total do job, de que a cópia de
+  ~67 MB de `apps/site/.next` levou 1,8 s aqui. Se o passo reprovar por não achar
+  a ferramenta, é o próprio portão dizendo que não mediu.
+
+- **`023-endurecimento-antes-da-sessao`, Fase 4 — o cache do Actions entre PR de
+  fork e `main`.** A auditoria de segurança da fase disse explicitamente que
+  raciocinou pelo modelo documentado do isolamento de cache, sem medir. Só uma
+  execução real com um fork prova o comportamento.
+
+- **`023-endurecimento-antes-da-sessao`, Fase 4 — o teto de permissão padrão da
+  conta.** Os quatro fluxos com bloco `permissions:` declaram o próprio teto; o
+  que sobra por baixo é o padrão configurado fora do repositório, que nenhum
+  comando daqui lê. `039-o-fluxo-de-bloqueio-declara-o-teto-de-permissao` é o
+  item que remove a dependência desse padrão para o quinto fluxo.
+
+- **`023-endurecimento-antes-da-sessao`, Fase 5 — o Dependabot abrindo o primeiro
+  PR contra `develop`.** Que `.github/dependabot.yml` declara `github-actions`,
+  semanal, contra `develop`, com `cooldown` de sete dias e sem `npm` é estrutural
+  e está provado. Que o robô lê o arquivo, roda no intervalo e abre o PR na
+  branch certa depende de a plataforma agendar a execução, que nenhum comando
+  local produz — é a mesma classe do evento `unlabeled` registrada acima.
+  Verifica-se sozinho na primeira semana depois do merge; se nenhum PR aparecer
+  em quatorze dias e houver ação desatualizada, o arquivo está sendo ignorado e a
+  rotina que destrava os SHAs não existe.
+
+As quatro linhas acima esperam o **runner**, e o runner está parado desde 16:54Z
+de 03/09/2026 — ver a pendência de produto aberta sobre o GitHub Actions. Nenhuma
+delas se verifica sozinha enquanto o Actions não voltar a executar.
