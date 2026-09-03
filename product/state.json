@@ -23,13 +23,13 @@
           "file": "product/items/001-esqueleto-do-monorepo/02-spec.md"
         },
         "plan": {
-          "at": "2026-09-03T07:41:20Z",
-          "sha": "3df715006b093a2468f7771d9de292ed945e70ef",
+          "at": "2026-09-03T08:28:19Z",
+          "sha": "3c86f006576e31c26bc6e89efe20919420858687",
           "file": "product/items/001-esqueleto-do-monorepo/03-plan.md",
           "por": "autonomo"
         }
       },
-      "current_phase": 3,
+      "current_phase": 4,
       "phases": {
         "1": {
           "status": "aprovada",
@@ -66,6 +66,25 @@
           "validated_trees": {
             "apps/api": "5834265686640bd4edbee3e5fc00f1a94de3e48a",
             "apps/site": "8084297df7339c330604af2db6b94e16dd636312",
+            "apps/web": "94c9cfdbf62e6d1baa64d43614230676fe4d7b3d"
+          }
+        },
+        "4": {
+          "status": "aprovada",
+          "reproved_count": 0,
+          "verdict": "APROVADO",
+          "verdict_file": "product/items/001-esqueleto-do-monorepo/05-veredictos/fase-4.md",
+          "validated_sha": "4f15d09a61281031945a37d5890b9f36e744dcc7",
+          "pr": null,
+          "blocked_on": [
+            "D-013",
+            "D-014",
+            "D-015"
+          ],
+          "verdict_at": "2026-09-03T08:35:20Z",
+          "validated_trees": {
+            "apps/api": "5834265686640bd4edbee3e5fc00f1a94de3e48a",
+            "apps/site": "afbe408efb4f61e6f9cbe031b5fb08a5a077a9a1",
             "apps/web": "94c9cfdbf62e6d1baa64d43614230676fe4d7b3d"
           }
         }
@@ -166,6 +185,33 @@
           "detected_at": "2026-09-03T07:45:51Z",
           "aprovada_at": "2026-09-03T07:45:51Z",
           "ratificada_por": "autonomo"
+        },
+        "D-013": {
+          "status": "RECONCILIADA",
+          "kind": "normal",
+          "phase": 4,
+          "detected_at": "2026-09-03T07:54:56Z",
+          "aprovada_at": "2026-09-03T07:54:56Z",
+          "ratificada_por": "autonomo",
+          "reconciliada_at": "2026-09-03T08:14:46Z"
+        },
+        "D-014": {
+          "status": "RECONCILIADA",
+          "kind": "normal",
+          "phase": 4,
+          "detected_at": "2026-09-03T08:15:28Z",
+          "aprovada_at": "2026-09-03T08:15:28Z",
+          "ratificada_por": "autonomo",
+          "reconciliada_at": "2026-09-03T08:15:28Z"
+        },
+        "D-015": {
+          "status": "RECONCILIADA",
+          "kind": "normal",
+          "phase": 4,
+          "detected_at": "2026-09-03T08:27:49Z",
+          "aprovada_at": "2026-09-03T08:27:49Z",
+          "ratificada_por": "autonomo",
+          "reconciliada_at": "2026-09-03T08:28:19Z"
         }
       },
       "criteria_exception": null

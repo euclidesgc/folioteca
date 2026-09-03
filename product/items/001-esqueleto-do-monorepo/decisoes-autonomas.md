@@ -120,6 +120,12 @@ Cada linha aqui é um `state.py approve` que o humano **não** deu.
 | `fase 3` | `05-veredictos/fase-3.md` — veredicto `APROVADO` do `phase-validator` cego, que não confiou na suíte da própria fase: subiu a API e a web e dirigiu um Chromium próprio contra `localhost:5173`, medindo `role=status` com o texto `ok` e as duas requisições reais a `:3000`. `validated_sha` `fef04e6` | 03/09/2026 |
 | `D-011` | Ratificação da divergência do CORS na opção recomendada (a) — origem vinda de `WEB_ORIGIN` na configuração validada. O PR **#13** permanece `blocked-on-D-011` até você ratificar com `--por humano` | 03/09/2026 |
 | `plan` (reaprovação) | `03-plan.md` reaprovado depois da reconciliação de `D-011`, novo `sha` `3df7150`. Duas seções mudaram: o critério estrutural da Fase 2, que passa a nomear as quatro chaves do schema de configuração, e as etapas da Fase 3, que ganharam a `3.13` | 03/09/2026 |
+| `D-012` | Ratificação da divergência da trava de bloqueio na opção recomendada (a) — os dois defeitos corrigidos na branch onde nasceram. O PR **#13** permanece `blocked-on-D-012` até você ratificar com `--por humano` | 03/09/2026 |
+| `D-013` | Ratificação da divergência do lint do hotsite na opção recomendada (a) — `@next/eslint-plugin-next` sobre `typescript-eslint`. O PR da Fase 4 nasce `blocked-on-D-013` e assim permanece até você ratificar com `--por humano` | 03/09/2026 |
+| `D-014` | Ratificação da divergência dos critérios de clone limpo na opção recomendada (a) — os dois passam a medir num clone de verdade, feito com `git clone`. O PR da Fase 4 nasce `blocked-on-D-014` | 03/09/2026 |
+| `D-015` | Ratificação da divergência do `.gitignore` na opção recomendada (a) — a linha ganha etapa em vez de ficar só na decisão. O PR da Fase 4 nasce `blocked-on-D-015` | 03/09/2026 |
+| `plan` (três reaprovações) | `03-plan.md` reaprovado depois de cada reconciliação da Fase 4: por `D-014` (critérios de clone limpo, sha `2302c2d`), por `D-013` (etapa 4.1, sha `2444b44`) e por `D-015` (etapa 4.2, sha `3c86f00`). Cada reaprovação fecha a exceção que destravou a escrita e reamarra o "sim" ao conteúdo em vigor | 03/09/2026 |
+| `fase 4` | `05-veredictos/fase-4.md` — veredicto `APROVADO` do `phase-validator` cego, que mediu os cinco critérios por conta própria: verificou as portas livres antes do critério 4, executou os dois clones literais, e confirmou pelo `docker volume ls` que o zero do comando veio do clone e não de resto de execução anterior. `validated_sha` `4f15d09` | 03/09/2026 |
 
 ## Decisões da Fase 2
 
@@ -248,6 +254,81 @@ testada.
   bloco contíguo, onde a marca da primeira linha vale para as seguintes; ou
   aceitar a linha longa como a norma escrita. Aconteceu uma vez nesta fase, com
   dois agents diferentes topando nela.
+
+## Decisões da Fase 4
+
+| # | Decisão | Alternativa descartada | Por quê |
+|---|---|---|---|
+| D30 | **`apps/site` nasce com `next@16.3.4` e `react@19.2.8`** — a mesma versão de React que `apps/web` já declara —, mais `typescript@5.9.3` e `eslint@10.9.1`, que as três frentes compartilham | Deixar cada dependência cair na última publicada hoje, independente do resto | A mesma razão de D23: duas versões do compilador ou do linter no workspace fazem `pnpm --filter <x> typecheck` responder coisas diferentes por app, e o CI da Fase 5 não teria como dizer qual é a verdade. O Next é o único pacote sem par do outro lado, e por isso nasce na última publicada. |
+| D31 | **O lint do site é `@next/eslint-plugin-next` sobre `typescript-eslint`**, e não `eslint-config-next` | Rebaixar o ESLint de `apps/site` para a série 9, mantendo o preset do Next; ou não ter lint na frente | Registrado como `D-013`. O preset arrasta `eslint-plugin-react@7.37.5`, que para no ESLint 9: a regra `react/display-name` chama `contextOrFilename.getFilename`, removida no ESLint 10, e o lint quebra ao carregar em vez de reprovar por violação. O plugin do Next exporta configuração plana própria e não depende desse pacote, então as regras específicas do Next continuam de pé com uma versão só de ESLint no repositório. Volta a ser `eslint-config-next` no dia em que o plugin de React alcançar o ESLint 10 — anotado no item `014-norma-do-hotsite`. |
+| D32 | **`next-env.d.ts` entra no `.gitignore`** | Versionar o arquivo | Ele é gerado a cada `next build` e a cada `next dev`, e o próprio Next manda não editá-lo. Versionado, ele reaparece como alteração a cada execução e deixa a árvore suja — que é o sinal que o motor da corrida lê como rodada morta. É o que o `create-next-app` faz. |
+| D33 | **O `tsconfig.json` do site fica no formato que o `next build` reescreve**, com `jsx: react-jsx`, `allowJs` e `.next/dev/types` no `include` | Manter o formato compacto do resto do repositório e aceitar a reescrita a cada build | O Next reconfigura o `tsconfig.json` sozinho quando detecta TypeScript, e três dos valores são obrigatórios para ele. Guardado no formato de saída dele, o build é idempotente e não suja a árvore; guardado no nosso, cada `pnpm --filter site build` produziria uma alteração não pedida no meio da verificação. |
+| D34 | **O script `start` publica em `3001`, como o `dev`** | Deixar `next start` no padrão, que é a porta 3000 | A 3000 é da API (RF-02.1). Sem a porta no script, quem rodar o hotsite em modo de produção na máquina de desenvolvimento derruba ou colide com a API, e o erro aparece longe da causa. |
+| D35 | **A página nasce sem folha de estilo**, só com HTML semântico | Acrescentar um `globals.css` de apresentação junto do bootstrap | O conteúdo definitivo do hotsite é o item `015-hotsite`, e a camada de estilo é decisão do item `014-norma-do-hotsite` — os dois são seus. Escolher aqui a camada de estilo seria fixar, num bootstrap, o que o roadmap reservou para uma decisão sua; a etapa 4.3 pede a apresentação do produto no HTML, e é isso que a página entrega. |
+
+| D36 | **`agentRules: false` no `next.config.ts`** | Versionar o `AGENTS.md` e o `CLAUDE.md` que o Next escreve, como o próprio arquivo gerado sugere | O `next dev` grava um `AGENTS.md` e um `CLAUDE.md` dentro de `apps/site/` a cada execução. Versionados, eles passam a valer como norma de projeto para todo agent que abrir esse diretório — norma escrita por um framework, reescrita por ele a cada execução, ao lado do `CLAUDE.md` da raiz que é a norma de verdade. Desligados, a árvore fica limpa e a documentação da versão continua onde sempre esteve, em `node_modules/next/dist/docs/`. |
+
+### Divergência ratificada na Fase 4
+
+| # | O que estava assim | O que a realidade impôs | Alternativa descartada |
+|---|---|---|---|
+| `D-013` | A etapa 4.1 do plano manda declarar `eslint-config-next` como dependência de desenvolvimento de `apps/site` | O preset não roda no ESLint 10 que as outras duas frentes fixaram: quebra ao carregar a regra `react/display-name`, e o `pnpm peers check` já anunciava o descompasso. O lint passa a ser montado com `@next/eslint-plugin-next` e `typescript-eslint` | Rebaixar o ESLint do site para a série 9, o que congelaria a versão da ferramenta numa frente por causa de um plugin de terceiro; ou abrir mão do lint, que a spec permite e que trocaria uma incompatibilidade de versão por ausência de verificação |
+| `D-014` | Os dois critérios `comando` da Fase 4 simulam um clone limpo apagando os diretórios de dependência da árvore de trabalho | Uma guarda global de comando destrutivo recusa a chamada antes de a shell vê-la, e recusa `git clean` junto. Os dois critérios passam a medir num clone de verdade, feito com `git clone` num diretório temporário — que é o que RF-01.2 e RF-02.3 descrevem | Trocar a remoção por um sinônimo que a guarda não reconheça, o que a desarmaria sem dizer; ou afrouxar a guarda, cujo alcance é toda sessão futura em toda máquina |
+| `D-015` | As quatro etapas da Fase 4 falam somente de `apps/site/**` | O diff tem uma linha fora dali: `next-env.d.ts` no `.gitignore` da raiz, sem a qual o arquivo que o Next reescreve a cada execução deixa a árvore suja. A etapa 4.2 passa a descrevê-la | Deixar a linha sem etapa, com `D32` de registro — o custo não é este PR, é o precedente de arquivo de raiz entrar no diff quando a justificativa é boa |
+
+### Apontamentos da revisão da Fase 4, aplicados
+
+A revisão não reprovou nada. Dos cinco apontamentos de melhoria, três entraram
+no diff e dois viraram roadmap:
+
+- **Aplicado** — o alias `@/*` saiu do `tsconfig.json` do site. Ele fixava uma
+  convenção de import num bootstrap, e fronteira de import é justamente o que o
+  item `014-norma-do-hotsite` reserva a você. Mesma linha de raciocínio de D35.
+- **Aplicado** — dois deslizes de português na página: a concordância do `se`
+  apassivador (`onde se escrevem, se guardam e se distribuem os documentos`) e o
+  pronome que faltava em `lembrar de revogá-lo`.
+- **Aplicado** — o `.gitignore` ganhou etapa, por `D-015`.
+- **Roadmap** — `eslint .` sai com código 0 diante de aviso, e 16 das 22 regras
+  do plugin do Next são aviso. `apps/web` tem o mesmo script, então a correção é
+  das duas frentes juntas e não cabe no diff desta fase: item
+  `024-o-lint-reprova-o-que-diz-cobrar`.
+- **Roadmap** — os metadados de prévia de link, que são a razão declarada de o
+  hotsite ser um app separado, não tinham dono; e o `.env` que o `pnpm dev`
+  materializa fica na raiz, onde o Next não o lê. Ficou anexado ao item
+  `015-hotsite`, no campo `Carrega, da Fase 4 de 001`.
+
+### O diretório corrente corrompeu duas medições — segunda ocorrência da mesma classe
+
+O `state.py` resolve o `product/state.json` a partir do diretório corrente
+quando não recebe `--root`, e o diretório corrente da sessão sobrevive entre
+comandos. Os critérios desta fase medem num clone, então a sessão entrou nele —
+e duas coisas quebraram em silêncio:
+
+1. `git hash-object product/items/.../03-plan.md`, com caminho relativo, leu o
+   arquivo do clone. A conclusão foi que o `plan-writer` não havia escrito o que
+   escreveu, e ele foi mandado refazer trabalho já pronto.
+2. `state.py diverge --id D-014` gravou a divergência no `state.json` do clone.
+   O comando imprimiu sucesso e a divergência não existia no repositório real.
+
+É a mesma forma que o `CLAUDE.md` já nomeia nos portões: o comando respondeu
+como se tivesse medido, e mediu outra coisa. A defesa que o projeto escreveu
+para os portões — `scripts/gates/medir.sh`, ancorado na raiz e não no diretório
+corrente — não alcança o `state.py`, que é do plugin.
+
+**Duas ocorrências é classe**, e a norma manda parar de remendar. A correção
+saiu numa worktree paralela e virou o **PR #16**, empilhado sobre o desta fase e
+fora do diff dela: `scripts/harness/state.sh` ancora no git root do diretório do
+próprio script — o único que um `cd` não move —, um teste de oito casos prova
+que a asserção morde (um deles reproduz a ocorrência real e exige que a chamada
+crua erre onde o wrapper acerta), a regra está escrita no `CLAUDE.md` e no
+`prompt-da-proxima-sessao.md`, e `.harness/proposals/2026-09-03-001.md` leva a
+correção definitiva ao plugin, que este repositório não edita.
+
+**Uma decisão pequena ficou para você, no PR #16:** a regra nova recebeu o
+número 28, o próximo livre, e não o 21 — a numeração do `CLAUDE.md` é global, a
+seção React ocupa 21 a 27, e esses números são citados como identificadores pelo
+`03-plan.md`, que está amarrado por `sha`. A lista lê 17, 18, 19, 20, 28. Se
+preferir renumerar, o trabalho é mecânico e exige reaprovar o plano.
 
 ## Por que o loop parou
 

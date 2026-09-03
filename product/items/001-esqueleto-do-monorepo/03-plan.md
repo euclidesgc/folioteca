@@ -475,15 +475,22 @@ nascida da branch da Fase 3.
       é executado na raiz
       *Então* a saída contém `5433` e contém três linhas `200`
 - [ ] `comando` — RF-02.3 — com a imagem `pgvector/pgvector:pg16` presente no
-      cache local do Docker, o comando
-      `rtk proxy bash -c 'docker compose down && rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/site/.next && pnpm install --frozen-lockfile && (pnpm dev >/dev/null 2>&1 &) && timeout 60 bash -c "until curl -sf localhost:3000/health | grep -q ok; do sleep 1; done"'`
-      executado na raiz sai com código 0. O `timeout 60` começa a contar depois
-      que `pnpm install` termina, no início de `pnpm dev`; o volume do Postgres
-      permanece.
+      cache local do Docker e nenhum processo escutando em `localhost:3000` nem
+      em `localhost:5433`, o comando
+      `rtk proxy bash -c 'CLONE=$(mktemp -d) && git clone -q --branch 001-esqueleto-do-monorepo/fase-4-hotsite-e-ambiente-completo "$PWD" "$CLONE" && cd "$CLONE" && pnpm install --frozen-lockfile && (pnpm dev >/dev/null 2>&1 &) && timeout 60 bash -c "until curl -sf localhost:3000/health | grep -q ok; do sleep 1; done"'`
+      executado na raiz do repositório sai com código 0. O `timeout 60` começa a
+      contar depois que `pnpm install` termina, no início de `pnpm dev`. O
+      projeto do Docker Compose recebe o nome do diretório do clone, então o
+      volume do Postgres nasce vazio e os scripts de inicialização do banco rodam
+      dentro do intervalo medido. O diretório temporário criado por `mktemp -d`
+      permanece depois da execução.
+      > Reconciliado em D-014.
 - [ ] `comando` — RF-01.2 —
-      `rtk proxy bash -c 'rm -rf node_modules apps/*/node_modules packages/*/node_modules && pnpm install --frozen-lockfile && pnpm ls -r --depth -1'`
-      executado na raiz sai com código 0 e a saída contém `api`, `web`, `site` e
-      `@folioteca/editor`.
+      `rtk proxy bash -c 'CLONE=$(mktemp -d) && git clone -q --branch 001-esqueleto-do-monorepo/fase-4-hotsite-e-ambiente-completo "$PWD" "$CLONE" && cd "$CLONE" && pnpm install --frozen-lockfile && pnpm ls -r --depth -1'`
+      executado na raiz do repositório sai com código 0 e a saída contém `api`,
+      `site`, `web` e `@folioteca/editor`. O diretório temporário criado por
+      `mktemp -d` permanece depois da execução.
+      > Reconciliado em D-014.
 
 > A DoD global é do CI e não se repete aqui.
 
@@ -491,15 +498,26 @@ nascida da branch da Fase 3.
 
 - [ ] 4.1 Modificar `apps/site/package.json`: declarar `next`, `react` e
       `react-dom` como dependências; `typescript`, `@types/react`,
-      `@types/node`, `eslint` e `eslint-config-next` como dependências de
-      desenvolvimento; e os scripts `dev` (`next dev -p 3001`), `build`,
-      `start`, `lint` e `typecheck` (`tsc --noEmit`).
-      Justificativa: regra 15; a porta 3001 fica no script porque RF-02.1 a fixa
-      e o padrão do Next é 3000, que já é da API.
+      `@types/node`, `eslint`, `@next/eslint-plugin-next` e
+      `typescript-eslint` como dependências de desenvolvimento; e os scripts
+      `dev` (`next dev -p 3001`), `build`, `start` (`next start -p 3001`),
+      `lint` e `typecheck` (`tsc --noEmit`).
+      Justificativa: regra 15; a porta 3001 fica em `dev` e em `start` porque
+      RF-02.1 a fixa e o padrão do Next é 3000, que já é da API — sem porta
+      explícita, `next start` cairia nela; `@next/eslint-plugin-next` e
+      `typescript-eslint` compõem o lint porque `eslint-plugin-react`, que o
+      preset `eslint-config-next` arrasta, para no ESLint 9, e `apps/web` e
+      `apps/api` já fixaram o ESLint 10.
+      > Reconciliado em D-013.
 - [ ] 4.2 Criar `apps/site/tsconfig.json`, `apps/site/next.config.ts` e
-      `apps/site/eslint.config.mjs`.
+      `apps/site/eslint.config.mjs`; e modificar o `.gitignore` da raiz
+      acrescentando `next-env.d.ts`.
       Justificativa: sem `tsconfig` próprio o `typecheck` que RF-11.3 exige não
-      tem o que ler.
+      tem o que ler; o Next reescreve `next-env.d.ts` a cada `next dev` e a
+      cada `next build`, e versionado ele reaparece como alteração a cada
+      execução, deixando a árvore suja — o sinal que o motor da corrida
+      autônoma lê como rodada morta.
+      > Reconciliado em D-015.
 - [ ] 4.3 Criar `apps/site/src/app/layout.tsx` e `apps/site/src/app/page.tsx` com
       o texto de apresentação do produto contendo a palavra `Folioteca`, sem a
       diretiva `'use client'`.
