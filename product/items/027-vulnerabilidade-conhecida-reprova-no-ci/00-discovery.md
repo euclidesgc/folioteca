@@ -56,10 +56,12 @@ entra — e não por ninguém ter olhado.
   encontra `high: 0` e `critical: 0`, imprime `923 pacotes auditados, 0 achados
   de severidade alta ou crítica, 0 isenções` e sai 0. Medido em 2026-09-03 com
   `pnpm audit --audit-level=high --json`.
-- **E1.2** — Com `qs@6.15.3` no lockfile — a versão que a Fase 5 de `023` chegou
-  a instalar, portadora de `GHSA-4mjr-xmp4-gh2g` — o portão sai 1 e nomeia, numa
-  linha, o pacote, a versão resolvida, o identificador do aviso, a severidade e a
-  versão que corrige (`6.16.0`).
+- **E1.2** — Com `qs@6.15.3` no lockfile — a versão que a resolução sob a
+  quarentena da Fase 5 de `023` chegou a fixar, portadora de
+  `GHSA-4mjr-xmp4-gh2g` e `GHSA-x5fp-wj9c-mxmx`, e que lê a query de toda
+  requisição que chega ao `express` — o portão sai 1 e nomeia, uma linha por
+  aviso, o pacote, a versão resolvida, o identificador, a severidade e a versão
+  que corrige (`6.16.0`).
 - **E1.3** — Um achado `moderate` sobre qualquer pacote não reprova: o portão
   imprime a contagem por severidade e sai 0. O piso é `high`, e ele cobre
   `critical` junto.
@@ -111,7 +113,8 @@ entra — e não por ninguém ter olhado.
 **Nenhuma.** As quatro que o mapeamento abriu foram decididas em modo autônomo e
 estão registradas, com a alternativa descartada, em `decisoes-autonomas.md`:
 a ferramenta (`D1`), o piso de severidade (`D2`), onde mora a isenção (`D3`) e o
-universo auditado (`D4`).
+universo auditado (`D4`). O mesmo arquivo traz mais duas decisões que não vieram
+de pergunta e sim do processo — onde o portão roda (`D5`) e a trilha (`D6`).
 
 ## Trilha
 
