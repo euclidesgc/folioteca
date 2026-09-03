@@ -305,7 +305,7 @@
           "por": "humano"
         }
       },
-      "current_phase": 3,
+      "current_phase": 4,
       "phases": {
         "1": {
           "status": "aprovada",
@@ -351,6 +351,19 @@
             "apps/site": "c40cb4778ae97ac94831f01ef68f76e34d956ab8",
             "apps/web": "0cf0f8ba163abd68660669963dd7b6b138664388"
           }
+        },
+        "4": {
+          "status": "em_execucao",
+          "reproved_count": 0,
+          "verdict": null,
+          "verdict_file": null,
+          "validated_sha": null,
+          "pr": null,
+          "blocked_on": [
+            "D-008",
+            "D-009",
+            "D-010"
+          ]
         }
       },
       "divergences": {
@@ -423,6 +436,30 @@
           "ratificada_por": "humano",
           "reconciliada_at": "2026-09-03T16:23:34Z",
           "ratificacao_humana_at": "2026-09-03T19:23:49Z"
+        },
+        "D-008": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 4,
+          "detected_at": "2026-09-03T17:02:23Z",
+          "aprovada_at": "2026-09-03T17:03:36Z",
+          "ratificada_por": "autonomo"
+        },
+        "D-009": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 4,
+          "detected_at": "2026-09-03T17:02:23Z",
+          "aprovada_at": "2026-09-03T17:03:36Z",
+          "ratificada_por": "autonomo"
+        },
+        "D-010": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 4,
+          "detected_at": "2026-09-03T17:02:23Z",
+          "aprovada_at": "2026-09-03T17:03:36Z",
+          "ratificada_por": "autonomo"
         }
       },
       "criteria_exception": null

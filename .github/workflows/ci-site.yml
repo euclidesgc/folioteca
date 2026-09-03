@@ -66,4 +66,4 @@ jobs:
       # portão depender de uma base que um push em branch recém-criada não tem,
       # e base ausente é medição impossível, não árvore limpa.
       - name: Portões arquiteturais
-        run: bash scripts/gates/gates_runner.sh --all
+        run: bash scripts/gates/gates_runner.sh --all --sem-artefatos

@@ -161,3 +161,129 @@ Cada linha aqui é um `state.sh approve --por autonomo` ou um
   as rotas do hotsite deixam de ser prerenderizadas estaticamente —, e a
   alternativa que recusei foi `'unsafe-inline'` no `script-src`, que preservaria
   o prerender e esvaziaria a política.
+
+## Fase 4 — o portão de segredo mede fontes e artefatos
+
+- **`D-008` — a allowlist declara o que a ferramenta acusa, e sempre pela forma
+  do valor.** Ratifiquei na opção (a) e o PR fica `blocked-on-D-008` até o dono
+  confirmar. As duas entradas que o plano previa — `.env.example` e a linha de
+  `POSTGRES_PASSWORD` de `ci-nestjs.yml` — não são acusadas por regra nenhuma, e
+  saíram: permissão que não perdoa nada envelhece em depósito. Entraram as duas
+  que a varredura real acusa: o hash de árvore que o veredicto de fase grava em
+  `product/state.json`, e as chaves que o build do Next.js gera nos manifestos de
+  `apps/site/.next`. Recusei acumular as quatro, e recusei encolher o universo
+  varrido para caber no resultado. **O que o dono está confirmando é a lista de
+  permissões do portão de segredo** — é a decisão desta fase que mais merece o
+  olho dele.
+
+- **`allowlists.paths` desliga o universo inteiro, e nenhuma entrada usa.**
+  Medido nesta árvore: ao ganhar uma entrada por caminho, `apps/site/.next` caiu
+  de 67 MB varridos para zero, com o portão declarando "no leaks found" — mesmo
+  sob `condition = "AND"`. A permissão passou a ser pela forma do valor, e o
+  motivo está escrito no `.gitleaks.toml`, onde a próxima sessão o lê antes de
+  acrescentar a terceira entrada.
+
+- **`D-009` — o `.env` versionado reprova por caminho, não por conteúdo.**
+  Ratifiquei na opção (a) e o PR fica `blocked-on-D-009`. O critério de RF-15.2,
+  executado ao pé da letra, **aprovou** com o `.env` rastreado: o `.env` desta
+  máquina tem três linhas de desenvolvimento e nenhuma regra padrão morde. Um
+  portão cujo veredicto depende do que cada máquina escreveu no `.env` não é
+  verificável por ninguém, e no CI, onde `.env` não existe, nunca morderia. A
+  regra de caminho mora no `.gitleaks.toml`, que é o arquivo que o CI e quem
+  desenvolve compartilham (RF-13.3). Recusei pôr a verificação no script, que
+  partiria a definição de segredo em dois lugares.
+
+- **`D-010` — a chave do critério de RF-15.3 não chegava ao bundle.** Ratifiquei
+  na opção (a) e o PR fica `blocked-on-D-010`. `const CHAVE` não exportada e não
+  usada é eliminada pelo Rollup: o portão reprovava nomeando a **fonte**, e
+  nenhum caminho sob `apps/web/dist/` aparecia. O critério que existe para
+  separar varrer a fonte de varrer o artefato estava sendo satisfeito pelo
+  universo errado — e teria passado com um portão que ignorasse os três
+  artefatos. Trocado por `export` mais um `console.log`, que é efeito colateral
+  de módulo e sobrevive ao bundler.
+
+- **O portão de segredo ganhou teste próprio, e o plano não pedia.**
+  `scripts/gates/__tests__/segredo.test.sh`, onze casos, cobrado em
+  `portoes.yml` logo antes do portão real. Sem ele, os três caminhos de
+  reprovação por medição impossível seriam exercidos à mão uma única vez, no dia
+  em que nasceram — e árvore limpa e medição que não aconteceu têm a mesma cara
+  no log. A alternativa era confiar nos critérios comportamentais do plano, que
+  rodam uma vez e nunca mais.
+
+- **`portoes.yml` passa a declarar `permissions: contents: read`.** Não é
+  critério da fase; é consequência direta do que ela faz com aquele job, que
+  passou a instalar dependência e a baixar um binário da internet. Os outros três
+  fluxos já declaravam o teto. O `bloqueio.yml` continua sem declarar, e virou o
+  item `036` do roadmap — ele mexe em rótulo de PR e precisa de escopo próprio,
+  que esta fase não tem como julgar.
+
+- **Aprovações e ratificações desta fase são autônomas.** `D-008`, `D-009` e
+  `D-010` gravadas com `--por autonomo`; o PR nasce e permanece
+  `blocked-on-D-008`, `blocked-on-D-009` e `blocked-on-D-010` até o dono
+  ratificar com `--por humano`.
+
+### O que a auditoria de segurança mudou nesta fase
+
+A auditoria mediu, e nove dos onze achados viraram correção na mesma branch —
+não item de roadmap. O critério foi o do `CLAUDE.md`: o que cabe no trabalho em
+andamento se resolve ali.
+
+- **A cópia perdia arquivo em silêncio.** Medido pela auditoria: com um arquivo
+  rastreado ilegível, o `cp` falhava, o portão declarava `medido: 5 arquivo(s)`
+  em vez de 6 e saía **zero**. Agora todo `cp` e todo `mkdir -p` sai por
+  `_reprova`, e a contagem copiada é comparada com a da origem antes de varrer.
+  Era a mesma classe de defeito que o cabeçalho do arquivo diz existir para
+  matar, dentro do próprio arquivo.
+- **A permissão das chaves do Next.js aceitava qualquer valor.** `encryptionKey`
+  é nome genérico, e o regex terminava em `[^"]+`: uma credencial real commitada
+  sob essa chave em qualquer lugar do repositório atravessava o portão — a
+  auditoria plantou uma e provou. As permissões passaram a casar a forma medida
+  nos manifestos: 64 hexadecimais para as chaves de rascunho, 44 caracteres de
+  base64 para as de server action.
+- **A permissão do hash de árvore perdoava a linha inteira.** Sem âncora, um
+  token colado na mesma linha do hash saía perdoado por dividir a linha com ele
+  — invisível hoje, porque o `state.json` é indentado, e imediato no dia em que
+  alguém o minificar. O regex passou a ser ancorado nas duas pontas.
+- **A regra de caminho do `.env` era uma lista fechada.** Deixava passar
+  `.env.production.local`, `.env.staging` e `.env.ci` — e `.env.[modo].local` é
+  a convenção documentada do Vite e do Next.js, as duas ferramentas usadas aqui.
+  O sufixo virou aberto, e `.env.example` saiu por uma allowlist da própria
+  regra, que não afeta a varredura de conteúdo dele.
+- **O `.gitleaks.toml` era o ponto cego do universo rastreado.** A allowlist
+  embutida da ferramenta pula todo caminho que **contenha** `gitleaks.toml` — um
+  sufixo não bastou, foi medido. A cópia troca esse pedaço do nome e a saída o
+  desfaz. Era o único arquivo do repositório onde um token real passaria
+  despercebido, e é onde alguém o colaria para testar a regra.
+- **`versao` e `arquivo` do lock iam direto para a URL e para o `-o` do `curl`.**
+  A auditoria escreveu conteúdo fora do `mktemp -d` com um `arquivo` contendo
+  `..`, antes da conferência de soma, e mostrou que um `versao` com travessia
+  aponta o download para outro repositório — com o sha256 vindo do mesmo arquivo
+  adulterado, o pino não morde. Os três valores passaram a ser validados por
+  forma antes de qualquer uso.
+- **Erro de execução do gitleaks virava "segredo encontrado".** Com a
+  configuração ilegível, o portão saía 1 dizendo que achou segredo. Agora o
+  achado tem código próprio (`--exit-code 7`) e qualquer outro código sai por
+  `_reprova`: é a distinção inteira deste portão, e ela estava perdida no único
+  lugar em que custa caro.
+- **`$HOME/.local/bin` entrava no início do PATH do job.** Qualquer coisa que
+  rodasse antes — inclusive os três builds, que carregam plugins do
+  `node_modules` do próprio PR — poderia plantar ali um `git` que responderia
+  pelo `git ls-files` do portão. O destino passou a ser `${runner.temp}`.
+- **O comentário do gatilho `push` prometia o que o portão não entrega.** Ele
+  varre a árvore de trabalho, nunca o histórico: segredo commitado e removido no
+  commit seguinte passa. O comentário foi reescrito e a janela virou o item
+  `040` do roadmap, que nasce junto de um `.gitleaksignore` com os dois
+  falso-positivos que a auditoria já mediu no histórico.
+
+Dois achados **não** viraram correção aqui, e por quê:
+
+- **As 27 referências `uses:` por tag móvel** são exatamente o escopo da fase 5
+  deste item, que fixa todas em SHA. Corrigir aqui duplicaria o trabalho e
+  quebraria a contagem que RNF-01 usa para provar que nenhuma ação nova entrou.
+- **`bloqueio.yml` sem `permissions`** virou o item `039`: ele lê rótulo de pull
+  request, e o escopo mínimo que o mantém funcionando precisa ser medido contra
+  o que a API do GitHub exige.
+
+A auditoria também disse o que **não** conseguiu medir: o padrão de permissão da
+organização, que é configuração do GitHub e não do repositório, e o
+comportamento real do cache do Actions entre PR de fork e `main`.

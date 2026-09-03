@@ -1,0 +1,80 @@
+# Configuração da varredura de segredo — `scripts/gates/segredo.sh` a aponta com
+# `--config`, e o CI usa a mesma para os quatro universos.
+#
+# Toda entrada de `allowlists` abaixo é permissão concedida: um lugar onde a
+# ferramenta deixa de acusar. Por isso cada uma nasce com o motivo escrito na
+# linha acima e recortada à forma medida do valor que perdoa — comprimento e
+# alfabeto —, e não ao nome da chave: `encryptionKey` é nome genérico, e uma
+# permissão que aceitasse qualquer valor sob esse nome atravessaria o portão com
+# qualquer credencial. Entrada nova entra com o mesmo tratamento, ou não entra.
+#
+# Nenhuma usa `allowlists.paths`, e isso não é estilo: `allowlists.paths` faz o
+# gitleaks **pular o arquivo inteiro** antes de ler um byte dele, mesmo sob
+# `condition = "AND"` — medido nesta árvore, `apps/site/.next` caiu de 67 MB
+# varridos para zero ao ganhar uma entrada por caminho. Permissão por caminho
+# transforma o portão em teatro no universo inteiro; permissão pela forma do
+# valor deixa qualquer outro segredo do mesmo arquivo continuar acusado.
+
+[extend]
+useDefault = true
+
+# O veredicto de cada fase grava em `product/state.json` o hash da árvore de
+# cada frente de código (`validated_trees`). São identificadores do próprio git,
+# públicos por construção — quem tem o repositório já os calcula. A regra
+# `generic-api-key` acusa a entrada de `apps/api` porque a chave termina na
+# palavra `api` e o valor tem entropia de hash.
+#
+# A permissão é pela linha inteira, e não pelo trecho casado, porque o trecho
+# começa depois da barra e perderia justamente o `apps/` que distingue esta
+# chave de uma chave de API de verdade. E é **ancorada nas duas pontas**: sem
+# âncora ela perdoaria toda a linha em que o par aparecesse, e uma linha de JSON
+# minificado carrega o arquivo inteiro — um token colado ao lado do hash sairia
+# perdoado por dividir a linha com ele.
+[[allowlists]]
+description = "hash de árvore que o veredicto de fase grava em product/state.json"
+regexTarget = "line"
+regexes = ['''^\s*"apps/(api|site|web)"\s*:\s*"[0-9a-f]{40}",?\s*$''']
+
+# O build do Next.js gera, a cada execução, as chaves com que ele assina o modo
+# de rascunho e cifra os argumentos de server action. Nascem no artefato, morrem
+# com ele, e não abrem nenhum sistema fora dele — não são credencial vazada de
+# lugar nenhum, e mudam a cada build. Ficam nos manifestos do servidor, que o
+# navegador nunca recebe.
+#
+# São duas entradas porque as duas famílias têm formas diferentes, medidas nos
+# manifestos desta árvore: as chaves de modo de rascunho saem em 64 dígitos
+# hexadecimais, e as de server action em 44 caracteres de base64. Um valor de
+# outra forma sob o mesmo nome continua acusado.
+[[allowlists]]
+description = "chaves de modo de rascunho do Next.js — 64 hexadecimais"
+regexTarget = "match"
+regexes = ['''(previewModeSigningKey|previewModeEncryptionKey|__NEXT_PREVIEW_MODE_SIGNING_KEY|__NEXT_PREVIEW_MODE_ENCRYPTION_KEY)"\s*:\s*"[0-9a-f]{64}"''']
+
+[[allowlists]]
+description = "chaves de cifra de server action do Next.js — 44 caracteres de base64"
+regexTarget = "match"
+regexes = ['''(encryptionKey|encryption\.key|NEXT_SERVER_ACTIONS_ENCRYPTION_KEY)"\s*:\s*"[A-Za-z0-9+/]{43}="''']
+
+# Regra de caminho, e não de conteúdo: um arquivo de ambiente versionado é erro
+# no dia em que entra, e não no dia em que alguém escreve um valor forte dentro
+# dele. Medir só o conteúdo faria o veredicto depender do que cada máquina tem
+# no `.env` — a mesma árvore reprovaria aqui e passaria no CI.
+#
+# O sufixo é aberto de propósito. A lista fechada que esta regra tinha antes
+# acusava `.env.local` e deixava passar `.env.production.local`, `.env.staging`
+# e `.env.ci` — e `.env.[modo].local` é a convenção documentada do Vite e do
+# Next.js, as duas ferramentas usadas aqui. O `.gitignore` da raiz ignora
+# `.env.*` por igual, então qualquer uma delas chega ao repositório pelo mesmo
+# `git add -f` que a regra existe para pegar.
+[[rules]]
+id = "arquivo-de-ambiente-rastreado"
+description = "arquivo de ambiente versionado — segredo nunca entra no repositório"
+path = '''(^|/)\.env($|\..*)'''
+
+# `.env.example` é o modelo publicado, com os valores em branco, e está no
+# repositório desde o primeiro commit. A isenção vale **só** para esta regra de
+# caminho: o conteúdo do arquivo continua varrido por todas as outras, e uma
+# credencial de verdade colada nele segue acusada.
+[[rules.allowlists]]
+description = "o modelo publicado de variáveis de ambiente"
+paths = ['''(^|/)\.env\.example$''']
