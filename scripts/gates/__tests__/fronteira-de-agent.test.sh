@@ -9,10 +9,11 @@
 # os nove agents do plugin, cujo nome real chega prefixado com `harness:`
 # enquanto a matriz os listava nus.
 #
-# A verificação é indireta de propósito: os agents do plugin moram fora do
-# repositório e num caminho com versão, então o CI não os enumera. O que dá
-# para afirmar aqui é a simetria com os agents locais — chave nua exige arquivo
-# em .claude/agents, e arquivo em .claude/agents exige chave nua.
+# Os agents do plugin moram fora do repositório e num caminho com versão, então
+# o CI não os enumera. A matriz declara a origem de cada chave desde a versão
+# 0.6.1 do harness — `nucleo` para os que vivem no plugin, `pack` para os que
+# são copiados para .claude/agents. A simetria que dá para afirmar aqui é a dos
+# de pack: chave `pack` exige arquivo, e arquivo exige chave.
 set -uo pipefail
 raiz="$(cd "$(dirname "$0")/../../.." && pwd)"
 matriz="$raiz/.harness/tool-matrix.json"
@@ -32,7 +33,10 @@ fi
 chaves="$(python3 -c "
 import json, sys
 with open('$matriz', encoding='utf-8') as f:
-    print('\n'.join((json.load(f).get('agents') or {}).keys()))
+    agents = json.load(f).get('agents') or {}
+# Sem o campo, a matriz é anterior à 0.6.1: trata tudo como de pack, que é o
+# comportamento antigo, em vez de deixar de cobrar o que dá para cobrar.
+print('\n'.join(n for n, p in agents.items() if (p or {}).get('origem', 'pack') != 'nucleo'))
 ")" || {
   printf '  FALHA %s não é JSON legível.\n' "$matriz" >&2
   exit 1

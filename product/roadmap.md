@@ -326,6 +326,19 @@ não bloqueia trabalho que não dependa dela.
   fora deste repositório e a norma daqui é que a retrospectiva proponha a mudança
   do harness, nunca a aplique de dentro de um item.
   **Origem:** Fase 3 de `001-esqueleto-do-monorepo`, ver `04-divergencias/D-012.md`.
+- **A atualização do harness apaga a variável de build do CI do React.**
+  `.github/workflows/ci-react.yml` precisa de `VITE_API_URL` no passo `Build`,
+  porque `apps/web/src/shared/config/env.ts` transforma a ausência dela em
+  exceção. O gabarito do plugin gera o passo sem variável nenhuma, então toda
+  execução de `compose.py --update` apaga as quatro linhas e o build reprova por
+  configuração ausente — aconteceu duas vezes na atualização de hoje, e da
+  segunda vez com o backup ao lado, que ninguém lê sozinho. **A decisão é sua:**
+  fazer o gabarito do pack React passar no build as variáveis que o
+  `.env.example` declara obrigatórias, o que resolve a classe para todo projeto;
+  ou marcar o arquivo como customizado e a atualização deixar de tocá-lo, o que
+  resolve este caso e congela o gabarito. **Origem:** atualização do harness de
+  0.1.0 para 0.5.1.
+
 - **O status da divergência é escrito em dois lugares e só um deles tem dono.**
   O `state.py diverge-set` do plugin do harness grava `product/state.json` e não
   reescreve a linha `**Status:**` do `D-nnn.md`. Dez documentos passaram as

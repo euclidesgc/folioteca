@@ -6,8 +6,8 @@
 # gate3-ok: o parágrafo abaixo é o porquê de o script existir, não a mecânica.
 #
 # POR QUE ELE EXISTE
-# O rótulo `blocked-on-*` deveria ser tranca, e o workflow `bloqueio.yml` o faz
-# reprovar. Mas verificação obrigatória exige GitHub Pro em repositório
+# O rótulo `blocked-on-*` deveria ser tranca, e o workflow `harness.yml` o faz
+# reprovar. Mas verificação obrigatória exige plano pago em repositório
 # privado, e sem isso o botão de merge continua clicável com a verificação
 # vermelha. A tranca então mora aqui: no ator que mergeia. Vale para quem roda
 # à mão e para o motor autônomo, que é quem mergeia de madrugada.
@@ -26,7 +26,7 @@ rotulos="$(gh pr view "$pr" --json labels --jq '.labels[].name' 2>/dev/null)"
 bloqueios="$(printf '%s\n' "$rotulos" | grep '^blocked-on-' || true)"
 if [ -n "$bloqueios" ]; then
   printf 'RECUSADO: o PR #%s está travado por: %s\n' "$pr" "$(printf '%s' "$bloqueios" | tr '\n' ' ')" >&2
-  printf 'A trava sai quando o problema for resolvido, nunca quando alguém tirar o rótulo.\n' >&2
+  printf 'A trava sai quando a divergência for ratificada por um humano, nunca quando alguém tirar o rótulo.\n' >&2
   exit 1
 fi
 
@@ -46,9 +46,9 @@ esac
 printf 'PR #%s liberado: sem bloqueio, sem check vermelho, estado %s.\n' "$pr" "$estado"
 
 # PR que pertence a uma pilha não mergeia por `gh pr merge`: o GitHub exige a
-# via assíncrona e recusa o caminho normal. `gh stack merge` é atômico — tudo
-# até o PR escolhido entra junto, ou nada entra —, e é por isso que a checagem
-# acima precisa valer para toda a pilha abaixo, não só para este PR.
+# via da pilha. `gh stack merge` é atômico — tudo até o PR escolhido entra
+# junto, ou nada entra —, e é por isso que a checagem acima precisa valer para
+# toda a pilha abaixo, não só para este PR.
 if gh stack view >/dev/null 2>&1; then
   for abaixo in $(gh pr list --state open --json number --jq '.[].number' | sort -n); do
     [ "$abaixo" -le "$pr" ] || continue

@@ -1,6 +1,6 @@
 {
   "agents": {
-    "harness:scout": {
+    "scout": {
       "writes": [],
       "bash": "readonly",
       "deny_tools": [
@@ -19,9 +19,10 @@
         "mcp__code-review-graph__get_minimal_context_tool",
         "mcp__code-review-graph__get_impact_radius_tool",
         "mcp__code-review-graph__detect_changes_tool"
-      ]
+      ],
+      "origem": "nucleo"
     },
-    "harness:doc-writer": {
+    "doc-writer": {
       "writes": [
         "product/**"
       ],
@@ -31,9 +32,10 @@
         "WebFetch",
         "WebSearch"
       ],
-      "mcp_allow": []
+      "mcp_allow": [],
+      "origem": "nucleo"
     },
-    "harness:plan-writer": {
+    "plan-writer": {
       "writes": [
         "product/**"
       ],
@@ -47,9 +49,10 @@
         "mcp__code-review-graph__get_impact_radius_tool",
         "mcp__code-review-graph__get_architecture_overview_tool",
         "mcp__code-review-graph__get_knowledge_gaps_tool"
-      ]
+      ],
+      "origem": "nucleo"
     },
-    "harness:phase-validator": {
+    "phase-validator": {
       "writes": [],
       "bash": "any",
       "deny_tools": [
@@ -62,9 +65,10 @@
       ],
       "mcp_allow": [
         "mcp__code-review-graph__query_graph_tool"
-      ]
+      ],
+      "origem": "nucleo"
     },
-    "harness:criteria-auditor": {
+    "criteria-auditor": {
       "writes": [],
       "bash": "none",
       "deny_tools": [
@@ -76,9 +80,10 @@
         "WebFetch",
         "WebSearch"
       ],
-      "mcp_allow": []
+      "mcp_allow": [],
+      "origem": "nucleo"
     },
-    "harness:divergence-auditor": {
+    "divergence-auditor": {
       "writes": [],
       "bash": "readonly",
       "deny_tools": [
@@ -89,9 +94,10 @@
         "WebFetch",
         "WebSearch"
       ],
-      "mcp_allow": []
+      "mcp_allow": [],
+      "origem": "nucleo"
     },
-    "harness:doc-reconciler": {
+    "doc-reconciler": {
       "writes": [
         "product/**"
       ],
@@ -101,9 +107,10 @@
         "WebFetch",
         "WebSearch"
       ],
-      "mcp_allow": []
+      "mcp_allow": [],
+      "origem": "nucleo"
     },
-    "harness:security-auditor": {
+    "security-auditor": {
       "writes": [],
       "bash": "any",
       "deny_tools": [
@@ -116,9 +123,10 @@
         "mcp__code-review-graph__query_graph_tool",
         "mcp__code-review-graph__get_impact_radius_tool",
         "mcp__code-review-graph__semantic_search_nodes_tool"
-      ]
+      ],
+      "origem": "nucleo"
     },
-    "harness:test-runner": {
+    "test-runner": {
       "writes": [],
       "bash": "any",
       "deny_tools": [
@@ -129,7 +137,8 @@
         "WebFetch",
         "WebSearch"
       ],
-      "mcp_allow": []
+      "mcp_allow": [],
+      "origem": "nucleo"
     },
     "react-implementer": {
       "writes": [
@@ -145,7 +154,8 @@
         "mcp__code-review-graph__semantic_search_nodes_tool",
         "mcp__code-review-graph__query_graph_tool",
         "mcp__code-review-graph__get_minimal_context_tool"
-      ]
+      ],
+      "origem": "pack"
     },
     "react-reviewer": {
       "writes": [],
@@ -163,7 +173,8 @@
         "mcp__code-review-graph__detect_changes_tool",
         "mcp__code-review-graph__get_impact_radius_tool",
         "mcp__code-review-graph__query_graph_tool"
-      ]
+      ],
+      "origem": "pack"
     },
     "nest-implementer": {
       "writes": [
@@ -179,7 +190,8 @@
         "mcp__code-review-graph__semantic_search_nodes_tool",
         "mcp__code-review-graph__query_graph_tool",
         "mcp__code-review-graph__get_minimal_context_tool"
-      ]
+      ],
+      "origem": "pack"
     },
     "nest-reviewer": {
       "writes": [],
@@ -197,7 +209,8 @@
         "mcp__code-review-graph__detect_changes_tool",
         "mcp__code-review-graph__get_impact_radius_tool",
         "mcp__code-review-graph__query_graph_tool"
-      ]
+      ],
+      "origem": "pack"
     },
     "contract-guardian": {
       "writes": [
@@ -209,7 +222,8 @@
         "WebFetch",
         "WebSearch"
       ],
-      "mcp_allow": []
+      "mcp_allow": [],
+      "origem": "pack"
     }
   }
 }

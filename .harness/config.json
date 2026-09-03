@@ -1,13 +1,12 @@
 {
   "schema": 1,
-  "harness_version": "0.1.0",
+  "harness_version": "0.6.1",
   "mode": "full",
   "route": "greenfield",
   "product": "Folioteca — a empresa escreve documentos e os distribui por canais; o acesso vem de onde a pessoa está, e é revogado quando ela sai de lá.",
   "stacks": {
     "web": "react",
-    "api": "nestjs",
-    "site": null
+    "api": "nestjs"
   },
   "packs": {
     "react": "0.1.0",
@@ -15,10 +14,13 @@
   },
   "paths": {
     "web": "apps/web",
-    "api": "apps/api",
-    "site": "apps/site"
+    "api": "apps/api"
   },
   "brownfield": {},
+  "branches": {
+    "producao": "main",
+    "integracao": "develop"
+  },
   "criteria_tools": {
     "react": {
       "comando": {
@@ -50,15 +52,7 @@
       }
     }
   },
-  "command_quirks": [
-    {
-      "id": "rtk-output-proxy",
-      "aplica_a": "toda chamada de Bash",
-      "sintoma": "um hook global reescreve o comando e filtra a saída antes de ela chegar ao agent",
-      "escape": "rtk proxy <comando>",
-      "quando_usar": "sempre que a evidência de um critério de aceite depender da saída íntegra do comando"
-    }
-  ],
+  "command_quirks": [],
   "language": {
     "code": "en",
     "docs": "pt-BR"
@@ -67,5 +61,6 @@
     "proxy de saída rtk em ~/CLAUDE.md e ~/.claude/CLAUDE.md — escape para saída crua: rtk proxy <comando>",
     "hook global mantém o grafo de código (.code-review-graph) em PostToolUse/Edit|Write e SessionStart — o harness não instala um segundo mantenedor",
     "hook global PreToolUse/Bash: rtk hook claude — reescreve comandos antes da execução"
-  ]
+  ],
+  "modo_autonomo": false
 }

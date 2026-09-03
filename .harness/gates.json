@@ -11,8 +11,7 @@
       "exempt": [
         "**/*.test.ts",
         "**/*.test.tsx",
-        "**/*.spec.ts",
-        "**/shared/api/generated/**"
+        "**/*.spec.ts"
       ],
       "cobra": "comentário que descreve mecânica em vez de justificar decisão",
       "pack": "react"
@@ -80,43 +79,6 @@
       ],
       "cobra": "controller acessando o cliente de banco direto, sem passar pelo serviço",
       "pack": "nestjs"
-    },
-    {
-      "id": "G3",
-      "script": "scripts/gates/gate3_no_comments.sh",
-      "escape": "gate3-ok",
-      "applies_to": [
-        "apps/site/src/**"
-      ],
-      "exempt": [
-        "**/*.test.ts",
-        "**/*.test.tsx",
-        "**/*.spec.ts"
-      ],
-      "cobra": "comentário que descreve mecânica em vez de justificar decisão",
-      "pack": "projeto"
-    },
-    {
-      "id": "G4",
-      "script": "scripts/gates/gate4_no_todo.sh",
-      "escape": null,
-      "applies_to": [
-        "apps/site/src/**"
-      ],
-      "exempt": [],
-      "cobra": "TODO, FIXME, XXX ou HACK",
-      "pack": "projeto"
-    },
-    {
-      "id": "G8",
-      "script": "scripts/gates/gate8_divergence_status.sh",
-      "escape": null,
-      "applies_to": [
-        "product/items/*/04-divergencias/**"
-      ],
-      "exempt": [],
-      "cobra": "status escrito no D-nnn.md diferente do status da mesma divergência em product/state.json",
-      "pack": "projeto"
     }
   ]
 }
