@@ -212,7 +212,19 @@ revoga o acesso que vinha dele, e a concessão individual sobrevive" diz.
 O que precisa de decisão do dono antes de virar spec. Não é fase, não é item, e
 não bloqueia trabalho que não dependa dela.
 
-Nenhuma pendente.
+- **O template do harness ensina a trava quebrada a todo projeto novo.**
+  `templates/ci/harness.yml` do plugin, linha 26, tem a mesma leitura de rótulos
+  que aqui nunca travou: `tr -d '[]"' | grep '^blocked-on-'` contra o JSON
+  indentado que o `toJSON` entrega. Quem rodar `/harness:init` amanhã recebe um
+  fluxo que anuncia tranca e entrega bilhete, e não tem como descobrir sozinho —
+  o job fica **verde**, que é a resposta que ninguém investiga. Aqui já está
+  corrigido, com `scripts/gates/bloqueio.sh` e onze casos de teste, entre eles o
+  formato que passou em produção; a correção é copiável tal como está.
+  **A decisão é sua:** levar `bloqueio.sh` e o teste para o template do plugin,
+  ou deixar cada projeto descobrir por conta. Não a apliquei porque o plugin mora
+  fora deste repositório e a norma daqui é que a retrospectiva proponha a mudança
+  do harness, nunca a aplique de dentro de um item.
+  **Origem:** Fase 3 de `001-esqueleto-do-monorepo`, ver `04-divergencias/D-012.md`.
 
 ## Validações de campo pendentes
 
