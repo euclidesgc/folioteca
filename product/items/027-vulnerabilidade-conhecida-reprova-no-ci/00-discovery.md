@@ -25,7 +25,7 @@ virar cartão.
 | Isenção com prazo | O padrão existe: `qs` isento da quarentena até **2026-09-05**, declarado em `pnpm-workspace.yaml:48-49` e espelhado na constante `ISENCOES_ESPERADAS` de `scripts/gates/quarentena.sh:43`. É isenção de *publicação recente*, não de *severidade* — a lista deste item é outra |
 | Parse de lockfile reaproveitável | **Nenhum.** Nada em `scripts/` lê `pnpm-lock.yaml`; `quarentena.sh` só compara configuração com constante |
 | Instalação de ferramenta no CI | O padrão da casa é binário de release com versão e `sha256` fixados — `scripts/ci/instalar-gitleaks.sh`, chamado em `.github/workflows/portoes.yml:86-89`. Foi a decisão `D6` de `023`, tomada para não acrescentar ação de terceiro |
-| Rotina de atualização | `.github/dependabot.yml` cobre **só** `github-actions`. O comentário no topo do arquivo deixa o ecossistema npm de fora **de propósito**, e nomeia este item como o dono da lacuna |
+| Rotina de atualização | `.github/dependabot.yml` cobre **só** `github-actions`. O comentário no topo do arquivo deixa o ecossistema npm de fora **de propósito**, e nomeia este item como o dono da *conta* que falta. Quando este item fechar, o ponteiro passa a apontar `041`, que é quem liga a rotina — e atualizá-lo é da fase de execução daqui, no mesmo PR, pela regra 8 |
 | Na máquina de desenvolvimento | `pnpm 11.25.0` (o mesmo do `packageManager`), `osv-scanner 2.5.1`, `gitleaks 8.30.1`, `semgrep 1.176.0`, `jq 1.7`. `trivy` e `yq` ausentes |
 
 ## INVEST
