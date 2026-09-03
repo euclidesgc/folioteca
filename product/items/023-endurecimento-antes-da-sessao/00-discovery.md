@@ -19,7 +19,7 @@ Nada aqui é suposição: cada linha foi lida no repositório antes de virar car
 | Cabeçalhos de segurança | **Nenhum**, nas três frentes. `apps/api/package.json` não declara `helmet`; `apps/site/next.config.ts` tem só `agentRules: false` e nenhum `headers()`; `apps/web/index.html` não tem `<meta http-equiv>` e `apps/web/vite.config.ts:26-29` declara `server` sem `headers` |
 | Política de conteúdo | **Nenhuma**. Zero ocorrências de `Content-Security-Policy` em código, HTML ou configuração |
 | Origem autorizada | `apps/api/src/cors.ts:9-12` — `origin: [config.get("WEB_ORIGIN")]`, array de **um** elemento. `environment.schema.ts:8-11` valida `WEB_ORIGIN` como `Joi.string()` com padrão `^https?:\/\/[^/]+$` e default `http://localhost:5173`. `environment-variables.ts:5` tipa `WEB_ORIGIN: string` |
-| Varredura de segredo | **Nenhuma**. Sem `gitleaks`, `trufflehog` ou `semgrep` em workflow, script ou configuração; nada olha árvore de fontes, histórico ou artefato de build. `gitleaks 8.30.1` já está na máquina de desenvolvimento |
+| Varredura de segredo | **Nenhuma no repositório**. Sem `gitleaks`, `trufflehog` ou `semgrep` em workflow, script ou configuração; nada que esteja versionado olha árvore de fontes, histórico ou artefato de build. `gitleaks 8.30.1` já está na máquina de desenvolvimento. Existe uma verificação externa — `GitGuardian Security Checks`, app instalado na conta do GitHub, que aparece nos PRs e não está em arquivo nenhum daqui; ver R4 para o que ela não cobre |
 | Artefato publicado | **Não há publicação.** O único `upload-artifact` é `ci-react.yml:141`, condicional a `if: failure()`, com o relatório do Playwright. Os builds saem em `apps/api/dist`, `apps/web/dist` e `apps/site/.next`, e o job os descarta |
 | Ações do CI | **27** referências `uses:` em cinco fluxos, **27 tags móveis** (`@v4`), zero SHA. São `actions/checkout` (12), `actions/setup-node` (7), `pnpm/action-setup` (7) e `actions/upload-artifact` (1) |
 | Quarentena de dependência | **Nenhuma**. `minimumReleaseAge` ausente de `.npmrc`, `pnpm-workspace.yaml` e `package.json`; sem Dependabot nem Renovate em `.github/`. `packageManager: pnpm@11.25.0`, Node 24 no CI |
@@ -122,6 +122,13 @@ navegador do desenvolvedor uma regra que quebra o ambiente e persiste em cache.
 O portão varre três universos: os arquivos rastreados por `git ls-files`, e os
 artefatos `apps/web/dist` e `apps/site/.next` depois do build. `apps/api/dist`
 entra junto porque é o que vai virar imagem.
+
+O `GitGuardian` que já roda nos PRs não substitui este portão, e as duas coisas
+não competem. Ele olha o diff que chega ao GitHub: não roda antes do push, não
+enxerga artefato de build — que nenhum PR carrega —, e vive numa conta de
+terceiro, fora de qualquer diff daqui. O portão faz o oposto em cada um dos
+três: falha barato na máquina, mede o que o build produziu, e é um arquivo que
+se lê na revisão.
 
 - **E4.1** — Repositório limpo, com o `.env` da raiz existindo e ignorado: o
   portão sai `0` e **imprime quantos arquivos varreu em cada universo**.
