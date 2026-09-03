@@ -490,7 +490,8 @@
           "phase": 5,
           "detected_at": "2026-09-03T17:57:37Z",
           "aprovada_at": "2026-09-03T17:57:37Z",
-          "ratificada_por": "autonomo"
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-03T19:23:49Z"
         },
         "D-012": {
           "status": "APROVADA",
@@ -498,7 +499,8 @@
           "phase": 5,
           "detected_at": "2026-09-03T18:14:25Z",
           "aprovada_at": "2026-09-03T18:14:25Z",
-          "ratificada_por": "autonomo"
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-03T19:23:49Z"
         }
       },
       "criteria_exception": null
