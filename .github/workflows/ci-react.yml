@@ -7,10 +7,6 @@ on:
   pull_request:
     paths: ["apps/web/**", "scripts/gates/**", ".github/workflows/ci-react.yml"]
 
-defaults:
-  run:
-    working-directory: apps/web
-
 jobs:
   # A guarda existe porque `apps/web` nasce declarado no workspace e vazio: o
   # esqueleto do monorepo cria o pacote antes de a fase da web escrever a
@@ -24,12 +20,7 @@ jobs:
       pronto: ${{ steps.olha.outputs.pronto }}
     steps:
       - uses: actions/checkout@v4
-      # `working-directory` do topo do arquivo vale para todo `run`, inclusive
-      # este. Sem o `.` a busca vira `apps/web/apps/web/src` e nunca acha nada — a guarda
-      # respondia "não há código" para tudo, e os portões saíam verdes por não
-      # terem medido. É o defeito que a guarda existia para impedir.
       - id: olha
-        working-directory: .
         run: |
           source scripts/gates/medir.sh
           # exige_caminho reprova se apps/web sumir: aí não é "não há código", é
@@ -66,25 +57,29 @@ jobs:
           cache-dependency-path: "pnpm-lock.yaml"
 
       - name: Dependências
-        working-directory: .
         run: pnpm install --frozen-lockfile
 
+      - name: Os pacotes deste fluxo estão no workspace
+        run: |
+          source scripts/gates/medir.sh
+          exige_pacote_pnpm web "o pacote da web"
+
       - name: Tipos
-        run: pnpm exec tsc --noEmit
+        run: pnpm --filter web run typecheck
 
       - name: Lint
-        run: pnpm lint
+        run: pnpm --filter web run lint
 
       # A regra de caminho de import do ESLint alcança o que é declarativo; a
       # análise de dependência alcança o ciclo e a fronteira que ela não vê.
       - name: Direção de dependência
         run: |
-          if [ -f .dependency-cruiser.cjs ]; then
-            pnpm exec depcruise src --validate
+          if [ -f apps/web/.dependency-cruiser.cjs ]; then
+            pnpm --filter web exec depcruise src --validate
           fi
 
       - name: Testes
-        run: pnpm test -- --reporter=dot
+        run: pnpm --filter web run test -- --reporter=dot
 
       # O build embute a origem da API no artefato, e desde a fase que criou a
       # web ele recusa subir sem ela: um bundle com a origem ausente vira um
@@ -94,7 +89,7 @@ jobs:
       - name: Build
         env:
           VITE_API_URL: http://localhost:3000
-        run: pnpm build
+        run: pnpm --filter web run build
 
   comportamental:
     needs: guarda
@@ -111,16 +106,20 @@ jobs:
           cache-dependency-path: "pnpm-lock.yaml"
 
       - name: Dependências
-        working-directory: .
         run: pnpm install --frozen-lockfile
 
+      - name: Os pacotes deste fluxo estão no workspace
+        run: |
+          source scripts/gates/medir.sh
+          exige_pacote_pnpm web "o pacote da web"
+
       - name: Navegador
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm --filter web exec playwright install --with-deps chromium
 
       # Cada critério comportamental do plano vira um caso aqui. Isto não é
       # suíte de regressão: é a prova do que unidade e integração não provam.
       - name: Playwright
-        run: pnpm exec playwright test
+        run: pnpm --filter web exec playwright test
 
       - uses: actions/upload-artifact@v4
         if: failure()
@@ -139,7 +138,6 @@ jobs:
         with:
           fetch-depth: 0
       - name: Gates
-        working-directory: .
         env:
           HARNESS_DIFF_BASE: origin/${{ github.base_ref || 'develop' }}...HEAD
         run: bash scripts/gates/gates_runner.sh

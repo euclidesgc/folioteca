@@ -51,6 +51,13 @@ caso "conta_sob REPROVA quando o diretório não existe" 1 \
 caso "conta_sob conta quando o diretório existe" 0 \
   "GITHUB_WORKSPACE='$tmp'; source '$lib'; conta_sob existe -type f"
 
+# A quarta forma: um filtro de pnpm que não casa pacote nenhum sai 0, e o passo
+# do CI que dependia dele aprova sem ter rodado.
+caso "exige_pacote_pnpm REPROVA quando o filtro não casa pacote" 1 \
+  "source '$lib'; exige_pacote_pnpm pacote-inexistente-42 'um pacote do workspace'"
+caso "exige_pacote_pnpm passa com um pacote real do workspace" 0 \
+  "source '$lib'; exige_pacote_pnpm site 'o hotsite'"
+
 if [ "$falhas" -eq 0 ]; then
   printf '\n✓ medir.sh: todas as asserções mordem.\n'
 else

@@ -126,6 +126,10 @@ Cada linha aqui é um `state.py approve` que o humano **não** deu.
 | `D-015` | Ratificação da divergência do `.gitignore` na opção recomendada (a) — a linha ganha etapa em vez de ficar só na decisão. O PR da Fase 4 nasce `blocked-on-D-015` | 03/09/2026 |
 | `plan` (três reaprovações) | `03-plan.md` reaprovado depois de cada reconciliação da Fase 4: por `D-014` (critérios de clone limpo, sha `2302c2d`), por `D-013` (etapa 4.1, sha `2444b44`) e por `D-015` (etapa 4.2, sha `3c86f00`). Cada reaprovação fecha a exceção que destravou a escrita e reamarra o "sim" ao conteúdo em vigor | 03/09/2026 |
 | `fase 4` | `05-veredictos/fase-4.md` — veredicto `APROVADO` do `phase-validator` cego, que mediu os cinco critérios por conta própria: verificou as portas livres antes do critério 4, executou os dois clones literais, e confirmou pelo `docker volume ls` que o zero do comando veio do clone e não de resto de execução anterior. `validated_sha` `4f15d09` | 03/09/2026 |
+| `D-016` | Ratificação da divergência do critério estrutural de RF-11.2 na opção recomendada (a) — o critério passa a nomear os cinco jobs do fluxo da API e os quatro do da web, em vez de proibir `guarda` e `gates`. O PR da Fase 5 nasce `blocked-on-D-016` e assim permanece até você ratificar com `--por humano` | 03/09/2026 |
+| `D-017` | Ratificação da divergência do critério comportamental de RF-10 na opção recomendada (a) — o *Dado* passa a registrar a linha no índice, sem o que o gerador a apaga antes do diff e o critério sai 0 medindo o gerador em vez do portão. O PR da Fase 5 nasce `blocked-on-D-017` | 03/09/2026 |
+| `D-018` | Ratificação da divergência de escopo na opção recomendada (a) — a asserção `exige_pacote_pnpm` e o teste dela ganham a etapa 5.0 em vez de entrarem no diff sem etapa. O PR da Fase 5 nasce `blocked-on-D-018` | 03/09/2026 |
+| `plan` (reaprovação) | `03-plan.md` reaprovado depois da reconciliação de `D-016`, `D-017` e `D-018`, novo `sha` `624f273`. Três trechos da Fase 5 mudaram: o critério estrutural de RF-11.2, o *Dado* do critério comportamental de RF-10 e a lista de etapas, que ganhou a `5.0` | 03/09/2026 |
 
 ## Decisões da Fase 2
 
@@ -329,6 +333,24 @@ número 28, o próximo livre, e não o 21 — a numeração do `CLAUDE.md` é gl
 seção React ocupa 21 a 27, e esses números são citados como identificadores pelo
 `03-plan.md`, que está amarrado por `sha`. A lista lê 17, 18, 19, 20, 28. Se
 preferir renumerar, o trabalho é mecânico e exige reaprovar o plano.
+
+## Decisões da Fase 5
+
+| # | Decisão | Alternativa descartada | Por quê |
+|---|---|---|---|
+| D37 | **`guarda` e `gates` continuam nos dois fluxos**, e o critério estrutural passa a nomeá-los | Apagar os dois jobs para casar com a lista fechada que o critério trazia | Registrado como `D-016`. `gates` roda o dispatcher dos portões arquiteturais que o `CLAUDE.md` manda rodar; `guarda` é a correção que a Fase 2 registrou depois de um `working-directory` herdado fazer a busca olhar para `apps/api/apps/api` e responder "não há código" em toda branch. Cumprir a lista ao pé da letra apagaria verificação real por causa de uma tradução do requisito — a spec diz "sem etapa adicional definida por este item", não "só estes jobs". |
+| D38 | **A corrente do fluxo da API é `guarda → contrato → qualidade` e `integracao`**, com o job `contrato` repassando o veredicto da guarda em `outputs` | Declarar `needs: [guarda, contrato]` nos dois jobs de baixo | O critério pede `needs: contrato`, e a condição de cada job precisa do veredicto da guarda. Repassar o output pelo `contrato` dá as duas coisas com uma aresta só, e deixa a leitura do grafo igual ao que o requisito não funcional descreve: contrato divergente reprova antes de qualquer teste rodar. |
+| D39 | **O fluxo do hotsite mede os portões com `--all`**, não com o diff | Usar `HARNESS_DIFF_BASE` como os outros dois fluxos | O hotsite não tem pack, e o que o governa são G3 e G4 sobre `apps/site/src/**`. O modo de diff depende de uma base que um push em branch recém-criada não tem, e base ausente é medição impossível, não árvore limpa — o critério da Fase 5 já pedia `--all` por isso. |
+| D40 | **`exige_pacote_pnpm` entra em `scripts/gates/medir.sh`, com dois casos de teste**, e é chamada nos seis jobs que usam `pnpm --filter` | Escrever a verificação como shell solto dentro de cada YAML | Registrado como `D-018`. `pnpm --filter <inexistente> <script>` sai com código 0: um pacote fora do `pnpm-workspace.yaml` deixaria o fluxo verde sem ter rodado nada. É a quarta forma da tabela de portões que aprovam por não ter medido, e a defesa deste projeto para a classe é asserção testada em `medir.sh` — o `portoes.yml` já roda esse teste em todo PR. A medição usa um marcador impresso pelo próprio comando, porque contar as linhas da saída aprovaria pelo aviso "No projects matched the filters", que o pnpm imprime na saída padrão. |
+| D41 | **O `README.md` da raiz nomeia a porta `5433` do Postgres e explica por que não é a `5432`** | Listar as quatro portas sem justificar a do banco | Um Postgres já instalado na máquina ocupa a 5432, e o conflito só apareceria na primeira consulta, longe da causa. A promessa de "um comando sobe tudo" só se cumpre se o desvio da convenção estiver escrito onde quem clona olha primeiro. |
+
+### Divergências ratificadas na Fase 5
+
+| # | O que estava assim | O que a realidade impôs | Alternativa descartada |
+|---|---|---|---|
+| `D-016` | O critério estrutural de RF-11.2 lista três jobs no fluxo da API e dois no da web, e proíbe qualquer outro | Os dois fluxos têm `guarda` e `gates` desde as fases 2 e 3, e ambos são verificação real. O critério passa a nomear os cinco e os quatro jobs que cada fluxo declara | Apagar `guarda` e `gates`, que tiraria do CI os portões arquiteturais e a proteção contra medição impossível |
+| `D-017` | O critério comportamental de RF-10 acrescenta a linha `Divergente` ao cliente gerado e espera o par sair não-zero | Executado assim, o comando sai **0**: `openapi-ts` reescreve o arquivo inteiro e apaga a linha antes de o `git diff` comparar árvore e índice. O *Dado* passa a registrar a linha no índice, que é o estado de um checkout do CI | Medir com `git diff --exit-code HEAD -- <caminho>`, que morde mas deixa o critério com um comando diferente do que o job executa |
+| `D-018` | As seis etapas da Fase 5 falam de `.github/workflows/**` e do `README.md` da raiz | O diff tem dois arquivos fora dali — `scripts/gates/medir.sh` e o teste dele —, sem os quais os passos com `pnpm --filter` aprovariam sem medir. Uma etapa 5.0 passa a descrevê-los | Deixar os dois arquivos sem etapa, repetindo o precedente que `D-015` recusou na fase anterior |
 
 ## Por que o loop parou
 

@@ -23,13 +23,13 @@
           "file": "product/items/001-esqueleto-do-monorepo/02-spec.md"
         },
         "plan": {
-          "at": "2026-09-03T08:28:19Z",
-          "sha": "3c86f006576e31c26bc6e89efe20919420858687",
+          "at": "2026-09-03T08:55:08Z",
+          "sha": "624f273de4032c1fc4b9e632ad3113206eb8303b",
           "file": "product/items/001-esqueleto-do-monorepo/03-plan.md",
           "por": "autonomo"
         }
       },
-      "current_phase": 4,
+      "current_phase": 5,
       "phases": {
         "1": {
           "status": "aprovada",
@@ -87,6 +87,19 @@
             "apps/site": "afbe408efb4f61e6f9cbe031b5fb08a5a077a9a1",
             "apps/web": "94c9cfdbf62e6d1baa64d43614230676fe4d7b3d"
           }
+        },
+        "5": {
+          "status": "em_execucao",
+          "reproved_count": 0,
+          "verdict": null,
+          "verdict_file": null,
+          "validated_sha": null,
+          "pr": null,
+          "blocked_on": [
+            "D-016",
+            "D-017",
+            "D-018"
+          ]
         }
       },
       "divergences": {
@@ -212,6 +225,33 @@
           "aprovada_at": "2026-09-03T08:27:49Z",
           "ratificada_por": "autonomo",
           "reconciliada_at": "2026-09-03T08:28:19Z"
+        },
+        "D-016": {
+          "status": "RECONCILIADA",
+          "kind": "normal",
+          "phase": 5,
+          "detected_at": "2026-09-03T08:45:14Z",
+          "aprovada_at": "2026-09-03T08:45:16Z",
+          "ratificada_por": "autonomo",
+          "reconciliada_at": "2026-09-03T08:55:08Z"
+        },
+        "D-017": {
+          "status": "RECONCILIADA",
+          "kind": "normal",
+          "phase": 5,
+          "detected_at": "2026-09-03T08:51:27Z",
+          "aprovada_at": "2026-09-03T08:51:27Z",
+          "ratificada_por": "autonomo",
+          "reconciliada_at": "2026-09-03T08:55:08Z"
+        },
+        "D-018": {
+          "status": "RECONCILIADA",
+          "kind": "normal",
+          "phase": 5,
+          "detected_at": "2026-09-03T08:51:27Z",
+          "aprovada_at": "2026-09-03T08:51:27Z",
+          "ratificada_por": "autonomo",
+          "reconciliada_at": "2026-09-03T08:55:08Z"
         }
       },
       "criteria_exception": null

@@ -68,3 +68,17 @@ conta_sob() {
   exige_caminho "$rel" "um diretório para contar"
   find "$(medir_raiz)/$rel" "$@" 2>/dev/null | wc -l
 }
+
+# exige_pacote_pnpm <filtro> <o que ele deveria casar>
+# `pnpm --filter <inexistente> <script>` imprime "No projects matched the
+# filters" e sai 0. É a quarta forma da tabela: o passo do CI aprova sem ter
+# rodado nada, e o fluxo inteiro fica verde por não ter medido.
+exige_pacote_pnpm() {
+  local filtro="$1" descricao="$2" casados
+  exige_comando pnpm
+  # O marcador é a medição. Contar as linhas da saída aprovaria pelo próprio
+  # aviso de "No projects matched", que o pnpm imprime na saída padrão.
+  casados="$(cd "$(medir_raiz)" && pnpm --filter "$filtro" exec sh -c 'echo PACOTE_MEDIDO' 2>/dev/null | grep -c '^PACOTE_MEDIDO$')"
+  echo "medido: $casados pacote(s) casados pelo filtro '$filtro'"
+  [ "$casados" -ge 1 ] || _reprova "o filtro pnpm '$filtro' não casou pacote nenhum — esperava $descricao, e os passos seguintes sairiam 0 sem rodar"
+}
