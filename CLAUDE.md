@@ -42,6 +42,13 @@ estado vive em `product/state.json` e `/harness:status` o resume.
 19. Rode `bash scripts/gates/gates_runner.sh` antes de dar algo por pronto.
     Portão que não conseguiu medir reprova.
 20. `/harness:doctor` diagnostica ambiente, hooks e coerência do estado.
+28. Estado se lê e se escreve por `bash scripts/harness/state.sh`, nunca pelo
+    `state.py` cru: ele ancora na raiz do repositório, e o diretório corrente
+    muda debaixo de você — a gravação no lugar errado sai com código de sucesso.
+
+O número de uma regra é identificador, não ordem de leitura: `03-plan.md` e
+`decisoes-autonomas.md` citam regras pelo número, então regra nova recebe o
+próximo livre em vez de empurrar as outras.
 
 O detalhe de cada regra — o porquê, o exemplo certo e errado, as isenções —
 mora nas skills do harness, que carregam quando o assunto aparece.

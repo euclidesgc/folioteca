@@ -17,3 +17,5 @@ jobs:
         run: bash scripts/gates/__tests__/medir.test.sh
       - name: a fronteira de agent nomeia agents que existem
         run: bash scripts/gates/__tests__/fronteira-de-agent.test.sh
+      - name: o estado ancora na raiz do repositório, não no diretório corrente
+        run: bash scripts/harness/__tests__/state.test.sh
