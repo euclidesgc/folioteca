@@ -23,8 +23,8 @@
           "file": "product/items/001-esqueleto-do-monorepo/02-spec.md"
         },
         "plan": {
-          "at": "2026-09-03T09:20:33Z",
-          "sha": "fd54f28fe7b17ccc1c63d73787a2d61d74232eca",
+          "at": "2026-09-03T21:59:34Z",
+          "sha": "54147d2676aa7d394d0a5875ba1b4d32679e43d6",
           "file": "product/items/001-esqueleto-do-monorepo/03-plan.md",
           "por": "autonomo"
         }
@@ -295,14 +295,14 @@
           "por": "autonomo"
         },
         "spec": {
-          "at": "2026-09-03T18:15:23Z",
-          "sha": "1929f7ad1e3a294d37a7936800be7aef88db3adc",
+          "at": "2026-09-03T21:59:34Z",
+          "sha": "c499fd20de68190cc92a80f0b85a29a712b55592",
           "file": "product/items/023-endurecimento-antes-da-sessao/02-spec.md",
           "por": "autonomo"
         },
         "plan": {
-          "at": "2026-09-03T18:15:23Z",
-          "sha": "326deac98d33b31057aa16674901d0e4d5fb8ec3",
+          "at": "2026-09-03T21:59:35Z",
+          "sha": "408ffb37d60391b44b338b69937e6077df95caa2",
           "file": "product/items/023-endurecimento-antes-da-sessao/03-plan.md",
           "por": "humano"
         }
