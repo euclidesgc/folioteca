@@ -5,6 +5,18 @@
 # observável na resposta HTTP. As asserções que reprovam por não ter conseguido
 # medir moram em scripts/gates/medir.sh, e é de lá que vêm.
 #
+# Três armadilhas desta classe de portão, todas já reproduzidas contra este
+# arquivo, governam as decisões abaixo:
+#
+#   1. medir a porta em vez do servidor — qualquer processo que atenda em 3001
+#      responde as perguntas, e um servidor de outra execução aprova o build de
+#      hoje sem que este código tenha sido servido;
+#   2. perguntar "contém" em vez de "é" — `object-src 'none'` está contido em
+#      `object-src 'none' *`, então uma política alargada passa por completa;
+#   3. provar que dois nonces são diferentes e chamar isso de aleatório — um
+#      contador passa igual, e no dia em que alguém trocar o gerador por
+#      `Math.random()` o portão continua verde.
+#
 # Uso: bash apps/site/scripts/verificar-politica.sh [producao|desenvolvimento]
 set -uo pipefail
 
@@ -12,12 +24,24 @@ _politica_raiz="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel 2>/dev/null 
 # shellcheck source=../../../scripts/gates/medir.sh
 source "$_politica_raiz/scripts/gates/medir.sh"
 
-PORTA_HOTSITE="${PORTA_HOTSITE:-3001}"
+# A porta é a do script `start` de apps/site/package.json, e não uma variável:
+# tornar configurável só o lado da medição faria o portão medir uma porta onde o
+# servidor não está.
+readonly PORTA_HOTSITE=3001
+
+# A política inteira, com o nonce normalizado. Comparar a linha completa é o que
+# distingue "as nove diretivas estão lá" de "a política é esta": nove buscas de
+# substring aprovam `script-src 'self' 'nonce-X' https: *`, onde o nonce vira
+# decoração e qualquer origem carrega script.
+readonly POLITICA_CANONICA="script-src 'self' 'nonce-X'; default-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+
+# 16 bytes em base64: 22 caracteres do alfabeto padrão e dois de preenchimento.
+readonly FORMA_DO_NONCE='^[A-Za-z0-9+/]{22}==$'
+
 _politica_falhas=0
-# O `trap EXIT` roda depois de a função retornar, e variável `local` já saiu de
-# escopo lá: sob `set -u` o próprio derrubador morre e deixa a porta ocupada.
 _politica_servidor_pgid=""
 _politica_trabalho=""
+_politica_registro=""
 
 _reprova_resultado() {
   printf '::error::%s\n' "$1" >&2
@@ -25,9 +49,8 @@ _reprova_resultado() {
 }
 
 # exige_nonces_distintos <primeiro> <segundo>
-# Nonce repetido é nonce ausente: é exatamente o que `headers()` produziria,
-# porque grava a mesma string em toda resposta. A comparação mora numa função
-# própria para poder ser provada sem subir servidor.
+# Nonce repetido é nonce ausente: é o que `headers()` produziria, porque grava a
+# mesma string em toda resposta.
 exige_nonces_distintos() {
   local primeiro="${1:-}" segundo="${2:-}"
   echo "medido: nonce da primeira resposta = '${primeiro:-<vazio>}', da segunda = '${segundo:-<vazio>}'"
@@ -41,6 +64,27 @@ exige_nonces_distintos() {
     return 1
   fi
   return 0
+}
+
+# exige_nonce_imprevisivel <valor>
+# Diferente não é imprevisível: um contador passa por `exige_nonces_distintos`.
+# A medição da forma mora numa função à parte porque a comparação acima tem
+# contrato próprio, exercitado com valores curtos.
+exige_nonce_imprevisivel() {
+  local valor="${1:-}"
+  if [[ ! "$valor" =~ $FORMA_DO_NONCE ]]; then
+    printf '::error::o nonce %s não tem a forma de 16 bytes aleatórios em base64 — um contador ou um valor curto passaria pela comparação de igualdade\n' "'${valor:-<vazio>}'" >&2
+    return 1
+  fi
+  echo "medido: nonce com a forma de 16 bytes em base64 — ${#valor} caracteres"
+  return 0
+}
+
+_normaliza_politica() { # <linha do cabeçalho>
+  printf '%s' "$1" |
+    sed 's/\r$//' |
+    sed 's/^[Cc]ontent-[Ss]ecurity-[Pp]olicy:[[:space:]]*//' |
+    sed "s/'nonce-[^']*'/'nonce-X'/"
 }
 
 _cabecalho_presente() { # <arquivo de cabeçalhos> <linha esperada, sem caixa>
@@ -59,16 +103,59 @@ _nonces_dos_scripts() { # <arquivo de corpo>
     sed 's/.*nonce="\([^"]*\)".*/\1/'
 }
 
-# O derrubador mata o grupo inteiro: `pnpm` delega a `next`, e matar só o pnpm
-# deixa a porta ocupada para a próxima execução.
+# A faxina remove apenas o diretório que este script criou, e só depois de
+# provar que é ele: apagar recursivamente dentro de um `trap` é a linha que
+# limpa a árvore errada no dia em que a variável vem vazia.
 _derrubar() {
-  [ -n "${_politica_servidor_pgid:-}" ] && kill -- "-$_politica_servidor_pgid" 2>/dev/null
+  if [ -n "${_politica_servidor_pgid:-}" ]; then
+    kill -- "-$_politica_servidor_pgid" 2>/dev/null
+  fi
+  case "${_politica_trabalho:-}" in
+    /tmp/*)
+      [ -d "$_politica_trabalho" ] && rm -r "$_politica_trabalho" 2>/dev/null
+      ;;
+  esac
   return 0
+}
+
+# Um servidor de outra execução, ou qualquer outro serviço, responderia todas as
+# perguntas deste portão — e o veredicto seria sobre código que ninguém serviu.
+_exige_porta_livre() {
+  curl -s -o /dev/null --max-time 2 "http://localhost:$PORTA_HOTSITE/"
+  local codigo=$?
+  # 7 é `couldn't connect`: ninguém escuta, que é a única situação em que este
+  # portão sabe de quem é a resposta que vai medir.
+  if [ "$codigo" -ne 7 ]; then
+    _reprova "já há alguém atendendo em localhost:$PORTA_HOTSITE (curl saiu $codigo) — o portão mediria um servidor que não foi este que subiu"
+  fi
+  echo "medido: a porta $PORTA_HOTSITE estava livre antes de subir o hotsite"
+}
+
+# O processo registra o próprio identificador e faz `exec`: `$!` seria o do
+# `setsid`, que bifurca quando o controle de trabalho está ligado e deixa o
+# servidor real noutro grupo, vivo depois do `trap`.
+_subir_servidor() { # <comando do servidor>
+  local comando="$1" arquivo_pid="$_politica_trabalho/servidor.pid" espera=0
+  setsid bash -c "echo \$\$ > \"$arquivo_pid\"; exec $comando" >"$_politica_registro" 2>&1 &
+  while [ ! -s "$arquivo_pid" ] && [ "$espera" -lt 15 ]; do
+    sleep 1
+    espera=$((espera + 1))
+  done
+  if [ ! -s "$arquivo_pid" ]; then
+    cat "$_politica_registro" >&2
+    _reprova "o servidor não registrou o próprio identificador em ${espera}s — sem ele o portão não sabe o que subiu nem o que derrubar"
+  fi
+  _politica_servidor_pgid="$(cat "$arquivo_pid")"
+  echo "medido: o hotsite subiu no grupo de processos $_politica_servidor_pgid"
 }
 
 _aguardar_porta() { # <segundos>
   local limite="$1" decorrido=0
   while [ "$decorrido" -lt "$limite" ]; do
+    if ! kill -0 "$_politica_servidor_pgid" 2>/dev/null; then
+      cat "$_politica_registro" >&2
+      _reprova "o servidor do hotsite morreu antes de responder — a saída dele está acima"
+    fi
     if curl -sf -o /dev/null "http://localhost:$PORTA_HOTSITE/"; then
       echo "medido: o hotsite respondeu em http://localhost:$PORTA_HOTSITE após ${decorrido}s"
       return 0
@@ -76,7 +163,20 @@ _aguardar_porta() { # <segundos>
     sleep 1
     decorrido=$((decorrido + 1))
   done
-  _reprova "o hotsite não respondeu em http://localhost:$PORTA_HOTSITE em ${limite}s — sem servidor de pé não há resposta para medir"
+  cat "$_politica_registro" >&2
+  _reprova "o hotsite não respondeu em http://localhost:$PORTA_HOTSITE em ${limite}s — a saída dele está acima"
+}
+
+_medir_resposta() { # <número da requisição>
+  local n="$1" codigo
+  codigo="$(curl -s -o "$_politica_trabalho/corpo-$n.html" -D "$_politica_trabalho/cabecalho-$n.txt" \
+    -w '%{http_code}' "http://localhost:$PORTA_HOTSITE/")"
+  if [ "$codigo" != "200" ]; then
+    _reprova "a requisição $n a GET / respondeu '$codigo' — só a resposta que o navegador aceitaria vale como medição"
+  fi
+  [ -s "$_politica_trabalho/cabecalho-$n.txt" ] || _reprova "a resposta $n veio sem cabeçalho nenhum"
+  [ -s "$_politica_trabalho/corpo-$n.html" ] || _reprova "a resposta $n veio com corpo vazio"
+  echo "medido: requisição $n respondeu $codigo"
 }
 
 principal() {
@@ -88,35 +188,34 @@ principal() {
 
   exige_comando curl
   exige_comando pnpm
+  exige_comando setsid
   exige_caminho apps/site/next.config.ts "a configuração do hotsite"
   exige_caminho apps/site/src/middleware.ts "o middleware que emite a política"
   exige_pacote_pnpm site "o pacote do hotsite"
 
   cd "$_politica_raiz" || _reprova "não consegui entrar em $_politica_raiz"
 
-  _politica_trabalho="$(mktemp -d)"
-  local trabalho="$_politica_trabalho"
-  local registro="$trabalho/servidor.log"
-
+  _politica_trabalho="$(mktemp -d)" ||
+    _reprova "não consegui criar o diretório de trabalho — sem ele os caminhos ficam vazios e as mensagens apontam para o lugar errado"
+  [ -d "$_politica_trabalho" ] || _reprova "o diretório de trabalho não existe depois do mktemp"
+  _politica_registro="$_politica_trabalho/servidor.log"
   trap _derrubar EXIT INT TERM
 
+  _exige_porta_livre
+
   if [ "$modo" = producao ]; then
-    pnpm --filter site build >"$trabalho/build.log" 2>&1 ||
-      { cat "$trabalho/build.log" >&2; _reprova "o build do hotsite falhou — não há artefato de produção para medir"; }
-    setsid pnpm --filter site start >"$registro" 2>&1 &
+    pnpm --filter site build >"$_politica_trabalho/build.log" 2>&1 || {
+      cat "$_politica_trabalho/build.log" >&2
+      _reprova "o build do hotsite falhou — não há artefato de produção para medir"
+    }
+    _subir_servidor "pnpm --filter site start"
   else
-    setsid pnpm --filter site dev >"$registro" 2>&1 &
+    _subir_servidor "pnpm --filter site dev"
   fi
-  _politica_servidor_pgid=$!
 
-  _aguardar_porta 60 || { cat "$registro" >&2; exit 1; }
-
-  curl -s -D "$trabalho/cabecalho-1.txt" -o "$trabalho/corpo-1.html" "http://localhost:$PORTA_HOTSITE/" ||
-    _reprova "a primeira requisição a GET / não completou"
-  curl -s -D "$trabalho/cabecalho-2.txt" -o "$trabalho/corpo-2.html" "http://localhost:$PORTA_HOTSITE/" ||
-    _reprova "a segunda requisição a GET / não completou"
-  [ -s "$trabalho/cabecalho-1.txt" ] || _reprova "a primeira resposta veio sem cabeçalho nenhum"
-  [ -s "$trabalho/corpo-1.html" ] || _reprova "a primeira resposta veio com corpo vazio"
+  _aguardar_porta 60
+  _medir_resposta 1
+  _medir_resposta 2
 
   local constantes=(
     "x-content-type-options: nosniff"
@@ -126,7 +225,7 @@ principal() {
   )
   local conferidos=0 esperado
   for esperado in "${constantes[@]}"; do
-    if _cabecalho_presente "$trabalho/cabecalho-1.txt" "$esperado"; then
+    if _cabecalho_presente "$_politica_trabalho/cabecalho-1.txt" "$esperado"; then
       conferidos=$((conferidos + 1))
     else
       _reprova_resultado "a resposta não traz '$esperado'"
@@ -134,64 +233,64 @@ principal() {
   done
   echo "medido: $conferidos de ${#constantes[@]} cabeçalhos constantes presentes"
 
+  if grep -qi '^x-powered-by:' "$_politica_trabalho/cabecalho-1.txt"; then
+    _reprova_resultado "a resposta traz X-Powered-By, que entrega de graça qual servidor atende o hotsite"
+  else
+    echo "medido: X-Powered-By ausente"
+  fi
+
+  local linha_hsts
+  linha_hsts="$(grep -i '^strict-transport-security:' "$_politica_trabalho/cabecalho-1.txt")"
   if [ "$modo" = producao ]; then
-    if _cabecalho_presente "$trabalho/cabecalho-1.txt" "strict-transport-security: max-age=31536000; includeSubDomains"; then
+    if printf '%s' "$linha_hsts" | grep -qiF "max-age=31536000; includeSubDomains"; then
       echo "medido: HSTS presente no build de produção"
     else
       _reprova_resultado "o build de produção respondeu sem 'strict-transport-security: max-age=31536000; includeSubDomains'"
     fi
   else
-    if grep -qi '^strict-transport-security:' "$trabalho/cabecalho-1.txt"; then
+    if [ -n "$linha_hsts" ]; then
       _reprova_resultado "o servidor de desenvolvimento emitiu HSTS, que persiste em cache no navegador de quem desenvolve"
     else
       echo "medido: HSTS ausente fora do build de produção"
     fi
   fi
-  if grep -qi 'preload' "$trabalho/cabecalho-1.txt"; then
-    _reprova_resultado "a resposta traz 'preload', que inscreve o domínio na lista embutida dos navegadores"
+  # A busca é na linha da HSTS, e não no arquivo inteiro: `Link: <...>;
+  # rel=preload` é cabeçalho legítimo que o Next emite assim que houver folha de
+  # estilo ou fonte, e reprovar por ele ensinaria a afrouxar a asserção.
+  if printf '%s' "$linha_hsts" | grep -qi 'preload'; then
+    _reprova_resultado "a HSTS traz 'preload', que inscreve o domínio na lista embutida dos navegadores e é caro de desfazer"
   fi
 
-  local politica; politica="$(grep -i '^content-security-policy:' "$trabalho/cabecalho-1.txt" | head -1)"
-  [ -n "$politica" ] || _reprova "a resposta não traz Content-Security-Policy — sem política não há diretiva para conferir"
+  local quantas_politicas
+  quantas_politicas="$(grep -ci '^content-security-policy:' "$_politica_trabalho/cabecalho-1.txt" || true)"
+  echo "medido: $quantas_politicas linha(s) de Content-Security-Policy na resposta"
+  if [ "$quantas_politicas" -ne 1 ]; then
+    _reprova "a resposta traz $quantas_politicas políticas — o navegador aplica a interseção de todas, e medir uma delas não diz o que vale"
+  fi
 
-  local diretivas=(
-    "default-src 'self'"
-    "style-src 'self'"
-    "img-src 'self' data:"
-    "connect-src 'self'"
-    "object-src 'none'"
-    "base-uri 'self'"
-    "form-action 'self'"
-    "frame-ancestors 'none'"
-    "script-src 'self' 'nonce-"
-  )
-  local diretivas_ok=0 diretiva
-  for diretiva in "${diretivas[@]}"; do
-    if printf '%s' "$politica" | grep -qF "$diretiva"; then
-      diretivas_ok=$((diretivas_ok + 1))
-    else
-      _reprova_resultado "a política não contém a diretiva '$diretiva'"
-    fi
-  done
-  echo "medido: $diretivas_ok de ${#diretivas[@]} diretivas presentes na política"
-
-  local escape
-  for escape in "'unsafe-inline'" "'unsafe-eval'"; do
-    if printf '%s' "$politica" | grep -qF "$escape"; then
-      _reprova_resultado "a política contém $escape, que devolve ao script embutido injetado a permissão que o nonce existe para tirar"
-    fi
-  done
+  local politica normalizada
+  politica="$(grep -i '^content-security-policy:' "$_politica_trabalho/cabecalho-1.txt")"
+  normalizada="$(_normaliza_politica "$politica")"
+  if [ "$normalizada" = "$POLITICA_CANONICA" ]; then
+    echo "medido: a política é exatamente a declarada — nove diretivas, e nada além delas"
+  else
+    _reprova_resultado "a política entregue não é a declarada
+       esperada: $POLITICA_CANONICA
+       obtida:   $normalizada"
+  fi
 
   local nonce_1 nonce_2
-  nonce_1="$(_nonce_do_cabecalho "$trabalho/cabecalho-1.txt")"
-  nonce_2="$(_nonce_do_cabecalho "$trabalho/cabecalho-2.txt")"
+  nonce_1="$(_nonce_do_cabecalho "$_politica_trabalho/cabecalho-1.txt")"
+  nonce_2="$(_nonce_do_cabecalho "$_politica_trabalho/cabecalho-2.txt")"
   exige_nonces_distintos "$nonce_1" "$nonce_2" || _politica_falhas=$((_politica_falhas + 1))
+  exige_nonce_imprevisivel "$nonce_1" || _politica_falhas=$((_politica_falhas + 1))
+  exige_nonce_imprevisivel "$nonce_2" || _politica_falhas=$((_politica_falhas + 1))
 
   local estampados=0 valor
   if [ -n "$nonce_1" ]; then
     while IFS= read -r valor; do
       [ "$valor" = "$nonce_1" ] && estampados=$((estampados + 1))
-    done < <(_nonces_dos_scripts "$trabalho/corpo-1.html")
+    done < <(_nonces_dos_scripts "$_politica_trabalho/corpo-1.html")
   fi
   echo "medido: $estampados <script> do corpo carregam o nonce da própria resposta"
   if [ "$estampados" -lt 1 ]; then

@@ -114,6 +114,12 @@ PR e commit já escritos.
       nenhum dos cinco arquivos novos daquela fase, que ainda estavam como `??`;
       o validador precisou alimentar os portões à mão para saber se estavam
       limpos. Commitar resolve por acidente, e é por isso que ninguém percebe.
+      A terceira forma é do mesmo tamanho e está no topo da cadeia, apontada pela
+      auditoria da fase 2 de `023`: `gates_runner.sh:30` faz `cd "$ROOT" || exit
+      0` e `:36` sai com `sem .harness/gates.json — nada a cobrar`, também zero.
+      O dispatcher aprova quando não consegue montar o universo, que é a causa
+      raiz que `medir.sh` existe para matar — e o mesmo vale para
+      `script ausente: … — gate não cobrado`, mais adiante.
 
 - [ ] `028-a-norma-carrega-a-tabela-que-os-portoes-citam` — quem lê um portão
       encontra no `CLAUDE.md` da raiz a tabela das três formas de portão que
@@ -160,6 +166,54 @@ PR e commit já escritos.
       própria — relaxada nos dois pontos, ou em modo de só relatar —, o que
       RF-24.2 e RF-24.3 hoje leem como proibido sem distinguir ambiente, e por
       isso não cabia nesta fase.
+
+- [ ] `032-a-pagina-de-erro-global-do-hotsite-nasce-com-nonce` — quando um erro
+      derruba o hotsite inteiro, a página que aparece no lugar dele hidrata em
+      vez de chegar com os scripts bloqueados pela própria política
+      **Depende de:** `023-endurecimento-antes-da-sessao` — é a fase 2 dele que
+      passa a exigir nonce em todo `<script>` embutido.
+      **Origem:** auditoria de segurança da fase 2 de
+      `023-endurecimento-antes-da-sessao`, confirmada no artefato:
+      `apps/site/.next/prerender-manifest.json` marca `/_global-error` como
+      `"compute": "static"`, e `.next/server/app/_global-error.html` sai do build
+      com 8675 bytes, **dois `<script>` embutidos e zero `nonce=`**. O
+      `dynamic = "force-dynamic"` do layout raiz não a alcança, porque a página
+      de erro global substitui o layout em vez de herdá-lo. O defeito é latente
+      — hoje nada no hotsite lança —, mas ele morde exatamente quando algo já
+      deu errado, e o portão da política nunca o exercita porque só pede `GET /`.
+      A saída é declarar a página de erro global explicitamente, com a mesma
+      configuração de segmento, e estender o portão para pedi-la.
+
+- [ ] `033-o-comando-canonico-dos-portoes-alcanca-o-que-nao-e-por-arquivo` —
+      `bash scripts/gates/gates_runner.sh` cobra também os portões que medem uma
+      resposta, um artefato ou um processo, e não uma lista de arquivos
+      **Depende de:** `026-o-modo-de-diff-dos-portoes-mede-ou-reprova` — é lá que
+      o dispatcher aprende a reprovar quando não consegue montar o universo, e
+      esta ampliação herda esse contrato.
+      **Origem:** auditoria de segurança da fase 2 de
+      `023-endurecimento-antes-da-sessao`. `.harness/gates.json` só descreve
+      portão por arquivo — `script` mais `applies_to` de globs —, então
+      `apps/site/scripts/verificar-politica.sh`, que sobe o hotsite e mede a
+      resposta HTTP, roda apenas em `.github/workflows/ci-site.yml`. Quem
+      trabalha localmente altera `middleware.ts`, roda o comando que a regra 19
+      chama de canônico, lê `gates: limpos` e só descobre a quebra no CI. No
+      mesmo item cabe a segunda metade: `semgrep` não faz o parse de nenhum `.sh`
+      deste repositório — a camada dos portões é a única sem ferramenta que a
+      leia, e `shellcheck` é o complemento declarado que falta.
+
+- [ ] `034-o-hotsite-declara-o-isolamento-entre-origens` — o hotsite responde com
+      o par de cabeçalhos de isolamento que a API já tem, fechando a assimetria
+      entre as duas frentes que servem no servidor
+      **Depende de:** `023-endurecimento-antes-da-sessao` — é ele que estabelece
+      o conjunto de cabeçalhos de cada frente, e este item o amplia.
+      **Origem:** auditoria de segurança da fase 2 de
+      `023-endurecimento-antes-da-sessao`. A fase 1 deixou a API com
+      `Cross-Origin-Resource-Policy: same-origin`, pelo padrão do `helmet`
+      (registro `D35`); o hotsite não emite esse cabeçalho nem
+      `Cross-Origin-Opener-Policy`, e a spec não escreveu a frase equivalente
+      para ele — a ausência é lacuna, não decisão. Não entrou na fase 2 porque
+      acrescentar cabeçalho ao conjunto constante muda o que o PRD e a spec
+      declaram, e isso é reconciliação de documento aprovado, não implementação.
 
 - [ ] `002-conta-e-organizacao` — quem se cadastra cria a organização e vira o
       seu primeiro administrador; o endereço é confirmado por e-mail, a senha se

@@ -25,6 +25,8 @@ const seguranca =
 const nextConfig: NextConfig = {
   // decisão: `next dev` grava um AGENTS.md e um CLAUDE.md neste diretório a cada execução, e norma de projeto escrita e reescrita por um framework não é norma — a daqui é o CLAUDE.md da raiz e o README deste diretório
   agentRules: false,
+  // decisão: o cabeçalho entrega de graça qual servidor atende o hotsite, e a mesma spec o proíbe na API — a assimetria entre duas frentes do mesmo endurecimento não se sustenta
+  poweredByHeader: false,
   async headers() {
     return [{ source: "/:path*", headers: seguranca }];
   },
