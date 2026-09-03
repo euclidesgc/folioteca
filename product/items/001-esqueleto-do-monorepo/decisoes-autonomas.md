@@ -200,6 +200,33 @@ soluções que pareciam baratas.
 **Ratificada em modo autônomo em 03/09/2026, na opção (a).** O PR da fase nasce
 `blocked-on-D-011` e continua assim até você ratificar com `--por humano`.
 
+### Achados da Fase 3 encaminhados, não aplicados
+
+- **A cegueira do validador vaza pelo diff.** O `phase-validator` recebe
+  `git diff develop...HEAD` como objeto de julgamento, e uma fase comita, no
+  mesmo commit, o código e os artefatos de processo — `03-plan.md`,
+  `D-011.md`, `decisoes-autonomas.md`, `roadmap.md` e `state.json`. O validador
+  desta fase declarou que não abriu nenhum deles e julgou só os critérios, e a
+  medição dele confirma isso: ele dirigiu um navegador próprio em vez de confiar
+  na suíte. Mas a cegueira passou a depender da disciplina de quem valida, e não
+  do despacho — que é exatamente o contrário do mecanismo. **Duas saídas, e a
+  decisão é sua:** estreitar o diff no despacho, mandando
+  `git diff develop...HEAD -- apps/ packages/ scripts/ package.json`; ou separar
+  em dois commits, código e processo, e apontar o validador para o primeiro. A
+  segunda é mais limpa e custa disciplina de commit; a primeira é uma linha no
+  prompt de despacho. Não a apliquei porque muda o despacho do harness, que é
+  norma, e norma no meio de uma fase é a pressa decidindo por você.
+
+- **O G3 cobra comentário linha a linha, e empurra o "porquê" para uma linha
+  única muito longa.** Um bloco de três linhas com a marca `contorno:` só na
+  primeira reprova nas outras duas. A convenção que sobrou no repositório é o
+  comentário de justificativa numa linha só, por mais longa que fique — veja
+  `apps/api/src/main.ts` e `apps/api/src/cors.ts`. Funciona, e é feio: o portão
+  está escolhendo a forma do código. **Decisão sua:** ensinar o G3 a reconhecer
+  bloco contíguo, onde a marca da primeira linha vale para as seguintes; ou
+  aceitar a linha longa como a norma escrita. Aconteceu uma vez nesta fase, com
+  dois agents diferentes topando nela.
+
 ## Por que o loop parou
 
 _(preenchido quando o loop parar)_
