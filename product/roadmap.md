@@ -68,6 +68,20 @@ PR e commit já escritos.
       todas em português menos `workaround` — escrito em inglês, o comentário de
       justificativa perde a marca e o portão o acusa de mecânica.
 
+- [ ] `029-o-typecheck-alcanca-os-arquivos-de-teste` — o portão de tipos das três
+      frentes reprova quando um arquivo de teste não typechecka, em vez de nunca
+      o ter lido
+      **Depende de:** `001-esqueleto-do-monorepo` — é lá que os `tsconfig.json`
+      e o script `typecheck` de cada frente nascem.
+      **Origem:** validação da Fase 1 de `023-endurecimento-antes-da-sessao`.
+      `apps/api/tsconfig.json` exclui `test`, `scripts` e `**/*.spec.ts`, então
+      `pnpm --filter api run typecheck` sai limpo sem olhar nenhum arquivo de
+      teste — só o `ts-jest` os compila, e ele isola por arquivo. A Fase 1
+      colocou quatro arquivos novos dentro desse ponto cego. A dificuldade é
+      conhecida: incluir `test/**` faz o `rootDir` comum subir de `src/` para a
+      raiz da frente, e `tsc` reclama — a saída provável é um `tsconfig` de
+      teste próprio, estendendo o de produção.
+
 - [ ] `025-a-direcao-de-dependencia-e-medida` — a análise de dependência de
       `apps/web` roda de verdade no CI, com as regras de fronteira do
       bulletproof-react escritas, em vez de ser pulada por falta de configuração
@@ -82,8 +96,9 @@ PR e commit já escritos.
       está declarado em `apps/web`.
 
 - [ ] `026-o-modo-de-diff-dos-portoes-mede-ou-reprova` — quando o dispatcher de
-      portões avalia por diff e não consegue resolver a base de comparação, ele
-      reprova em vez de devolver um universo vazio
+      portões não consegue montar o universo que ia medir — base de comparação
+      que não resolve, ou arquivo que existe na árvore e não está rastreado —
+      ele reprova em vez de sair verde sobre o que não leu
       **Depende de:** `001-esqueleto-do-monorepo` — os portões e o dispatcher
       nascem lá, e é lá que o modo por diff passa a existir.
       **Origem:** Fase 5 de `001-esqueleto-do-monorepo`, revisão do CI. Hoje o
@@ -92,7 +107,13 @@ PR e commit já escritos.
       considerou. No dia em que o projeto virar `brownfield`, `changed_files()`
       cai para `git diff --name-only HEAD`, que num runner recém-clonado é
       sempre vazio — universo de zero arquivos, e os portões saem verdes sem ter
-      olhado arquivo algum.
+      olhado arquivo algum. A segunda forma é atual e foi medida: `tracked_files()`
+      parte de `git ls-files`, então **arquivo não rastreado é invisível ao
+      runner**. Na validação da Fase 1 de `023-endurecimento-antes-da-sessao` o
+      runner disse `gates: limpos (239 arquivo(s) considerados)` sem ter lido
+      nenhum dos cinco arquivos novos daquela fase, que ainda estavam como `??`;
+      o validador precisou alimentar os portões à mão para saber se estavam
+      limpos. Commitar resolve por acidente, e é por isso que ninguém percebe.
 
 - [ ] `028-a-norma-carrega-a-tabela-que-os-portoes-citam` — quem lê um portão
       encontra no `CLAUDE.md` da raiz a tabela das três formas de portão que

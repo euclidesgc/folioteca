@@ -42,4 +42,8 @@ async function bootstrap(): Promise<void> {
   await app.listen(config.get("PORT", { infer: true }));
 }
 
-void bootstrap();
+// motivo: a saída em erro de inicialização é explícita aqui para não depender do padrão do Node de matar o processo numa rejeição sem tratamento — um `unhandledRejection` handler futuro que só loga quebraria essa garantia em silêncio.
+bootstrap().catch((error: unknown) => {
+  console.error(error);
+  process.exit(1);
+});

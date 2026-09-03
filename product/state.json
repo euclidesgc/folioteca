@@ -285,7 +285,7 @@
     "023-endurecimento-antes-da-sessao": {
       "title": "Endurecimento antes da sessão: cabeçalhos de segurança e CSP no navegador, artefato de build medido contra segredo, origem autorizada em lista, quarentena de dependência e ações do CI fixadas em SHA",
       "track": "completa",
-      "stage": "plan",
+      "stage": "execute",
       "stacks": [],
       "created_at": "2026-09-03T09:33:47Z",
       "approvals": {
@@ -308,8 +308,29 @@
           "por": "humano"
         }
       },
-      "current_phase": null,
-      "phases": {},
+      "current_phase": 1,
+      "phases": {
+        "1": {
+          "status": "aprovada",
+          "reproved_count": 0,
+          "verdict": "APROVADO",
+          "verdict_file": "product/items/023-endurecimento-antes-da-sessao/05-veredictos/fase-1.md",
+          "validated_sha": "9e8d928cebb9552f0ae861b589e4dc2a9e5fbfe9",
+          "pr": null,
+          "blocked_on": [
+            "D-002",
+            "D-003",
+            "D-005",
+            "D-006"
+          ],
+          "verdict_at": "2026-09-03T12:16:46Z",
+          "validated_trees": {
+            "apps/api": "5834265686640bd4edbee3e5fc00f1a94de3e48a",
+            "apps/site": "afbe408efb4f61e6f9cbe031b5fb08a5a077a9a1",
+            "apps/web": "94c9cfdbf62e6d1baa64d43614230676fe4d7b3d"
+          }
+        }
+      },
       "divergences": {
         "D-001": {
           "status": "RECONCILIADA",
@@ -320,6 +341,51 @@
           "ratificada_por": "humano",
           "reconciliada_at": "2026-09-03T10:20:51Z",
           "ratificacao_humana_at": "2026-09-03T20:51:56Z"
+        },
+        "D-002": {
+          "status": "RECONCILIADA",
+          "kind": "normal",
+          "phase": 1,
+          "detected_at": "2026-09-03T11:36:28Z",
+          "aprovada_at": "2026-09-03T11:36:31Z",
+          "ratificada_por": "autonomo",
+          "reconciliada_at": "2026-09-03T12:06:51Z"
+        },
+        "D-003": {
+          "status": "RECONCILIADA",
+          "kind": "normal",
+          "phase": 1,
+          "detected_at": "2026-09-03T11:36:28Z",
+          "aprovada_at": "2026-09-03T11:36:31Z",
+          "ratificada_por": "autonomo",
+          "reconciliada_at": "2026-09-03T12:06:51Z"
+        },
+        "D-004": {
+          "status": "RECONCILIADA",
+          "kind": "normal",
+          "phase": 4,
+          "detected_at": "2026-09-03T11:36:28Z",
+          "aprovada_at": "2026-09-03T11:36:31Z",
+          "ratificada_por": "autonomo",
+          "reconciliada_at": "2026-09-03T12:06:51Z"
+        },
+        "D-005": {
+          "status": "RECONCILIADA",
+          "kind": "normal",
+          "phase": 1,
+          "detected_at": "2026-09-03T11:45:12Z",
+          "aprovada_at": "2026-09-03T11:45:12Z",
+          "ratificada_por": "autonomo",
+          "reconciliada_at": "2026-09-03T12:06:51Z"
+        },
+        "D-006": {
+          "status": "RECONCILIADA",
+          "kind": "normal",
+          "phase": 1,
+          "detected_at": "2026-09-03T11:56:47Z",
+          "aprovada_at": "2026-09-03T11:56:47Z",
+          "ratificada_por": "autonomo",
+          "reconciliada_at": "2026-09-03T12:06:51Z"
         }
       },
       "criteria_exception": null

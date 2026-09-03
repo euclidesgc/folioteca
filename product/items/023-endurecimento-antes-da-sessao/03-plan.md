@@ -37,7 +37,9 @@ de `develop`.
 antes de abrir a porta, ecoa apenas a origem que está na lista e responde com o
 subconjunto de cabeçalhos que vale para resposta JSON.
 
-**Arquivos tocados:** `apps/api/**`.
+**Arquivos tocados:** `apps/api/**`, incluindo `apps/api/src/main.ts`, e o
+`.env.example` da raiz — esta última é a única saída do escopo `apps/api/**`,
+pela regra 8.
 
 **Critérios de aceite:**
 
@@ -118,31 +120,85 @@ subconjunto de cabeçalhos que vale para resposta JSON.
       executado
       *Então* a saída não contém nenhuma linha começando por
       `strict-transport-security`, em qualquer combinação de maiúscula e minúscula
+- [ ] `comportamental` — a API responde com `x-frame-options: DENY` e
+      `cross-origin-resource-policy: same-origin`
+      *Dado* `apps/api` construído e a API de pé por
+      `NODE_ENV=test DATABASE_URL=postgresql://localhost/x PORT=3000 WEB_ORIGIN='http://localhost:5173' node apps/api/dist/main.js &`,
+      com 5 segundos de espera
+      *Quando* `curl -sD- -o /dev/null http://localhost:3000/health` é
+      executado
+      *Então* a saída contém, sem distinguir maiúscula de minúscula, a linha
+      `x-frame-options: DENY` e a linha
+      `cross-origin-resource-policy: same-origin`
+- [ ] `comportamental` — em produção a API emite HSTS sem `preload`
+      *Dado* `apps/api` construído e a API de pé por
+      `NODE_ENV=production DATABASE_URL=postgresql://localhost/x PORT=3000 WEB_ORIGIN='https://app.folioteca.exemplo' node apps/api/dist/main.js &`,
+      com 5 segundos de espera
+      *Quando* `curl -sD- -o /dev/null http://localhost:3000/health` é
+      executado
+      *Então* a saída contém, sem distinguir maiúscula de minúscula, a linha
+      `strict-transport-security: max-age=31536000; includeSubDomains`, e
+      nenhuma linha da saída contém a palavra `preload`
+- [ ] `comando` — a API não sobe com `NODE_ENV` fora do domínio fechado — com
+      `apps/api` construído por `pnpm --filter api build`, o comando
+      `NODE_ENV=prod DATABASE_URL=postgresql://localhost/x WEB_ORIGIN='https://app.folioteca.exemplo' node apps/api/dist/main.js`
+      termina com código de saída diferente de zero e a saída contém
+      `NODE_ENV`
+- [ ] `comando` — a API não sobe em produção sem `WEB_ORIGIN` — com
+      `apps/api` construído por `pnpm --filter api build`, o comando
+      `NODE_ENV=production DATABASE_URL=postgresql://localhost/x node apps/api/dist/main.js`
+      termina com código de saída diferente de zero e a saída contém
+      `WEB_ORIGIN`
+- [ ] `comando` — a mensagem de erro de `WEB_ORIGIN` inválida não vaza o valor
+      validado — com `apps/api` construído por `pnpm --filter api build`, o
+      comando
+      `NODE_ENV=production DATABASE_URL=postgresql://localhost/x WEB_ORIGIN='https://admin:hunter2@app.folioteca.exemplo' node apps/api/dist/main.js`
+      termina com código de saída diferente de zero, e a saída não contém
+      `hunter2`
+- [ ] `estrutural` — `apps/api/src/main.ts` contém `.catch(` aplicado ao
+      resultado de `bootstrap()`, e contém `process.exit(1)`
 
 > A DoD global é do CI e não se repete aqui.
 
 ### Etapas
 
+> Reconciliado em D-002, D-003, D-005, D-006.
+
 - [ ] 1.1 Criar `apps/api/src/config/web-origins.ts` com duas funções exportadas.
       Assinaturas: `export function parseWebOrigins(value: string): string[]` —
       separa por vírgula, apara espaço de cada item e descarta item vazio;
       `export function isWebOriginList(value: string): boolean` — devolve
-      verdadeiro quando a lista tem ao menos um item e **todo** item casa
-      `/^https?:\/\/[^/]+$/`.
-      Justificativa: o schema de configuração e o CORS passam a ler a mesma
-      regra a partir de um arquivo só; escrever a separação em dois lugares é
-      exatamente o que faz o schema aprovar um valor que o CORS depois não
-      entende, e a origem que nunca casa em silêncio é o defeito que RF-04
-      recusa.
-- [ ] 1.2 Modificar `apps/api/src/config/environment.schema.ts`: trocar
-      `.pattern(ORIGIN_PATTERN)` por `.custom()` que reprova o valor quando
-      `isWebOriginList` devolve falso, remover a constante local
-      `ORIGIN_PATTERN`, e manter `.default("http://localhost:5173")`.
+      verdadeiro quando a lista tem ao menos um item e **todo** item satisfaz
+      duas verificações: casa `/^https?:\/\/[^/]+$/` — o padrão que RF-01.2 e
+      RF-04.1 da spec nomeiam pelo literal — **e** passa por `new URL(item)`
+      sem lançar, com `url.protocol` em `http:`/`https:` e
+      `url.origin === item`.
+      Justificativa: são duas peneiras, não uma. A primeira é a que a spec
+      cobra; a segunda é a que impede o item de virar origem que nunca casa em
+      silêncio — credencial embutida, query, fragmento, espaço no host,
+      curinga, caixa alta, homóglifo —, que é o que RF-04 existe para recusar.
+      O schema de configuração e o CORS passam a ler a mesma regra a partir de
+      um arquivo só; escrever a separação em dois lugares é exatamente o que
+      faz o schema aprovar um valor que o CORS depois não entende.
+- [ ] 1.2 Modificar `apps/api/src/config/environment.schema.ts` em três pontos:
+      trocar `.pattern(ORIGIN_PATTERN)` por `.custom()` que reprova o valor
+      quando `isWebOriginList` devolve falso, e remover a constante local
+      `ORIGIN_PATTERN`; restringir `NODE_ENV` ao domínio fechado
+      `Joi.string().valid("development", "test", "production").required()`; e
+      acrescentar a `WEB_ORIGIN` a cláusula
+      `.when("NODE_ENV", { is: "production", then: Joi.required() })`,
+      preservando `.default("http://localhost:5173")` para os demais
+      ambientes.
       Justificativa: RF-01.2 manda validar **item a item**, e o padrão aplicado à
       string inteira reprova qualquer lista com vírgula; o `.custom()` de Joi cai
       no ramo que `apps/api/src/main.ts` já imprime como `<nome> is invalid`,
       montado de `detail.path`, e é isso que faz a saída nomear `WEB_ORIGIN` sem
-      vazar o valor validado (RF-04.2).
+      vazar o valor validado (RF-04.2). Sem o domínio fechado, `prod`,
+      `Production` e `staging` sobem e caem no ramo que não emite HSTS, com o
+      boot verde e os testes verdes; e o default preenchendo `WEB_ORIGIN`
+      ausente em produção faz um deploy que perca a variável subir
+      autorizando `http://localhost:5173` com credenciais, onde qualquer
+      página servida nessa porta na máquina da vítima lê a resposta.
 - [ ] 1.3 Modificar `apps/api/src/cors.ts` para passar
       `origin: parseWebOrigins(config.get("WEB_ORIGIN", { infer: true }))`, e
       reescrever no presente o comentário de decisão que já está no arquivo, para
@@ -159,43 +215,92 @@ subconjunto de cabeçalhos que vale para resposta JSON.
       declaração, não o efeito. A versão exata segue a forma das outras onze
       dependências já declaradas no mesmo arquivo.
 - [ ] 1.5 Modificar `apps/api/src/bootstrap.ts` registrando
-      `app.use(helmet({ contentSecurityPolicy: false, strictTransportSecurity: config.get("NODE_ENV", { infer: true }) === "production" ? { maxAge: 31536000, includeSubDomains: true } : false }))`
+      `app.use(helmet({ contentSecurityPolicy: false, strictTransportSecurity: config.get("NODE_ENV", { infer: true }) === "production" ? { maxAge: 31536000, includeSubDomains: true } : false, xFrameOptions: { action: "deny" } }))`
       imediatamente antes da chamada a `configureCors(app, config)`, com um
-      comentário de decisão de uma linha sobre a HSTS condicional.
+      comentário de decisão de uma linha sobre a HSTS condicional. A chave
+      `crossOriginResourcePolicy` não entra: o padrão `same-origin` do
+      `helmet` fica.
       Justificativa: `contentSecurityPolicy: false` porque a API não serve HTML e
       RF-09.4 proíbe o cabeçalho; a HSTS fica ligada só em produção porque,
       emitida em `http://localhost:3000`, ela fixa no navegador de quem
       desenvolve uma regra que persiste em cache — é a mesma razão que RF-06.2
       escreve para o hotsite, e a spec não a proíbe na API, então a escolha é
       deste plano e precisa ficar legível no arquivo (regra 11: o porquê que o
-      código não mostra). O registro vem antes do CORS porque a resposta de
-      `OPTIONS` que o `enableCors` encerra também precisa dos cabeçalhos.
+      código não mostra). `xFrameOptions: { action: "deny" }` entra porque
+      RF-05 e RF-07 padronizam `DENY` nas outras duas frentes e, com a
+      política de conteúdo desligada aqui, esse cabeçalho é o único controle
+      de enquadramento que sobra. `crossOriginResourcePolicy` fica no padrão
+      `same-origin` porque essa política só é checada em resposta opaca de
+      requisição `no-cors` — medido em navegador real —, então afrouxá-la não
+      destravaria nada para um cliente que fala em modo CORS e abriria a
+      entrega do corpo a uma aba hostil. O registro vem antes do CORS porque a
+      resposta de `OPTIONS` que o `enableCors` encerra também precisa dos
+      cabeçalhos.
+
+      A mesma etapa registra `abortOnError: false` na chamada de
+      `NestFactory.create`, dentro de `apps/api/src/bootstrap.ts`.
+      Justificativa: o padrão do Nest trata erro de construção do container
+      com `process.abort()`, que não é interceptável e impede que RF-04 seja
+      verificado pelo caminho que os testes de integração usam.
 - [ ] 1.6 Criar `apps/api/test/cors.e2e-spec.ts` com Supertest e três casos:
       `WEB_ORIGIN` com duas origens ecoando `https://app.folioteca.exemplo`;
       `WEB_ORIGIN` com duas origens sem devolver cabeçalho para
       `https://intruso.exemplo`; e `WEB_ORIGIN` com uma origem só, sem vírgula,
       ecoando `http://localhost:5173` e recusando
-      `https://app.folioteca.exemplo`. Cada caso define `process.env.WEB_ORIGIN`
-      antes de chamar `createApp()`.
+      `https://app.folioteca.exemplo`. Cada cenário define
+      `process.env.WEB_ORIGIN` e obtém a fábrica por
+      `jest.isolateModules(() => { boot = jest.requireActual(...).createApp })`
+      antes de invocá-la.
       Justificativa: `apps/api/test/health.e2e-spec.ts` já usa `createApp()`, que
       é a mesma fábrica que `main.ts` chama, então o teste exercita a montagem de
-      produção e não uma réplica dela; `process.env` tem precedência sobre o
-      `envFilePath` que `apps/api/src/app.module.ts` declara, o que permite variar
-      a lista por caso sem tocar o `.env` da raiz.
+      produção e não uma réplica dela. `process.env` de fato tem precedência
+      sobre o `envFilePath` que `apps/api/src/app.module.ts` declara, mas
+      `AppModule` chama `ConfigModule.forRoot(...)` na avaliação do módulo —
+      no `import`, e uma vez por processo pelo cache de módulos —, então
+      definir a variável sem reavaliar o módulo chega tarde; reavaliar o
+      módulo por cenário é o que faz cada caso exercitar o valor que ele
+      declara.
 - [ ] 1.7 Criar `apps/api/test/security-headers.e2e-spec.ts` com Supertest,
+      reavaliando o módulo por cenário do mesmo jeito que a etapa 1.6, e
       afirmando em `GET /health`: `x-content-type-options` igual a `nosniff`,
-      `x-powered-by` ausente, `content-security-policy` ausente e
-      `strict-transport-security` ausente com `NODE_ENV` diferente de
-      `production`.
+      `x-powered-by` ausente, `content-security-policy` ausente,
+      `x-frame-options` igual a `DENY`, `cross-origin-resource-policy` igual a
+      `same-origin`, e `strict-transport-security` ausente com `NODE_ENV`
+      diferente de `production`; e, com `NODE_ENV=production`,
+      `strict-transport-security` igual a
+      `max-age=31536000; includeSubDomains`, sem `preload`.
       Justificativa: o CI já roda `pnpm --filter api run test:integration` no job
       `integracao` de `.github/workflows/ci-nestjs.yml`, então o subconjunto de
       RF-09 continua cobrado depois que esta fase fechar, sem passo novo de
-      fluxo.
+      fluxo. Reavaliar o módulo por cenário é o que faz o ramo de produção da
+      HSTS ser de fato exercitado, em vez de código morto.
 - [ ] 1.8 Modificar `apps/api/test/health.e2e-spec.ts` removendo os dois casos de
       CORS que passam a viver em `apps/api/test/cors.e2e-spec.ts`.
       Justificativa: a suíte de saúde volta a medir saúde; manter os dois casos
       nos dois arquivos duplicaria a asserção e faria a mudança seguinte de CORS
       exigir edição em dois lugares, que é como um dos dois começa a mentir.
+- [ ] 1.9 Modificar `apps/api/src/main.ts` encerrando a chamada de
+      `bootstrap()` com
+      `.catch((error) => { console.error(error); process.exit(1); })`.
+      Justificativa: a garantia de que uma falha de inicialização não deixa o
+      processo de pé existe hoje emprestada do comportamento padrão do Node
+      para rejeição não tratada, e não está fixada em código; um
+      `process.on("unhandledRejection", …)` registrado numa fase futura para o
+      log estruturado que a norma pede, sem sair, apagaria a garantia em
+      silêncio.
+- [ ] 1.10 Criar `apps/api/test/environment-validation.e2e-spec.ts` afirmando
+      que `createApp()` rejeita com `WEB_ORIGIN` malformada e que a mensagem
+      do erro não contém o valor validado.
+      Justificativa: RF-04 era cobrado só no schema isolado, nunca no caminho
+      que monta a aplicação, e a segunda asserção prende por teste a garantia
+      de não vazamento que `apps/api/src/main.ts` afirma em comentário.
+- [ ] 1.11 Modificar o `.env.example` da raiz do repositório: o comentário de
+      `WEB_ORIGIN` descreve uma lista de origens separadas por vírgula, cada
+      item sem caminho e sem barra final, obrigatória em produção; e o de
+      `NODE_ENV` lista o domínio fechado `development`, `test` e
+      `production`.
+      Justificativa: é o documento que mais se lê e o único que se copia para
+      dentro de um `.env` de verdade, e docs não mentem (regra 8).
 
 ---
 
@@ -572,6 +677,7 @@ raiz do repositório por `pnpm --filter api build`, `pnpm --filter site build` e
       *Então* o comando termina com código de saída diferente de zero e a saída
       contém `.env` — desfeito em seguida por `git reset -- .env`
 - [ ] `comportamental` — RF-15.3
+      > Reconciliado em D-004.
       *Dado* `gitleaks` no `PATH`, os diretórios `apps/api/dist` e
       `apps/site/.next` construídos, e a sequência
       `openssl genrsa -out /tmp/chave-fixture.pem 2048`, seguida de
