@@ -420,8 +420,9 @@
           "phase": 3,
           "detected_at": "2026-09-03T16:16:39Z",
           "aprovada_at": "2026-09-03T16:16:39Z",
-          "ratificada_por": "autonomo",
-          "reconciliada_at": "2026-09-03T16:23:34Z"
+          "ratificada_por": "humano",
+          "reconciliada_at": "2026-09-03T16:23:34Z",
+          "ratificacao_humana_at": "2026-09-03T19:23:49Z"
         }
       },
       "criteria_exception": null
