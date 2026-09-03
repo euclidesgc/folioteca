@@ -203,6 +203,25 @@ soluções que pareciam baratas.
 **Ratificada em modo autônomo em 03/09/2026, na opção (a).** O PR da fase nasce
 `blocked-on-D-011` e continua assim até você ratificar com `--por humano`.
 
+### A trava do harness nunca travou — segunda divergência da Fase 3
+
+| # | O que estava assim | O que a medição mostrou | Alternativa descartada |
+|---|---|---|---|
+| `D-012` | `bloqueio.yml` lia os rótulos com `tr -d '[]"' \| grep '^blocked-on-'`, e a decisão D22 reservava `.github/workflows/**` à Fase 5 | O `toJSON` entrega JSON **indentado**; depois do `tr` a linha vem com dois espaços à frente e a âncora `^` não casa. Medido lado a lado com a mesma entrada: a lógica antiga imprime "Nenhum bloqueio pendente" e sai `0`; a nova nomeia o rótulo e sai `1`. O PR #13 ficou verde no job `Sem bloqueio pendente` **com o rótulo posto**. A trava era bilhete desde o primeiro dia | Esperar a Fase 5 (deixa a trava aberta por mais dois PRs, um já rotulado); ou corrigir só o build e deixar a trava quebrada — conserta o que incomoda e não o que protege |
+
+**Ratificada em modo autônomo em 03/09/2026, na opção (a).** A verificação saiu
+do YAML para `scripts/gates/bloqueio.sh`, com onze casos de teste, entre eles o
+formato indentado que passou em produção. O PR **#13** nasce também
+`blocked-on-D-012`.
+
+**Isto é a terceira ocorrência da mesma classe nesta corrida**, e vale você
+saber: a guarda do CI que procurava em `apps/api/apps/api`, o status de
+divergência que ninguém comparava, e agora a trava que não travava. Todas
+responderam "não achei" onde a resposta certa era "não consegui medir". As três
+já têm asserção e teste; a quarta é a que interessa evitar, e ela não vem de
+falta de cuidado — vem de a verificação caber numa linha e, por caber, não ser
+testada.
+
 ### Achados da Fase 3 encaminhados, não aplicados
 
 - **A cegueira do validador vaza pelo diff.** O `phase-validator` recebe
