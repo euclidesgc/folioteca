@@ -57,6 +57,16 @@ done
 batimento="$raiz/.harness/runtime/motor-batimento"
 mkdir -p "$(dirname "$batimento")"
 
+# O hook de início de sessão exporta CLAUDE_PLUGIN_ROOT escrevendo no arquivo
+# apontado por CLAUDE_ENV_FILE, que o Claude Code carrega antes de cada Bash.
+# Sem essa variável definida, a exportação não tem para onde ir e todo comando
+# do prompt que use "$CLAUDE_PLUGIN_ROOT" falha com "can't open file
+# '/scripts/state/state.py'" — foi o que consumiu as duas primeiras tentativas
+# de cada sessão da primeira noite. Quem abre a sessão é este script, então é
+# ele quem prepara o canal.
+export CLAUDE_ENV_FILE="${CLAUDE_ENV_FILE:-$raiz/.harness/runtime/sessao-env.sh}"
+: > "$CLAUDE_ENV_FILE"
+
 # Vigia externo lê o progresso com `cat`, nunca com `pgrep`: o padrão do pgrep
 # casa com o próprio comando que o executa, e enganou três verificações.
 marca() { printf '%s %s\n' "$(date -Iseconds)" "$1" > "$batimento"; }
@@ -117,6 +127,7 @@ while [ "$rodada" -lt "$ate" ]; do
   while [ "$tentativa" -lt 2 ]; do
     tentativa=$((tentativa + 1))
     marca "rodada $rodada: sessão viva (tentativa $tentativa)"
+    : > "$CLAUDE_ENV_FILE"
     if claude -p "$(cat "$prompt")" --dangerously-skip-permissions; then
       ok=1
       break

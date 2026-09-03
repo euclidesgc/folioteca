@@ -25,8 +25,10 @@ python3 "$CLAUDE_PLUGIN_ROOT/scripts/state/state.py" read
 node scripts/loop/decide-next-action.mjs
 ```
 
-O hook de início de sessão exporta `CLAUDE_PLUGIN_ROOT` para o shell; fora de
-uma sessão, o caminho está em `.harness/runtime/plugin-root.json`.
+O motor preparou o canal que leva `CLAUDE_PLUGIN_ROOT` ao shell. Se ainda assim
+o caminho vier vazio — sessão aberta à mão, sem o motor —, ele está em
+`.harness/runtime/plugin-root.json`; leia de lá e use o caminho absoluto, em vez
+de procurar o script.
 
 A segunda linha diz o que **esta** sessão faz. Conduza pelo `/harness:start`,
 carregando a skill `harness-orchestrator`. Não pule estágio; `state.py` recusa
