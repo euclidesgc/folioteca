@@ -313,10 +313,22 @@ e duas coisas quebraram em silêncio:
 É a mesma forma que o `CLAUDE.md` já nomeia nos portões: o comando respondeu
 como se tivesse medido, e mediu outra coisa. A defesa que o projeto escreveu
 para os portões — `scripts/gates/medir.sh`, ancorado na raiz e não no diretório
-corrente — não alcança o `state.py`, que é do plugin. **Duas ocorrências é
-classe**, e a norma manda parar de remendar: a correção de raiz está numa
-worktree paralela, com wrapper que ancora, teste que prova que a asserção morde,
-a regra escrita no `CLAUDE.md` e uma proposta ao plugin.
+corrente — não alcança o `state.py`, que é do plugin.
+
+**Duas ocorrências é classe**, e a norma manda parar de remendar. A correção
+saiu numa worktree paralela e virou o **PR #16**, empilhado sobre o desta fase e
+fora do diff dela: `scripts/harness/state.sh` ancora no git root do diretório do
+próprio script — o único que um `cd` não move —, um teste de oito casos prova
+que a asserção morde (um deles reproduz a ocorrência real e exige que a chamada
+crua erre onde o wrapper acerta), a regra está escrita no `CLAUDE.md` e no
+`prompt-da-proxima-sessao.md`, e `.harness/proposals/2026-09-03-001.md` leva a
+correção definitiva ao plugin, que este repositório não edita.
+
+**Uma decisão pequena ficou para você, no PR #16:** a regra nova recebeu o
+número 28, o próximo livre, e não o 21 — a numeração do `CLAUDE.md` é global, a
+seção React ocupa 21 a 27, e esses números são citados como identificadores pelo
+`03-plan.md`, que está amarrado por `sha`. A lista lê 17, 18, 19, 20, 28. Se
+preferir renumerar, o trabalho é mecânico e exige reaprovar o plano.
 
 ## Por que o loop parou
 
