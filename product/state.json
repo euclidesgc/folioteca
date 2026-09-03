@@ -338,13 +338,15 @@
           }
         },
         "3": {
-          "status": "em_execucao",
-          "reproved_count": 0,
-          "verdict": null,
-          "verdict_file": null,
+          "status": "reprovada",
+          "reproved_count": 1,
+          "verdict": "REPROVADO",
+          "verdict_file": "product/items/023-endurecimento-antes-da-sessao/05-veredictos/fase-3-reprovacao-1.md",
           "validated_sha": null,
           "pr": null,
-          "blocked_on": []
+          "blocked_on": [],
+          "verdict_at": "2026-09-03T16:32:50Z",
+          "validated_trees": {}
         }
       },
       "divergences": {

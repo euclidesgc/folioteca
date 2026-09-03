@@ -6,10 +6,7 @@ export type ApiUrlValidation =
   | { readonly ok: true; readonly value: string }
   | { readonly ok: false; readonly message: string };
 
-// motivo: peneira dupla como em apps/api/src/config/web-origins.ts — `new
-// URL` recusa o que não é sequer uma URL, e `origin === value` recusa o que
-// é URL mas carrega mais do que a origem (caminho, consulta, fragmento,
-// userinfo, ou a interpolação de um atacante que emenda diretiva ou tag).
+// motivo: peneira dupla como em apps/api/src/config/web-origins.ts — `new URL` recusa o que não é sequer uma URL, e `origin === value` recusa o que é URL mas carrega mais do que a origem (caminho, consulta, fragmento, userinfo, ou a interpolação de um atacante que emenda diretiva ou tag).
 export function validateApiUrlForBuild(
   value: string | undefined,
 ): ApiUrlValidation {

@@ -229,21 +229,44 @@ PR e commit já escritos.
       por arquivo ou por entrada padrão, não por argumento de linha de comando,
       que é público para todo processo da máquina.
 
-- [ ] `036-a-fronteira-de-agent-mede-quem-escreve` — o guard de escopo recusa a
+- [ ] `036-o-portao-declara-o-que-nao-conseguiu-ver` — `gates_runner.sh` diz
+      quantos arquivos mediu **e** quantos ficaram fora do alcance dele
+      **Depende de:** nada — o runner já existe em `scripts/gates/`.
+      **Origem:** fase 3 de `023-endurecimento-antes-da-sessao`. O runner enumera
+      por `git ls-files` (`scripts/gates/gates_runner.sh:81`), que não devolve
+      arquivo não rastreado. Rodado antes do `git add`, ele imprimiu
+      `✓ gates: limpos (árvore completa, 256 arquivo(s) considerados)` sobre uma
+      árvore em que `apps/web/src/shared/config/build-api-url.ts` acabara de
+      nascer e não tinha sido medido; adicionado ao índice, o mesmo comando
+      reprovou por G3 em três linhas daquele arquivo. Não é o número que mente, é
+      a palavra **completa**: ela afirma uma cobertura que a enumeração não tem, e
+      quem lê o verde não tem como suspeitar. As duas saídas honestas são varrer
+      também o não rastreado, ou dizer quantos ficaram de fora e recusar o verde
+      quando houver algum — a segunda é mais barata e não muda o que cada portão
+      julga. Enquanto isso não muda, roda-se o portão **depois** do `git add`.
+
+- [ ] `037-a-fronteira-de-agent-mede-quem-escreve` — o guard de escopo recusa a
       escrita pelo agent que a fez, e não pelo último agent despachado
       **Depende de:** nada — o guard já existe nos hooks do harness.
-      **Origem:** fase 3 de `023-endurecimento-antes-da-sessao`. Com um
-      `react-implementer` vivo em segundo plano, a thread principal tentou gravar
-      `product/items/023-endurecimento-antes-da-sessao/04-divergencias/D-007.md`
-      e o guard recusou dizendo que `react-implementer` só escreve em
-      `apps/web/**` — atribuindo a quem orquestra o escopo de quem foi
-      despachado. O escopo é o certo; o sujeito é que está errado. O efeito
-      prático é pior do que a recusa: quem orquestra continua podendo escrever o
-      mesmo arquivo pelo shell, que o guard não cobre, então a fronteira empurra
-      para o caminho que ela não mede. Enquanto isso não muda, quem orquestra
-      espera o agent encerrar antes de gravar em `product/`.
+      **Origem:** fase 3 de `023-endurecimento-antes-da-sessao`, três vezes na
+      mesma sessão. Com um agent vivo em segundo plano, a thread principal tentou
+      gravar em `product/` e o guard recusou dizendo que `react-implementer` só
+      escreve em `apps/web/**`; depois, que `phase-validator` não escreve arquivo
+      nenhum. O escopo estava certo nas três; o sujeito é que era outro. A causa
+      está escrita no próprio plugin, em `scripts/hooks/_hooklib.py:157`: o
+      `PreToolUse` não informa qual agent chamou a ferramenta, então o harness
+      grava o tipo do agent num arquivo enquanto ele roda e o apaga ao terminar.
+      O desenho pressupõe agent **sequencial** — a thread principal parada
+      esperando. Despachado em segundo plano, o arquivo fica preenchido enquanto
+      quem orquestra continua trabalhando, e a fronteira passa a valer para
+      quem ela não foi escrita. O efeito prático é pior do que a recusa: a mesma
+      escrita passa pelo shell, que o guard não cobre, de modo que a fronteira
+      empurra para o caminho que ela não mede. O conserto mora no plugin, fora
+      deste repositório, e vai à retrospectiva da corrida junto com `D39` e
+      `D52`. Enquanto isso não muda, quem orquestra espera o agent encerrar antes
+      de gravar em `product/`.
 
-- [ ] `037-o-carregador-de-configuracao-do-vite-para-de-avisar` — o build de
+- [ ] `038-o-carregador-de-configuracao-do-vite-para-de-avisar` — o build de
       `apps/web` sobe sem o aviso de importação sem extensão
       **Depende de:** `023-endurecimento-antes-da-sessao` — é a fase 3 dele que
       cria o import que dispara o aviso.
