@@ -305,3 +305,66 @@ Dois achados **não** viraram correção aqui, e por quê:
 A auditoria também disse o que **não** conseguiu medir: o padrão de permissão da
 organização, que é configuração do GitHub e não do repositório, e o
 comportamento real do cache do Actions entre PR de fork e `main`.
+
+### Fase 5 — o que a validação cega mudou, e o que ela deixou para o roadmap
+
+A fase foi **APROVADA** contra `db7060598ff2d828aeaa9be79e2033bf53925536`, doze
+critérios de doze, cada um com comando executado e saída colada em
+`05-veredictos/fase-5.md`. O veredicto foi gravado com
+`state.sh verdict --result APROVADO`; a aprovação de estágio desta fase é a do
+plano, já registrada como autônoma.
+
+- **Os quatro apontamentos de portão não viraram correção nesta branch, e sim
+  itens de roadmap.** É o inverso do que a fase 4 fez com os achados da auditoria
+  de segurança, e a diferença é o momento: lá os achados chegaram **antes** do
+  veredicto, aqui chegaram **depois**. Corrigir código já julgado põe no mesmo PR
+  linhas que nenhum validador cego viu, e o `validated_sha` passa a apontar para
+  outra coisa. Pesou também que os quatro são latentes, não presentes: o
+  validador mediu cada um e nenhum abre buraco na árvore entregue — a precedência
+  do `pnpm-workspace.yaml` sobre o `.npmrc` da máquina segura a lista de isenções
+  hoje, e o piso de 27 igual à contagem exata faz o fluxo ilegível reprovar hoje.
+  A alternativa descartada era corrigir e revalidar com um agent cego novo:
+  custa uma validação inteira para fechar buracos que ninguém consegue abrir
+  nesta árvore, e a sessão faz uma unidade de trabalho. Viraram
+  `044-a-lista-de-isencoes-da-quarentena-e-medida-no-arquivo-versionado` e
+  `045-o-portao-das-acoes-separa-o-fluxo-vazio-do-fluxo-ilegivel`, os dois
+  ancorados no item que criou os portões. O terceiro apontamento — o SHA que não
+  é conferido contra a versão do comentário ao lado — já era o item `042`, aberto
+  pela auditoria de segurança da própria fase.
+
+- **A frase do item `043` foi reconciliada no presente (regras 7 e 8).** Ela
+  afirmava que "a reconstrução desta fase acabou de trocar `qs` por uma versão
+  vulnerável", e o lockfile entregue resolve `qs@6.16.0`, a corrigida: o fato e a
+  correção entraram no mesmo commit `800aed5`, que criou a isenção nominal e
+  escreveu a justificativa. O documento nasceu com cicatriz. O argumento de adiar
+  o item continua de pé — o que estava velho era a frase, e ela agora diz o que a
+  árvore diz.
+
+- **Os rótulos `blocked-on-D-011` e `blocked-on-D-012` são homônimos entre dois
+  itens.** Os identificadores de divergência são por item, os rótulos do GitHub
+  não: os mesmos dois nomes já estavam no PR #13 (fase 3 de `001`) e agora estão
+  no PR #24 (fase 5 de `023`), apontando para quatro divergências diferentes.
+  Apliquei assim mesmo, porque o bloqueio precisa existir e mudar o esquema de
+  nomes no meio de uma pilha aberta é pior. Mitiguei com o que era barato e
+  reversível: a descrição dos dois rótulos passou a dizer que são homônimos e que
+  se tira do PR, não do repositório — um `gh label delete` depois de ratificar uma
+  das quatro destravaria o PR do outro item sem ninguém ter decidido nada. O
+  conserto virou o item `046-o-rotulo-de-bloqueio-diz-de-qual-item-e-a-divergencia`.
+  A alternativa descartada era renomear agora os doze rótulos vivos e reaplicá-los
+  em sete PRs abertos, mexendo em PRs de outro item a partir da branch do topo da
+  pilha.
+
+- **`D-011` e `D-012` continuam ratificadas só em modo autônomo.** O PR #24 nasce
+  e permanece `blocked-on-D-011` e `blocked-on-D-012` até o dono ratificar com
+  `--por humano`. As duas decidem a mesma coisa por caminhos opostos — a espera
+  de sete dias vale sobre o repositório inteiro (D-011), e ela cede por nome,
+  com prazo medido pelo portão, quando o que ela está atrasando é a correção de
+  uma vulnerabilidade publicada (D-012). É o par que mais merece o olhar do dono
+  neste item.
+
+- **A data de 05/09/2026 é um vermelho programado.** A isenção de `qs` vence dois
+  dias depois deste commit, e o validador confirmou com relógio simulado que o
+  portão fica vermelho em todo PR a partir daí, até alguém tirar `qs` de
+  `pnpm-workspace.yaml` e da constante de `quarentena.sh`, ou reescrever a data
+  com o motivo novo. É o comportamento desenhado, não um defeito — mas quem
+  encontrar o vermelho precisa saber que ele foi agendado de propósito.

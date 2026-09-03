@@ -72,6 +72,41 @@ PR e commit já escritos.
       decisão de desenho, não remendo: provavelmente um portão só de CI, que
       reprova também quando não conseguir consultar.
 
+- [ ] `044-a-lista-de-isencoes-da-quarentena-e-medida-no-arquivo-versionado` — o
+      portão da quarentena cobra a lista de isenções onde já cobra o número: no
+      `pnpm-workspace.yaml` do repositório, e não na configuração fundida da
+      máquina de quem executa
+      **Depende de:** `023-endurecimento-antes-da-sessao` — é a fase 5 dele que
+      cria `scripts/gates/quarentena.sh` e a isenção nominal de `qs`.
+      **Origem:** fase 5 de `023-endurecimento-antes-da-sessao`, validação cega.
+      O portão protege o **número** duas vezes: lê `pnpm config get` e confere
+      com `grep` no arquivo versionado, porque a leitura funde a configuração
+      global de quem executa com a do repositório
+      (`scripts/gates/quarentena.sh:77-88`). A **lista de isenções** ganha só a
+      primeira metade (`:93`), embora o mesmo argumento valha para ela — e é ela
+      que desliga a política pacote a pacote, ou inteira com `["*"]`. Hoje o
+      buraco não abre: foi medido que o `pnpm-workspace.yaml` prevalece sobre um
+      `.npmrc` de HOME declarando outra lista. Mas é precedência de terceiro que
+      ninguém fixou, e o portão cuja tese é medir o arquivo passa a depender
+      dela. Junto vai a comparação por conjunto em vez de string do JSON
+      renderizado, que hoje reprova por reordenação da lista — vermelho que
+      ninguém entende.
+
+- [ ] `045-o-portao-das-acoes-separa-o-fluxo-vazio-do-fluxo-ilegivel` — a leitura
+      de cada fluxo distingue "não achei referência" de "não consegui ler o
+      arquivo", em vez de as duas caírem no mesmo silêncio
+      **Depende de:** `023-endurecimento-antes-da-sessao` — é a fase 5 dele que
+      cria `scripts/gates/acoes_em_sha.sh`.
+      **Origem:** fase 5 de `023-endurecimento-antes-da-sessao`, validação cega.
+      `grep -n 'uses:' "$fluxo" || true` (`scripts/gates/acoes_em_sha.sh:78`)
+      engole o código 2 do grep — arquivo ilegível, erro de leitura — junto com o
+      código 1, que é ausência de referência: a primeira das três formas que a
+      tabela do `CLAUDE.md` nomeia, reintroduzida arquivo a arquivo. Hoje o piso
+      salva, e foi medido: 27 é ao mesmo tempo o piso e a contagem exata, e um
+      fluxo com `chmod 000` derruba a contagem e reprova por medição impossível.
+      No dia em que a contagem subir para 30 com o piso parado em 27, um fluxo
+      ilegível sai da medição em silêncio.
+
 - [ ] `043-o-override-de-dependencia-tem-teto` — a única faixa aberta do
       repositório ganha limite superior, para subida de major exigir decisão
       escrita
@@ -84,10 +119,12 @@ PR e commit já escritos.
       escolher. O dano é diferido: toda reconstrução futura reabre a escolha,
       dentro de um diff de centenas de linhas de lockfile e sem aparecer em
       `package.json` nenhum. Não foi corrigido aqui porque fechar a faixa obriga
-      a reconstruir o lockfile de novo, e a reconstrução desta fase acabou de
-      trocar `qs` por uma versão vulnerável (ver `04-divergencias/D-012.md`) —
-      reabrir a resolução no mesmo commit em que ela foi estabilizada troca um
-      risco conhecido por um desconhecido.
+      a reconstruir o lockfile de novo, e a reconstrução desta fase já custou uma
+      troca de `qs` por versão vulnerável — desfeita pela isenção nominal com
+      prazo que `04-divergencias/D-012.md` registra, e por isso o lockfile
+      entregue resolve `qs@6.16.0`, a corrigida. Reabrir a resolução no mesmo
+      commit em que ela foi estabilizada troca um risco conhecido por um
+      desconhecido.
 
 - [ ] `041-a-rotina-alcanca-os-pacotes-de-javascript` — as dependências das três
       frentes voltam à versão corrente por PR de robô, como as ações do CI já
@@ -341,6 +378,23 @@ PR e commit já escritos.
       mínimo que o mantém funcionando precisa ser medido contra o que a API do
       GitHub exige — uma pergunta que uma fase de portão de segredo não tem como
       responder sem exercitar o fluxo.
+
+- [ ] `046-o-rotulo-de-bloqueio-diz-de-qual-item-e-a-divergencia` — o rótulo que
+      trava o merge nomeia o item junto da divergência, e o `bloqueio.yml` casa o
+      nome novo
+      **Depende de:** nada — é o esquema de nomes dos rótulos e o padrão que o
+      fluxo de bloqueio procura.
+      **Origem:** fase 5 de `023-endurecimento-antes-da-sessao`, thread
+      principal. Os identificadores `D-nnn` são por item; os rótulos, não.
+      `blocked-on-D-011` e `blocked-on-D-012` estão ao mesmo tempo no PR #13
+      (fase 3 de `001`) e no PR #24 (fase 5 de `023`), apontando para quatro
+      divergências diferentes. Quem ratificar uma delas e apagar o rótulo do
+      repositório, em vez de tirá-lo do PR, destrava o outro PR sem ninguém ter
+      decidido nada — que é exatamente o antipadrão que a trava existe para
+      impedir. Mitigado por ora na descrição dos dois rótulos, que avisa do
+      homônimo e diz para tirar do PR e não do repositório; o conserto é
+      `blocked-on-<item>-D-nnn`, com o `bloqueio.yml` casando o padrão novo e os
+      rótulos vivos renomeados.
 
 - [ ] `040-a-varredura-de-segredo-alcanca-o-historico` — um segredo commitado e
       removido no commit seguinte é acusado, em vez de sumir da árvore e ficar
