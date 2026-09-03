@@ -270,6 +270,28 @@ testada.
 |---|---|---|---|
 | `D-013` | A etapa 4.1 do plano manda declarar `eslint-config-next` como dependência de desenvolvimento de `apps/site` | O preset não roda no ESLint 10 que as outras duas frentes fixaram: quebra ao carregar a regra `react/display-name`, e o `pnpm peers check` já anunciava o descompasso. O lint passa a ser montado com `@next/eslint-plugin-next` e `typescript-eslint` | Rebaixar o ESLint do site para a série 9, o que congelaria a versão da ferramenta numa frente por causa de um plugin de terceiro; ou abrir mão do lint, que a spec permite e que trocaria uma incompatibilidade de versão por ausência de verificação |
 | `D-014` | Os dois critérios `comando` da Fase 4 simulam um clone limpo apagando os diretórios de dependência da árvore de trabalho | Uma guarda global de comando destrutivo recusa a chamada antes de a shell vê-la, e recusa `git clean` junto. Os dois critérios passam a medir num clone de verdade, feito com `git clone` num diretório temporário — que é o que RF-01.2 e RF-02.3 descrevem | Trocar a remoção por um sinônimo que a guarda não reconheça, o que a desarmaria sem dizer; ou afrouxar a guarda, cujo alcance é toda sessão futura em toda máquina |
+| `D-015` | As quatro etapas da Fase 4 falam somente de `apps/site/**` | O diff tem uma linha fora dali: `next-env.d.ts` no `.gitignore` da raiz, sem a qual o arquivo que o Next reescreve a cada execução deixa a árvore suja. A etapa 4.2 passa a descrevê-la | Deixar a linha sem etapa, com `D32` de registro — o custo não é este PR, é o precedente de arquivo de raiz entrar no diff quando a justificativa é boa |
+
+### Apontamentos da revisão da Fase 4, aplicados
+
+A revisão não reprovou nada. Dos cinco apontamentos de melhoria, três entraram
+no diff e dois viraram roadmap:
+
+- **Aplicado** — o alias `@/*` saiu do `tsconfig.json` do site. Ele fixava uma
+  convenção de import num bootstrap, e fronteira de import é justamente o que o
+  item `014-norma-do-hotsite` reserva a você. Mesma linha de raciocínio de D35.
+- **Aplicado** — dois deslizes de português na página: a concordância do `se`
+  apassivador (`onde se escrevem, se guardam e se distribuem os documentos`) e o
+  pronome que faltava em `lembrar de revogá-lo`.
+- **Aplicado** — o `.gitignore` ganhou etapa, por `D-015`.
+- **Roadmap** — `eslint .` sai com código 0 diante de aviso, e 16 das 22 regras
+  do plugin do Next são aviso. `apps/web` tem o mesmo script, então a correção é
+  das duas frentes juntas e não cabe no diff desta fase: item
+  `024-o-lint-reprova-o-que-diz-cobrar`.
+- **Roadmap** — os metadados de prévia de link, que são a razão declarada de o
+  hotsite ser um app separado, não tinham dono; e o `.env` que o `pnpm dev`
+  materializa fica na raiz, onde o Next não o lê. Ficou anexado ao item
+  `015-hotsite`, no campo `Carrega, da Fase 4 de 001`.
 
 ### O diretório corrente corrompeu duas medições — segunda ocorrência da mesma classe
 

@@ -510,9 +510,14 @@ nascida da branch da Fase 3.
       `apps/api` já fixaram o ESLint 10.
       > Reconciliado em D-013.
 - [ ] 4.2 Criar `apps/site/tsconfig.json`, `apps/site/next.config.ts` e
-      `apps/site/eslint.config.mjs`.
+      `apps/site/eslint.config.mjs`; e modificar o `.gitignore` da raiz
+      acrescentando `next-env.d.ts`.
       Justificativa: sem `tsconfig` próprio o `typecheck` que RF-11.3 exige não
-      tem o que ler.
+      tem o que ler; o Next reescreve `next-env.d.ts` a cada `next dev` e a
+      cada `next build`, e versionado ele reaparece como alteração a cada
+      execução, deixando a árvore suja — o sinal que o motor da corrida
+      autônoma lê como rodada morta.
+      > Reconciliado em D-015.
 - [ ] 4.3 Criar `apps/site/src/app/layout.tsx` e `apps/site/src/app/page.tsx` com
       o texto de apresentação do produto contendo a palavra `Folioteca`, sem a
       diretiva `'use client'`.
