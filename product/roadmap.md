@@ -215,6 +215,20 @@ PR e commit já escritos.
       acrescentar cabeçalho ao conjunto constante muda o que o PRD e a spec
       declaram, e isso é reconciliação de documento aprovado, não implementação.
 
+- [ ] `035-a-cegueira-do-validador-nao-vaza-pela-lista-de-processos` — o agente
+      que valida uma fase às cegas não alcança o prompt do orquestrador que o
+      despachou, nem por caminho lateral
+      **Depende de:** nada — o motor de sessões já existe em `scripts/loop/`.
+      **Origem:** validação da fase 2 de `023-endurecimento-antes-da-sessao`. O
+      próprio validador registrou: ao rodar `ps aux` para confirmar que não tinha
+      sobrado servidor, a saída trouxe a linha de comando completa do processo
+      orquestrador — `claude -p …` com as normas de processo da sessão dentro.
+      Ele disse que não a usou como régua, e a validação se sustenta; mas a
+      cegueira é o mecanismo inteiro do portão, e mecanismo que depende da boa
+      vontade de quem ele mede não é mecanismo. O prompt deve chegar ao processo
+      por arquivo ou por entrada padrão, não por argumento de linha de comando,
+      que é público para todo processo da máquina.
+
 - [ ] `002-conta-e-organizacao` — quem se cadastra cria a organização e vira o
       seu primeiro administrador; o endereço é confirmado por e-mail, a senha se
       recupera sozinha, e a tela responde a mesma coisa exista ou não a conta
@@ -345,6 +359,12 @@ PR e commit já escritos.
       raiz do repositório, onde o Next não o lê: ou o arquivo passa a existir em
       `apps/site/`, ou a variável chega `undefined` e o sintoma aparece na prévia
       do link, longe da causa.
+      **Carrega, da Fase 2 de `023`:** a diretiva `style-src 'self'` da política
+      de conteúdo, que hoje passa porque o hotsite não tem folha de estilo
+      nenhuma — zero `<style>` e zero atributo `style=` no HTML servido. A
+      política não reserva nonce para estilo, então a fase que trouxer a primeira
+      folha reverifica a diretiva junto, em vez de descobrir o bloqueio no
+      navegador.
 
 - [ ] `016-comentarios-ancorados` — quem tem acesso de comentário comenta
       ancorado no trecho, resolve um comentário e menciona alguém que já tenha

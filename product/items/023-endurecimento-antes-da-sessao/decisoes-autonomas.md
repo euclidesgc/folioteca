@@ -63,6 +63,8 @@ qualquer trabalho deste item.
 | D47 | fase 2 | **O servidor do portão grava o próprio identificador num arquivo e faz `exec`; o portão exige a porta livre antes de subir** | Confiar em `$!` depois do `setsid`, como estava | Reproduzido pela auditoria nos dois lados: com controle de trabalho ligado o `setsid` bifurca, `$!` morre, o `trap` não derruba nada e a porta fica ocupada; e um servidor já de pé na 3001 respondia todas as perguntas do portão, que aprovava um build que ninguém tinha servido. Exigir a porta livre é o que dá ao portão o direito de dizer de quem é a resposta que ele mede |
 | D48 | fase 2 | **`poweredByHeader: false` entra nesta fase, embora nenhum `RF-nn` o peça para o hotsite** | Deixar como está e abrir item, já que a spec só proíbe `X-Powered-By` na API | É remoção de superfície entregue de graça, num arquivo que a fase já reescreve, e a frente irmã do **mesmo item** já o proíbe por `RF-09.3`. Assimetria entre duas frentes do mesmo endurecimento não é decisão, é esquecimento. Diferente de `034`, isto não acrescenta política nova a lugar nenhum |
 | D49 | fase 2 | **A porta 3001 vira constante do portão, e deixa de ser variável de ambiente** | Passar a porta também ao servidor, mantendo a variável | O script `start` de `apps/site/package.json` fixa `-p 3001`. Configurar só o lado da medição fazia o portão medir uma porta onde o servidor não estava — e cair direto no defeito que `D47` acabou de fechar. Uma porta configurável de verdade exige o `package.json` junto, e nada hoje pede isso |
+| D50 | fase 2 | **Os três apontamentos da validação cega viram registro, e nenhum vira correção nesta fase** | Corrigir o aviso de convenção deprecada e tirar a linha de `.gitignore` do diff | O primeiro já era o item `030`, aberto antes da validação; o terceiro — `style-src 'self'` numa frente que ainda não tem folha de estilo — não é verificável hoje e foi acoplado ao item `015-hotsite`, que traz a primeira. A linha `.playwright-mcp/` fica: ela nasceu de a validação de campo desta fase rodar num navegador de verdade, e tirá-la faria a próxima sessão sujar a árvore com o mesmo diretório |
+| D51 | fase 2 | **O vazamento do prompt do orquestrador pela lista de processos vira o item de roadmap `035`, e não uma correção de madrugada** | Mudar agora como `scripts/loop/` passa o prompt ao processo filho | O próprio validador registrou que `ps aux` lhe entregou a linha de comando do orquestrador, com as normas da sessão dentro. A validação se sustenta — os critérios foram a régua, e a evidência de cada um está no veredicto —, mas a cegueira é o mecanismo do portão, e mecanismo que depende da boa vontade de quem ele mede não é mecanismo. Consertar isso é mexer no motor que despacha esta e todas as sessões seguintes, no meio de uma delas: é a mudança com maior raio de impacto e menor urgência do dia |
 
 ## Aprovações registradas em modo autônomo
 
@@ -113,7 +115,14 @@ Cada linha aqui é um `state.sh approve --por autonomo` ou um
   *Pendências de produto abertas* do roadmap, dependentes da escolha de deploy,
   que é dele. `X-Frame-Options` saiu dessa lista por `D18`: ele já vale nos dois
   servidores do Vite que existem hoje.
-- **Cinco itens novos no roadmap saíram da fase 2, e nenhum deles mudou o
+- **A validação cega desta fase leu o prompt do orquestrador por acidente
+  (`ps aux`), e disse isso sozinha.** O veredicto continua de pé — cada critério
+  tem comando e saída real no arquivo, e os critérios 4 a 8 foram medidos com
+  `curl` próprio contra servidores que o validador subiu. Mas a cegueira é o que
+  dá valor ao portão, e hoje ela depende de o agente não olhar. O conserto é o
+  item `035`, e mexe no motor que despacha todas as sessões.
+
+- **Seis itens novos no roadmap saíram da fase 2, e nenhum deles mudou o
   escopo deste item.** `030` migra o hotsite para a convenção que o Next 16
   passou a prescrever no lugar de `middleware`; `031` tira o console de
   `next dev` de baixo da política de produção; `032` é o único com risco de
@@ -121,7 +130,8 @@ Cada linha aqui é um `state.sh approve --por autonomo` ou um
   nonce, e seus dois `<script>` seriam bloqueados no dia em que ela aparecer;
   `033` põe no comando canônico dos portões os que medem resposta em vez de
   arquivo; `034` fecha a assimetria de isolamento entre origens entre a API e o
-  hotsite. Os três últimos vieram da auditoria de segurança.
+  hotsite; `035` tira o prompt do orquestrador do alcance do validador cego. Os
+  três do meio vieram da auditoria de segurança, e o último da validação.
 
 - **A divergência `D-001` — a política de conteúdo do hotsite sai de
   `middleware.ts` com nonce, e não de `headers()`.** Ratifiquei na opção (a) e
