@@ -305,7 +305,7 @@
           "por": "humano"
         }
       },
-      "current_phase": 1,
+      "current_phase": 2,
       "phases": {
         "1": {
           "status": "aprovada",
@@ -321,6 +321,15 @@
             "apps/site": "89ed1a14167c883397d83f4f9641908ccfaab434",
             "apps/web": "94c9cfdbf62e6d1baa64d43614230676fe4d7b3d"
           }
+        },
+        "2": {
+          "status": "em_execucao",
+          "reproved_count": 0,
+          "verdict": null,
+          "verdict_file": null,
+          "validated_sha": null,
+          "pr": null,
+          "blocked_on": []
         }
       },
       "divergences": {

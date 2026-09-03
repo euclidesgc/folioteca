@@ -52,6 +52,15 @@ jobs:
       - name: Build
         run: pnpm --filter site build
 
+      # A política de conteúdo do hotsite só existe em resposta HTTP: nonce por
+      # requisição e atributo estampado no HTML não são observáveis em arquivo
+      # de configuração, e verificação que nunca roda de novo não reprova nada.
+      - name: Política de conteúdo e cabeçalhos do hotsite
+        run: bash apps/site/scripts/verificar-politica.sh producao
+
+      - name: A comparação de nonces morde
+        run: bash apps/site/scripts/__tests__/verificar-politica.test.sh
+
       # `--all` em vez do diff: o hotsite não tem pack, e o que o governa aqui
       # são G3 e G4 declarados sobre `apps/site/src/**`. Medir só o diff faria o
       # portão depender de uma base que um push em branch recém-criada não tem,

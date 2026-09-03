@@ -130,6 +130,37 @@ PR e commit já escritos.
       delas está num plano aprovado que não se edita fora de janela de exceção,
       e apontar para fora do repositório deixa a norma dependente de um plugin.
 
+- [ ] `030-o-hotsite-emite-a-politica-pela-convencao-atual` — o nonce e a
+      política do hotsite saem do arquivo que o Next 16 prescreve, e o build
+      para de avisar que a convenção usada está a caminho da remoção
+      **Depende de:** `023-endurecimento-antes-da-sessao` — é a fase 2 dele que
+      cria o arquivo que este item renomeia.
+      **Origem:** fase 2 de `023-endurecimento-antes-da-sessao`. `pnpm --filter
+      site build` imprime `The "middleware" file convention is deprecated.
+      Please use "proxy" instead` e oferece um codemod. A fase manteve
+      `apps/site/src/middleware.ts` porque é o caminho que a spec fixa em
+      RF-08.1 e que o critério estrutural da fase mede; trocar o nome sem passar
+      pelo documento aprovado seria mudar por baixo o que o portão verifica. A
+      troca é mecânica — mesma função, mesmo cabeçalho de requisição, mesmo
+      `matcher` —, e o que ela custa é reconciliar RF-08.1 e o critério.
+
+- [ ] `031-o-dev-do-hotsite-nao-afoga-o-console` — quem roda `next dev` no
+      hotsite encontra o console limpo e as devtools do Next com estilo, sem que
+      a política que vale em produção seja afrouxada
+      **Depende de:** `023-endurecimento-antes-da-sessao` — é a fase 2 dele que
+      passa a emitir a política nos dois modos.
+      **Origem:** fase 2 de `023-endurecimento-antes-da-sessao`, medido no
+      navegador contra `pnpm --filter site dev`: 35 erros de console, um do
+      `eval()` que o React usa **só em modo de desenvolvimento** para reconstruir
+      pilhas de chamada, e 34 de estilo embutido do overlay `next-devtools`,
+      barrados por `style-src 'self'`. O mesmo build de produção responde com
+      zero erro, então a política entregue está correta e a página hidrata. O
+      custo é de quem desenvolve: console afogado esconde o próximo defeito de
+      verdade. A saída conhecida é emitir em desenvolvimento uma política
+      própria — relaxada nos dois pontos, ou em modo de só relatar —, o que
+      RF-24.2 e RF-24.3 hoje leem como proibido sem distinguir ambiente, e por
+      isso não cabia nesta fase.
+
 - [ ] `002-conta-e-organizacao` — quem se cadastra cria a organização e vira o
       seu primeiro administrador; o endereço é confirmado por e-mail, a senha se
       recupera sozinha, e a tela responde a mesma coisa exista ou não a conta
