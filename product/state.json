@@ -23,12 +23,13 @@
           "file": "product/items/001-esqueleto-do-monorepo/02-spec.md"
         },
         "plan": {
-          "at": "2026-09-02T17:56:05Z",
-          "sha": "d617aeccb729bab045a5eaf5466ab0ee43342bb9",
-          "file": "product/items/001-esqueleto-do-monorepo/03-plan.md"
+          "at": "2026-09-03T07:41:20Z",
+          "sha": "3df715006b093a2468f7771d9de292ed945e70ef",
+          "file": "product/items/001-esqueleto-do-monorepo/03-plan.md",
+          "por": "autonomo"
         }
       },
-      "current_phase": 2,
+      "current_phase": 3,
       "phases": {
         "1": {
           "status": "aprovada",
@@ -49,6 +50,24 @@
           "pr": null,
           "blocked_on": [],
           "verdict_at": "2026-09-02T15:05:20Z"
+        },
+        "3": {
+          "status": "aprovada",
+          "reproved_count": 0,
+          "verdict": "APROVADO",
+          "verdict_file": "product/items/001-esqueleto-do-monorepo/05-veredictos/fase-3.md",
+          "validated_sha": "fef04e605e635ebbfff3396eb3f4b9d41d9d685c",
+          "pr": null,
+          "blocked_on": [
+            "D-011",
+            "D-012"
+          ],
+          "verdict_at": "2026-09-03T07:39:11Z",
+          "validated_trees": {
+            "apps/api": "5834265686640bd4edbee3e5fc00f1a94de3e48a",
+            "apps/site": "8084297df7339c330604af2db6b94e16dd636312",
+            "apps/web": "94c9cfdbf62e6d1baa64d43614230676fe4d7b3d"
+          }
         }
       },
       "divergences": {
@@ -131,6 +150,22 @@
           "detected_at": "2026-09-02T10:04:19Z",
           "aprovada_at": "2026-09-02T10:04:19Z",
           "reconciliada_at": "2026-09-02T17:56:00Z"
+        },
+        "D-011": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 3,
+          "detected_at": "2026-09-03T06:55:43Z",
+          "aprovada_at": "2026-09-03T06:55:43Z",
+          "ratificada_por": "autonomo"
+        },
+        "D-012": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 3,
+          "detected_at": "2026-09-03T07:45:51Z",
+          "aprovada_at": "2026-09-03T07:45:51Z",
+          "ratificada_por": "autonomo"
         }
       },
       "criteria_exception": null

@@ -22,8 +22,32 @@ src/features/   uma pasta por feature, com api/, components/, hooks/, types/, in
 src/app/        routes/, providers/, main.tsx
 ```
 
+## Contrato com a API
+
+`apps/web/src/shared/api/generated/` é gerado de `apps/api/openapi.json` por
+`@hey-api/openapi-ts`, e o resultado é versionado — a divergência entre os dois
+pares aparece no diff do PR, não em runtime. `apps/web/src/shared/api/client.ts`
+é a única instância de cliente HTTP (Axios) do pacote; quem consome a API entra
+pelo barril `apps/web/src/shared/api`, nunca pelo interior de `generated/`.
+
+Para regenerar os dois lados do contrato num comando só, a partir da raiz do
+repositório:
+
+```
+pnpm contract
+```
+
+Só a web (quando a API não mudou):
+
+```
+pnpm --filter web run api:generate
+```
+
 ## Estado
 
-Vazio. O bootstrap — dependências, Vite, Tailwind, roteador, cliente HTTP com
-tipos gerados do OpenAPI — é item de roadmap, e passa por spec e plano antes de
+O esqueleto está de pé: React, TanStack Query e o cliente Axios tipado pelo
+contrato consomem `GET /health` e expõem o resultado num elemento de papel
+`status`, com teste de unidade (Vitest + MSW) e teste comportamental
+(Playwright) cobrindo o fluxo. Tailwind, roteador, autenticação e o restante
+das telas do produto são item de roadmap, e passam por spec e plano antes de
 qualquer código.

@@ -86,7 +86,14 @@ jobs:
       - name: Testes
         run: pnpm test -- --reporter=dot
 
+      # O build embute a origem da API no artefato, e desde a fase que criou a
+      # web ele recusa subir sem ela: um bundle com a origem ausente vira um
+      # `throw` incondicional e entrega tela branca por trás de um portão verde.
+      # O valor aqui é de verificação — o artefato do CI é descartado, e o de
+      # publicação recebe a origem do ambiente que o publica.
       - name: Build
+        env:
+          VITE_API_URL: http://localhost:3000
         run: pnpm build
 
   comportamental:

@@ -5,9 +5,20 @@ packages:
 # Nenhuma dependência roda script de instalação, e a recusa é nomeada. Na linha
 # 11 do pnpm, script de build ignorado é erro duro em vez de aviso: a decisão
 # tem de ser de alguém, não da omissão. `@scarf/scarf` é telemetria e não entra
-# de jeito nenhum; os outros dois são bindings nativos com caminho de reserva
-# em JavaScript, e nada no projeto depende do ganho de desempenho deles.
+# de jeito nenhum; `@parcel/watcher` e `unrs-resolver` são bindings nativos com
+# caminho de reserva em JavaScript, e nada no projeto depende do ganho de
+# desempenho deles. O script do `msw` instala o worker de service worker do
+# navegador, e a web usa só `msw/node`.
 allowBuilds:
   "@parcel/watcher": false
   "@scarf/scarf": false
   unrs-resolver: false
+  msw: false
+
+# `js-yaml` 4.2.0 entra por `@hey-api/openapi-ts` e carrega dois avisos de
+# negação de serviço por análise quadrática. O gerador só lê `apps/api/openapi.json`,
+# que é nosso e é JSON, então não há entrada hostil hoje — e é justamente por
+# não haver que a correção é barata agora e cara no dia em que o contrato de um
+# terceiro entrar no gerador.
+overrides:
+  js-yaml: ">=4.3.2"

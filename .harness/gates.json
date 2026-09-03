@@ -11,7 +11,8 @@
       "exempt": [
         "**/*.test.ts",
         "**/*.test.tsx",
-        "**/*.spec.ts"
+        "**/*.spec.ts",
+        "**/shared/api/generated/**"
       ],
       "cobra": "comentário que descreve mecânica em vez de justificar decisão",
       "pack": "react"
