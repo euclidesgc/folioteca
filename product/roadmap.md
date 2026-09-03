@@ -26,7 +26,7 @@ PR e commit já escritos.
 - [x] `001-esqueleto-do-monorepo` — os três apps sobem, o contrato OpenAPI é
       gerado e o cliente é gerado dele, e o CI fica verde nos três
 
-- [ ] `023-endurecimento-antes-da-sessao` — o navegador recebe cabeçalhos de
+- [-] `023-endurecimento-antes-da-sessao` — o navegador recebe cabeçalhos de
       segurança e política de conteúdo, o artefato de build é medido contra
       segredo antes de publicar, a origem autorizada aceita uma lista em vez de
       um valor só, e dependência recém-publicada cumpre quarentena antes de
@@ -36,7 +36,7 @@ PR e commit já escritos.
       **Origem:** Fase 3 de `001-esqueleto-do-monorepo`, auditoria de segurança
       do primeiro contato entre navegador e API. É mais barato endurecer com uma
       rota do que com dez, e a rota seguinte já traz sessão. A Fase 5 acrescenta
-      a este item as ações de terceiro do CI: as 25 referências são tags móveis
+      a este item as ações de terceiro do CI: as 27 referências são tags móveis
       (`@v4`), e quem comprometer a ação repointa a tag e roda no runner depois
       de o `checkout` já ter gravado o token no disco — a correção é fixar cada
       uma em SHA de 40 caracteres com a versão em comentário.
