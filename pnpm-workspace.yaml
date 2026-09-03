@@ -40,8 +40,10 @@ minimumReleaseAge: 10080
 # `express`, e é caminho de produção da API.
 #
 # Isenção é a política morrendo por dentro quando não tem dono nem prazo, então
-# esta tem os dois: `scripts/gates/quarentena.sh` compara esta lista com uma
-# constante própria e reprova qualquer nome a mais, e ela sai quando `6.16.0`
-# completar sete dias — 2026-09-05.
+# esta tem os dois, e os dois são medidos: `scripts/gates/quarentena.sh` compara
+# esta lista com uma constante própria e reprova qualquer nome a mais, e reprova
+# também quando o vencimento chega. O de `qs` é 2026-09-05, quando `6.16.0`
+# completa sete dias; nesse dia o portão fica vermelho até alguém tirar o nome
+# daqui e da constante, ou reescrever a data com o motivo novo.
 minimumReleaseAgeExclude:
   - qs

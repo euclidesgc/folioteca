@@ -76,6 +76,15 @@ for fluxo in "${FLUXOS[@]}"; do
       VIOLACOES+=("$fluxo:$numero: SHA sem versão legível ao lado —$(printf '%s' "${linha#*uses:}") — esperava '# vX.Y.Z' na mesma linha")
     fi
   done < <(cd "$RAIZ" && grep -n 'uses:' "$fluxo" || true)
+
+  # O piso pega a queda; esta asserção pega a troca compensada — um job novo com
+  # duas referências válidas mantém o total acima do piso enquanto uma existente
+  # é reescrita numa forma que a contagem não enxerga. Aqui a chave é reconhecida
+  # pela estrutura do YAML, e não pela cadeia literal, e qualquer forma que o
+  # `grep` da contagem não capture reprova nomeando a linha.
+  while IFS= read -r ocorrencia; do
+    VIOLACOES+=("$fluxo:${ocorrencia%%:*}: a chave 'uses' está escrita numa forma que a contagem não enxerga —$(printf '%s' "${ocorrencia#*:}") — escreva 'uses:' sem aspas e sem espaço antes dos dois-pontos")
+  done < <(cd "$RAIZ" && grep -nE "^[[:space:]]*-?[[:space:]]*(\"uses\"|'uses'|uses[[:space:]]+)[[:space:]]*:" "$fluxo" | grep -v 'uses:' || true)
 done
 
 echo "medido: $TOTAL referência(s) 'uses:' em ${#FLUXOS[@]} fluxo(s) de $DIRETORIO_DOS_FLUXOS (piso $PISO_DE_REFERENCIAS)"

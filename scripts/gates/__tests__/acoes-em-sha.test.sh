@@ -104,6 +104,28 @@ caso "referência reescrita como \"uses\": REPROVA por cair abaixo do piso" 1 \
 caso "queda abaixo do piso reprova por medição, não por resultado" 1 \
   "REPROVADO por impossibilidade de medição, não por resultado." "$reescrita"
 
+# A troca compensada por crescimento: um job novo com duas referências válidas
+# mantém o total acima do piso enquanto uma existente é reescrita na forma que a
+# contagem não enxerga. O piso pega a queda; quem pega esta é a asserção que
+# reconhece a chave pela estrutura do YAML, e não pela cadeia literal.
+compensada="$tmp/troca-compensada"
+monta_fixture "$compensada" "      - uses: actions/checkout@$SHA_DE_MENTIRA # v4.4.0
+      - uses: actions/checkout@$SHA_DE_MENTIRA # v4.4.0
+"
+sed -i '0,/^      - uses: /s//      - "uses": /' "$compensada/.github/workflows/fixture.yml"
+caso "forma evasiva REPROVA mesmo com o total acima do piso" 1 \
+  "a chave 'uses' está escrita numa forma que a contagem não enxerga" "$compensada"
+caso "a troca compensada não passa pelo piso" 1 "medido: 28 referência(s)" "$compensada"
+
+# A outra grafia da mesma evasão: espaço antes dos dois-pontos.
+com_espaco="$tmp/uses-com-espaco"
+monta_fixture "$com_espaco" "      - uses: actions/checkout@$SHA_DE_MENTIRA # v4.4.0
+      - uses: actions/checkout@$SHA_DE_MENTIRA # v4.4.0
+"
+sed -i '0,/^      - uses: /s//      - uses : /' "$com_espaco/.github/workflows/fixture.yml"
+caso "'uses :' com espaço antes dos dois-pontos REPROVA" 1 \
+  "escreva 'uses:' sem aspas e sem espaço antes dos dois-pontos" "$com_espaco"
+
 # O caso que o portão existe para pegar: sem fluxo nenhum, todo `grep -v` sai
 # vazio e toda referência está trivialmente fixada.
 vazio="$tmp/diretorio-vazio"

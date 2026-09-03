@@ -31,11 +31,16 @@ source "$RAIZ_DO_SCRIPT/scripts/gates/medir.sh"
 
 ESPERADO=10080
 
-# As isenções aceitas, na forma normalizada de `pnpm config get`. `qs` está aqui
-# porque a espera fixou a versão vulnerável dele em vez da corrigida, e sai
-# quando `6.16.0` completar sete dias — o porquê inteiro está em
-# `pnpm-workspace.yaml`, ao lado da lista que esta constante espelha.
-ISENCOES_ESPERADAS='["qs"]'
+# As isenções aceitas, cada uma como `nome:vencimento`. O vencimento não é
+# decoração: o portão reprova quando a data chega. Isenção temporária que ninguém
+# cobra vira permanente, e o vencimento silencioso é exatamente como isso
+# acontece — o comentário promete uma data, ninguém a mede, e um ano depois a
+# lista continua igual sem que ninguém tenha decidido nada.
+#
+# `qs` está aqui porque a espera fixou a versão vulnerável dele em vez da
+# corrigida; o porquê inteiro está em `pnpm-workspace.yaml`, ao lado da lista que
+# esta constante espelha.
+ISENCOES_ESPERADAS=("qs:2026-09-05")
 
 exige_comando pnpm
 exige_caminho pnpm-workspace.yaml "a declaração de minimumReleaseAge"
@@ -56,7 +61,28 @@ ISENTOS="$(cd "$RAIZ" && pnpm config get minimumReleaseAgeExclude 2>/dev/null)" 
 ISENTOS="$(printf '%s' "$ISENTOS" | tr -d '[:space:]')"
 [ "$ISENTOS" = "undefined" ] && ISENTOS='[]'
 
-echo "medido: minimumReleaseAgeExclude = $ISENTOS (esperado $ISENCOES_ESPERADAS)"
+HOJE="$(date -u +%Y-%m-%d)"
+LISTA_ESPERADA=""
+VENCIDAS=()
+for entrada in "${ISENCOES_ESPERADAS[@]}"; do
+  nome="${entrada%%:*}"
+  vence="${entrada##*:}"
+  LISTA_ESPERADA="${LISTA_ESPERADA:+$LISTA_ESPERADA,}\"$nome\""
+  [[ "$HOJE" < "$vence" ]] || VENCIDAS+=("$nome, que vencia em $vence")
+done
+LISTA_ESPERADA="[$LISTA_ESPERADA]"
+
+echo "medido: minimumReleaseAgeExclude = $ISENTOS (esperado $LISTA_ESPERADA, hoje é $HOJE)"
+
+# `pnpm config get` funde a configuração global de quem executa com a do
+# repositório: um `minimumReleaseAge` global deixaria a leitura acima verde com o
+# arquivo do repositório quebrado, e o portão estaria medindo a máquina em vez da
+# política versionada. As duas perguntas são diferentes e as duas importam.
+if ! grep -qE "^minimumReleaseAge: $ESPERADO\$" "$RAIZ/pnpm-workspace.yaml"; then
+  printf '::error::pnpm-workspace.yaml não declara "minimumReleaseAge: %s" — o valor em vigor vem de outro lugar, e o que vale para quem clonar é o do repositório.\n' \
+    "$ESPERADO" >&2
+  exit 1
+fi
 
 if [ "$MEDIDO" != "$ESPERADO" ]; then
   printf '::error::a quarentena de dependência não está valendo: minimumReleaseAge = %s, esperado %s.\n' \
@@ -64,10 +90,16 @@ if [ "$MEDIDO" != "$ESPERADO" ]; then
   exit 1
 fi
 
-if [ "$ISENTOS" != "$ISENCOES_ESPERADAS" ]; then
-  printf '::error::a lista de isenções da quarentena mudou: %s, esperado %s. Isenção nova entra aqui e em pnpm-workspace.yaml, com o motivo e o prazo escritos.\n' \
-    "$ISENTOS" "$ISENCOES_ESPERADAS" >&2
+if [ "$ISENTOS" != "$LISTA_ESPERADA" ]; then
+  printf '::error::a lista de isenções da quarentena mudou: %s, esperado %s. Isenção nova entra aqui e em pnpm-workspace.yaml, com o motivo e o vencimento escritos.\n' \
+    "$ISENTOS" "$LISTA_ESPERADA" >&2
   exit 1
 fi
 
-echo "✓ quarentena: versão publicada há menos de $ESPERADO minutos não entra na resolução, com as isenções $ISENCOES_ESPERADAS."
+if [ "${#VENCIDAS[@]}" -gt 0 ]; then
+  printf '::error::isenção vencida da quarentena: %s. Ou o pacote sai de minimumReleaseAgeExclude em pnpm-workspace.yaml e desta constante, ou o vencimento é reescrito com o motivo novo — o que não vale é a data passar sem ninguém decidir.\n' \
+    "$(IFS='; '; printf '%s' "${VENCIDAS[*]}")" >&2
+  exit 1
+fi
+
+echo "✓ quarentena: versão publicada há menos de $ESPERADO minutos não entra na resolução, com as isenções $LISTA_ESPERADA dentro do prazo."

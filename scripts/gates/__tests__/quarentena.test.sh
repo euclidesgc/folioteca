@@ -83,13 +83,52 @@ printf 'packages:\n  - "apps/*"\nminimumReleaseAge: 10080\nminimumReleaseAgeExcl
 caso "isenção curinga REPROVA mesmo com o número intacto" 1 \
   'minimumReleaseAgeExclude = ["qs","*"]' "$tudo_isento"
 caso "isenção curinga diz onde a isenção nova deve ser escrita" 1 \
-  "com o motivo e o prazo escritos" "$tudo_isento"
+  "com o motivo e o vencimento escritos" "$tudo_isento"
 
 sem_isencao="$tmp/sem-a-lista"
 mkdir -p "$sem_isencao"
 printf 'packages:\n  - "apps/*"\nminimumReleaseAge: 10080\n' > "$sem_isencao/pnpm-workspace.yaml"
 caso "lista de isenções ausente REPROVA, porque a constante espera uma" 1 \
   "minimumReleaseAgeExclude = []" "$sem_isencao"
+
+# O vencimento da isenção só vale se alguém o cobrar. O caso roda uma cópia do
+# portão com a data recuada — e não uma porta de ambiente no portão de produção,
+# que seria a forma de desligar a cobrança sem aparecer em revisão. Se a lógica
+# de vencimento sumir do original, ela some da cópia e este caso passa a falhar.
+# A cópia mora numa árvore com a mesma forma da de verdade: o portão resolve o
+# `source` de medir.sh pelo próprio caminho, e uma cópia solta num diretório
+# qualquer morreria antes da primeira asserção — aprovando este caso pelo motivo
+# errado.
+copia="$tmp/copia"
+mkdir -p "$copia/scripts/gates"
+cp "$raiz/scripts/gates/medir.sh" "$copia/scripts/gates/medir.sh"
+portao_vencido="$copia/scripts/gates/quarentena.sh"
+sed -E 's/\("[a-z-]+:[0-9]{4}-[0-9]{2}-[0-9]{2}"\)/("qs:2020-01-01")/' "$portao" > "$portao_vencido"
+vencida="$tmp/isencao-vencida"
+monta_fixture "$vencida" 'minimumReleaseAge: 10080
+'
+saida_vencida="$(env GITHUB_WORKSPACE="$vencida" "$bash_absoluto" "$portao_vencido" 2>&1)"
+codigo_vencida=$?
+if [ "$codigo_vencida" -eq 0 ]; then
+  printf '  FALHA isenção vencida REPROVA — o portão aprovou com a data no passado\n'
+  falhas=$((falhas + 1))
+elif ! printf '%s' "$saida_vencida" | grep -qF "isenção vencida da quarentena"; then
+  printf '  FALHA isenção vencida REPROVA — a saída não nomeia o vencimento\n'
+  falhas=$((falhas + 1))
+else
+  printf '  ok    isenção vencida REPROVA em vez de virar permanente\n'
+fi
+
+# `pnpm config get` funde a configuração de quem executa com a do repositório: um
+# valor global deixaria a leitura verde com o arquivo versionado quebrado, e o
+# portão estaria medindo a máquina em vez da política. O `.npmrc` da fixture
+# reproduz isso — a leitura devolve 10080 sem a chave estar no workspace.
+so_na_maquina="$tmp/valor-so-na-maquina"
+mkdir -p "$so_na_maquina"
+printf 'packages:\n  - "apps/*"\nminimumReleaseAgeExclude:\n  - qs\n' > "$so_na_maquina/pnpm-workspace.yaml"
+printf 'minimum-release-age=10080\n' > "$so_na_maquina/.npmrc"
+caso "valor que não vem do arquivo versionado REPROVA" 1 \
+  "pnpm-workspace.yaml não declara" "$so_na_maquina"
 
 sem_arquivo="$tmp/sem-workspace"
 mkdir -p "$sem_arquivo"
