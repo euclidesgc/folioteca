@@ -262,11 +262,35 @@ testada.
 | D34 | **O script `start` publica em `3001`, como o `dev`** | Deixar `next start` no padrão, que é a porta 3000 | A 3000 é da API (RF-02.1). Sem a porta no script, quem rodar o hotsite em modo de produção na máquina de desenvolvimento derruba ou colide com a API, e o erro aparece longe da causa. |
 | D35 | **A página nasce sem folha de estilo**, só com HTML semântico | Acrescentar um `globals.css` de apresentação junto do bootstrap | O conteúdo definitivo do hotsite é o item `015-hotsite`, e a camada de estilo é decisão do item `014-norma-do-hotsite` — os dois são seus. Escolher aqui a camada de estilo seria fixar, num bootstrap, o que o roadmap reservou para uma decisão sua; a etapa 4.3 pede a apresentação do produto no HTML, e é isso que a página entrega. |
 
+| D36 | **`agentRules: false` no `next.config.ts`** | Versionar o `AGENTS.md` e o `CLAUDE.md` que o Next escreve, como o próprio arquivo gerado sugere | O `next dev` grava um `AGENTS.md` e um `CLAUDE.md` dentro de `apps/site/` a cada execução. Versionados, eles passam a valer como norma de projeto para todo agent que abrir esse diretório — norma escrita por um framework, reescrita por ele a cada execução, ao lado do `CLAUDE.md` da raiz que é a norma de verdade. Desligados, a árvore fica limpa e a documentação da versão continua onde sempre esteve, em `node_modules/next/dist/docs/`. |
+
 ### Divergência ratificada na Fase 4
 
 | # | O que estava assim | O que a realidade impôs | Alternativa descartada |
 |---|---|---|---|
 | `D-013` | A etapa 4.1 do plano manda declarar `eslint-config-next` como dependência de desenvolvimento de `apps/site` | O preset não roda no ESLint 10 que as outras duas frentes fixaram: quebra ao carregar a regra `react/display-name`, e o `pnpm peers check` já anunciava o descompasso. O lint passa a ser montado com `@next/eslint-plugin-next` e `typescript-eslint` | Rebaixar o ESLint do site para a série 9, o que congelaria a versão da ferramenta numa frente por causa de um plugin de terceiro; ou abrir mão do lint, que a spec permite e que trocaria uma incompatibilidade de versão por ausência de verificação |
+| `D-014` | Os dois critérios `comando` da Fase 4 simulam um clone limpo apagando os diretórios de dependência da árvore de trabalho | Uma guarda global de comando destrutivo recusa a chamada antes de a shell vê-la, e recusa `git clean` junto. Os dois critérios passam a medir num clone de verdade, feito com `git clone` num diretório temporário — que é o que RF-01.2 e RF-02.3 descrevem | Trocar a remoção por um sinônimo que a guarda não reconheça, o que a desarmaria sem dizer; ou afrouxar a guarda, cujo alcance é toda sessão futura em toda máquina |
+
+### O diretório corrente corrompeu duas medições — segunda ocorrência da mesma classe
+
+O `state.py` resolve o `product/state.json` a partir do diretório corrente
+quando não recebe `--root`, e o diretório corrente da sessão sobrevive entre
+comandos. Os critérios desta fase medem num clone, então a sessão entrou nele —
+e duas coisas quebraram em silêncio:
+
+1. `git hash-object product/items/.../03-plan.md`, com caminho relativo, leu o
+   arquivo do clone. A conclusão foi que o `plan-writer` não havia escrito o que
+   escreveu, e ele foi mandado refazer trabalho já pronto.
+2. `state.py diverge --id D-014` gravou a divergência no `state.json` do clone.
+   O comando imprimiu sucesso e a divergência não existia no repositório real.
+
+É a mesma forma que o `CLAUDE.md` já nomeia nos portões: o comando respondeu
+como se tivesse medido, e mediu outra coisa. A defesa que o projeto escreveu
+para os portões — `scripts/gates/medir.sh`, ancorado na raiz e não no diretório
+corrente — não alcança o `state.py`, que é do plugin. **Duas ocorrências é
+classe**, e a norma manda parar de remendar: a correção de raiz está numa
+worktree paralela, com wrapper que ancora, teste que prova que a asserção morde,
+a regra escrita no `CLAUDE.md` e uma proposta ao plugin.
 
 ## Por que o loop parou
 
