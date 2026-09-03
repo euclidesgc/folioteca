@@ -37,6 +37,20 @@ PR e commit já escritos.
       do primeiro contato entre navegador e API. É mais barato endurecer com uma
       rota do que com dez, e a rota seguinte já traz sessão.
 
+- [ ] `024-o-lint-reprova-o-que-diz-cobrar` — o script `lint` das três frentes
+      reprova o que hoje ele apenas avisa, e a marca de comentário de
+      justificativa que o portão G3 reconhece vale também em inglês
+      **Depende de:** `001-esqueleto-do-monorepo` — as três frentes precisam
+      existir e ter script de lint antes de o rigor delas ser igualado.
+      **Origem:** revisão da Fase 4 de `001-esqueleto-do-monorepo`. `eslint .`
+      sai com código 0 diante de aviso, e 16 das 22 regras do
+      `@next/eslint-plugin-next` são aviso — `apps/web` tem o mesmo script, então
+      a correção é das duas frentes juntas, não do hotsite sozinho. No mesmo
+      lugar mora a segunda metade: a regra 16 manda código em inglês, e as marcas
+      que `scripts/gates/gate3_no_comments.sh` aceita como justificativa são
+      todas em português menos `workaround` — escrito em inglês, o comentário de
+      justificativa perde a marca e o portão o acusa de mecânica.
+
 - [ ] `002-conta-e-organizacao` — quem se cadastra cria a organização e vira o
       seu primeiro administrador; o endereço é confirmado por e-mail, a senha se
       recupera sozinha, e a tela responde a mesma coisa exista ou não a conta
@@ -160,6 +174,13 @@ PR e commit já escritos.
       **Depende de:** `013-blocos-da-primeira-versao` e `006-concessao-individual`
       — a demonstração é o produto, não uma captura: precisa do editor com os
       blocos fechados e da tela de compartilhamento que distingue esta plataforma.
+      **Carrega, da Fase 4 de `001`:** os metadados de prévia de link —
+      `metadataBase`, `openGraph` e canonical —, que são a razão declarada de o
+      hotsite ser um app separado e ainda não têm dono. A origem vem de
+      `NEXT_PUBLIC_SITE_URL`, e o `.env` que o `pnpm dev` materializa fica na
+      raiz do repositório, onde o Next não o lê: ou o arquivo passa a existir em
+      `apps/site/`, ou a variável chega `undefined` e o sintoma aparece na prévia
+      do link, longe da causa.
 
 - [ ] `016-comentarios-ancorados` — quem tem acesso de comentário comenta
       ancorado no trecho, resolve um comentário e menciona alguém que já tenha
