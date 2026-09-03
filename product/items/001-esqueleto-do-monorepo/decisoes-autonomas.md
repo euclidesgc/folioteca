@@ -120,6 +120,8 @@ Cada linha aqui é um `state.py approve` que o humano **não** deu.
 | `fase 3` | `05-veredictos/fase-3.md` — veredicto `APROVADO` do `phase-validator` cego, que não confiou na suíte da própria fase: subiu a API e a web e dirigiu um Chromium próprio contra `localhost:5173`, medindo `role=status` com o texto `ok` e as duas requisições reais a `:3000`. `validated_sha` `fef04e6` | 03/09/2026 |
 | `D-011` | Ratificação da divergência do CORS na opção recomendada (a) — origem vinda de `WEB_ORIGIN` na configuração validada. O PR **#13** permanece `blocked-on-D-011` até você ratificar com `--por humano` | 03/09/2026 |
 | `plan` (reaprovação) | `03-plan.md` reaprovado depois da reconciliação de `D-011`, novo `sha` `3df7150`. Duas seções mudaram: o critério estrutural da Fase 2, que passa a nomear as quatro chaves do schema de configuração, e as etapas da Fase 3, que ganharam a `3.13` | 03/09/2026 |
+| `D-012` | Ratificação da divergência da trava de bloqueio na opção recomendada (a) — os dois defeitos corrigidos na branch onde nasceram. O PR **#13** permanece `blocked-on-D-012` até você ratificar com `--por humano` | 03/09/2026 |
+| `D-013` | Ratificação da divergência do lint do hotsite na opção recomendada (a) — `@next/eslint-plugin-next` sobre `typescript-eslint`. O PR da Fase 4 nasce `blocked-on-D-013` e assim permanece até você ratificar com `--por humano` | 03/09/2026 |
 
 ## Decisões da Fase 2
 
@@ -248,6 +250,23 @@ testada.
   bloco contíguo, onde a marca da primeira linha vale para as seguintes; ou
   aceitar a linha longa como a norma escrita. Aconteceu uma vez nesta fase, com
   dois agents diferentes topando nela.
+
+## Decisões da Fase 4
+
+| # | Decisão | Alternativa descartada | Por quê |
+|---|---|---|---|
+| D30 | **`apps/site` nasce com `next@16.3.4` e `react@19.2.8`** — a mesma versão de React que `apps/web` já declara —, mais `typescript@5.9.3` e `eslint@10.9.1`, que as três frentes compartilham | Deixar cada dependência cair na última publicada hoje, independente do resto | A mesma razão de D23: duas versões do compilador ou do linter no workspace fazem `pnpm --filter <x> typecheck` responder coisas diferentes por app, e o CI da Fase 5 não teria como dizer qual é a verdade. O Next é o único pacote sem par do outro lado, e por isso nasce na última publicada. |
+| D31 | **O lint do site é `@next/eslint-plugin-next` sobre `typescript-eslint`**, e não `eslint-config-next` | Rebaixar o ESLint de `apps/site` para a série 9, mantendo o preset do Next; ou não ter lint na frente | Registrado como `D-013`. O preset arrasta `eslint-plugin-react@7.37.5`, que para no ESLint 9: a regra `react/display-name` chama `contextOrFilename.getFilename`, removida no ESLint 10, e o lint quebra ao carregar em vez de reprovar por violação. O plugin do Next exporta configuração plana própria e não depende desse pacote, então as regras específicas do Next continuam de pé com uma versão só de ESLint no repositório. Volta a ser `eslint-config-next` no dia em que o plugin de React alcançar o ESLint 10 — anotado no item `014-norma-do-hotsite`. |
+| D32 | **`next-env.d.ts` entra no `.gitignore`** | Versionar o arquivo | Ele é gerado a cada `next build` e a cada `next dev`, e o próprio Next manda não editá-lo. Versionado, ele reaparece como alteração a cada execução e deixa a árvore suja — que é o sinal que o motor da corrida lê como rodada morta. É o que o `create-next-app` faz. |
+| D33 | **O `tsconfig.json` do site fica no formato que o `next build` reescreve**, com `jsx: react-jsx`, `allowJs` e `.next/dev/types` no `include` | Manter o formato compacto do resto do repositório e aceitar a reescrita a cada build | O Next reconfigura o `tsconfig.json` sozinho quando detecta TypeScript, e três dos valores são obrigatórios para ele. Guardado no formato de saída dele, o build é idempotente e não suja a árvore; guardado no nosso, cada `pnpm --filter site build` produziria uma alteração não pedida no meio da verificação. |
+| D34 | **O script `start` publica em `3001`, como o `dev`** | Deixar `next start` no padrão, que é a porta 3000 | A 3000 é da API (RF-02.1). Sem a porta no script, quem rodar o hotsite em modo de produção na máquina de desenvolvimento derruba ou colide com a API, e o erro aparece longe da causa. |
+| D35 | **A página nasce sem folha de estilo**, só com HTML semântico | Acrescentar um `globals.css` de apresentação junto do bootstrap | O conteúdo definitivo do hotsite é o item `015-hotsite`, e a camada de estilo é decisão do item `014-norma-do-hotsite` — os dois são seus. Escolher aqui a camada de estilo seria fixar, num bootstrap, o que o roadmap reservou para uma decisão sua; a etapa 4.3 pede a apresentação do produto no HTML, e é isso que a página entrega. |
+
+### Divergência ratificada na Fase 4
+
+| # | O que estava assim | O que a realidade impôs | Alternativa descartada |
+|---|---|---|---|
+| `D-013` | A etapa 4.1 do plano manda declarar `eslint-config-next` como dependência de desenvolvimento de `apps/site` | O preset não roda no ESLint 10 que as outras duas frentes fixaram: quebra ao carregar a regra `react/display-name`, e o `pnpm peers check` já anunciava o descompasso. O lint passa a ser montado com `@next/eslint-plugin-next` e `typescript-eslint` | Rebaixar o ESLint do site para a série 9, o que congelaria a versão da ferramenta numa frente por causa de um plugin de terceiro; ou abrir mão do lint, que a spec permite e que trocaria uma incompatibilidade de versão por ausência de verificação |
 
 ## Por que o loop parou
 

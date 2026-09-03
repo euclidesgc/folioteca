@@ -29,7 +29,7 @@
           "por": "autonomo"
         }
       },
-      "current_phase": 3,
+      "current_phase": 4,
       "phases": {
         "1": {
           "status": "aprovada",
@@ -68,6 +68,17 @@
             "apps/site": "8084297df7339c330604af2db6b94e16dd636312",
             "apps/web": "94c9cfdbf62e6d1baa64d43614230676fe4d7b3d"
           }
+        },
+        "4": {
+          "status": "em_execucao",
+          "reproved_count": 0,
+          "verdict": null,
+          "verdict_file": null,
+          "validated_sha": null,
+          "pr": null,
+          "blocked_on": [
+            "D-013"
+          ]
         }
       },
       "divergences": {
@@ -165,6 +176,14 @@
           "phase": 3,
           "detected_at": "2026-09-03T07:45:51Z",
           "aprovada_at": "2026-09-03T07:45:51Z",
+          "ratificada_por": "autonomo"
+        },
+        "D-013": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 4,
+          "detected_at": "2026-09-03T07:54:56Z",
+          "aprovada_at": "2026-09-03T07:54:56Z",
           "ratificada_por": "autonomo"
         }
       },

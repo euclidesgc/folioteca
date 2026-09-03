@@ -148,6 +148,11 @@ PR e commit já escritos.
       crescer, senão ela vira a descrição do que o bootstrap deixou.
       **Origem:** decisão autônoma `D8` de `001` — o app não tem pack do
       harness, e o harness proíbe inventar norma não exercitada de madrugada.
+      Também revisita a configuração de lint da frente: a fase 4 de `001`
+      montou `@next/eslint-plugin-next` sobre `typescript-eslint` porque o
+      `eslint-config-next` não roda no ESLint 10 do repositório, e volta a ser a
+      escolha natural quando `eslint-plugin-react` alcançar essa série — ver
+      `04-divergencias/D-013.md`.
 
 - [ ] `015-hotsite` — a página pública apresenta o produto com o editor rodando
       de verdade ao lado do texto e, logo em seguida, a tela que decide quem vê o

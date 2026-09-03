@@ -19,10 +19,15 @@ documentação cresce sem tocar no build de nada.
 
 **Este app não tem pack do harness.** O Next.js conflita com a norma do pack
 React — decisão tomada e registrada, com o custo aceito. Aqui valem o processo
-inteiro (PRD, spec, plano, critérios tipados, validação cega, divergências) e a
-DoD global; **não** valem os portões G3, G4 e G5 nem as skills `react-*`. A
-norma de código deste diretório é do projeto, e precisa ser escrita quando ele
-ganhar a primeira linha.
+inteiro (PRD, spec, plano, critérios tipados, validação cega, divergências), a
+DoD global e os portões **G3** (comentário que descreve mecânica) e **G4**
+(TODO, FIXME, XXX e HACK), ambos cobrados em `apps/site/src/**`. Não valem o
+portão G5 nem as skills `react-*`: os dois descrevem o fluxo de import do
+bulletproof-react, e a estrutura daqui é a do App Router.
+
+A norma de arquitetura deste diretório — estrutura de rotas, camada de estilo e
+fronteira de import — é o item `014-norma-do-hotsite` do roadmap. Até ela
+existir, o que vale é o `CLAUDE.md` do projeto.
 
 Variável com prefixo `NEXT_PUBLIC_` vai no pacote que o navegador baixa: nunca
 ponha segredo atrás dela.
@@ -37,4 +42,14 @@ content/         a documentação
 
 ## Estado
 
-Vazio. O bootstrap é item de roadmap.
+Bootstrap feito: `src/app/layout.tsx` e `src/app/page.tsx` respondem a `GET /`
+com a apresentação do produto já no HTML, sem nenhuma diretiva `'use client'`
+sob `src/`. `pnpm --filter site dev` publica em `localhost:3001`; `build`,
+`typecheck` e `lint` verificam a frente.
+
+O lint é `@next/eslint-plugin-next` sobre `typescript-eslint`, e não
+`eslint-config-next`: o preset arrasta `eslint-plugin-react`, que ainda não
+alcançou o ESLint 10 que o repositório fixou. O detalhe está em `D-013`.
+
+O conteúdo definitivo — o editor rodando ao lado do texto e o botão de entrada
+— é o item `015-hotsite` do roadmap.
