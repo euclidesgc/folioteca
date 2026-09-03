@@ -33,14 +33,21 @@ repositório.
 
 `GET /health` responde `{"status":"ok"}` em `localhost:3000`.
 
-O contrato OpenAPI está versionado em `apps/api/openapi.json` e se regenera
-com:
+A API aceita requisição de navegador vinda da origem em `WEB_ORIGIN`
+(`http://localhost:5173` por padrão em desenvolvimento) — sem esse cabeçalho
+de CORS na resposta, o navegador descarta o corpo antes do JavaScript vê-lo,
+mesmo com a API respondendo `200`.
+
+O contrato OpenAPI está versionado em `apps/api/openapi.json` e se regenera,
+junto com o cliente tipado da web, com o comando único na raiz:
 
 ```
-pnpm --filter api run openapi:generate
+pnpm contract
 ```
 
-Rode o comando e confira `git diff apps/api/openapi.json` antes de abrir o PR —
-divergência entre o gerado e o commitado é reprovação de contrato.
+Ele roda `pnpm --filter api run openapi:generate` e em seguida
+`pnpm --filter web run api:generate`. Rode-o e confira `git diff
+apps/api/openapi.json` antes de abrir o PR — divergência entre o gerado e o
+commitado é reprovação de contrato.
 
 Prisma, esquema de banco e as demais features ainda são item de roadmap.

@@ -21,16 +21,36 @@ PR e commit já escritos.
 | `[-]` | em andamento |
 | `[x]` | concluído |
 
-## Itens- [-] `001-esqueleto-do-monorepo` — os três apps sobem, o contrato OpenAPI é
+## Itens
+
+- [-] `001-esqueleto-do-monorepo` — os três apps sobem, o contrato OpenAPI é
       gerado e o cliente é gerado dele, e o CI fica verde nos três
 
-
+- [ ] `023-endurecimento-antes-da-sessao` — o navegador recebe cabeçalhos de
+      segurança e política de conteúdo, o artefato de build é medido contra
+      segredo antes de publicar, a origem autorizada aceita uma lista em vez de
+      um valor só, e dependência recém-publicada cumpre quarentena antes de
+      entrar
+      **Depende de:** `001-esqueleto-do-monorepo` — não há o que endurecer antes
+      de os três apps subirem e o CI medi-los.
+      **Origem:** Fase 3 de `001-esqueleto-do-monorepo`, auditoria de segurança
+      do primeiro contato entre navegador e API. É mais barato endurecer com uma
+      rota do que com dez, e a rota seguinte já traz sessão.
 
 - [ ] `002-conta-e-organizacao` — quem se cadastra cria a organização e vira o
       seu primeiro administrador; o endereço é confirmado por e-mail, a senha se
       recupera sozinha, e a tela responde a mesma coisa exista ou não a conta
       **Depende de:** `001-esqueleto-do-monorepo` — não há onde rodar, nem banco,
       nem cliente gerado do contrato.
+      **Carrega, da Fase 3 de `001`:** o cookie de sessão nasce `httpOnly`,
+      `SameSite` e `Secure` fora de desenvolvimento, e as rotas que mudam estado
+      recusam `Content-Type` que não seja JSON — CORS impede o atacante de
+      **ler** a resposta e não impede a escrita, porque um formulário
+      `urlencoded` de outro site é requisição simples e chega ao handler com o
+      cookie anexado. O corpo da resposta passa a ser validado em runtime na
+      fronteira do cliente, porque é aqui que ele deixa de virar texto e passa a
+      dirigir comportamento. E o e2e passa a escrever no banco, então a URL de
+      conexão vem de container efêmero em runtime, não de literal versionado.
 
 - [ ] `003-documento-privado` — o documento nasce no espaço privado do criador,
       que é o seu primeiro proprietário; escreve-se nele com texto formatado,

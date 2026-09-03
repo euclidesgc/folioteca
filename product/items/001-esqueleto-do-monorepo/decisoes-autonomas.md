@@ -177,6 +177,29 @@ soluções que pareciam baratas.
   aplique. **Decisão sua:** comparar também o sufixo após `:`, ou normalizar o
   prefixo no `agent_tracker.py` antes de gravar.
 
+## Decisões da Fase 3
+
+| # | Decisão | Alternativa descartada | Por quê |
+|---|---|---|---|
+| D23 | **A web usa `typescript@5.9.3`, `eslint@10.9.1` e `typescript-eslint@8.69.0`** — exatamente as versões que `apps/api` já declara | Usar as últimas publicadas hoje, `typescript@7.0.2` entre elas | Duas versões do compilador no mesmo workspace fazem `pnpm --filter <x> typecheck` responder coisas diferentes por app, e o CI não teria como dizer qual é a verdade. TypeScript 7 é a reescrita nativa e ainda não tem par estável com `typescript-eslint@8`; adotá-lo na web arrastaria a API junto, o que é mudança de fundação disfarçada de escolha de versão. As demais dependências da web nascem na última publicada, porque não têm par do outro lado. |
+| D24 | **CORS na API é habilitado nesta fase**, com a origem vinda de `WEB_ORIGIN` na configuração validada, com padrão `http://localhost:5173` | Encaminhar por proxy do Vite, sem tocar a API; ou `enableCors()` sem argumento | Registrado como `D-011`. O critério comportamental da fase põe navegador em `:5173` chamando `:3000`; sem `Access-Control-Allow-Origin` o navegador descarta a resposta e a web mostra erro de rede com a API respondendo `200`. O proxy do Vite fecha o critério e some no primeiro deploy; a origem curinga entrega, em `002`, uma API que aceita requisição autenticada de qualquer site. `WEB_ORIGIN` tem padrão em vez de ser obrigatória para não quebrar o boot de quem já tem `.env` do commit anterior. |
+| D25 | **`playwright.config.ts` sobe os dois serviços** — a API e a web — pelo `webServer` do próprio Playwright | Deixar o critério comportamental depender de servidores subidos à mão, ou acrescentar passos ao fluxo de CI | O job `comportamental` de `.github/workflows/ci-react.yml` roda só `pnpm exec playwright test`, sem subir nada: o critério reprovaria no CI e passaria na máquina, que é a pior combinação possível. Acrescentar passos ao fluxo poria `.github/workflows/**` no diff, escopo declarado da Fase 5. Com o `webServer`, o mesmo comando prova o mesmo critério nos dois lugares. |
+
+| D26 | **O descompasso entre `04-divergencias/D-nnn.md` e o `state.json` vira portão**, numa worktree paralela, com teste que prova que a asserção morde e a regra escrita no `CLAUDE.md` | Corrigir os dez arquivos com `sed` e seguir a fase | Os dez arquivos de divergência das Fases 1 e 2 dizem `Status: PENDENTE`; o `state.json` diz `RECONCILIADA` nas dez. Quem lê `D-007.md` hoje conclui que a divergência espera você, quando ela foi decidida ontem. O `state.py` grava o estado e não toca o markdown, e nada compara os dois — a regra 8 existe e o portão não. Dez ocorrências do mesmo erro é classe, não caso, e a norma do projeto manda parar de remendar na segunda. A worktree é paralela de propósito: o diff da Fase 3 não carrega correção de norma. |
+
+| D27 | **Os achados da auditoria que valem antes da sessão viram um item só, `023-endurecimento-antes-da-sessao`, posto entre `001` e `002`** | Quatro itens separados (cabeçalhos de segurança, portão de bundle, allowlist de origem, quarentena de dependência), ou uma linha de prosa no PR | Os quatro fecham a mesma porta — o que o navegador recebe e o que entra no build — e separá-los espalha por quatro discoveries uma decisão só. A posição entre `001` e `002` é o que importa: é mais barato endurecer com uma rota do que com dez, e a rota seguinte já traz sessão. O número `023` é identidade, não ordem; a ordem é a posição na lista, e renumerar a fila inteira seria mudar o roadmap, que é decisão sua. |
+| D28 | **O que só morde quando a sessão existir fica anexado ao item `002`**, no campo `Carrega, da Fase 3 de 001` | Criar itens próprios para CSRF, validação em runtime e Testcontainers | Nenhum dos três é fazível antes de `002`: não há cookie para marcar `SameSite`, não há corpo que dirija comportamento, e o e2e ainda não escreve no banco. Item que não pode começar é item que envelhece na fila; restrição escrita no item que a carrega chega a quem vai escrever a spec dele. |
+| D29 | **`js-yaml` fica preso em `>=4.3.2` por `overrides` no `pnpm-workspace.yaml`** | Esperar o `@hey-api/openapi-ts` atualizar a dependência dele | Dois avisos de negação de serviço por análise quadrática, ambos altos, entram por transitiva do gerador de tipos. Não são alcançáveis hoje — o gerador só lê `apps/api/openapi.json`, que é nosso e é JSON —, e é por não serem que a correção custa uma linha agora e custa uma investigação no dia em que um contrato de terceiro entrar no gerador. `pnpm audit` sai com zero em todas as severidades depois. |
+
+### Divergência ratificada na Fase 3
+
+| # | O que estava assim | O que a realidade impôs | Alternativa descartada |
+|---|---|---|---|
+| `D-011` | Nem a Fase 2 nem a Fase 3 mencionam CORS, e `.env.example` já fixa `VITE_API_URL=http://localhost:3000` | `:5173` e `:3000` são origens distintas e `main.ts` não chama `app.enableCors`. O `curl` não mostra o problema — só o navegador aplica a política de mesma origem | Proxy do Vite (adia o problema para o deploy e contraria a etapa 3.5) e `enableCors()` sem argumento (origem curinga por omissão) |
+
+**Ratificada em modo autônomo em 03/09/2026, na opção (a).** O PR da fase nasce
+`blocked-on-D-011` e continua assim até você ratificar com `--por humano`.
+
 ## Por que o loop parou
 
 _(preenchido quando o loop parar)_

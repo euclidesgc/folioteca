@@ -6,6 +6,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "[ -f .env ] || install -m 600 .env.example .env; docker compose up -d --wait && pnpm -r --parallel --if-present dev"
+    "dev": "[ -f .env ] || install -m 600 .env.example .env; docker compose up -d --wait && pnpm -r --parallel --if-present dev",
+    "contract": "pnpm --filter api run openapi:generate && pnpm --filter web run api:generate"
   }
 }

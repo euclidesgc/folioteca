@@ -139,12 +139,14 @@ contrato que descreve essa rota.
 
 - [ ] `estrutural` — RF-05.1 — `apps/api/src/config/environment.schema.ts`
       exporta `environmentSchema` declarando exatamente as chaves `NODE_ENV`,
-      `PORT` e `DATABASE_URL`, com `NODE_ENV` e `DATABASE_URL` marcadas como
-      obrigatórias e `PORT` com valor padrão `3000`;
+      `PORT`, `DATABASE_URL` e `WEB_ORIGIN`, com `NODE_ENV` e `DATABASE_URL`
+      marcadas como obrigatórias, `PORT` com valor padrão `3000` e
+      `WEB_ORIGIN` validada como URI com valor padrão
+      `http://localhost:5173`;
       `apps/api/src/app.module.ts` registra `ConfigModule.forRoot` com
       `validationSchema: environmentSchema` e
       `validationOptions: { abortEarly: false, allowUnknown: true }`.
-      > Reconciliado em D-003.
+      > Reconciliado em D-003, D-011.
 - [ ] `comportamental` — RF-05.2 e RF-05.3
       *Dado* o arquivo `.env` na raiz do repositório com as linhas
       `NODE_ENV=development` e `PORT=3000` e sem nenhuma linha que comece com
@@ -430,6 +432,22 @@ um cliente HTTP único tipado pelo cliente gerado de `apps/api/openapi.json`.
       comando único de regeneração e o estado atual de cada frente.
       Justificativa: regra 8 — a seção "Estado" de `apps/web/README.md` afirma
       que o diretório está vazio.
+- [ ] 3.13 Criar `apps/api/src/cors.ts` exportando `configureCors(app, config)`,
+      o único ponto que chama `app.enableCors`, com a origem vinda de
+      `WEB_ORIGIN` do `ConfigService` e `credentials: true`; chamar
+      `configureCors` em `apps/api/src/main.ts` antes de `app.listen` e em
+      `apps/api/test/health.e2e-spec.ts` ao montar a aplicação de teste; e
+      acrescentar `WEB_ORIGIN=http://localhost:5173` a `.env.example`, na
+      seção da API.
+      Justificativa: `localhost:5173` e `localhost:3000` são origens
+      distintas, e é o navegador quem aplica essa política — o `curl` responde
+      `200` sem nunca mostrar o problema, então só o cabeçalho
+      `Access-Control-Allow-Origin` na resposta evita que o navegador descarte
+      o corpo antes de a web vê-lo. A função fica em módulo próprio, chamada
+      pelos dois lugares que montam a aplicação, porque teste que monta uma
+      aplicação diferente da de produção aprova o que produção reprova — a
+      lição registrada em D-008 neste projeto.
+      > Reconciliado em D-011.
 
 ---
 

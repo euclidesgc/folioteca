@@ -1,17 +1,15 @@
 import request from "supertest";
-import { Test } from "@nestjs/testing";
 import type { INestApplication } from "@nestjs/common";
-import { AppModule } from "../src/app.module";
+import { createApp } from "../src/bootstrap";
 
 describe("GET /health", () => {
   let app: INestApplication;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleRef.createNestApplication();
+    // contorno: usa a mesma fábrica que `main.ts` chama entre NestFactory.create
+    // e app.listen, para que este teste exercite a montagem de produção — não
+    // uma réplica dela que continua verde quando a montagem real muda.
+    ({ app } = await createApp());
     await app.init();
   });
 
@@ -29,5 +27,23 @@ describe("GET /health", () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ status: "ok" });
+  });
+
+  it("deve devolver access-control-allow-origin igual a http://localhost:5173 quando a requisição vem dessa origem", async () => {
+    const response = await request(app.getHttpServer())
+      .get("/health")
+      .set("Origin", "http://localhost:5173");
+
+    expect(response.headers["access-control-allow-origin"]).toBe(
+      "http://localhost:5173",
+    );
+  });
+
+  it("não deve devolver access-control-allow-origin quando a requisição vem de uma origem fora de WEB_ORIGIN", async () => {
+    const response = await request(app.getHttpServer())
+      .get("/health")
+      .set("Origin", "http://evil.com");
+
+    expect(response.headers["access-control-allow-origin"]).toBeUndefined();
   });
 });

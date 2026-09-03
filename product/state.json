@@ -28,7 +28,7 @@
           "file": "product/items/001-esqueleto-do-monorepo/03-plan.md"
         }
       },
-      "current_phase": 2,
+      "current_phase": 3,
       "phases": {
         "1": {
           "status": "aprovada",
@@ -49,6 +49,17 @@
           "pr": null,
           "blocked_on": [],
           "verdict_at": "2026-09-02T15:05:20Z"
+        },
+        "3": {
+          "status": "em_execucao",
+          "reproved_count": 0,
+          "verdict": null,
+          "verdict_file": null,
+          "validated_sha": null,
+          "pr": null,
+          "blocked_on": [
+            "D-011"
+          ]
         }
       },
       "divergences": {
@@ -131,6 +142,14 @@
           "detected_at": "2026-09-02T10:04:19Z",
           "aprovada_at": "2026-09-02T10:04:19Z",
           "reconciliada_at": "2026-09-02T17:56:00Z"
+        },
+        "D-011": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 3,
+          "detected_at": "2026-09-03T06:55:43Z",
+          "aprovada_at": "2026-09-03T06:55:43Z",
+          "ratificada_por": "autonomo"
         }
       },
       "criteria_exception": null
