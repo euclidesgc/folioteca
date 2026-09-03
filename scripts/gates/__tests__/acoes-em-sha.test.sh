@@ -17,11 +17,19 @@ falhas=0
 
 SHA_DE_MENTIRA="11d5960a326750d5838078e36cf38b85af677262"
 
-monta_fixture() { # monta_fixture <diretório> <linhas de uses:>
-  local casa="$1" linhas="$2"
+# Toda fixture nasce com o piso de referências fixadas, porque o portão afirma a
+# contagem além de imprimi-la: uma fixture com duas linhas mediria o piso em vez
+# do que o caso quer medir. As linhas do caso vêm depois dessas.
+PISO=27
+
+monta_fixture() { # monta_fixture <diretório> <linhas de uses: do caso>
+  local casa="$1" linhas="$2" i
   mkdir -p "$casa/.github/workflows"
   {
     printf 'name: Fixture\non:\n  push:\njobs:\n  medir:\n    runs-on: ubuntu-latest\n    steps:\n'
+    for ((i = 0; i < PISO; i++)); do
+      printf '      - uses: actions/checkout@%s # v4.4.0\n' "$SHA_DE_MENTIRA"
+    done
     printf '%s' "$linhas"
   } > "$casa/.github/workflows/fixture.yml"
 }
@@ -45,18 +53,16 @@ caso() { # caso <nome> <esperado 0|1> <trecho na saída> <diretório da fixture>
 }
 
 fixada="$tmp/fixada"
-monta_fixture "$fixada" "      - uses: actions/checkout@$SHA_DE_MENTIRA # v4.4.0
-      - uses: actions/setup-node@$SHA_DE_MENTIRA # v4.4.0
-"
+monta_fixture "$fixada" ""
 caso "tudo fixado passa" 0 "✓ ações do CI" "$fixada"
-caso "declara quantas referências mediu" 0 "medido: 2 referência(s)" "$fixada"
+caso "declara quantas referências mediu, e contra qual piso" 0 \
+  "medido: 27 referência(s) 'uses:' em 1 fluxo(s) de .github/workflows (piso 27)" "$fixada"
 
 movel="$tmp/tag-movel"
-monta_fixture "$movel" "      - uses: actions/checkout@$SHA_DE_MENTIRA # v4.4.0
-      - uses: actions/checkout@v4
+monta_fixture "$movel" "      - uses: actions/checkout@v4
 "
 caso "tag móvel REPROVA nomeando o arquivo e a linha" 1 \
-  ".github/workflows/fixture.yml:9" "$movel"
+  ".github/workflows/fixture.yml:35" "$movel"
 caso "tag móvel diz o que esperava no lugar" 1 "sha de 40 hexadecimais" "$movel"
 
 # SHA sozinho não diz o que está fixado, e é o comentário que o robô de
@@ -84,6 +90,19 @@ monta_fixture "$em_comentario" "      # cuidado ao mexer nas linhas uses: deste 
 "
 caso "a palavra num comentário REPROVA dizendo que é comentário" 1 \
   "aparece num comentário e conta como referência" "$em_comentario"
+
+# A outra metade da mesma armadilha: `"uses":` e `uses :` são a mesma chave para
+# o interpretador do GitHub, e nenhuma das duas contém a cadeia que o `grep`
+# procura. Sem afirmar a contagem contra o piso, a referência reescrita assim
+# some da medição, volta a ser tag móvel e o portão anuncia `0 referência(s)`
+# numa linha verde.
+reescrita="$tmp/forma-que-escapa"
+monta_fixture "$reescrita" ""
+sed -i '0,/^      - uses: /s//      - "uses": /' "$reescrita/.github/workflows/fixture.yml"
+caso "referência reescrita como \"uses\": REPROVA por cair abaixo do piso" 1 \
+  "contei 26 referência(s) e o piso é 27" "$reescrita"
+caso "queda abaixo do piso reprova por medição, não por resultado" 1 \
+  "REPROVADO por impossibilidade de medição, não por resultado." "$reescrita"
 
 # O caso que o portão existe para pegar: sem fluxo nenhum, todo `grep -v` sai
 # vazio e toda referência está trivialmente fixada.

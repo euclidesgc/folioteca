@@ -11,6 +11,13 @@
 # fica parado ensina a ignorar PR de robô.
 #
 # O destino é `develop`, e não `main`: `main` só recebe o que passou pela pilha.
+#
+# O `cooldown` de sete dias é a mesma espera que o workspace da raiz impõe à
+# resolução de pacote, e existe pelo mesmo motivo: sem ele, uma ação comprometida
+# que publique tag nova chega como PR de subida no mesmo dia, o portão aprova a
+# forma do SHA novo, e a janela em que a campanha seria detectada e despublicada
+# nunca é usada. Metade da tese valendo só para um dos dois ecossistemas é a
+# metade que não vale.
 version: 2
 updates:
   - package-ecosystem: "github-actions"
@@ -18,3 +25,5 @@ updates:
     schedule:
       interval: "weekly"
     target-branch: "develop"
+    cooldown:
+      default-days: 7

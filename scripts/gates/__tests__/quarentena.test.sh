@@ -16,10 +16,15 @@ tmp="${TMPDIR:-/tmp}/quarentena-test-$$"
 bash_absoluto="$(command -v bash)"
 falhas=0
 
+# A lista de isenções entra em toda fixture: o portão a compara com uma constante
+# própria, e uma fixture sem ela mediria a ausência da lista em vez do que o caso
+# quer medir.
+ISENCOES='minimumReleaseAgeExclude:\n  - qs\n'
+
 monta_fixture() { # monta_fixture <diretório> <corpo do pnpm-workspace.yaml>
   local casa="$1" corpo="$2"
   mkdir -p "$casa"
-  printf 'packages:\n  - "apps/*"\n%s' "$corpo" > "$casa/pnpm-workspace.yaml"
+  printf 'packages:\n  - "apps/*"\n%b%s' "$ISENCOES" "$corpo" > "$casa/pnpm-workspace.yaml"
 }
 
 caso() { # caso <nome> <esperado 0|1> <trecho na saída> <diretório da fixture> [PATH]
@@ -66,6 +71,25 @@ monta_fixture "$baixada" 'minimumReleaseAge: 60
 '
 caso "espera baixada para uma hora REPROVA declarando o valor medido" 1 \
   "minimumReleaseAge = 60" "$baixada"
+
+# `minimumReleaseAgeExclude` desliga a espera pacote a pacote sem tocar no número
+# que o portão lê: com as duas chaves declaradas, `pnpm config get
+# minimumReleaseAge` continua respondendo 10080. Sem esta cobrança, o portão
+# aprovaria um repositório onde a política não vale para nada.
+tudo_isento="$tmp/isencao-curinga"
+mkdir -p "$tudo_isento"
+printf 'packages:\n  - "apps/*"\nminimumReleaseAge: 10080\nminimumReleaseAgeExclude:\n  - qs\n  - "*"\n' \
+  > "$tudo_isento/pnpm-workspace.yaml"
+caso "isenção curinga REPROVA mesmo com o número intacto" 1 \
+  'minimumReleaseAgeExclude = ["qs","*"]' "$tudo_isento"
+caso "isenção curinga diz onde a isenção nova deve ser escrita" 1 \
+  "com o motivo e o prazo escritos" "$tudo_isento"
+
+sem_isencao="$tmp/sem-a-lista"
+mkdir -p "$sem_isencao"
+printf 'packages:\n  - "apps/*"\nminimumReleaseAge: 10080\n' > "$sem_isencao/pnpm-workspace.yaml"
+caso "lista de isenções ausente REPROVA, porque a constante espera uma" 1 \
+  "minimumReleaseAgeExclude = []" "$sem_isencao"
 
 sem_arquivo="$tmp/sem-workspace"
 mkdir -p "$sem_arquivo"

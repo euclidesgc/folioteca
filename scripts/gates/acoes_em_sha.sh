@@ -10,7 +10,12 @@
 # esvaziou. As duas respostas têm a mesma cara, e a segunda aprova sem ter
 # medido. Por isso o diretório é exigido antes, a ausência de fluxo reprova em
 # voz alta, e o número de referências medidas é impresso em todo push: é ele que
-# denuncia o dia em que 27 viram 3.
+# denuncia o dia em que 27 viram 3 — e por isso a contagem é **afirmada** contra
+# um piso, não só impressa. Imprimir sem afirmar deixava a segunda metade da
+# armadilha aberta: `"uses":` e `uses :` são a mesma chave para o interpretador
+# do GitHub e nenhuma das duas contém a cadeia que o `grep` procura, de modo que
+# uma referência reescrita assim saía da contagem e voltava a ser tag móvel, com
+# o portão anunciando `medido: 0 referência(s)` numa linha verde que ninguém lê.
 #
 # POR QUE A VERSÃO LEGÍVEL É COBRADA JUNTO
 #
@@ -24,6 +29,12 @@ RAIZ_DO_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "$RAIZ_DO_SCRIPT/scripts/gates/medir.sh"
 
 DIRETORIO_DOS_FLUXOS=".github/workflows"
+
+# O piso é mínimo, não exato: job novo sobe a contagem e passa, e é a queda que
+# reprova. Baixá-lo é decisão consciente de quem removeu um job de verdade, que
+# é exatamente onde ela deve ser tomada.
+PISO_DE_REFERENCIAS=27
+
 FORMA_DO_SHA='@[0-9a-f]{40}'
 FORMA_DA_VERSAO='@[0-9a-f]{40}[[:space:]]+#[[:space:]]*v[0-9]+\.[0-9]+\.[0-9]+'
 
@@ -67,7 +78,11 @@ for fluxo in "${FLUXOS[@]}"; do
   done < <(cd "$RAIZ" && grep -n 'uses:' "$fluxo" || true)
 done
 
-echo "medido: $TOTAL referência(s) 'uses:' em ${#FLUXOS[@]} fluxo(s) de $DIRETORIO_DOS_FLUXOS"
+echo "medido: $TOTAL referência(s) 'uses:' em ${#FLUXOS[@]} fluxo(s) de $DIRETORIO_DOS_FLUXOS (piso $PISO_DE_REFERENCIAS)"
+
+if [ "$TOTAL" -lt "$PISO_DE_REFERENCIAS" ]; then
+  _reprova "contei $TOTAL referência(s) e o piso é $PISO_DE_REFERENCIAS — ou um job sumiu, ou uma referência foi escrita numa forma que este portão não enxerga ('\"uses\":' e 'uses :' são a mesma chave para o GitHub e não contêm a cadeia procurada)"
+fi
 
 if [ "${#VIOLACOES[@]}" -gt 0 ]; then
   printf '  %s\n' "${VIOLACOES[@]}"

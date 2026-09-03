@@ -32,3 +32,16 @@ overrides:
 # `pnpm config get minimumReleaseAge` com ele, porque `undefined` não distingue
 # "não configurei" de "troquei um caractere".
 minimumReleaseAge: 10080
+
+# A espera atrasa também a correção de segurança, que chega por versão nova — e
+# no primeiro dia ela atrasou uma: a resolução sob a espera fixou `qs@6.15.3`,
+# com GHSA-4mjr-xmp4-gh2g e GHSA-x5fp-wj9c-mxmx, no lugar de `qs@6.16.0`, que as
+# corrige e tinha cinco dias. `qs` lê a query de toda requisição que chega ao
+# `express`, e é caminho de produção da API.
+#
+# Isenção é a política morrendo por dentro quando não tem dono nem prazo, então
+# esta tem os dois: `scripts/gates/quarentena.sh` compara esta lista com uma
+# constante própria e reprova qualquer nome a mais, e ela sai quando `6.16.0`
+# completar sete dias — 2026-09-05.
+minimumReleaseAgeExclude:
+  - qs

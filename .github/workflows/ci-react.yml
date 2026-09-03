@@ -173,10 +173,11 @@ jobs:
       # do binário que responde à pergunta. Trazer `pnpm/action-setup` para isso
       # acrescentaria código de terceiro rodando no runner por causa de uma
       # leitura — mais superfície de cadeia de suprimentos do que a pergunta
-      # justifica, num item cuja tese é reduzi-la. A versão sai do
-      # `packageManager` da raiz, que é onde ela é declarada uma vez só.
+      # justifica, num item cuja tese é reduzi-la. O script peneira a forma do
+      # `packageManager` antes de ele virar comando e instala sem scripts de
+      # ciclo de vida: o valor vem do pull request que este job vai julgar.
       - name: pnpm, que o portão da quarentena interroga
-        run: npm install --global "$(node -p 'require("./package.json").packageManager')"
+        run: bash scripts/ci/instalar-pnpm.sh
 
       - name: Gates
         env:

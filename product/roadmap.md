@@ -54,6 +54,41 @@ PR e commit já escritos.
       a vulnerável que já está no lockfile — são portas diferentes, e só uma
       delas fecha em `023`.
 
+- [ ] `042-o-sha-fixado-e-conferido-contra-a-versao-que-ele-diz-ser` — o portão
+      das ações reprova o SHA que não corresponde à tag do comentário ao lado, em
+      vez de validar só a forma dos dois
+      **Depende de:** `023-endurecimento-antes-da-sessao` — é a fase 5 dele que
+      fixa os SHAs, escreve a versão ao lado e cria o portão que hoje mede a
+      forma.
+      **Origem:** fase 5 de `023-endurecimento-antes-da-sessao`, auditoria de
+      segurança. `acoes_em_sha.sh` cobra que exista `# vX.Y.Z` depois de 40
+      hexadecimais, e nada mais: um SHA de outro repositório, ou de um commit
+      qualquer de uma branch, com `# v4.4.0` ao lado, passa para sempre — e o
+      comentário garante que a revisão futura confie na versão. As 27 referências
+      de hoje foram conferidas à mão contra
+      `gh api repos/<dono>/<repo>/commits/<tag> --jq .sha` e estão corretas. A
+      conferência automática precisa de rede e de token dentro do portão, o que
+      muda a natureza dele — hoje ele é hermético e roda offline —, então é
+      decisão de desenho, não remendo: provavelmente um portão só de CI, que
+      reprova também quando não conseguir consultar.
+
+- [ ] `043-o-override-de-dependencia-tem-teto` — a única faixa aberta do
+      repositório ganha limite superior, para subida de major exigir decisão
+      escrita
+      **Depende de:** nada — é uma linha em `pnpm-workspace.yaml` e uma
+      reconstrução de lockfile.
+      **Origem:** fase 5 de `023-endurecimento-antes-da-sessao`, auditoria de
+      segurança. `overrides: js-yaml: ">=4.3.2"` é ilimitado para cima num
+      repositório cuja norma é versão exata em toda declaração, e a reconstrução
+      de lockfile desta fase moveu `js-yaml` de 5.3.0 para 5.4.1 sem ninguém
+      escolher. O dano é diferido: toda reconstrução futura reabre a escolha,
+      dentro de um diff de centenas de linhas de lockfile e sem aparecer em
+      `package.json` nenhum. Não foi corrigido aqui porque fechar a faixa obriga
+      a reconstruir o lockfile de novo, e a reconstrução desta fase acabou de
+      trocar `qs` por uma versão vulnerável (ver `04-divergencias/D-012.md`) —
+      reabrir a resolução no mesmo commit em que ela foi estabilizada troca um
+      risco conhecido por um desconhecido.
+
 - [ ] `041-a-rotina-alcanca-os-pacotes-de-javascript` — as dependências das três
       frentes voltam à versão corrente por PR de robô, como as ações do CI já
       voltam, em vez de envelhecerem até alguém reparar
