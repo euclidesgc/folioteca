@@ -65,8 +65,11 @@ if command -v pnpm >/dev/null 2>&1; then
   printf '{"name":"alvo","version":"1.0.0"}\n' > "$ws/packages/alvo/package.json"
   git -C "$ws" init -q 2>/dev/null
 
+  # `medir_raiz` prefere `GITHUB_WORKSPACE`: sem apontá-lo para cá, dentro do CI
+  # a função ignora o `cd` do caso e mede a raiz do repositório, onde o filtro
+  # não casa pacote nenhum. Passava local e falhava só no CI.
   caso "exige_pacote_pnpm passa com um pacote real do workspace" 0 \
-    "cd '$ws'; source '$lib'; exige_pacote_pnpm alvo 'o pacote alvo'"
+    "cd '$ws'; GITHUB_WORKSPACE='$ws'; source '$lib'; exige_pacote_pnpm alvo 'o pacote alvo'"
 
   # O marcador tem de vir do shell do sistema. Um `sh` que o PATH ofereça — e
   # `pnpm exec` oferece o `node_modules/.bin` do pacote antes de tudo — mataria
@@ -75,7 +78,7 @@ if command -v pnpm >/dev/null 2>&1; then
   printf '#!/bin/sh\nexit 0\n' > "$tmp/bin-sequestrado/sh"
   chmod +x "$tmp/bin-sequestrado/sh"
   caso "exige_pacote_pnpm ignora o 'sh' que o PATH oferece" 0 \
-    "cd '$ws'; PATH=\"$tmp/bin-sequestrado:\$PATH\"; source '$lib'; exige_pacote_pnpm alvo 'o pacote alvo'"
+    "cd '$ws'; GITHUB_WORKSPACE='$ws'; PATH=\"$tmp/bin-sequestrado:\$PATH\"; source '$lib'; exige_pacote_pnpm alvo 'o pacote alvo'"
 else
   printf '  pulado  as duas asserções de exige_pacote_pnpm — pnpm não está no PATH\n'
 fi
