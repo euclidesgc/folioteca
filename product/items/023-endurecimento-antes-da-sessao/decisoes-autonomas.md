@@ -65,6 +65,7 @@ qualquer trabalho deste item.
 | D49 | fase 2 | **A porta 3001 vira constante do portão, e deixa de ser variável de ambiente** | Passar a porta também ao servidor, mantendo a variável | O script `start` de `apps/site/package.json` fixa `-p 3001`. Configurar só o lado da medição fazia o portão medir uma porta onde o servidor não estava — e cair direto no defeito que `D47` acabou de fechar. Uma porta configurável de verdade exige o `package.json` junto, e nada hoje pede isso |
 | D50 | fase 2 | **Os três apontamentos da validação cega viram registro, e nenhum vira correção nesta fase** | Corrigir o aviso de convenção deprecada e tirar a linha de `.gitignore` do diff | O primeiro já era o item `030`, aberto antes da validação; o terceiro — `style-src 'self'` numa frente que ainda não tem folha de estilo — não é verificável hoje e foi acoplado ao item `015-hotsite`, que traz a primeira. A linha `.playwright-mcp/` fica: ela nasceu de a validação de campo desta fase rodar num navegador de verdade, e tirá-la faria a próxima sessão sujar a árvore com o mesmo diretório |
 | D51 | fase 2 | **O vazamento do prompt do orquestrador pela lista de processos vira o item de roadmap `035`, e não uma correção de madrugada** | Mudar agora como `scripts/loop/` passa o prompt ao processo filho | O próprio validador registrou que `ps aux` lhe entregou a linha de comando do orquestrador, com as normas da sessão dentro. A validação se sustenta — os critérios foram a régua, e a evidência de cada um está no veredicto —, mas a cegueira é o mecanismo do portão, e mecanismo que depende da boa vontade de quem ele mede não é mecanismo. Consertar isso é mexer no motor que despacha esta e todas as sessões seguintes, no meio de uma delas: é a mudança com maior raio de impacto e menor urgência do dia |
+| D52 | fase 2 | **O problema que o `check` levanta sobre a fase 5 de `001` fica registrado como observação de processo, e nada é feito para calá-lo** | Revalidar a fase 5 de um item já encerrado, ou reescrever `validated_trees` para a árvore de hoje | `001-esqueleto-do-monorepo` está `done`, e o `check` acusa que `apps/api` e `apps/site` mudaram depois do veredicto da fase 5 — mudaram mesmo: foram as fases 1 e 2 **deste** item que as mudaram. A própria norma do harness diz que fase encerrada é história e não se cobra; o predicado é que não distingue "fase corrente de item vivo" de "última fase de item fechado". Revalidar seria gastar um validador contra o passado, e reescrever a árvore gravada seria apagar o rastro do que foi julgado. O conserto é no `state.py`, que mora fora deste repositório — vai para a retrospectiva da corrida, com `D39` |
 
 ## Aprovações registradas em modo autônomo
 
@@ -115,6 +116,13 @@ Cada linha aqui é um `state.sh approve --por autonomo` ou um
   *Pendências de produto abertas* do roadmap, dependentes da escolha de deploy,
   que é dele. `X-Frame-Options` saiu dessa lista por `D18`: ele já vale nos dois
   servidores do Vite que existem hoje.
+- **`state.sh check` vai continuar acusando a fase 5 de `001` para sempre, e
+  isso não é um defeito desta fase.** O item está `done`; o que mudou as árvores
+  de `apps/api` e `apps/site` depois do veredicto dele foram as fases 1 e 2 deste
+  item. Um problema permanente na saída do `check` é pior que nenhum, porque
+  ensina a ignorá-la — mas o conserto é no `state.py`, fora deste repositório.
+  Ver `D52`.
+
 - **A validação cega desta fase leu o prompt do orquestrador por acidente
   (`ps aux`), e disse isso sozinha.** O veredicto continua de pé — cada critério
   tem comando e saída real no arquivo, e os critérios 4 a 8 foram medidos com
