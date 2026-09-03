@@ -426,6 +426,43 @@ aqui, para não voltarem como dúvida:
 | `gates_runner.sh` no modo por diff cai para `git diff --name-only HEAD`, sempre vazio num runner: universo de zero arquivos e portões verdes sem terem olhado nada | Latente: `.harness/config.json` declara `greenfield`, e nesse modo o dispatcher mede a árvore inteira e diz quantos arquivos considerou. Corrigir agora seria mexer no dispatcher fora de qualquer etapa desta fase | Item `026-o-modo-de-diff-dos-portoes-mede-ou-reprova` |
 | `apps/web` não tem `.dependency-cruiser.cjs` nem declara `dependency-cruiser` | A configuração das regras de fronteira é decisão da frente React, não do CI, e o portão G5 já cobre a direção `shared → features → app` por script | Item `025-a-direcao-de-dependencia-e-medida` |
 
+## Encerramento do item
+
+O item foi para `done` em 03/09/2026. As cinco fases estão aprovadas por
+`phase-validator` cego, e o objetivo do item — "os três apps sobem, o contrato é
+gerado e o CI fica verde nos três" — tem a prova que só o runner do GitHub
+produz: sobre o PR **#17**, os fluxos `Site`, `React`, `NestJS` e `Portões`
+executaram e saíram `success`. O único vermelho é `Bloqueio`, que reprova por
+causa dos quatro rótulos `blocked-on-D-016` a `D-019` — a trava fazendo o que
+foi construída para fazer.
+
+| # | Decisão | Alternativa descartada | Por quê |
+|---|---|---|---|
+| D45 | **O encerramento é uma branch própria, `001-esqueleto-do-monorepo/encerramento`, no topo da pilha** | Comitar o roadmap e o estado na branch da Fase 5 | A Fase 5 já foi julgada, e o veredicto amarra um `validated_sha` e três `validated_trees`. Acrescentar commit ali mudaria o commit julgado por conveniência de quem comita. O encerramento é uma unidade de trabalho que não é fase — como `planejamento` foi no começo —, e uma unidade é um PR. |
+| D46 | **As três validações de campo pendentes são endereçadas a itens que já existem**, e nenhuma vira item novo | Abrir um item de roadmap para cada uma | Nenhuma das três é trabalho: são verificações que só o navegador de gente produz, e a seção *Validações de campo pendentes* existe exatamente para que elas não virem item eterno em `[-]`. Cada linha nomeia onde a verificação acontece de passagem: `002-conta-e-organizacao` para a página, a primeira `/harness:reconcile` para a metade que destrava a trava, e `015-hotsite` para a aparência do hotsite. |
+| D47 | **O item fecha com o `check` acusando as nove ratificações autônomas, e nenhum rótulo `blocked-on-*` é removido** | Esperar o `check` ficar limpo antes de marcar `done`, como a tabela de estágios do orquestrador pede | O `check` só fica limpo quando o dono ratificar com `--por humano`, e ele está dormindo: a condição de saída, lida ao pé da letra, ou trava um item pronto ou empurra para tirar o rótulo — que é o antipadrão que a própria skill `autonomous-run` nomeia. A tensão entre as duas skills virou a proposta `.harness/proposals/2026-09-03-003.md`, que é onde o harness se corrige; o projeto não edita o harness de dentro de um item. |
+
+### O que fica esperando você
+
+1. **Nove ratificações**, em `/harness:reconcile`: `D-011` e `D-012` (Fase 3),
+   `D-013` a `D-015` (Fase 4), `D-016` a `D-019` (Fase 5). Cada uma está escrita
+   em `04-divergencias/D-nnn.md` com as opções e a recomendação que segui.
+   Enquanto elas esperam, os PRs #13, #14 e #17 seguem vermelhos no job `Sem
+   bloqueio pendente`, e é assim que devem estar.
+2. **Uma pendência de produto**, já na seção própria do roadmap: levar
+   `scripts/gates/bloqueio.sh` e os onze casos de teste dele para o template do
+   plugin, ou deixar cada projeto novo descobrir sozinho a trava que anuncia e
+   não tranca.
+3. **Cinco PRs em pilha**, do fundo para o topo: #13, #14, #16, #17 e o do
+   encerramento. Nenhum foi mergeado, nenhum foi empurrado com `--force`. O
+   merge é seu, com `bash scripts/merge-se-liberado.sh <pr>`, na ordem da pilha.
+4. **Quatro itens novos no roadmap**, nascidos deste trabalho: `023` (cadeia de
+   suprimentos e endurecimento), `024` (o lint reprova o que diz cobrar), `025`
+   (a direção de dependência é medida) e `026` (o modo por diff dos portões mede
+   ou reprova). Eles estão à frente de `002-conta-e-organizacao` na fila, e essa
+   posição é uma proposta minha, não uma decisão sua: se a conta importa mais
+   agora, mover é reordenar a lista.
+
 ## Por que o loop parou
 
 _(preenchido quando o loop parar)_

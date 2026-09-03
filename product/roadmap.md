@@ -23,7 +23,7 @@ PR e commit já escritos.
 
 ## Itens
 
-- [-] `001-esqueleto-do-monorepo` — os três apps sobem, o contrato OpenAPI é
+- [x] `001-esqueleto-do-monorepo` — os três apps sobem, o contrato OpenAPI é
       gerado e o cliente é gerado dele, e o CI fica verde nos três
 
 - [ ] `023-endurecimento-antes-da-sessao` — o navegador recebe cabeçalhos de
@@ -305,4 +305,22 @@ sabendo" — em esquecimento, que é a mesma coisa sem ninguém para lembrar.
 Cada linha diz o **item de origem** e **o que exatamente ficou sem
 verificação**.
 
-Nenhuma pendente.
+- **`001-esqueleto-do-monorepo`, Fase 3 — a página diante de gente.** O critério
+  comportamental foi provado duas vezes em Chromium headless, por caminhos
+  independentes. Headless não prova como um leitor de tela real anuncia a região
+  `role="status"`, se o estado `carregando` pisca rápido demais para ser lido,
+  nem o que Safari e Firefox fazem com a mesma página. Cai no primeiro item que
+  puser interface diante de gente, `002-conta-e-organizacao`.
+
+- **`001-esqueleto-do-monorepo`, Fase 3 — a metade que destrava a trava de
+  bloqueio.** Que o rótulo `blocked-on-*` reprova está provado: o job `Sem
+  bloqueio pendente` está vermelho nos PRs #13, #14 e #17 agora, e
+  `scripts/gates/bloqueio.sh` tem onze casos de teste. O inverso — tirados os
+  rótulos, o job fica verde — depende de o GitHub reagir ao evento `unlabeled`,
+  que nenhum teste local produz. Verifica-se sozinho na primeira ratificação
+  humana, por `/harness:reconcile`.
+
+- **`001-esqueleto-do-monorepo`, Fase 4 — a aparência do hotsite num navegador
+  real.** O HTML renderizado no servidor está verificado por comando, e a página
+  não tem folha de estilo, então não há o que quebrar visualmente; ainda assim
+  ninguém a abriu. Cai em `015-hotsite`, que é quem lhe dá aparência.
