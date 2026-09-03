@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "active_item": "023-endurecimento-antes-da-sessao",
+  "active_item": "027-vulnerabilidade-conhecida-reprova-no-ci",
   "items": {
     "001-esqueleto-do-monorepo": {
       "title": "Esqueleto do monorepo: os três apps sobem, o contrato é gerado e o CI fica verde",
@@ -503,6 +503,27 @@
           "ratificacao_humana_at": "2026-09-03T19:23:49Z"
         }
       },
+      "criteria_exception": null
+    },
+    "027-vulnerabilidade-conhecida-reprova-no-ci": {
+      "title": "Vulnerabilidade conhecida reprova no CI: o portão audita o lockfile inteiro e reprova achado de severidade alta ou crítica, com isenção nominal e prazo",
+      "track": "rapida",
+      "stage": "brief",
+      "stacks": [],
+      "created_at": "2026-09-03T19:13:55Z",
+      "approvals": {
+        "brief": {
+          "at": null,
+          "sha": null
+        },
+        "plan": {
+          "at": null,
+          "sha": null
+        }
+      },
+      "current_phase": null,
+      "phases": {},
+      "divergences": {},
       "criteria_exception": null
     }
   }

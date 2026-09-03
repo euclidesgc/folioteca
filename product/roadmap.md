@@ -41,7 +41,7 @@ PR e commit já escritos.
       de o `checkout` já ter gravado o token no disco — a correção é fixar cada
       uma em SHA de 40 caracteres com a versão em comentário.
 
-- [ ] `027-vulnerabilidade-conhecida-reprova-no-ci` — o CI reprova quando uma
+- [-] `027-vulnerabilidade-conhecida-reprova-no-ci` — o CI reprova quando uma
       dependência do lockfile tem aviso de severidade alta, em vez de a conta ser
       feita à mão numa auditoria de fase
       **Depende de:** `023-endurecimento-antes-da-sessao` — é o item que traz a
@@ -433,6 +433,22 @@ PR e commit já escritos.
       `.claude/skills/react-testing-behavioral/SKILL.md` @1f50033. O item nasce
       junto de um `.gitleaksignore` com esses dois fingerprints — e a decisão de
       qual dos dois some do histórico em vez de ser perdoado é do dono.
+
+- [ ] `048-o-codigo-passa-por-analise-estatica-de-seguranca` — o padrão inseguro
+      no código é acusado por ferramenta em todo PR, em vez de depender de
+      alguém reconhecê-lo na revisão
+      **Depende de:** `001-esqueleto-do-monorepo` — precisa existir código nas
+      três frentes para haver o que analisar.
+      **Origem:** discovery de `027-vulnerabilidade-conhecida-reprova-no-ci`. A
+      skill `security-baseline` nomeia três ferramentas que não se cobrem:
+      `gitleaks` para segredo, `osv-scanner` ou equivalente para dependência
+      vulnerável, e `semgrep` para padrão inseguro no código — SQL concatenada,
+      `eval`, comparação de segredo sem tempo constante, desserialização
+      insegura. A primeira entrou na fase 4 de `023`; a segunda entra em `027`;
+      a terceira **não existe em lugar nenhum do repositório** — `git grep
+      semgrep` fora de `product/` não devolve nada, e não há arquivo de regra.
+      `semgrep 1.176.0` já está na máquina de desenvolvimento. Rodar duas das
+      três dá a sensação das três, e é a análise do código que fica de fora.
 
 - [ ] `002-conta-e-organizacao` — quem se cadastra cria a organização e vira o
       seu primeiro administrador; o endereço é confirmado por e-mail, a senha se
