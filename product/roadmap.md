@@ -41,6 +41,19 @@ PR e commit já escritos.
       de o `checkout` já ter gravado o token no disco — a correção é fixar cada
       uma em SHA de 40 caracteres com a versão em comentário.
 
+- [ ] `027-vulnerabilidade-conhecida-reprova-no-ci` — o CI reprova quando uma
+      dependência do lockfile tem aviso de severidade alta, em vez de a conta ser
+      feita à mão numa auditoria de fase
+      **Depende de:** `023-endurecimento-antes-da-sessao` — é o item que traz a
+      cadeia de suprimentos para dentro do CI, e o passo novo nasce junto dos
+      outros dois.
+      **Origem:** discovery de `023`. Nenhum fluxo roda `pnpm audit` nem
+      `osv-scanner`: a única conta já feita foi a decisão `D29` da Fase 3 de
+      `001`, à mão, que prendeu `js-yaml` em `>=4.3.2` por `overrides`. A
+      quarentena que `023` instala atrasa a versão maliciosa e não diz nada sobre
+      a vulnerável que já está no lockfile — são portas diferentes, e só uma
+      delas fecha em `023`.
+
 - [ ] `024-o-lint-reprova-o-que-diz-cobrar` — o script `lint` das três frentes
       reprova o que hoje ele apenas avisa, e a marca de comentário de
       justificativa que o portão G3 reconhece vale também em inglês
@@ -267,6 +280,21 @@ revoga o acesso que vinha dele, e a concessão individual sobrevive" diz.
 
 O que precisa de decisão do dono antes de virar spec. Não é fase, não é item, e
 não bloqueia trabalho que não dependa dela.
+
+- **Três cabeçalhos do `apps/web` não têm onde morar enquanto não houver host.**
+  `apps/web` é uma SPA estática e não tem servidor nenhum: `vite.config.ts:26-29`
+  declara porta e mais nada, e o e2e sobe `vite dev`. O item `023` resolve o que
+  a página consegue carregar sozinha — a política de conteúdo vai como
+  `<meta http-equiv>` injetada no build, que atravessa qualquer host. Mas
+  `frame-ancestors`, `X-Frame-Options` e `Strict-Transport-Security` **só
+  existem como cabeçalho de resposta**: nenhum vale em `<meta>`, e sem eles a
+  página do produto pode ser enquadrada por um site alheio. Fechar isso exige
+  saber quem serve o `dist/` em produção — CDN com arquivo de cabeçalhos, nginx,
+  ou o mesmo processo da API —, e escolher host é decisão de deploy, que é sua.
+  **A decisão é sua:** dizer qual é o host, e aí isto vira item; ou aceitar que a
+  janela fique aberta até o primeiro deploy existir.
+  **Origem:** discovery de `023-endurecimento-antes-da-sessao`, decisão autônoma
+  `D1`.
 
 - **O template do harness ensina a trava quebrada a todo projeto novo.**
   `templates/ci/harness.yml` do plugin, linha 26, tem a mesma leitura de rótulos

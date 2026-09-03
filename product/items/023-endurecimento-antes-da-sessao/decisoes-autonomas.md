@@ -1,0 +1,46 @@
+# Decisões tomadas sem o humano — 023-endurecimento-antes-da-sessao
+
+O dono autorizou autonomia para o roadmap inteiro. Este arquivo é o que ele lê
+de manhã: **uma linha por decisão**, com a alternativa descartada e o porquê.
+Nada aqui foi aprovado por ele.
+
+Se alguma decisão estiver errada, todas são reversíveis — o ponto de retorno
+limpo é o commit `7a6bdbcced67d699998fc05510acf7b14d8f0228`, anterior a
+qualquer trabalho deste item.
+
+## Decisões
+
+| # | Estágio ou fase | Decidido | Alternativa descartada | Por quê |
+|---|---|---|---|---|
+| D1 | discovery | **A política de conteúdo do `apps/web` é injetada como `<meta http-equiv>` no `index.html` durante o build, e os demais cabeçalhos saem de `server.headers`/`preview.headers` do `vite.config.ts`** | Escolher um host de produção e declarar os cabeçalhos nele (`_headers`, `nginx.conf`, regra de CDN); ou pôr a meta fixa no `index.html` versionado | `apps/web` é SPA estática e **não tem servidor**: `vite.config.ts:26-29` só declara porta, e o e2e usa `vite dev`. Escolher host é decisão de deploy, e a régua manda parar antes disso. A meta é a única forma que atravessa qualquer host e chega ao navegador em produção. Injetá-la só no build, e não no arquivo versionado, é o que preserva o recarregamento a quente — a política de produção proíbe o script embutido de que o HMR do Vite depende, e uma meta válida em dev e em produção seria frouxa nos dois. **O que a meta não cobre — `frame-ancestors`, `X-Frame-Options` e HSTS em produção — vira item de roadmap**, porque só o host entrega |
+| D2 | discovery | **A política é `default-src 'self'`; `script-src 'self'`; `style-src 'self'`; `img-src 'self' data:`; `connect-src 'self' <VITE_API_URL>`; `object-src 'none'`; `base-uri 'self'`; `form-action 'self'`; `frame-ancestors 'none'`** | Começar com `Content-Security-Policy-Report-Only` e apertar depois | Report-only é a escolha certa para app que já existe e cujo inventário de recursos ninguém conhece. Aqui o app tem uma página e um bundle, o inventário é conhecido, e não há endpoint que receba relatório — report-only seria uma política que não bloqueia nada e cujos relatórios ninguém lê. `'unsafe-inline'` e `'unsafe-eval'` ficam de fora dos dois: com eles, a política deixa de impedir a classe de ataque que a justifica |
+| D3 | discovery | **`WEB_ORIGIN` mantém o nome e passa a aceitar valores separados por vírgula**, com o padrão `^https?:\/\/[^/]+$` valendo por item | Renomear para `WEB_ORIGINS`, que é mais honesto no plural | O schema roda com `allowUnknown: true` (decisão D17 de `001`). Renomeando, um `.env` já materializado continuaria trazendo `WEB_ORIGIN`, que viraria chave desconhecida e **passaria em silêncio**, enquanto a API subiria com o default `http://localhost:5173` e ninguém seria avisado. O ganho é de leitura; o custo é a classe de falha muda que este repositório passou quatro fases fechando. A vírgula é a convenção mais comum para lista em variável de ambiente |
+| D4 | discovery | **Quarentena de sete dias — `minimumReleaseAge: 10080` no `pnpm-workspace.yaml`** | 14 ou 30 dias; ou nenhuma quarentena, confiando no `pnpm audit` | Sete dias é a janela em que as campanhas recentes de publicação maliciosa em npm foram detectadas e as versões despublicadas, e é o valor que a documentação do pnpm usa como exemplo. Mais que isso começa a atrasar correção de segurança legítima, que também chega por versão nova. Verificado que `pnpm@11.25.0` lê a chave do `pnpm-workspace.yaml`: `pnpm config get minimumReleaseAge` devolve `10080` com ela declarada e `undefined` com um caractere trocado — é esse par que dá ao portão uma medição, e não uma suposição |
+| D5 | discovery | **Dependabot semanal para `github-actions`, apontando para `develop`** | Renovate; ou fixar em SHA sem rotina nenhuma | A Fase 5 de `001` encaminhou este achado exatamente porque metade dele é pior que nenhum: SHA sem rotina congela o repositório em versões com defeito conhecido. Dependabot entende `uses: dono/acao@<sha> # v4.2.2` e atualiza os dois juntos, é nativo do GitHub e sai apagando um arquivo. Renovate faz mais e cobra um app de terceiro instalado na conta, que é permissão que não é minha para dar. **É a decisão mais externa deste item** — passa a existir um robô abrindo PR no repositório —, e por isso está aqui em vez de dentro de uma fase |
+| D6 | discovery | **A varredura é `gitleaks`, instalado no CI pelo binário de release com versão fixada e checksum verificado** | `gitleaks/gitleaks-action`; ou `trufflehog`; ou `semgrep` | A ação oficial do gitleaks exige licença para organização e é mais uma ação de terceiro a fixar em SHA — o item ganharia a dívida que ele está pagando. O binário com checksum é a forma que não acrescenta superfície. `gitleaks 8.30.1` **já está na máquina de desenvolvimento**, então o portão local funciona no primeiro dia. `trufflehog` verifica credencial contra o serviço real, o que é mais forte e manda o segredo achado para fora — inaceitável num portão. `semgrep` é análise de código, não de segredo |
+| D7 | discovery | **O portão de segredo entra em `.harness/gates.json` e roda também no `gates_runner.sh` local**, e reprova em voz alta quando `gitleaks` falta | Deixá-lo só no CI, para não obrigar ninguém a instalar ferramenta | A regra 19 do `CLAUDE.md` é literal: portão que não conseguiu medir reprova. Um portão que existe só no CI é um portão que descobre o problema depois do push, e a norma inteira deste repositório é falhar barato antes de falhar caro. A reprovação nomeia a ferramenta e a versão, então quem topar com ela sabe o que fazer em uma linha |
+| D8 | discovery | **A varredura da árvore de fontes rastreadas entra neste item, junto com a do artefato** | Item de roadmap separado para a regra 14 | O achado da auditoria da Fase 1 de `001` — *"nenhum portão cobre a regra 14; a regra é sustentada só por disciplina"* — nunca virou item e ficaria órfão. É a mesma ferramenta, o mesmo portão e o mesmo arquivo de configuração; separar pagaria duas vezes a instalação para medir dois universos de uma varredura só. O roadmap diz "o artefato de build é medido contra segredo", e medir só o artefato deixaria passar o `.env` rastreado, que é o caso mais provável dos dois |
+| D9 | discovery | **A política do hotsite não referencia `NEXT_PUBLIC_APP_URL` nem `NEXT_PUBLIC_SITE_URL`** | Incluir a origem do app em `connect-src` desde já | Nenhum arquivo de `apps/site` lê as duas variáveis hoje — elas existem só no `.env.example`. Uma política que nomeia origem que ninguém chama é permissão concedida sem uso, e ela seria herdada sem revisão pelo item `015`, que é quem dá conteúdo ao hotsite. Quando o hotsite chamar algo, a linha entra com o motivo |
+| D10 | discovery | **Quatro fases: (1) origem em lista na API, (2) cabeçalhos e política nas frentes de navegador, (3) portão de segredo, (4) cadeia de suprimentos** | Uma fase por assunto (cinco); ou duas fases grandes (navegador e CI) | A ordem é por dependência real: a política de conteúdo da fase 2 precisa nomear a origem da API, que a fase 1 fixa; e a fase 4 fixa em SHA todas as linhas `uses:`, incluindo as que a fase 3 acrescenta ao CI — na ordem inversa, a mesma linha seria escrita duas vezes. Quarentena e SHA ficam juntos na fase 4 porque são o mesmo assunto, cadeia de suprimentos, e o mesmo arquivo de configuração |
+| D11 | discovery | **O item segue inteiro, com cinco assuntos, em vez de ser quebrado** | Propor a quebra em quatro ou cinco itens, como o INVEST manda quando *pequeno* falha | *Pequeno* não falhou: nenhum dos cinco tem lógica de domínio, os cinco são verificáveis por comando, e cabem em quatro fases curtas. Além disso a decisão D27 da Fase 3 de `001` já pesou essa quebra e a descartou, e refazê-la agora seria **mudar o roadmap** — que a norma da corrida reserva ao dono. A tensão está registrada no `00-discovery.md`, na nota sobre *pequeno*, para o caso de ele discordar |
+
+## Aprovações registradas em modo autônomo
+
+Cada linha aqui é um `state.sh approve --por autonomo` ou um
+`diverge-set --por autonomo` que o dono **não** deu.
+
+| Estágio | Documento | O que foi aprovado | Quando |
+|---|---|---|---|
+| discovery | `00-discovery.md` | O estágio não tem aprovação: sai por `stage --stage prd`. As decisões D1–D11 acima são o que ele leva junto | 2026-09-03 |
+
+## O que ficou para o dono
+
+- **A quebra do item, se ele discordar de D11.** O item tem cinco assuntos e
+  quatro fases; a régua do INVEST passa, mas por margem. Quebrar é decisão dele,
+  porque mexe no roadmap.
+- **O robô de atualização de ações (D5).** É a única decisão deste discovery que
+  põe algo novo agindo sobre o repositório de fora. Reversível apagando
+  `.github/dependabot.yml`.
+- **Os cabeçalhos que só o host de produção entrega** — `frame-ancestors`,
+  `X-Frame-Options` e HSTS para `apps/web`. Viram item de roadmap nesta sessão,
+  dependente da escolha de deploy, que é dele.
