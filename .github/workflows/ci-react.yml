@@ -108,6 +108,18 @@ jobs:
           VITE_API_URL: http://localhost:3000
         run: pnpm --filter web run build
 
+      # A política do app é gravada no `index.html` pelo plugin do
+      # `vite.config.ts`, e os quatro cabeçalhos constantes só existem em
+      # resposta HTTP dos dois servidores do Vite. Nenhum dos dois é observável
+      # lendo o código-fonte, e verificação que nunca roda de novo deixa de
+      # valer no primeiro PR que mexer no artefato ou no plugin. A origem é a
+      # mesma com que o passo acima construiu.
+      - name: Política de conteúdo e cabeçalhos da web
+        run: bash apps/web/scripts/verificar-politica.sh http://localhost:3000
+
+      - name: As asserções da política da web mordem
+        run: bash apps/web/scripts/__tests__/verificar-politica.test.sh
+
   comportamental:
     needs: guarda
     if: needs.guarda.outputs.pronto == 'true'
