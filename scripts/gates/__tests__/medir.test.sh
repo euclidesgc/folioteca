@@ -26,6 +26,21 @@ caso() { # caso <nome> <esperado 0|1> <corpo>
   fi
 }
 
+# `caso` roda o corpo sem `set -e`, e o `run:` do GitHub Actions roda com ele.
+# A diferença não é acadêmica: uma atribuição que herda saída não-zero mata o
+# script antes da mensagem, e o passo fica vermelho sem dizer o que mediu — que
+# é a reprovação muda, indistinguível de crash. Este caso mede a voz.
+caso_fala() { # caso_fala <nome> <trecho esperado> <corpo>
+  local nome="$1" trecho="$2" corpo="$3" saida
+  saida="$(bash -e -c "$corpo" 2>&1)"
+  if printf '%s' "$saida" | grep -qF "$trecho"; then
+    printf '  ok    %s\n' "$nome"
+  else
+    printf '  FALHA %s — a saída sob `bash -e` não contém %s\n' "$nome" "$trecho"
+    falhas=$((falhas + 1))
+  fi
+}
+
 caso "exige_caminho passa quando existe" 0 \
   "GITHUB_WORKSPACE='$tmp'; source '$lib'; exige_caminho existe 'um diretório'"
 caso "exige_caminho REPROVA quando não existe" 1 \
@@ -57,6 +72,25 @@ caso "exige_pacote_pnpm REPROVA quando o filtro não casa pacote" 1 \
   "source '$lib'; exige_pacote_pnpm pacote-inexistente-42 'um pacote do workspace'"
 caso "exige_pacote_pnpm passa com um pacote real do workspace" 0 \
   "source '$lib'; exige_pacote_pnpm site 'o hotsite'"
+
+# O marcador tem de vir do shell do sistema. Um `sh` que o PATH ofereça — e
+# `pnpm exec` oferece o `node_modules/.bin` do pacote antes de tudo — mataria a
+# medição e ainda daria execução de código a quem plantasse o binário.
+mkdir -p "$tmp/bin-sequestrado"
+printf '#!/bin/sh\nexit 0\n' > "$tmp/bin-sequestrado/sh"
+chmod +x "$tmp/bin-sequestrado/sh"
+caso "exige_pacote_pnpm ignora o 'sh' que o PATH oferece" 0 \
+  "PATH=\"$tmp/bin-sequestrado:\$PATH\"; source '$lib'; exige_pacote_pnpm site 'o hotsite'"
+
+# As duas reprovações abaixo rodam sob `bash -e`, como o `run:` do CI. O que se
+# mede aqui não é o código de saída, é a voz: portão que reprova calado não pode
+# ser auditado, e não se distingue de um crash da ferramenta.
+caso_fala "exige_pacote_pnpm diz quanto mediu antes de reprovar" "medido: 0 pacote(s)" \
+  "source '$lib'; exige_pacote_pnpm pacote-inexistente-42 'um pacote do workspace'"
+caso_fala "exige_pacote_pnpm nomeia a impossibilidade de medir" "REPROVADO por impossibilidade de medição" \
+  "source '$lib'; exige_pacote_pnpm pacote-inexistente-42 'um pacote do workspace'"
+caso_fala "conta_sob nomeia a impossibilidade de medir" "REPROVADO por impossibilidade de medição" \
+  "GITHUB_WORKSPACE='$tmp'; source '$lib'; conta_sob apps/api/src -name '*.ts'"
 
 if [ "$falhas" -eq 0 ]; then
   printf '\n✓ medir.sh: todas as asserções mordem.\n'

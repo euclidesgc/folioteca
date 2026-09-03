@@ -352,6 +352,29 @@ preferir renumerar, o trabalho é mecânico e exige reaprovar o plano.
 | `D-017` | O critério comportamental de RF-10 acrescenta a linha `Divergente` ao cliente gerado e espera o par sair não-zero | Executado assim, o comando sai **0**: `openapi-ts` reescreve o arquivo inteiro e apaga a linha antes de o `git diff` comparar árvore e índice. O *Dado* passa a registrar a linha no índice, que é o estado de um checkout do CI | Medir com `git diff --exit-code HEAD -- <caminho>`, que morde mas deixa o critério com um comando diferente do que o job executa |
 | `D-018` | As seis etapas da Fase 5 falam de `.github/workflows/**` e do `README.md` da raiz | O diff tem dois arquivos fora dali — `scripts/gates/medir.sh` e o teste dele —, sem os quais os passos com `pnpm --filter` aprovariam sem medir. Uma etapa 5.0 passa a descrevê-los | Deixar os dois arquivos sem etapa, repetindo o precedente que `D-015` recusou na fase anterior |
 
+### Apontamentos da revisão e da auditoria da Fase 5, aplicados
+
+| Onde | O que estava errado | O que passou a valer |
+|---|---|---|
+| `scripts/gates/medir.sh` | `pnpm --filter <f> exec sh` resolve `sh` pelo PATH, e `pnpm exec` põe o `node_modules/.bin` do pacote na frente dele: uma dependência que declarasse `"bin": {"sh": ...}` responderia no lugar do shell, dando execução de código no passo que existe só para medir | `/bin/sh` por caminho absoluto, com um caso de teste que sequestra o PATH e prova que a asserção o ignora |
+| `scripts/gates/medir.sh` | `casados="$(… \| grep -c …)"`: `grep -c` sai 1 quando conta zero, e o `run:` do GitHub roda `bash -e`. A asserção morria na atribuição e o passo ficava vermelho **sem imprimir uma linha** — reprovação muda, indistinguível de crash da ferramenta | A contagem tolera o não-zero do `grep`, a saída do pnpm é preservada e impressa quando a medição falha, e três casos novos rodam sob `bash -e` exigindo que a mensagem apareça. Removido o `\|\| true`, dois deles falham |
+| `.github/workflows/*.yml` | Nenhum dos fluxos declarava `permissions`. O padrão de hoje é leitura, mas ele vive na configuração da organização, muda por um clique e não aparece em diff | `permissions: contents: read` no topo dos três, onde a revisão de PR alcança |
+| `.github/workflows/*.yml` | Os filtros `paths` não listavam `pnpm-lock.yaml`, `package.json` nem `pnpm-workspace.yaml`: um push que mexesse só no lockfile ou no script `contract` da raiz não disparava fluxo nenhum | Os três arquivos da raiz entraram nos filtros dos três fluxos |
+| `ci-nestjs.yml`, job `contrato` | `git diff --exit-code` só enxerga arquivo rastreado: um gerador que passasse a emitir um arquivo novo deixaria os dois pares batendo e o cliente commitado incompleto | Uma verificação de `git status --porcelain --untracked-files=all` reprova arquivo gerado que ninguém versionou |
+| `ci-nestjs.yml`, passo `Migrations aplicáveis` | `prisma migrate diff … \|\| { echo "há drift"; }` transformava erro de execução em drift, e mandaria o próximo dev gerar uma migration que não resolveria nada | O código de saída é lido: 0 é igualdade, 2 é drift, e qualquer outro é medição impossível, dita com esse nome |
+| `ci-nestjs.yml`, jobs `qualidade` e `integracao` | `if: needs.contrato.outputs.pronto == 'true'` era tautologia — `contrato` só roda quando a guarda aprovou, e repassava o mesmo valor. Lógica morta que **parecia** ser o mecanismo de propagação | O `if` e o `outputs` saíram; quem propaga o pulo e a reprovação é a aresta `needs`, e o comentário do job diz isso |
+| `ci-react.yml`, passo `Direção de dependência` | A guarda `[ -f apps/web/.dependency-cruiser.cjs ]` pulava em silêncio, e o arquivo não existe: o passo nunca rodou uma vez, sob um comentário que promete análise de ciclo e fronteira | O passo anuncia em `::notice::` que não mediu e nomeia o item `025` do roadmap, que é onde a análise passa a existir |
+| `ci-react.yml`, passo `Testes` | `pnpm --filter web run test -- --reporter=dot` repassa o `--` ao vitest, que o lê como separador de posicionais: o reporter compacto nunca foi aplicado | `pnpm --filter web exec vitest run --reporter=dot`, e a saída sai em pontos |
+| `ci-nestjs.yml`, serviço `postgres` | O comentário justificava a senha por ser "única por corrida, e nada a rotacionar". `github.run_id` é público — está na URL da execução — e viaja inteiro na `DATABASE_URL` | A justificativa passa a ser a verdadeira: credencial descartável de um banco que só o runner efêmero alcança, com a nota de que o `ports:` publicado é o que precisa sair se o job mudar para runner próprio |
+
+### Achados da Fase 5 encaminhados, não aplicados
+
+| Achado | Por que não nesta fase | Onde foi parar |
+|---|---|---|
+| As 25 referências a ação de terceiro no CI usam tag móvel (`@v4`); quem comprometer a ação repointa a tag e executa no runner depois de o `checkout` ter gravado o token no disco | Fixar em SHA é manutenção contínua — precisa de rotina de atualização junto, senão o repositório congela em versões com defeito conhecido. Enxertar isso aqui entrega metade | Item `023-endurecimento-antes-da-sessao`, que já é o item de cadeia de suprimentos |
+| `gates_runner.sh` no modo por diff cai para `git diff --name-only HEAD`, sempre vazio num runner: universo de zero arquivos e portões verdes sem terem olhado nada | Latente: `.harness/config.json` declara `greenfield`, e nesse modo o dispatcher mede a árvore inteira e diz quantos arquivos considerou. Corrigir agora seria mexer no dispatcher fora de qualquer etapa desta fase | Item `026-o-modo-de-diff-dos-portoes-mede-ou-reprova` |
+| `apps/web` não tem `.dependency-cruiser.cjs` nem declara `dependency-cruiser` | A configuração das regras de fronteira é decisão da frente React, não do CI, e o portão G5 já cobre a direção `shared → features → app` por script | Item `025-a-direcao-de-dependencia-e-medida` |
+
 ## Por que o loop parou
 
 _(preenchido quando o loop parar)_

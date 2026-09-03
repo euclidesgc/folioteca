@@ -3,9 +3,24 @@ name: Site
 on:
   push:
     branches: [main, develop]
-    paths: ["apps/site/**", "scripts/gates/**", ".github/workflows/ci-site.yml"]
+    paths:
+      - "apps/site/**"
+      - "scripts/gates/**"
+      - ".github/workflows/ci-site.yml"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
   pull_request:
-    paths: ["apps/site/**", "scripts/gates/**", ".github/workflows/ci-site.yml"]
+    paths:
+      - "apps/site/**"
+      - "scripts/gates/**"
+      - ".github/workflows/ci-site.yml"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+
+permissions:
+  contents: read
 
 jobs:
   verificacao:

@@ -8,12 +8,25 @@ on:
       - "apps/web/src/shared/api/generated/**"
       - "scripts/gates/**"
       - ".github/workflows/ci-nestjs.yml"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
   pull_request:
     paths:
       - "apps/api/**"
       - "apps/web/src/shared/api/generated/**"
       - "scripts/gates/**"
       - ".github/workflows/ci-nestjs.yml"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+
+# O teto de permissão fica escrito aqui, e não na configuração da organização:
+# lá ele muda por um clique que não aparece em diff nenhum, e o dia em que
+# virar "read and write" é o dia em que uma ação de terceiro comprometida
+# escreve na branch com o token que o checkout deixou no disco.
+permissions:
+  contents: read
 
 jobs:
   # Simétrica à guarda do fluxo da web, e pela mesma razão: `apps/api` nasce
@@ -50,15 +63,14 @@ jobs:
   # Contrato divergente reprova antes de qualquer teste rodar: um cliente gerado
   # de um contrato que o código não produz mais quebra em runtime, no consumidor
   # que ninguém testou, e gastar minutos de teste sobre essa premissa só atrasa a
-  # notícia. O veredicto da guarda atravessa este job para os que dependem dele,
-  # que é o que permite `needs: contrato` sem perder a medição de origem.
+  # notícia. `qualidade` e `integracao` dependem deste job e de mais nada: um
+  # `needs` pulado ou reprovado pula quem depende dele, e é essa aresta — não uma
+  # condição repetida em cada job — que faz o veredicto da guarda chegar lá.
   contrato:
     needs: guarda
     if: needs.guarda.outputs.pronto == 'true'
     name: Contrato OpenAPI
     runs-on: ubuntu-latest
-    outputs:
-      pronto: ${{ needs.guarda.outputs.pronto }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -97,10 +109,17 @@ jobs:
             echo "::error::O cliente apps/web/src/shared/api/generated não é o que o contrato gera. Rode 'pnpm contract' e comite o par inteiro."
             exit 1
           }
+          # `git diff` só enxerga arquivo rastreado. Um gerador que passe a
+          # emitir um arquivo novo deixaria os dois pares batendo e o cliente
+          # commitado incompleto.
+          if git status --porcelain --untracked-files=all -- apps/api/openapi.json apps/web/src/shared/api/generated | grep -q '^??'; then
+            git status --porcelain --untracked-files=all -- apps/api/openapi.json apps/web/src/shared/api/generated
+            echo "::error::A geração produziu arquivo que não está versionado. Comite-o junto do par."
+            exit 1
+          fi
 
   qualidade:
     needs: contrato
-    if: needs.contrato.outputs.pronto == 'true'
     name: Lint, tipos e testes
     runs-on: ubuntu-latest
     steps:
@@ -133,7 +152,6 @@ jobs:
 
   integracao:
     needs: contrato
-    if: needs.contrato.outputs.pronto == 'true'
     name: Integração
     runs-on: ubuntu-latest
     # O banco é real, com a extensão de vetores, porque é o que a plataforma
@@ -144,11 +162,12 @@ jobs:
         image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: folioteca
-          # Sem literal de senha em arquivo versionado. O banco é efêmero e
-          # morre com o runner, mas senha escrita à mão num YAML é achado de
-          # scanner com razão — e a exceção "esta aqui é inofensiva" é como
-          # todas as outras começam. O valor sai do identificador da execução:
-          # único por corrida, e nada a rotacionar.
+          # Credencial descartável de um banco que só este runner efêmero
+          # alcança — não é segredo, e não pode virar um. O identificador da
+          # corrida é público (está na URL da execução) e viaja inteiro na
+          # DATABASE_URL abaixo, então o que protege este banco é o isolamento
+          # de rede do runner, não o valor. No dia em que o job mudar para
+          # runner próprio, o `ports:` publicado é o que precisa sair.
           POSTGRES_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}
           POSTGRES_DB: folioteca
         ports: ["5432:5432"]
@@ -196,10 +215,19 @@ jobs:
             echo "::notice::Prisma ainda não existe neste repositório — nada a medir. Este portão passa a valer no item que introduzir o esquema."
             exit 0
           fi
-          pnpm --filter api exec prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel ./prisma/schema.prisma --exit-code || {
-            echo "::error::O esquema tem mudanças sem migration correspondente."
-            exit 1
-          }
+          codigo=0
+          pnpm --filter api exec prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel ./prisma/schema.prisma --exit-code || codigo=$?
+          case "$codigo" in
+            0) echo "medido: o esquema e as migrations dizem a mesma coisa." ;;
+            2)
+              echo "::error::O esquema tem mudanças sem migration correspondente."
+              exit 1
+              ;;
+            *)
+              echo "::error::prisma migrate diff não conseguiu medir (código $codigo) — não é drift, é medição impossível."
+              exit 1
+              ;;
+          esac
 
   gates:
     needs: guarda

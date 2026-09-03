@@ -35,7 +35,11 @@ PR e commit já escritos.
       de os três apps subirem e o CI medi-los.
       **Origem:** Fase 3 de `001-esqueleto-do-monorepo`, auditoria de segurança
       do primeiro contato entre navegador e API. É mais barato endurecer com uma
-      rota do que com dez, e a rota seguinte já traz sessão.
+      rota do que com dez, e a rota seguinte já traz sessão. A Fase 5 acrescenta
+      a este item as ações de terceiro do CI: as 25 referências são tags móveis
+      (`@v4`), e quem comprometer a ação repointa a tag e roda no runner depois
+      de o `checkout` já ter gravado o token no disco — a correção é fixar cada
+      uma em SHA de 40 caracteres com a versão em comentário.
 
 - [ ] `024-o-lint-reprova-o-que-diz-cobrar` — o script `lint` das três frentes
       reprova o que hoje ele apenas avisa, e a marca de comentário de
@@ -50,6 +54,32 @@ PR e commit já escritos.
       que `scripts/gates/gate3_no_comments.sh` aceita como justificativa são
       todas em português menos `workaround` — escrito em inglês, o comentário de
       justificativa perde a marca e o portão o acusa de mecânica.
+
+- [ ] `025-a-direcao-de-dependencia-e-medida` — a análise de dependência de
+      `apps/web` roda de verdade no CI, com as regras de fronteira do
+      bulletproof-react escritas, em vez de ser pulada por falta de configuração
+      **Depende de:** `001-esqueleto-do-monorepo` — a frente precisa existir, com
+      features e barris, antes de haver fronteira que a análise possa cobrar.
+      **Origem:** Fase 5 de `001-esqueleto-do-monorepo`. O passo "Direção de
+      dependência" do fluxo de React é guardado por `[ -f
+      apps/web/.dependency-cruiser.cjs ]`, e esse arquivo não existe: o passo
+      nunca rodou e nunca vai rodar sozinho. O portão G5 cobre a direção
+      `shared → features → app` por script de shell, então o que falta é o ciclo
+      e a fronteira que só a análise de grafo enxerga — nem `dependency-cruiser`
+      está declarado em `apps/web`.
+
+- [ ] `026-o-modo-de-diff-dos-portoes-mede-ou-reprova` — quando o dispatcher de
+      portões avalia por diff e não consegue resolver a base de comparação, ele
+      reprova em vez de devolver um universo vazio
+      **Depende de:** `001-esqueleto-do-monorepo` — os portões e o dispatcher
+      nascem lá, e é lá que o modo por diff passa a existir.
+      **Origem:** Fase 5 de `001-esqueleto-do-monorepo`, revisão do CI. Hoje o
+      defeito é latente: `.harness/config.json` declara `greenfield`, e nesse
+      modo `gates_runner.sh` mede a árvore inteira e diz quantos arquivos
+      considerou. No dia em que o projeto virar `brownfield`, `changed_files()`
+      cai para `git diff --name-only HEAD`, que num runner recém-clonado é
+      sempre vazio — universo de zero arquivos, e os portões saem verdes sem ter
+      olhado arquivo algum.
 
 - [ ] `002-conta-e-organizacao` — quem se cadastra cria a organização e vira o
       seu primeiro administrador; o endereço é confirmado por e-mail, a senha se

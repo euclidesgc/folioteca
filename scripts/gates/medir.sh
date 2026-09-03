@@ -74,11 +74,21 @@ conta_sob() {
 # filters" e sai 0. É a quarta forma da tabela: o passo do CI aprova sem ter
 # rodado nada, e o fluxo inteiro fica verde por não ter medido.
 exige_pacote_pnpm() {
-  local filtro="$1" descricao="$2" casados
+  local filtro="$1" descricao="$2" saida casados
   exige_comando pnpm
-  # O marcador é a medição. Contar as linhas da saída aprovaria pelo próprio
-  # aviso de "No projects matched", que o pnpm imprime na saída padrão.
-  casados="$(cd "$(medir_raiz)" && pnpm --filter "$filtro" exec sh -c 'echo PACOTE_MEDIDO' 2>/dev/null | grep -c '^PACOTE_MEDIDO$')"
+  # O marcador é a medição, e `/bin/sh` por caminho absoluto é quem o imprime.
+  # Contar as linhas da saída aprovaria pelo próprio aviso de "No projects
+  # matched", que o pnpm manda para a saída padrão; e chamar `sh` pelo nome
+  # deixaria `pnpm exec` resolvê-lo no `node_modules/.bin` do pacote, onde uma
+  # dependência que declare `"bin": {"sh": ...}` responderia no lugar do shell.
+  saida="$(cd "$(medir_raiz)" && pnpm --filter "$filtro" exec /bin/sh -c 'echo PACOTE_MEDIDO' 2>&1)" || true
+  # `grep -c` sai 1 quando conta zero, e o `run:` do GitHub Actions roda
+  # `bash -e`: sem o `|| true`, a asserção morreria na atribuição e o passo
+  # ficaria vermelho sem imprimir uma linha sequer do que mediu.
+  casados="$(printf '%s\n' "$saida" | grep -c '^PACOTE_MEDIDO$' || true)"
   echo "medido: $casados pacote(s) casados pelo filtro '$filtro'"
-  [ "$casados" -ge 1 ] || _reprova "o filtro pnpm '$filtro' não casou pacote nenhum — esperava $descricao, e os passos seguintes sairiam 0 sem rodar"
+  if [ "$casados" -lt 1 ]; then
+    printf '%s\n' "$saida" >&2
+    _reprova "o filtro pnpm '$filtro' não casou pacote nenhum — esperava $descricao, e os passos seguintes sairiam 0 sem rodar"
+  fi
 }

@@ -3,9 +3,24 @@ name: React
 on:
   push:
     branches: [main, develop]
-    paths: ["apps/web/**", "scripts/gates/**", ".github/workflows/ci-react.yml"]
+    paths:
+      - "apps/web/**"
+      - "scripts/gates/**"
+      - ".github/workflows/ci-react.yml"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
   pull_request:
-    paths: ["apps/web/**", "scripts/gates/**", ".github/workflows/ci-react.yml"]
+    paths:
+      - "apps/web/**"
+      - "scripts/gates/**"
+      - ".github/workflows/ci-react.yml"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+
+permissions:
+  contents: read
 
 jobs:
   # A guarda existe porque `apps/web` nasce declarado no workspace e vazio: o
@@ -76,10 +91,12 @@ jobs:
         run: |
           if [ -f apps/web/.dependency-cruiser.cjs ]; then
             pnpm --filter web exec depcruise src --validate
+          else
+            echo "::notice::apps/web não tem .dependency-cruiser.cjs — este passo não mediu nada. A análise passa a valer no item 025-a-direcao-de-dependencia-e-medida do roadmap; até lá, quem cobra a direção de import é o portão G5."
           fi
 
       - name: Testes
-        run: pnpm --filter web run test -- --reporter=dot
+        run: pnpm --filter web exec vitest run --reporter=dot
 
       # O build embute a origem da API no artefato, e desde a fase que criou a
       # web ele recusa subir sem ela: um bundle com a origem ausente vira um
