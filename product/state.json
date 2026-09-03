@@ -302,8 +302,8 @@
           "por": "autonomo"
         },
         "plan": {
-          "at": "2026-09-03T20:52:04Z",
-          "sha": "640df504b5e744e60e86d65b597c51e9291b08a6",
+          "at": "2026-09-03T12:06:52Z",
+          "sha": "2a4928f2e797c0001b4cd1a1ce8922ee7ad426c9",
           "file": "product/items/023-endurecimento-antes-da-sessao/03-plan.md",
           "por": "humano"
         }
@@ -315,7 +315,7 @@
           "reproved_count": 0,
           "verdict": "APROVADO",
           "verdict_file": "product/items/023-endurecimento-antes-da-sessao/05-veredictos/fase-1.md",
-          "validated_sha": "9e8d928cebb9552f0ae861b589e4dc2a9e5fbfe9",
+          "validated_sha": "2bb7fe48c299a34a91227d4e2d82a68dd4c0f0ef",
           "pr": null,
           "blocked_on": [
             "D-002",
@@ -323,10 +323,10 @@
             "D-005",
             "D-006"
           ],
-          "verdict_at": "2026-09-03T12:16:46Z",
+          "verdict_at": "2026-09-03T12:18:47Z",
           "validated_trees": {
-            "apps/api": "5834265686640bd4edbee3e5fc00f1a94de3e48a",
-            "apps/site": "afbe408efb4f61e6f9cbe031b5fb08a5a077a9a1",
+            "apps/api": "94d817949b25e9e6f2c28fb9d817a444f2e4bb32",
+            "apps/site": "89ed1a14167c883397d83f4f9641908ccfaab434",
             "apps/web": "94c9cfdbf62e6d1baa64d43614230676fe4d7b3d"
           }
         }
