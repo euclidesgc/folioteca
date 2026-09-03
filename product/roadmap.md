@@ -192,7 +192,17 @@ revoga o acesso que vinha dele, e a concessão individual sobrevive" diz.
 O que precisa de decisão do dono antes de virar spec. Não é fase, não é item, e
 não bloqueia trabalho que não dependa dela.
 
-Nenhuma pendente.
+- **O status da divergência é escrito em dois lugares e só um deles tem dono.**
+  O `state.py diverge-set` do plugin do harness grava `product/state.json` e não
+  reescreve a linha `**Status:**` do `D-nnn.md`. Dez documentos passaram as
+  Fases 1 e 2 anunciando `PENDENTE` uma decisão já reconciliada. O portão G8
+  fecha a classe do lado de cá — a partir dele, o descompasso reprova o CI em
+  vez de passar despercebido —, mas a correção na origem mora fora deste
+  repositório, e a norma do projeto é que a retrospectiva proponha a mudança do
+  harness, nunca a aplique de dentro de um item. **A decisão é sua:** fazer o
+  `diverge-set` reescrever a linha do documento na mesma transação em que grava
+  o estado, o que torna o G8 uma segunda linha de defesa; ou deixar como está, e
+  o G8 é a única. **Origem:** Fase 3 de `001-esqueleto-do-monorepo`.
 
 ## Validações de campo pendentes
 
