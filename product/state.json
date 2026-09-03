@@ -338,15 +338,19 @@
           }
         },
         "3": {
-          "status": "reprovada",
-          "reproved_count": 1,
-          "verdict": "REPROVADO",
-          "verdict_file": "product/items/023-endurecimento-antes-da-sessao/05-veredictos/fase-3-reprovacao-1.md",
-          "validated_sha": null,
+          "status": "aprovada",
+          "reproved_count": 0,
+          "verdict": "APROVADO",
+          "verdict_file": "product/items/023-endurecimento-antes-da-sessao/05-veredictos/fase-3.md",
+          "validated_sha": "caf226c9e48421ea61fd35e1440f04a23889cf0b",
           "pr": null,
           "blocked_on": [],
-          "verdict_at": "2026-09-03T16:32:50Z",
-          "validated_trees": {}
+          "verdict_at": "2026-09-03T16:40:45Z",
+          "validated_trees": {
+            "apps/api": "94d817949b25e9e6f2c28fb9d817a444f2e4bb32",
+            "apps/site": "c40cb4778ae97ac94831f01ef68f76e34d956ab8",
+            "apps/web": "0cf0f8ba163abd68660669963dd7b6b138664388"
+          }
         }
       },
       "divergences": {
