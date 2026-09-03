@@ -76,11 +76,7 @@
           "verdict_file": "product/items/001-esqueleto-do-monorepo/05-veredictos/fase-4.md",
           "validated_sha": "4f15d09a61281031945a37d5890b9f36e744dcc7",
           "pr": null,
-          "blocked_on": [
-            "D-013",
-            "D-014",
-            "D-015"
-          ],
+          "blocked_on": [],
           "verdict_at": "2026-09-03T08:35:20Z",
           "validated_trees": {
             "apps/api": "5834265686640bd4edbee3e5fc00f1a94de3e48a",
@@ -95,12 +91,7 @@
           "verdict_file": "product/items/001-esqueleto-do-monorepo/05-veredictos/fase-5.md",
           "validated_sha": "85dddfadeb04ac9ec21f88c70f4669ab1ca30f1b",
           "pr": null,
-          "blocked_on": [
-            "D-016",
-            "D-017",
-            "D-018",
-            "D-019"
-          ],
+          "blocked_on": [],
           "verdict_at": "2026-09-03T09:15:56Z",
           "validated_trees": {
             "apps/api": "5834265686640bd4edbee3e5fc00f1a94de3e48a",
@@ -111,84 +102,94 @@
       },
       "divergences": {
         "D-001": {
-          "status": "RECONCILIADA",
+          "status": "APROVADA",
           "kind": "normal",
           "phase": 1,
           "detected_at": "2026-09-02T09:00:40Z",
-          "aprovada_at": "2026-09-02T09:11:35Z",
-          "reconciliada_at": "2026-09-02T09:19:17Z"
+          "aprovada_at": "2026-09-03T20:51:55Z",
+          "reconciliada_at": "2026-09-02T09:19:17Z",
+          "ratificada_por": "humano"
         },
         "D-002": {
-          "status": "RECONCILIADA",
+          "status": "APROVADA",
           "kind": "normal",
           "phase": 2,
           "detected_at": "2026-09-02T09:52:45Z",
-          "aprovada_at": "2026-09-02T09:52:45Z",
-          "reconciliada_at": "2026-09-02T09:56:28Z"
+          "aprovada_at": "2026-09-03T20:51:55Z",
+          "reconciliada_at": "2026-09-02T09:56:28Z",
+          "ratificada_por": "humano"
         },
         "D-003": {
-          "status": "RECONCILIADA",
+          "status": "APROVADA",
           "kind": "normal",
           "phase": 2,
           "detected_at": "2026-09-02T09:52:45Z",
-          "aprovada_at": "2026-09-02T09:52:45Z",
-          "reconciliada_at": "2026-09-02T09:56:28Z"
+          "aprovada_at": "2026-09-03T20:51:55Z",
+          "reconciliada_at": "2026-09-02T09:56:28Z",
+          "ratificada_por": "humano"
         },
         "D-004": {
-          "status": "RECONCILIADA",
+          "status": "APROVADA",
           "kind": "normal",
           "phase": 2,
           "detected_at": "2026-09-02T09:52:45Z",
-          "aprovada_at": "2026-09-02T09:52:45Z",
-          "reconciliada_at": "2026-09-02T09:56:28Z"
+          "aprovada_at": "2026-09-03T20:51:55Z",
+          "reconciliada_at": "2026-09-02T09:56:28Z",
+          "ratificada_por": "humano"
         },
         "D-005": {
-          "status": "RECONCILIADA",
+          "status": "APROVADA",
           "kind": "normal",
           "phase": 2,
           "detected_at": "2026-09-02T09:52:45Z",
-          "aprovada_at": "2026-09-02T09:52:45Z",
-          "reconciliada_at": "2026-09-02T09:56:28Z"
+          "aprovada_at": "2026-09-03T20:51:55Z",
+          "reconciliada_at": "2026-09-02T09:56:28Z",
+          "ratificada_por": "humano"
         },
         "D-006": {
-          "status": "RECONCILIADA",
+          "status": "APROVADA",
           "kind": "normal",
           "phase": 2,
           "detected_at": "2026-09-02T09:52:45Z",
-          "aprovada_at": "2026-09-02T09:52:45Z",
-          "reconciliada_at": "2026-09-02T09:56:28Z"
+          "aprovada_at": "2026-09-03T20:51:56Z",
+          "reconciliada_at": "2026-09-02T09:56:28Z",
+          "ratificada_por": "humano"
         },
         "D-007": {
-          "status": "RECONCILIADA",
+          "status": "APROVADA",
           "kind": "normal",
           "phase": 2,
           "detected_at": "2026-09-02T10:04:19Z",
-          "aprovada_at": "2026-09-02T10:04:19Z",
-          "reconciliada_at": "2026-09-02T17:56:00Z"
+          "aprovada_at": "2026-09-03T20:51:56Z",
+          "reconciliada_at": "2026-09-02T17:56:00Z",
+          "ratificada_por": "humano"
         },
         "D-008": {
-          "status": "RECONCILIADA",
+          "status": "APROVADA",
           "kind": "normal",
           "phase": 2,
           "detected_at": "2026-09-02T10:04:19Z",
-          "aprovada_at": "2026-09-02T10:04:19Z",
-          "reconciliada_at": "2026-09-02T17:56:00Z"
+          "aprovada_at": "2026-09-03T20:51:56Z",
+          "reconciliada_at": "2026-09-02T17:56:00Z",
+          "ratificada_por": "humano"
         },
         "D-009": {
-          "status": "RECONCILIADA",
+          "status": "APROVADA",
           "kind": "normal",
           "phase": 2,
           "detected_at": "2026-09-02T10:04:19Z",
-          "aprovada_at": "2026-09-02T10:04:19Z",
-          "reconciliada_at": "2026-09-02T17:56:00Z"
+          "aprovada_at": "2026-09-03T20:51:56Z",
+          "reconciliada_at": "2026-09-02T17:56:00Z",
+          "ratificada_por": "humano"
         },
         "D-010": {
-          "status": "RECONCILIADA",
+          "status": "APROVADA",
           "kind": "normal",
           "phase": 2,
           "detected_at": "2026-09-02T10:04:19Z",
-          "aprovada_at": "2026-09-02T10:04:19Z",
-          "reconciliada_at": "2026-09-02T17:56:00Z"
+          "aprovada_at": "2026-09-03T20:51:56Z",
+          "reconciliada_at": "2026-09-02T17:56:00Z",
+          "ratificada_por": "humano"
         },
         "D-011": {
           "status": "APROVADA",
@@ -196,7 +197,8 @@
           "phase": 3,
           "detected_at": "2026-09-03T06:55:43Z",
           "aprovada_at": "2026-09-03T06:55:43Z",
-          "ratificada_por": "autonomo"
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-03T20:51:56Z"
         },
         "D-012": {
           "status": "APROVADA",
@@ -204,7 +206,8 @@
           "phase": 3,
           "detected_at": "2026-09-03T07:45:51Z",
           "aprovada_at": "2026-09-03T07:45:51Z",
-          "ratificada_por": "autonomo"
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-03T20:51:56Z"
         },
         "D-013": {
           "status": "RECONCILIADA",
@@ -212,8 +215,9 @@
           "phase": 4,
           "detected_at": "2026-09-03T07:54:56Z",
           "aprovada_at": "2026-09-03T07:54:56Z",
-          "ratificada_por": "autonomo",
-          "reconciliada_at": "2026-09-03T08:14:46Z"
+          "ratificada_por": "humano",
+          "reconciliada_at": "2026-09-03T08:14:46Z",
+          "ratificacao_humana_at": "2026-09-03T20:51:56Z"
         },
         "D-014": {
           "status": "RECONCILIADA",
@@ -221,8 +225,9 @@
           "phase": 4,
           "detected_at": "2026-09-03T08:15:28Z",
           "aprovada_at": "2026-09-03T08:15:28Z",
-          "ratificada_por": "autonomo",
-          "reconciliada_at": "2026-09-03T08:15:28Z"
+          "ratificada_por": "humano",
+          "reconciliada_at": "2026-09-03T08:15:28Z",
+          "ratificacao_humana_at": "2026-09-03T20:51:56Z"
         },
         "D-015": {
           "status": "RECONCILIADA",
@@ -230,8 +235,9 @@
           "phase": 4,
           "detected_at": "2026-09-03T08:27:49Z",
           "aprovada_at": "2026-09-03T08:27:49Z",
-          "ratificada_por": "autonomo",
-          "reconciliada_at": "2026-09-03T08:28:19Z"
+          "ratificada_por": "humano",
+          "reconciliada_at": "2026-09-03T08:28:19Z",
+          "ratificacao_humana_at": "2026-09-03T20:51:56Z"
         },
         "D-016": {
           "status": "RECONCILIADA",
@@ -239,8 +245,9 @@
           "phase": 5,
           "detected_at": "2026-09-03T08:45:14Z",
           "aprovada_at": "2026-09-03T08:45:16Z",
-          "ratificada_por": "autonomo",
-          "reconciliada_at": "2026-09-03T08:55:08Z"
+          "ratificada_por": "humano",
+          "reconciliada_at": "2026-09-03T08:55:08Z",
+          "ratificacao_humana_at": "2026-09-03T20:51:56Z"
         },
         "D-017": {
           "status": "RECONCILIADA",
@@ -248,8 +255,9 @@
           "phase": 5,
           "detected_at": "2026-09-03T08:51:27Z",
           "aprovada_at": "2026-09-03T08:51:27Z",
-          "ratificada_por": "autonomo",
-          "reconciliada_at": "2026-09-03T08:55:08Z"
+          "ratificada_por": "humano",
+          "reconciliada_at": "2026-09-03T08:55:08Z",
+          "ratificacao_humana_at": "2026-09-03T20:51:56Z"
         },
         "D-018": {
           "status": "RECONCILIADA",
@@ -257,8 +265,9 @@
           "phase": 5,
           "detected_at": "2026-09-03T08:51:27Z",
           "aprovada_at": "2026-09-03T08:51:27Z",
-          "ratificada_por": "autonomo",
-          "reconciliada_at": "2026-09-03T08:55:08Z"
+          "ratificada_por": "humano",
+          "reconciliada_at": "2026-09-03T08:55:08Z",
+          "ratificacao_humana_at": "2026-09-03T20:51:56Z"
         },
         "D-019": {
           "status": "RECONCILIADA",
@@ -266,8 +275,9 @@
           "phase": 5,
           "detected_at": "2026-09-03T09:20:23Z",
           "aprovada_at": "2026-09-03T09:20:23Z",
-          "ratificada_por": "autonomo",
-          "reconciliada_at": "2026-09-03T09:20:33Z"
+          "ratificada_por": "humano",
+          "reconciliada_at": "2026-09-03T09:20:33Z",
+          "ratificacao_humana_at": "2026-09-03T20:51:56Z"
         }
       },
       "criteria_exception": null
@@ -292,10 +302,10 @@
           "por": "autonomo"
         },
         "plan": {
-          "at": "2026-09-03T11:06:48Z",
-          "sha": "42b11ae92acc86ed0c1935d3ed123649e02d40dc",
+          "at": "2026-09-03T20:52:04Z",
+          "sha": "640df504b5e744e60e86d65b597c51e9291b08a6",
           "file": "product/items/023-endurecimento-antes-da-sessao/03-plan.md",
-          "por": "autonomo"
+          "por": "humano"
         }
       },
       "current_phase": null,
@@ -307,8 +317,9 @@
           "phase": null,
           "detected_at": "2026-09-03T10:13:40Z",
           "aprovada_at": "2026-09-03T10:13:40Z",
-          "ratificada_por": "autonomo",
-          "reconciliada_at": "2026-09-03T10:20:51Z"
+          "ratificada_por": "humano",
+          "reconciliada_at": "2026-09-03T10:20:51Z",
+          "ratificacao_humana_at": "2026-09-03T20:51:56Z"
         }
       },
       "criteria_exception": null

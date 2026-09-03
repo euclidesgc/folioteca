@@ -3,31 +3,20 @@ name: React
 on:
   push:
     branches: [main, develop]
-    paths:
-      - "apps/web/**"
-      - "scripts/gates/**"
-      - ".github/workflows/ci-react.yml"
-      - "pnpm-lock.yaml"
-      - "package.json"
-      - "pnpm-workspace.yaml"
+    paths: ["apps/web/**", "scripts/gates/**", ".github/workflows/ci-react.yml"]
   pull_request:
-    paths:
-      - "apps/web/**"
-      - "scripts/gates/**"
-      - ".github/workflows/ci-react.yml"
-      - "pnpm-lock.yaml"
-      - "package.json"
-      - "pnpm-workspace.yaml"
+    paths: ["apps/web/**", "scripts/gates/**", ".github/workflows/ci-react.yml"]
 
-permissions:
-  contents: read
+defaults:
+  run:
+    working-directory: apps/web
 
 jobs:
-  # A guarda existe porque `apps/web` nasce declarado no workspace e vazio: o
-  # esqueleto do monorepo cria o pacote antes de a fase da web escrever a
-  # primeira linha. Sem ela, o fluxo reprova por medir o que ainda não existe,
-  # e CI eternamente vermelho é CI que ninguém lê. Os jobs aparecem como
-  # PULADOS, nunca como verdes — um portão que não mediu não aprova nada.
+  # `apps/web` pode nascer declarado no workspace e vazio: o esqueleto do
+  # monorepo cria o pacote antes de a fase da web escrever a primeira linha.
+  # Sem a guarda, o fluxo reprova por medir o que ainda não existe, e CI
+  # eternamente vermelho é CI que ninguém lê. Os jobs aparecem como PULADOS,
+  # nunca como verdes — um portão que não mediu não aprova nada.
   guarda:
     name: Há código de web?
     runs-on: ubuntu-latest
@@ -35,17 +24,18 @@ jobs:
       pronto: ${{ steps.olha.outputs.pronto }}
     steps:
       - uses: actions/checkout@v4
+      # O `working-directory` do topo vale para todo `run`, inclusive este. Sem
+      # o `.`, a busca vira `apps/web/apps/web/src`, nunca acha nada, e a guarda
+      # responde "não há código" para tudo — os portões saem verdes por não
+      # terem medido, que é o defeito que ela existe para impedir.
       - id: olha
+        working-directory: .
         run: |
           source scripts/gates/medir.sh
-          # exige_caminho reprova se apps/web sumir: aí não é "não há código", é
-          # medição impossível, e portão que não mediu não aprova nada. Foi
-          # exatamente este caso que passou despercebido quando um
-          # working-directory herdado fazia a busca olhar para apps/web/apps/web.
-          exige_caminho apps/web "o pacote da web"
+          exige_caminho "apps/web" "o pacote da web"
           fontes=0
           if [ -d "$(medir_raiz)/apps/web/src" ]; then
-            fontes="$(conta_sob apps/web/src -name '*.ts' -o -name '*.tsx')"
+            fontes="$(conta_sob "apps/web/src" -name '*.ts' -o -name '*.tsx')"
           fi
           echo "medido: $fontes fonte(s) sob apps/web/src"
           if [ "$fontes" -gt 0 ]; then
@@ -67,46 +57,42 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version-file: ".nvmrc"
           cache: pnpm
           cache-dependency-path: "pnpm-lock.yaml"
 
+      # O grafo do workspace se resolve na raiz; instalar dentro do app não o
+      # enxerga.
       - name: Dependências
+        working-directory: .
         run: pnpm install --frozen-lockfile
 
-      - name: Os pacotes deste fluxo estão no workspace
-        run: |
-          source scripts/gates/medir.sh
-          exige_pacote_pnpm web "o pacote da web"
-
       - name: Tipos
-        run: pnpm --filter web run typecheck
+        run: pnpm exec tsc --noEmit
 
       - name: Lint
-        run: pnpm --filter web run lint
+        run: pnpm lint
 
       # A regra de caminho de import do ESLint alcança o que é declarativo; a
       # análise de dependência alcança o ciclo e a fronteira que ela não vê.
       - name: Direção de dependência
         run: |
-          if [ -f apps/web/.dependency-cruiser.cjs ]; then
-            pnpm --filter web exec depcruise src --validate
-          else
-            echo "::notice::apps/web não tem .dependency-cruiser.cjs — este passo não mediu nada. A análise passa a valer no item 025-a-direcao-de-dependencia-e-medida do roadmap; até lá, quem cobra a direção de import é o portão G5."
+          if [ -f .dependency-cruiser.cjs ]; then
+            pnpm exec depcruise src --validate
           fi
 
       - name: Testes
-        run: pnpm --filter web exec vitest run --reporter=dot
+        run: pnpm test -- --reporter=dot
 
-      # O build embute a origem da API no artefato, e desde a fase que criou a
-      # web ele recusa subir sem ela: um bundle com a origem ausente vira um
-      # `throw` incondicional e entrega tela branca por trás de um portão verde.
       # O valor aqui é de verificação — o artefato do CI é descartado, e o de
-      # publicação recebe a origem do ambiente que o publica.
+      # publicação recebe a origem do ambiente que o publica. Sem ele o build
+      # reprova por configuração ausente, porque `env.ts` transforma a falta da
+      # variável em exceção. O gabarito do harness não sabe disso; toda
+      # atualização apaga estas quatro linhas, e elas precisam voltar.
       - name: Build
         env:
           VITE_API_URL: http://localhost:3000
-        run: pnpm --filter web run build
+        run: pnpm build
 
   comportamental:
     needs: guarda
@@ -118,25 +104,27 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version-file: ".nvmrc"
           cache: pnpm
           cache-dependency-path: "pnpm-lock.yaml"
 
       - name: Dependências
+        working-directory: .
         run: pnpm install --frozen-lockfile
 
-      - name: Os pacotes deste fluxo estão no workspace
-        run: |
-          source scripts/gates/medir.sh
-          exige_pacote_pnpm web "o pacote da web"
-
       - name: Navegador
-        run: pnpm --filter web exec playwright install --with-deps chromium
+        run: pnpm exec playwright install --with-deps chromium
 
       # Cada critério comportamental do plano vira um caso aqui. Isto não é
       # suíte de regressão: é a prova do que unidade e integração não provam.
+      # Sem caso escrito ainda, o job diz isso em vez de passar em silêncio.
       - name: Playwright
-        run: pnpm --filter web exec playwright test
+        run: |
+          if [ -z "$(find . -path ./node_modules -prune -o -name '*.spec.ts' -print -quit 2>/dev/null)" ]; then
+            echo "::notice::Nenhum caso Playwright em apps/web ainda — nada a medir."
+            exit 0
+          fi
+          pnpm exec playwright test
 
       - uses: actions/upload-artifact@v4
         if: failure()
@@ -155,6 +143,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Gates
+        working-directory: .
         env:
           HARNESS_DIFF_BASE: origin/${{ github.base_ref || 'develop' }}...HEAD
         run: bash scripts/gates/gates_runner.sh

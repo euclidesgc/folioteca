@@ -82,9 +82,27 @@ def tracked_files():
     return [line for line in out.stdout.splitlines() if line]
 
 
+def configured_branches():
+    """Os nomes que o projeto declarou, não os que o harness supunha.
+
+    `origin/develop` e `origin/main` eram literais aqui. Num repositório com
+    outra nomenclatura os dois falham, a cascata cai em `HEAD~1`, e o gate passa
+    a cobrar o diff contra o commit anterior em vez do ponto de partida da fase.
+    Ele continua verde, e é por isso que ninguém percebe.
+    """
+    nomes = [(config.get("branches") or {}).get(papel) for papel in ("integracao", "producao")]
+    return [n for n in dict.fromkeys(n for n in nomes if n)]
+
+
 def changed_files():
     base = os.environ.get("HARNESS_DIFF_BASE", "")
-    ranges = [base] if base else ["origin/develop...HEAD", "origin/main...HEAD", "HEAD~1"]
+    if base:
+        ranges = [base]
+    else:
+        declaradas = [f"origin/{nome}...HEAD" for nome in configured_branches()]
+        # A cascata antiga fica no fim como último recurso, para o projeto que
+        # ainda não declarou nada continuar funcionando como funcionava.
+        ranges = declaradas + ["origin/develop...HEAD", "origin/main...HEAD", "HEAD~1"]
     for candidate in ranges:
         out = subprocess.run(
             ["git", "diff", "--name-only", "--diff-filter=ACMR", candidate],

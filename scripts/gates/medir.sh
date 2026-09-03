@@ -12,7 +12,7 @@
 #
 # Quando a primeira fica implícita, o predicado responde igual para "procurei e
 # não achei" e para "não consegui procurar" — e o portão passa por não ter
-# medido. Aconteceu quatro vezes num único dia neste repositório:
+# medido. Aconteceu quatro vezes num único dia no primeiro projeto real:
 #
 #   find apps/api/src -name '*.ts'   → vazio se não há fonte E se o diretório
 #                                      não existe. A guarda do CI rodava dentro
