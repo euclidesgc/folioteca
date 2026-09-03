@@ -26,7 +26,7 @@ PR e commit já escritos.
 - [x] `001-esqueleto-do-monorepo` — os três apps sobem, o contrato OpenAPI é
       gerado e o cliente é gerado dele, e o CI fica verde nos três
 
-- [ ] `023-endurecimento-antes-da-sessao` — o navegador recebe cabeçalhos de
+- [-] `023-endurecimento-antes-da-sessao` — o navegador recebe cabeçalhos de
       segurança e política de conteúdo, o artefato de build é medido contra
       segredo antes de publicar, a origem autorizada aceita uma lista em vez de
       um valor só, e dependência recém-publicada cumpre quarentena antes de
@@ -36,10 +36,23 @@ PR e commit já escritos.
       **Origem:** Fase 3 de `001-esqueleto-do-monorepo`, auditoria de segurança
       do primeiro contato entre navegador e API. É mais barato endurecer com uma
       rota do que com dez, e a rota seguinte já traz sessão. A Fase 5 acrescenta
-      a este item as ações de terceiro do CI: as 25 referências são tags móveis
+      a este item as ações de terceiro do CI: as 27 referências são tags móveis
       (`@v4`), e quem comprometer a ação repointa a tag e roda no runner depois
       de o `checkout` já ter gravado o token no disco — a correção é fixar cada
       uma em SHA de 40 caracteres com a versão em comentário.
+
+- [ ] `027-vulnerabilidade-conhecida-reprova-no-ci` — o CI reprova quando uma
+      dependência do lockfile tem aviso de severidade alta, em vez de a conta ser
+      feita à mão numa auditoria de fase
+      **Depende de:** `023-endurecimento-antes-da-sessao` — é o item que traz a
+      cadeia de suprimentos para dentro do CI, e o passo novo nasce junto dos
+      outros dois.
+      **Origem:** discovery de `023`. Nenhum fluxo roda `pnpm audit` nem
+      `osv-scanner`: a única conta já feita foi a decisão `D29` da Fase 3 de
+      `001`, à mão, que prendeu `js-yaml` em `>=4.3.2` por `overrides`. A
+      quarentena que `023` instala atrasa a versão maliciosa e não diz nada sobre
+      a vulnerável que já está no lockfile — são portas diferentes, e só uma
+      delas fecha em `023`.
 
 - [ ] `024-o-lint-reprova-o-que-diz-cobrar` — o script `lint` das três frentes
       reprova o que hoje ele apenas avisa, e a marca de comentário de
@@ -80,6 +93,21 @@ PR e commit já escritos.
       cai para `git diff --name-only HEAD`, que num runner recém-clonado é
       sempre vazio — universo de zero arquivos, e os portões saem verdes sem ter
       olhado arquivo algum.
+
+- [ ] `028-a-norma-carrega-a-tabela-que-os-portoes-citam` — quem lê um portão
+      encontra no `CLAUDE.md` da raiz a tabela das três formas de portão que
+      mentem, que dois arquivos deste repositório já afirmam estar lá
+      **Depende de:** `001-esqueleto-do-monorepo` — é lá que `medir.sh` e o
+      plano que o cita nascem.
+      **Origem:** estágio `spec` de `023-endurecimento-antes-da-sessao`, decisão
+      `D20` em `decisoes-autonomas.md`. `scripts/gates/medir.sh:74` e
+      `product/items/001-esqueleto-do-monorepo/03-plan.md:615` apontam a tabela
+      para o `CLAUDE.md` da raiz; ela não está lá — vive no template do plugin
+      do harness, fora deste repositório. Quem seguir a referência não encontra
+      nada, e a regra 19 fica sem o exemplo que a torna acionável. A alternativa
+      é corrigir as duas referências para onde a tabela realmente mora, mas uma
+      delas está num plano aprovado que não se edita fora de janela de exceção,
+      e apontar para fora do repositório deixa a norma dependente de um plugin.
 
 - [ ] `002-conta-e-organizacao` — quem se cadastra cria a organização e vira o
       seu primeiro administrador; o endereço é confirmado por e-mail, a senha se
@@ -268,6 +296,23 @@ revoga o acesso que vinha dele, e a concessão individual sobrevive" diz.
 O que precisa de decisão do dono antes de virar spec. Não é fase, não é item, e
 não bloqueia trabalho que não dependa dela.
 
+- **Dois cabeçalhos do `apps/web` não têm onde morar enquanto não houver host.**
+  `apps/web` é uma SPA estática e não tem servidor de produção: os dois que
+  existem são o de desenvolvimento e o de pré-visualização do Vite. O item `023`
+  resolve o que a página carrega sozinha — a política de conteúdo vai como
+  `<meta http-equiv>` injetada no build, que atravessa qualquer host — e o que
+  esses dois servidores emitem, `X-Frame-Options: DENY` entre eles. Mas
+  `frame-ancestors` como cabeçalho de resposta e `Strict-Transport-Security`
+  **só existem se um host os emitir**: nenhum dos dois vale em `<meta>`, e o
+  `dist/` servido em produção fica sem a trava de enquadramento que os dois
+  servidores de desenvolvimento já têm. Fechar isso exige saber quem serve o
+  `dist/` em produção — CDN com arquivo de cabeçalhos, nginx, ou o mesmo
+  processo da API —, e escolher host é decisão de deploy, que é sua.
+  **A decisão é sua:** dizer qual é o host, e aí isto vira item; ou aceitar que a
+  janela fique aberta até o primeiro deploy existir.
+  **Origem:** discovery de `023-endurecimento-antes-da-sessao`, decisão autônoma
+  `D1`, refinada por `D18` no estágio `spec`.
+
 - **O template do harness ensina a trava quebrada a todo projeto novo.**
   `templates/ci/harness.yml` do plugin, linha 26, tem a mesma leitura de rótulos
   que aqui nunca travou: `tr -d '[]"' | grep '^blocked-on-'` contra o JSON
@@ -292,6 +337,29 @@ não bloqueia trabalho que não dependa dela.
   `diverge-set` reescrever a linha do documento na mesma transação em que grava
   o estado, o que torna o G8 uma segunda linha de defesa; ou deixar como está, e
   o G8 é a única. **Origem:** Fase 3 de `001-esqueleto-do-monorepo`.
+
+- **O `state.py check` não enxerga divergência que nasceu fora de uma fase.**
+  O `check` alcança `divergences` num ponto só — o laço
+  `for divergence_id in entry.get("blocked_on")`, que percorre as **fases** do
+  item (`scripts/state/state.py:619-632` do plugin). Uma divergência detectada
+  num estágio de documento nasce com `phase: null` e, enquanto o item não tem
+  fase, não está no `blocked_on` de ninguém: o laço nunca a visita. Ela pode
+  estar `PENDENTE`, ou ratificada em modo autônomo esperando olho humano, e o
+  `check` responde `ok` do mesmo jeito. É a forma de falha que o `CLAUDE.md`
+  cataloga — o instrumento responde igual para "não há nada esperando" e para
+  "há, mas não olhei aí". A prova está nesta corrida: `D-001` de
+  `023-endurecimento-antes-da-sessao` foi ratificada por `autonomo`, e
+  `state.sh check` não a lista. A trava real do merge continua de pé, porque é o
+  rótulo `blocked-on-D-001` no PR que o `bloqueio.yml` faz valer — mas o rótulo
+  é posto à mão, e quem esquecesse não seria acusado por nada.
+  **A decisão é sua:** fazer o `check` percorrer `item["divergences"]` inteiro,
+  além do `blocked_on` das fases, ou aceitar que divergência de estágio de
+  documento dependa só do rótulo. Não a apliquei porque o `state.py` mora no
+  plugin, fora deste repositório, e a norma daqui é que a retrospectiva proponha
+  a mudança do harness, nunca a aplique de dentro de um item.
+  **Origem:** estágio `spec` de `023-endurecimento-antes-da-sessao`, ao ratificar
+  `D-001` — ver `product/items/023-endurecimento-antes-da-sessao/04-divergencias/D-001.md`.
+
 
 ## Validações de campo pendentes
 
