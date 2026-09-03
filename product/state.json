@@ -23,8 +23,8 @@
           "file": "product/items/001-esqueleto-do-monorepo/02-spec.md"
         },
         "plan": {
-          "at": "2026-09-03T08:55:08Z",
-          "sha": "624f273de4032c1fc4b9e632ad3113206eb8303b",
+          "at": "2026-09-03T09:20:33Z",
+          "sha": "fd54f28fe7b17ccc1c63d73787a2d61d74232eca",
           "file": "product/items/001-esqueleto-do-monorepo/03-plan.md",
           "por": "autonomo"
         }
@@ -98,7 +98,8 @@
           "blocked_on": [
             "D-016",
             "D-017",
-            "D-018"
+            "D-018",
+            "D-019"
           ],
           "verdict_at": "2026-09-03T09:15:56Z",
           "validated_trees": {
@@ -258,6 +259,15 @@
           "aprovada_at": "2026-09-03T08:51:27Z",
           "ratificada_por": "autonomo",
           "reconciliada_at": "2026-09-03T08:55:08Z"
+        },
+        "D-019": {
+          "status": "RECONCILIADA",
+          "kind": "normal",
+          "phase": 5,
+          "detected_at": "2026-09-03T09:20:23Z",
+          "aprovada_at": "2026-09-03T09:20:23Z",
+          "ratificada_por": "autonomo",
+          "reconciliada_at": "2026-09-03T09:20:33Z"
         }
       },
       "criteria_exception": null

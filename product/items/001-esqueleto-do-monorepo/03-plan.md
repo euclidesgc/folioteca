@@ -605,14 +605,20 @@ divergente antes dos testes.
       `scripts/gates/medir.sh` e os dois casos correspondentes — reprova
       quando o filtro não casa pacote nenhum, passa quando casa — a
       `scripts/gates/__tests__/medir.test.sh`; chamar a asserção nos jobs que
-      usam `pnpm --filter`, logo depois de instalar as dependências.
+      usam `pnpm --filter`, logo depois de instalar as dependências; e dar ao
+      fluxo `.github/workflows/portoes.yml`, que roda esse teste em todo PR, o
+      `pnpm/action-setup` e o `setup-node` de que a asserção precisa — sem
+      `pnpm install`, porque `pnpm --filter <pacote> exec` resolve o pacote pelo
+      `pnpm-workspace.yaml`.
       Justificativa: `pnpm --filter <inexistente> <script>` sai com código 0,
       então um pacote fora de `pnpm-workspace.yaml` deixaria o fluxo verde sem
       ter rodado typecheck, build nem portão — a mesma classe das três formas
       que o `CLAUDE.md` cataloga, e a defesa do projeto para ela é asserção em
       `medir.sh` com teste que prove que morde, não shell repetido dentro do
-      YAML.
-      > Reconciliado em D-018.
+      YAML. O instrumento viaja com a medição que ele sustenta: asserção que
+      conversa com uma ferramenta exige que o fluxo do portão a tenha, senão a
+      reprovação acusa o ambiente em vez da asserção.
+      > Reconciliado em D-018 e D-019.
 - [ ] 5.1 Modificar `.github/workflows/ci-nestjs.yml`: `node-version: "24"` nos
       três jobs, `cache-dependency-path: "pnpm-lock.yaml"`, remoção de
       `defaults.run.working-directory` e uso de `pnpm --filter api <script>` em

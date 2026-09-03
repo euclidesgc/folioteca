@@ -13,6 +13,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # `exige_pacote_pnpm` conversa com o pnpm, então o teste dela precisa do
+      # binário — sem ele a asserção reprova por não achar a ferramenta, e o
+      # portão dos portões passa a acusar o ambiente em vez da asserção. Não há
+      # `pnpm install`: `pnpm --filter <p> exec` resolve o pacote pelo
+      # `pnpm-workspace.yaml`, e instalar dependência aqui só atrasaria o
+      # portão mais barato do repositório.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
       - name: medir.sh reprova quando não consegue medir
         run: bash scripts/gates/__tests__/medir.test.sh
       - name: a fronteira de agent nomeia agents que existem

@@ -344,6 +344,45 @@ preferir renumerar, o trabalho é mecânico e exige reaprovar o plano.
 | D40 | **`exige_pacote_pnpm` entra em `scripts/gates/medir.sh`, com dois casos de teste**, e é chamada nos seis jobs que usam `pnpm --filter` | Escrever a verificação como shell solto dentro de cada YAML | Registrado como `D-018`. `pnpm --filter <inexistente> <script>` sai com código 0: um pacote fora do `pnpm-workspace.yaml` deixaria o fluxo verde sem ter rodado nada. É a quarta forma da tabela de portões que aprovam por não ter medido, e a defesa deste projeto para a classe é asserção testada em `medir.sh` — o `portoes.yml` já roda esse teste em todo PR. A medição usa um marcador impresso pelo próprio comando, porque contar as linhas da saída aprovaria pelo aviso "No projects matched the filters", que o pnpm imprime na saída padrão. |
 | D41 | **O `README.md` da raiz nomeia a porta `5433` do Postgres e explica por que não é a `5432`** | Listar as quatro portas sem justificar a do banco | Um Postgres já instalado na máquina ocupa a 5432, e o conflito só apareceria na primeira consulta, longe da causa. A promessa de "um comando sobe tudo" só se cumpre se o desvio da convenção estiver escrito onde quem clona olha primeiro. |
 
+### O CI achou o que a revisão só avisou — e é a terceira do mesmo tipo
+
+O PR #17 abriu, os três fluxos rodaram e o **portão dos portões reprovou**: três
+casos de `medir.test.sh` falharam no runner porque `portoes.yml` faz `checkout`
+e mais nada, e a asserção nova conversa com o `pnpm`. `exige_comando pnpm`
+reprovou antes de qualquer medição — o comportamento correto dela, acusando o
+ambiente em voz alta em vez de aprovar calada.
+
+A revisão da fase tinha avisado, no apontamento 8: *"o caso 'passa com um pacote
+real' amarra o teste unitário do portão a um `pnpm install` feito no sandbox — se
+as dependências não estiverem lá, ele reprova por ambiente e não por asserção."*
+Apliquei os outros nove apontamentos e deixei esse de fora. Está registrado
+porque o custo de ignorar um aviso preciso é exatamente uma rodada de CI.
+
+A correção é `D-019`: `portoes.yml` ganha `pnpm/action-setup` e `setup-node`,
+sem `pnpm install` — `pnpm --filter <pacote> exec` resolve pelo
+`pnpm-workspace.yaml`, e o teste inteiro passa num clone sem `node_modules`,
+verificado antes de escrever a correção.
+
+**E esta é a terceira divergência de escopo da mesma forma** — `D-015` na Fase 4,
+`D-018` e `D-019` nesta. Sempre: o plano lista os arquivos da fase, o trabalho
+toca um arquivo adjacente que nenhuma etapa nomeia. `D-019` é a mais reveladora,
+porque a etapa 5.0 já existia por causa de `D-018` e mesmo assim ficou
+incompleta: declarou o instrumento e o teste, e esqueceu o fluxo que executa o
+teste. A regra da reincidência manda parar de remendar o caso — a causa está no
+formato da etapa, que é do plugin e este repositório não edita. Foi para
+`.harness/proposals/2026-09-03-002.md`, endereçada a `plan-authoring`,
+`plan-writer` e `criteria-auditor`.
+
+**O veredicto da fase não foi refeito.** Ele mediu os dez critérios sobre
+`85dddfa`, e nenhum deles toca `portoes.yml` — as três frentes de código estão
+com a mesma árvore que ele validou, e `state.py check` não acusa. O que mudou
+depois dele é o fluxo que roda o teste do portão, verificado no CI real: a
+execução seguinte do PR #17 é a evidência.
+
+| # | Decisão | Alternativa descartada | Por quê |
+|---|---|---|---|
+| D44 | **`portoes.yml` ganha o pnpm, sem `pnpm install`** | Instalar as dependências no fluxo, como os outros três fazem | `pnpm --filter <pacote> exec` resolve o pacote pelo `pnpm-workspace.yaml`; instalar dependência atrasaria em minutos o portão mais barato do repositório para não mudar nenhum resultado. Verificado num clone sem `node_modules`: as 15 asserções passam. |
+
 ### Observações do validador cego, decididas e mantidas
 
 O veredicto da Fase 5 é `APROVADO` sem defeito. Ele registra duas assimetrias
@@ -362,6 +401,7 @@ aqui, para não voltarem como dúvida:
 | `D-016` | O critério estrutural de RF-11.2 lista três jobs no fluxo da API e dois no da web, e proíbe qualquer outro | Os dois fluxos têm `guarda` e `gates` desde as fases 2 e 3, e ambos são verificação real. O critério passa a nomear os cinco e os quatro jobs que cada fluxo declara | Apagar `guarda` e `gates`, que tiraria do CI os portões arquiteturais e a proteção contra medição impossível |
 | `D-017` | O critério comportamental de RF-10 acrescenta a linha `Divergente` ao cliente gerado e espera o par sair não-zero | Executado assim, o comando sai **0**: `openapi-ts` reescreve o arquivo inteiro e apaga a linha antes de o `git diff` comparar árvore e índice. O *Dado* passa a registrar a linha no índice, que é o estado de um checkout do CI | Medir com `git diff --exit-code HEAD -- <caminho>`, que morde mas deixa o critério com um comando diferente do que o job executa |
 | `D-018` | As seis etapas da Fase 5 falam de `.github/workflows/**` e do `README.md` da raiz | O diff tem dois arquivos fora dali — `scripts/gates/medir.sh` e o teste dele —, sem os quais os passos com `pnpm --filter` aprovariam sem medir. Uma etapa 5.0 passa a descrevê-los | Deixar os dois arquivos sem etapa, repetindo o precedente que `D-015` recusou na fase anterior |
+| `D-019` | Nenhuma etapa da Fase 5 menciona `.github/workflows/portoes.yml` | O fluxo que roda `medir.test.sh` em todo PR só faz `checkout`, e a asserção nova conversa com o `pnpm`: as três falhas do CI foram de ambiente, não de asserção. A etapa 5.0 passa a nomear o fluxo e a ferramenta que ele precisa ter | Tirar do teste os casos que falam com o pnpm, deixando a asserção sem prova de que morde; ou pular esses casos quando a ferramenta falta, que é o antipadrão escrito dentro do arquivo que o combate |
 
 ### Apontamentos da revisão e da auditoria da Fase 5, aplicados
 
