@@ -152,7 +152,27 @@ printf 'PR #%s liberado: sem bloqueio, nenhuma verificação vermelha nem penden
 # pilha", e não "não consegui perguntar": as três medições acima já provaram
 # que o GitHub responde. Sem elas, esta linha seria o desvio silencioso para o
 # merge que não verifica a pilha.
-if timeout "$TETO" gh stack view >/dev/null 2>&1; then
+#
+# POR QUE ESTAR NUMA PILHA LOCAL NÃO BASTA
+# `gh stack view` responde pela pilha **local**, que existe a partir de uma
+# branch. A pilha do GitHub, que é quem o `gh stack merge` procura pelo número,
+# só nasce com dois PRs: o primeiro item de um roadmap, ou qualquer estágio de
+# documento sozinho, produz um PR único que o `gh stack merge` recusa dizendo
+# que ele "is not a stack number or a stacked pull request". A tranca então
+# media a coisa errada — perguntava "esta branch está numa pilha aqui?" quando
+# a decisão depende de "essa pilha existe lá?" — e o merge liberado não saía.
+# A contagem abaixo é a pergunta certa, e ela é impressa.
+if timeout "$TETO" gh stack view --json >/dev/null 2>&1; then
+  command -v jq >/dev/null 2>&1 || nao_mediu "a pilha respondeu, mas sem jq não há como contar os PRs abertos dela."
+  mede "a pilha da branch atual" gh stack view --json
+  abertos="$(printf '%s' "$MEDIDO" | jq '[.branches[] | select(.pr != null and .pr.state == "OPEN")] | length' 2>/dev/null)"
+  case "$abertos" in
+    ''|*[!0-9]*) nao_mediu "a pilha da branch atual: o \`gh stack view --json\` respondeu, mas sem contagem de PR aberto." ;;
+  esac
+  printf 'medido: a pilha da branch atual tem %s PR(s) aberto(s).\n' "$abertos"
+fi
+
+if [ "${abertos:-0}" -ge 2 ]; then
   mede "a lista de PRs abertos" gh pr list --state open --json number --jq '.[].number'
   abaixo_de_todos="$MEDIDO"
   for abaixo in $(printf '%s\n' "$abaixo_de_todos" | sort -n); do
