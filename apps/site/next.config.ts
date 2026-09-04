@@ -23,6 +23,12 @@ const seguranca =
     : conjuntoConstante;
 
 const nextConfig: NextConfig = {
+  // `standalone` empacota o servidor com só as dependências que ele alcança, e
+  // é o que permite a imagem final não carregar `node_modules` inteiro nem o
+  // pnpm. Sem isto, a imagem do hotsite passa de 1 GB para servir umas poucas
+  // páginas — e o build na VPS, que é de 2 vCPU, paga a diferença a cada deploy.
+  output: "standalone",
+
   // decisão: `next dev` grava um AGENTS.md e um CLAUDE.md neste diretório a cada execução, e norma de projeto escrita e reescrita por um framework não é norma — a daqui é o CLAUDE.md da raiz e o README deste diretório
   agentRules: false,
   // decisão: o cabeçalho entrega de graça qual servidor atende o hotsite, e a mesma spec o proíbe na API — a assimetria entre duas frentes do mesmo endurecimento não se sustenta

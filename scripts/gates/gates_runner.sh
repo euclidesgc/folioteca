@@ -237,6 +237,7 @@ esac
 
 bash "$ROOT/scripts/gates/quarentena.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/acoes_em_sha.sh" || VEREDICTO=1
+bash "$ROOT/scripts/gates/fluxos.sh" || VEREDICTO=1
 
 if [ "$SEM_ARTEFATOS" -eq 1 ]; then
   echo "portão de segredo: não cobrado neste modo — quem o roda constrói antes o que ele varre."

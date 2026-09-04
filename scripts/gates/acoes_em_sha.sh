@@ -53,12 +53,30 @@ if [ "${#FLUXOS[@]}" -eq 0 ]; then
 fi
 
 TOTAL=0
+LOCAIS=0
 VIOLACOES=()
 
 for fluxo in "${FLUXOS[@]}"; do
   while IFS= read -r ocorrencia; do
     numero="${ocorrencia%%:*}"
     linha="${ocorrencia#*:}"
+
+    # REFERÊNCIA LOCAL NÃO SE FIXA EM SHA, PORQUE ELA JÁ ESTÁ FIXA
+    #
+    # `uses: ./.github/workflows/_suite-x.yml` chama um fluxo deste mesmo
+    # repositório, e o GitHub o resolve **no commit que está rodando** — o mesmo
+    # que trouxe o job. Não existe ponteiro móvel para alguém repontar, que é a
+    # única coisa que o pino em SHA evita. Cobrar SHA aqui reprovaria um desenho
+    # correto, e a saída barata seria afrouxar a asserção inteira.
+    #
+    # Isto não abre porta: a forma é ancorada em `./`, então
+    # `uses: dono/repo/.github/workflows/x.yml@v1` — que é referência de OUTRO
+    # repositório e tem ponteiro móvel de verdade — continua sendo cobrada.
+    if [[ "$linha" =~ uses:[[:space:]]*\./ ]]; then
+      LOCAIS=$((LOCAIS + 1))
+      continue
+    fi
+
     TOTAL=$((TOTAL + 1))
     if [[ ! "$linha" =~ $FORMA_DO_SHA ]]; then
       # A linha comentada conta igual, e não é descuido: RF-20.1 e RF-20.2 são
@@ -87,7 +105,7 @@ for fluxo in "${FLUXOS[@]}"; do
   done < <(cd "$RAIZ" && grep -nE "^[[:space:]]*-?[[:space:]]*(\"uses\"|'uses'|uses[[:space:]]+)[[:space:]]*:" "$fluxo" | grep -v 'uses:' || true)
 done
 
-echo "medido: $TOTAL referência(s) 'uses:' em ${#FLUXOS[@]} fluxo(s) de $DIRETORIO_DOS_FLUXOS (piso $PISO_DE_REFERENCIAS)"
+echo "medido: $TOTAL referência(s) 'uses:' externa(s) e $LOCAIS local(is) em ${#FLUXOS[@]} fluxo(s) de $DIRETORIO_DOS_FLUXOS (piso $PISO_DE_REFERENCIAS)"
 
 if [ "$TOTAL" -lt "$PISO_DE_REFERENCIAS" ]; then
   _reprova "contei $TOTAL referência(s) e o piso é $PISO_DE_REFERENCIAS — ou um job sumiu, ou uma referência foi escrita numa forma que este portão não enxerga ('\"uses\":' e 'uses :' são a mesma chave para o GitHub e não contêm a cadeia procurada)"
