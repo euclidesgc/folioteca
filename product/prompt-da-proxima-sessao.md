@@ -14,7 +14,9 @@ Monorepo pnpm: `apps/api` (NestJS, Prisma, Postgres com extensão de vetores),
 
 **Fonte de verdade, nesta ordem:** `product/00-visao-de-produto.md` (as quinze
 regras do modelo de acesso são o coração e não se reinterpretam), `CLAUDE.md`
-(a norma), `product/roadmap.md` (a fila, ordenada por dependência).
+(a norma), `product/00-linguagem-visual.md` (a direção visual, quando o item
+mexe em interface — ver a seção sobre isso), `product/roadmap.md` (a fila,
+ordenada por dependência).
 
 ## O processo
 
@@ -130,6 +132,51 @@ lista: a posição diz o que precisa existir antes dela.
 Texto curto e explicativo, com a referência para quem quiser o detalhe. A
 seção *Pendências de produto abertas* do roadmap é para o que precisa de
 decisão do dono; item de trabalho vai na lista de itens.
+
+## Quando o item mexe em interface
+
+Uma sessão nasce limpa e não viu o que a anterior desenhou. Sem uma fonte
+escrita, a segunda tela escolhe outra paleta que a terceira contradiz, e de
+manhã existem três produtos. Por isso:
+
+**`product/00-linguagem-visual.md` é canônico, como a visão de produto.** Toda
+sessão que escreve interface o lê antes de abrir editor, e nenhuma escolhe cor,
+tipografia, espaçamento, raio ou movimento fora dele. Ele não existe até
+`050-linguagem-visual-e-sistema-de-design` o escrever; a partir daí, mudar o que
+está lá é reconciliação de documento canônico — no presente, sem cicatriz — e
+não uma segunda opinião ao lado.
+
+**Antes de decidir a direção visual, carregue a skill `frontend-design`.** Ela
+existe para o problema que é exatamente o desta corrida: escolha de madrugada,
+sem ninguém para reagir, tende ao gabarito. Três looks denunciam design gerado
+por máquina, e a skill os nomeia — creme com serifa de alto contraste e acento
+terracota; quase-preto com um acento verde-ácido; jornal com fios de cabelo e
+raio zero. Se a sua paleta chegou num deles, ela não foi escolhida.
+
+**A régua, que não se negocia:**
+
+| O quê | Como se prova |
+|---|---|
+| Contraste AA nos dois temas | axe na página viva, sem violação crítica nem séria |
+| Foco visível em tudo que recebe foco | percorrer a tela inteira só com `Tab` |
+| Responsivo do telefone ao monitor largo | 375, 768 e 1440 sem rolagem horizontal do corpo |
+| `prefers-reduced-motion` respeitado | a animação some, o estado final permanece |
+| Nenhum valor mágico | a cor e o espaço vêm do token, e o portão mede |
+| Estado vazio e estado de erro acionáveis | dizem o que aconteceu e qual é o próximo ato |
+
+**Você não dá interface por pronta sem ter olhado para ela.** Critério
+`comportamental` de tela roda no navegador de verdade: suba o app, navegue,
+**tire a captura**, e olhe. Uma tela que passa no teste e está feia passou no
+teste errado — e a captura é a única coisa que separa "os elementos existem" de
+"a página está boa". Guarde as capturas em
+`product/items/<id>/06-capturas/`, com o nome do estado que cada uma mostra;
+elas são a evidência do critério e o que o dono vê de manhã sem subir nada.
+
+**Escreva a interface em pt-BR** — é a regra 16 do `CLAUDE.md`, e vale para
+rótulo, mensagem de erro, estado vazio e texto de botão. O código continua em
+inglês. Rótulo nomeia o que a pessoa controla, nunca como o sistema é feito, e a
+ação mantém o mesmo verbo do começo ao fim: o botão "Publicar" produz o aviso
+"Publicado".
 
 ## Bloqueio é tranca, e você cuida do ciclo inteiro
 

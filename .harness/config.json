@@ -62,5 +62,5 @@
     "hook global mantém o grafo de código (.code-review-graph) em PostToolUse/Edit|Write e SessionStart — o harness não instala um segundo mantenedor",
     "hook global PreToolUse/Bash: rtk hook claude — reescreve comandos antes da execução"
   ],
-  "modo_autonomo": false
+  "modo_autonomo": true
 }
