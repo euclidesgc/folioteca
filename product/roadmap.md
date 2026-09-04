@@ -777,6 +777,22 @@ não bloqueia trabalho que não dependa dela.
   processo — perguntar ao GitHub se rodou, em vez de supor — é o item
   `047-o-veredicto-de-fase-mede-se-o-ci-chegou-a-rodar`.
 
+- **Três ativos deste repositório são mais novos que o gabarito do plugin, e o
+  próximo `--update` os apaga.** A atualização do harness para 0.7.0 copiou os
+  ativos do núcleo por cima, e em três deles o gabarito é a versão anterior ao
+  que este repositório evoluiu: `scripts/gates/gates_runner.sh`, onde o item
+  `023` acrescentou os três portões diretos — quarentena, ações em SHA e
+  segredo — e a flag `--sem-artefatos`; e os fluxos `ci-react.yml` e
+  `ci-nestjs.yml`, que aqui disparam em mais caminhos e declaram `permissions`
+  explícitas. Desta vez a regressão foi vista e desfeita à mão, porque o
+  `compose.py` deixa um `.bak` ao lado de cada ativo que difere — que é
+  exatamente o aviso que ele existe para dar. Mas o aviso só funciona se alguém
+  o ler, e uma corrida autônoma não lê.
+  **A decisão é sua:** subir essa evolução para o `generic_harness`, e aí o
+  gabarito para de regredir; ou tirar os três de `CORE_ASSETS` neste projeto,
+  aceitando que eles deixem de receber correção do plugin. Enquanto nenhuma das
+  duas acontecer, todo `--update` exige revisar os `.bak` antes de commitar.
+  **Origem:** atualização do harness de 0.6.1 para 0.7.0, em 04/09/2026.
 
 ## Validações de campo pendentes
 
