@@ -27,3 +27,70 @@ qualquer trabalho deste item.
 | O que | Onde foi parar |
 |---|---|
 | A isenção de `qs` na quarentena continua vencendo em **2026-09-05** nos dois lugares que o portão compara — `pnpm-workspace.yaml:45,49` e `ISENCOES_ESPERADAS` em `scripts/gates/quarentena.sh:43` —, medido nesta branch, que descende de `5a27dec`. A sessão de controle informou que o vencimento tinha sido corrigido para `2026-09-06`; na árvore que esta sessão vê, não foi. Amanhã `scripts/gates/quarentena.sh` reprova por vencimento em todo PR do repositório, não só no que mexe em dependência | Item `049-a-isencao-de-qs-vence-e-alguem-precisa-fecha-la`, que já existe e já traz a medição das horas — `qs@6.16.0` só completa os sete dias em `2026-09-05T23:50Z`. Nada foi tocado aqui: o par de arquivos é o escopo daquele item, e mexer nele a partir deste seria escrever fora do escopo declarado. A informação foi devolvida à sessão de controle |
+
+## Parada — o CI parou de criar runs, e isso é do dono
+
+**Esta sessão para aqui.** O estágio `discovery` está fechado e o PR #40 está
+aberto, mas o repositório deixou de executar GitHub Actions no meio da sessão, e
+a causa mais provável está fora da máquina de desenvolvimento e do CI — que é um
+dos casos de parada declarados.
+
+### O que foi medido
+
+| Medição | Resultado |
+|---|---|
+| Runs criados para o PR #40 | **Nenhum.** Nem no `opened` (11:46:49Z), nem no `reopened` forçado logo depois |
+| Último run do repositório inteiro | `11:31:06Z`, sobre `5a27dec`, do PR #38. Depois disso, nada — em fluxo nenhum, em branch nenhuma |
+| Actions habilitado | `gh api repos/euclidesgc/folioteca/actions/permissions` → `{"enabled": true, "allowed_actions": "all"}` |
+| Os seis fluxos registrados | `Bloqueio`, `NestJS`, `React`, `Site`, `Portões` e `Harness` — os seis `active` |
+| Fila | `gh run list --status queued` e `--status in_progress` devolvem lista vazia: não é run represado, é run que não nasce |
+| Webhook e criação do PR | Funcionam. O `GitGuardian Security Checks`, que é aplicativo externo, rodou e passou sobre `61e553f` — só o Actions não produziu execução |
+| Consumo de hoje | **189 runs e ~304 minutos de parede em 04/09/2026**, contra 11 runs e ~9 minutos em 03/09. A soma de minutos de *job* é maior que a de parede, porque jobs paralelos contam separados |
+| Cota restante | **Não medida, e não mensurável daqui.** `gh api /users/euclidesgc/settings/billing/actions` responde `404` e pede o escopo `user`, que o token desta sessão não tem |
+
+### O diagnóstico, com a incerteza no lugar certo
+
+O padrão é o de cota de minutos esgotada: execução para de nascer de um instante
+para o outro, sem erro, com tudo habilitado e nada em fila. **Não está provado** —
+a única medição que provaria é a do faturamento, e ela precisa de um escopo que
+esta sessão não tem. Pela regra da casa, o que não se conseguiu medir se declara
+como não medido, e não vira conclusão.
+
+O que está provado é o efeito: **PR aberto hoje não tem verificação nenhuma**, e
+`scripts/merge-se-liberado.sh` recusa PR sem verificação — corretamente, porque
+ausência de vermelho não é verde. Enquanto isto durar, nenhum PR da pilha #39
+mergeia, e a corrida autônoma não tem como fechar fase nenhuma: o veredicto de
+fase depende de portão executado no runner.
+
+### A próxima ação, que é do dono
+
+1. **Ler a cota** em `github.com/settings/billing` — é a medição que falta, e só
+   ela separa "minutos acabaram" de "outra coisa".
+2. Se for cota: elevar o limite de gastos, ou esperar o ciclo virar. Não há
+   contorno do lado do repositório.
+3. Só então a pilha #39 volta a andar — e ela ainda espera, antes disso, a
+   ratificação humana de `D-001` (`diverge-set --id D-001 --status APROVADA
+   --por humano`), que é independente disto.
+
+O item `047-o-veredicto-de-fase-mede-se-o-ci-chegou-a-rodar` já existe no
+roadmap e é exatamente a rede que faltou aqui: ele impede que "o CI não rodou"
+seja lido como "o CI passou". Nada novo foi acrescentado ao roadmap por isto.
+
+### O que este episódio diz sobre o próprio `057`
+
+Reforça o item, e não o muda. `189 runs em um dia` com quatro deles cancelados à
+mão sobre commits já substituídos é a forma do desperdício que a concorrência
+declarada corta. O `057` reduz o consumo; ele não devolve cota gasta, e não é
+contorno para esta parada.
+
+## Reempilhar antes de 05/09 00:00Z
+
+A sessão de controle mediu que `origin/develop` já traz `ISENCOES_ESPERADAS=("qs:2026-09-06")`,
+corrigido no PR #37 depois de esta pilha nascer — o `merge-base` é `d69b9ee`.
+Esta branch ainda carrega `qs:2026-09-05`, e a partir de 05/09 00:00Z
+`scripts/gates/quarentena.sh` reprova por vencimento em toda a pilha. Nenhum
+arquivo do par foi tocado aqui, então o merge preserva o `2026-09-06` de
+`develop`: não há reversão a temer, só CI vermelho enquanto a pilha estiver
+aberta. O conserto é reempilhar sobre `origin/develop`, e ele é de quem retomar
+a pilha — reempilhar daqui reescreveria os commits dos PRs #36 e #38, que são de
+outro item, dentro de uma sessão cujo escopo é o `discovery` do `057`.
