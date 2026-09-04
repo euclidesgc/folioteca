@@ -139,6 +139,33 @@ O motor da auditoria é `pnpm audit --audit-level=high --json`, subcomando do
 - **RF-10** — Se `pnpm` não está no `PATH`, então o portão deve reprovar
   nomeando o binário ausente.
 
+- **RF-19** — Se a contagem de avisos de severidade alta ou crítica do relatório
+  — `metadata.vulnerabilities.critical` somada a `.high` — difere do número de
+  avisos que o portão lê de `.advisories`, então o portão deve sair 1 dizendo
+  `não consegui auditar`, nomeando os dois números.
+  *Medido em `pnpm@11.25.0` (`dist/pnpm.mjs`): `pnpm audit --json` poda
+  `.advisories` duas vezes antes de serializar — pela lista de isenção da
+  configuração (`audit.ignore`, ou o `auditConfig.ignoreGhsas` depreciado, que
+  `pnpm audit --ignore` grava sozinho no `pnpm-workspace.yaml`) e pelo piso de
+  nível — e serializa `metadata` intacta. A contagem sobe uma vez por aviso, no
+  mesmo laço que preenche `.advisories`, então a diferença entre os dois números
+  é exatamente o que ficaria escondido: sem o confronto o portão imprime
+  `high: 2` e aprova dizendo `0 achados` na linha seguinte. O mesmo confronto
+  alcança o relatório cuja forma mudou, em que o filtro de avisos devolve lista
+  vazia sobre uma contagem que acusa aviso.*
+
+- **RF-20** — Se a configuração da raiz — a chave `registry`, com escopo ou sem,
+  no `.npmrc` ou no `pnpm-workspace.yaml` — aponta o registro para fora de
+  `https://registry.npmjs.org`, então o portão deve sair 1 dizendo `não consegui
+  auditar`, antes de qualquer chamada de rede, nomeando o registro esperado.
+  *A configuração da raiz é arquivo do PR, e a contagem de pacotes é lida do
+  lockfile local: um espelho que devolva relatório vazio e internamente coerente
+  passa pelo confronto do `RF-19`, e o portão imprimiria os 923 pacotes e
+  aprovaria com zero achados, além de entregar a árvore de dependências ao
+  servidor que o autor do PR escolheu. O que se mede é o destino da declaração e
+  não a existência dela — declarar `https://registry.npmjs.org` explicitamente é
+  endurecimento, e não conta como desvio.*
+
 ### A isenção
 
 - **RF-11** — O sistema deve ler as isenções de uma constante do próprio script

@@ -289,22 +289,49 @@ printf 'engine-strict=true\nregistry=https://espelho.exemplo/\n' > "$espelho/.np
 caso "registro redirecionado no .npmrc REPROVA por não ter medido" 1 \
   "REPROVADO por impossibilidade de medição, não por resultado." "$espelho"
 caso "registro redirecionado é contado em voz alta" 1 \
-  "medido: 1 redirecionamento(s) de registro em .npmrc" "$espelho"
+  "medido: 1 registro(s) declarado(s) fora de https://registry.npmjs.org" "$espelho"
 marcador_ausente "registro redirecionado reprova antes de chamar a auditoria" "$espelho"
+
+# O `ini` que o npm e o pnpm leem apara o espaço em volta do `=`. Uma peneira que
+# só casasse `registry=` seria derrotada por um espaço — e mediria zero dizendo
+# que mediu.
+com_espaco="$tmp/registro-com-espaco"
+monta_stub "$com_espaco" pnpm-audit-limpo.json 0
+printf 'registry = https://espelho.exemplo/\n' > "$com_espaco/.npmrc"
+caso "espaço em volta do = não esconde o redirecionamento" 1 \
+  "aponta o registro para fora" "$com_espaco"
 
 escopado="$tmp/registro-escopado"
 monta_stub "$escopado" pnpm-audit-limpo.json 0
 printf '@empresa:registry=https://espelho.exemplo/\n' > "$escopado/.npmrc"
 caso "registro de escopo redirecionado também REPROVA" 1 \
-  "redireciona o registro" "$escopado"
+  "aponta o registro para fora" "$escopado"
 
-# O `.npmrc` que não mexe no registro não reprova: o portão mede o
-# redirecionamento, não a existência do arquivo.
+# A outra casa: é onde este repositório já guarda `minimumReleaseAge` e
+# `overrides`, e é a que a mensagem do confronto nomeia como casa do
+# `audit.ignore`. Medir só o `.npmrc` deixaria a porta ao lado aberta.
+workspace="$tmp/registro-no-workspace"
+monta_stub "$workspace" pnpm-audit-limpo.json 0
+printf 'registry: https://espelho.exemplo/\nminimumReleaseAge: 10080\n' > "$workspace/pnpm-workspace.yaml"
+caso "registro no pnpm-workspace.yaml também REPROVA" 1 \
+  "aponta o registro para fora" "$workspace"
+marcador_ausente "registro no pnpm-workspace.yaml reprova antes de auditar" "$workspace"
+
+# Fixar o registro oficial explicitamente é endurecimento, não desvio: o portão
+# mede para onde a declaração aponta, não a existência dela.
+oficial="$tmp/registro-oficial"
+monta_stub "$oficial" pnpm-audit-limpo.json 0
+printf 'registry=https://registry.npmjs.org/\n' > "$oficial/.npmrc"
+caso "registro oficial declarado à mão não é redirecionamento" 0 \
+  "medido: 0 registro(s) declarado(s) fora de" "$oficial"
+
+# O `.npmrc` que não mexe no registro não reprova: o portão mede para onde o
+# registro aponta, não a existência do arquivo.
 npmrc_inocente="$tmp/npmrc-inocente"
 monta_stub "$npmrc_inocente" pnpm-audit-limpo.json 0
 printf 'engine-strict=true\n' > "$npmrc_inocente/.npmrc"
 caso ".npmrc sem redirecionamento não atrapalha a auditoria" 0 \
-  "medido: 0 redirecionamento(s) de registro em .npmrc" "$npmrc_inocente"
+  "medido: 0 registro(s) declarado(s) fora de" "$npmrc_inocente"
 
 # O marcador é a única forma de separar "reprovou" de "reprovou depois de
 # auditar". Sem ele, as duas têm a mesma cara.
@@ -353,6 +380,18 @@ for essencial in dirname git tr cat date jq sed; do
 done
 caso "timeout fora do PATH REPROVA nomeando a ferramenta que falta" 1 \
   "o comando 'timeout' não está no PATH" "$sem_timeout" "$sem_timeout/bin"
+
+# `mktemp` é onde a saída de erro da auditoria é lida. Sem ele o portão perderia
+# a razão de toda falha de rede, e reprovar sem dizer o que consertar é meia
+# medição.
+sem_mktemp="$tmp/path-sem-mktemp"
+monta_stub "$sem_mktemp" pnpm-audit-limpo.json 0
+for essencial in dirname git tr cat date jq sed timeout; do
+  caminho_do_essencial="$(command -v "$essencial")" || continue
+  ln -sf "$caminho_do_essencial" "$sem_mktemp/bin/$essencial"
+done
+caso "mktemp fora do PATH REPROVA nomeando a ferramenta que falta" 1 \
+  "o comando 'mktemp' não está no PATH" "$sem_mktemp" "$sem_mktemp/bin"
 
 # Chamada de rede sem teto não reprova nem aprova: pendura o job até o limite do
 # runner, que é de seis horas por omissão. O caso roda uma cópia do portão com o

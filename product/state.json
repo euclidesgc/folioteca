@@ -540,7 +540,13 @@
         }
       },
       "divergences": {},
-      "criteria_exception": null
+      "criteria_exception": {
+        "file": "product/items/027-vulnerabilidade-conhecida-reprova-no-ci/03-plan.md",
+        "agent": "plan-writer",
+        "phase": 1,
+        "opened_at": "2026-09-04T07:55:26Z",
+        "ttl_min": 30
+      }
     }
   }
 }

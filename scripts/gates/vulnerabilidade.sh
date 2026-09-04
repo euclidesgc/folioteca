@@ -75,7 +75,13 @@ PADRAO_DE_ISENCAO='^(GHSA-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}|[0-9]+):[0-9]{4}-[
 # medindo, está pendurada.
 TETO_DA_AUDITORIA=600
 
-ARQUIVO_DE_ERRO="${TMPDIR:-/tmp}/vulnerabilidade-$$.erro"
+# `mktemp` e não um nome derivado do PID: nome previsível em diretório
+# compartilhado é arquivo que outro usuário planta como link antes, e o `2>` do
+# shell segue link. O `trap` cobre a interrupção, que o `rm` no fim do caminho
+# feliz não cobre.
+ARQUIVO_DE_ERRO=""
+limpar_arquivo_de_erro() { [ -n "$ARQUIVO_DE_ERRO" ] && rm -f "$ARQUIVO_DE_ERRO"; }
+trap limpar_arquivo_de_erro EXIT
 
 # `-k 30`: processo que ignora o SIGTERM penduraria o job assim mesmo, que é o
 # cenário que o teto existe para eliminar. A saída de erro vai para arquivo em
@@ -104,29 +110,56 @@ done
 exige_comando pnpm
 exige_comando jq
 exige_comando timeout
+exige_comando mktemp
 exige_caminho pnpm-lock.yaml "o lockfile da raiz que a auditoria lê"
+
+ARQUIVO_DE_ERRO="$(mktemp)" || _reprova "não consegui auditar o pnpm-lock.yaml: mktemp não criou o arquivo onde a saída de erro da auditoria seria lida"
 
 RAIZ="$(medir_raiz)"
 HOJE="$(date -u +%Y-%m-%d)"
 
-# Quem responde a auditoria é escolhido pelo `.npmrc` da raiz, que é arquivo do
-# PR: um `registry=` apontado para um espelho que devolve nada faria o portão
-# imprimir os 923 pacotes do lockfile — a contagem é local — e aprovar com zero
-# achados, além de entregar a árvore inteira de dependências ao servidor que o
-# autor do PR escolheu. A configuração da máquina de quem executa não é medida
-# aqui: contra ela a rede é o confronto das contagens, abaixo.
-REDIRECIONAMENTOS=0
-if [ -f "$RAIZ/.npmrc" ]; then
+# Quem responde a auditoria é escolhido pela configuração da raiz, que é arquivo
+# do PR: um registro apontado para um espelho que devolve `{"advisories":{}}`
+# faria o portão imprimir os 923 pacotes do lockfile — a contagem é local — e
+# aprovar com zero achados, além de entregar a árvore inteira de dependências ao
+# servidor que o autor do PR escolheu. A resposta forjada é internamente
+# coerente, então o confronto das contagens, abaixo, não a pega: ele cobre a
+# **poda** que a configuração da máquina de quem executa faria, e não o registro
+# mentiroso, cujas duas metades são forjadas juntas.
+#
+# As duas casas são medidas porque as duas valem: o `ini` do `.npmrc` apara o
+# espaço em volta do `=`, e o `pnpm-workspace.yaml` é onde este repositório já
+# guarda `minimumReleaseAge` e `overrides`. Uma peneira que só casasse
+# `registry=` seria derrotada por um espaço, e a linha `medido:` passaria a
+# afirmar zero com um redirecionamento em vigor — portão que diz ter medido o
+# que não mediu é o defeito que `medir.sh` existe para matar.
+REGISTRO_ESPERADO='https://registry.npmjs.org'
+
+conta_registros() { # conta_registros <arquivo> <separador `=` ou `:`>
+  local arquivo="$1" separador="$2" linha chave valor total=0
+  [ -f "$arquivo" ] || { printf '0'; return; }
   while IFS= read -r linha || [ -n "$linha" ]; do
     linha="${linha#"${linha%%[![:space:]]*}"}"
-    case "$linha" in
-      registry=*|*:registry=*) REDIRECIONAMENTOS=$((REDIRECIONAMENTOS + 1)) ;;
+    case "$linha" in ''|'#'*|';'*) continue ;; esac
+    case "$linha" in *"$separador"*) ;; *) continue ;; esac
+    chave="${linha%%"$separador"*}"
+    valor="${linha#*"$separador"}"
+    chave="${chave%"${chave##*[![:space:]]}"}"
+    valor="${valor#"${valor%%[![:space:]]*}"}"
+    valor="${valor%"${valor##*[![:space:]]}"}"
+    valor="${valor%\"}"; valor="${valor#\"}"
+    valor="${valor%/}"
+    case "$chave" in
+      registry|*:registry) [ "$valor" = "$REGISTRO_ESPERADO" ] || total=$((total + 1)) ;;
     esac
-  done < "$RAIZ/.npmrc"
-fi
-echo "medido: $REDIRECIONAMENTOS redirecionamento(s) de registro em .npmrc"
+  done < "$arquivo"
+  printf '%s' "$total"
+}
+
+REDIRECIONAMENTOS=$(( $(conta_registros "$RAIZ/.npmrc" '=') + $(conta_registros "$RAIZ/pnpm-workspace.yaml" ':') ))
+echo "medido: $REDIRECIONAMENTOS registro(s) declarado(s) fora de $REGISTRO_ESPERADO em .npmrc e pnpm-workspace.yaml"
 if [ "$REDIRECIONAMENTOS" -ne 0 ]; then
-  _reprova "não consegui auditar o pnpm-lock.yaml: o .npmrc da raiz sob $RAIZ redireciona o registro, e quem responde a auditoria passa a ser escolhido pelo arquivo do pull request — a contagem de pacotes é local e continuaria dizendo o número certo sobre uma resposta que ninguém verificou"
+  _reprova "não consegui auditar o pnpm-lock.yaml: a configuração da raiz sob $RAIZ aponta o registro para fora de $REGISTRO_ESPERADO, e quem responde a auditoria passa a ser escolhido pelo arquivo do pull request — a contagem de pacotes é local e continuaria dizendo o número certo sobre uma resposta que ninguém verificou"
 fi
 
 ISENCOES_VIGENTES=()
@@ -144,7 +177,7 @@ done
 
 JSON="$(auditar_lockfile)"
 RAZAO_DA_FERRAMENTA="$(em_uma_linha "$(head -c 400 "$ARQUIVO_DE_ERRO" 2>/dev/null)")"
-rm -f "$ARQUIVO_DE_ERRO"
+limpar_arquivo_de_erro
 if [ -z "$JSON" ] || ! printf '%s' "$JSON" | jq -e 'type == "object"' >/dev/null 2>&1; then
   _reprova "não consegui auditar o pnpm-lock.yaml: 'pnpm audit --audit-level=high --json' não devolveu JSON sob $RAIZ — registro inalcançável e vulnerabilidade encontrada saem as duas com código 1, e só o conteúdo do JSON as separa. A ferramenta disse: ${RAZAO_DA_FERRAMENTA:-nada}"
 fi

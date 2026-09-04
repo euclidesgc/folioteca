@@ -61,9 +61,10 @@ em vez de erro de parse silencioso.
       `ISENCOES_DECLARADAS=()` com a lista vazia, e a linha
       `source "$RAIZ_DO_SCRIPT/scripts/gates/medir.sh"`.
 - [ ] `estrutural` — `RF-09`, `RF-10` — `scripts/gates/vulnerabilidade.sh` contém
-      `exige_comando pnpm`, `exige_comando jq` e `exige_caminho pnpm-lock.yaml`,
-      e a linha com `exige_comando pnpm` aparece antes da linha com
-      `exige_comando jq`.
+      `exige_comando pnpm`, `exige_comando jq`, `exige_comando timeout`,
+      `exige_comando mktemp` e `exige_caminho pnpm-lock.yaml`; a linha com
+      `exige_comando pnpm` aparece antes da linha com `exige_comando jq` e antes
+      de qualquer outra linha que comece com `exige_comando` ou `exige_caminho`.
 - [ ] `estrutural` — `RF-03`, `RF-05` — existem
       `scripts/gates/__tests__/fixtures/pnpm-audit-limpo.json`,
       `scripts/gates/__tests__/fixtures/pnpm-audit-qs-alto.json`,
@@ -93,9 +94,16 @@ em vez de erro de parse silencioso.
 - [ ] `estrutural` — `RF-18` — `.github/dependabot.yml` contém a cadeia
       `041-a-rotina-alcanca-os-pacotes-de-javascript` e não contém a cadeia
       `027-vulnerabilidade-conhecida-reprova-no-ci`.
-- [ ] `comando` — `RF-01`, `RF-11` —
-      `grep -vE '^[[:space:]]*#' scripts/gates/vulnerabilidade.sh | grep -nE -- 'pnpm config|npmrc|ignoreGhsas|auditConfig|--prod'`
-      não imprime nenhuma linha, e
+- [ ] `comando` — `RF-01`, `RF-11` — o portão fixa em si mesmo o piso de
+      severidade e o alcance da auditoria, e a lista de isenções é a constante do
+      próprio arquivo. Executados na raiz do repositório, os três comandos:
+      `grep -vE '^[[:space:]]*#' scripts/gates/vulnerabilidade.sh | grep -E -- 'pnpm config|--prod|--dev|--no-optional'`
+      não imprime nenhuma linha;
+      `grep -vE '^[[:space:]]*#' scripts/gates/vulnerabilidade.sh | grep -E -- 'pnpm audit|auditConfig|ignoreGhsas|audit\.ignore' | grep -vE -- '_reprova|--audit-level=high'`
+      não imprime nenhuma linha — toda linha de código que invoca a auditoria traz
+      `--audit-level=high` na própria invocação, e as chaves de isenção da
+      configuração do pnpm só aparecem em linha que também é uma reprovação, que é
+      onde nomeá-las torna o log acionável; e
       `grep -c '^ISENCOES_DECLARADAS=' scripts/gates/vulnerabilidade.sh` imprime
       o número `1`.
 - [ ] `comando` — `RF-02`, `RF-03`, `RF-04`, `RF-05`, `RF-07`, `RF-08`, `RF-12`,
@@ -191,6 +199,48 @@ em vez de erro de parse silencioso.
       é executado na raiz do repositório
       *Então* o código de saída é diferente de `0` e a saída contém
       `GHSA-4mjr-xmp4-gh2g` e `GHSA-x5fp-wj9c-mxmx` em linhas de achado
+- [ ] `comportamental` — `RF-11`, `RF-19`
+      *Dado* o relatório que a ferramenta devolve quando a isenção está na
+      configuração do pnpm — a contagem inteira em `metadata`, com
+      `vulnerabilities.high` igual a `2` e `totalDependencies` igual a `923`, e
+      `advisories` vazio —, montado na raiz do repositório por
+      `d=/tmp/vuln-podado; rm -r "$d" 2>/dev/null; mkdir -p "$d/bin"; printf "lockfileVersion: '9.0'\n" > "$d/pnpm-lock.yaml"; printf '#!/bin/sh\n[ "$1" = "audit" ] || exit 0\ncat "%s/scripts/gates/__tests__/fixtures/pnpm-audit-podado.json"\nexit 0\n' "$PWD" > "$d/bin/pnpm"; chmod +x "$d/bin/pnpm"`
+      *Quando*
+      `env GITHUB_WORKSPACE=/tmp/vuln-podado PATH=/tmp/vuln-podado/bin:$PATH bash scripts/gates/vulnerabilidade.sh 2>&1`
+      é executado na raiz do repositório, com as duas saídas capturadas juntas
+      *Então* o código de saída é diferente de `0`; a saída contém a cadeia
+      `não consegui auditar` e a cadeia
+      `REPROVADO por impossibilidade de medição, não por resultado.`; nomeia os
+      dois números divergentes, na cadeia
+      `a contagem do relatório diz 2 aviso(s) de severidade alta ou crítica` e na
+      cadeia `a lista de avisos traz 0`; contém a cadeia
+      `ISENCOES_DECLARADAS de scripts/gates/vulnerabilidade.sh`; e não contém nem
+      a cadeia `0 achados de severidade alta ou crítica` nem a cadeia `critical:`
+- [ ] `comportamental` — `RF-20`
+      *Dado* quatro raízes auditadas iguais, cada uma com o `pnpm` de mentira que
+      registra em `chamou-audit` que foi chamado, diferindo só na declaração de
+      registro: a primeira com `registry=https://espelho.exemplo/` no `.npmrc`, a
+      segunda com `registry = https://espelho.exemplo/` — com o espaço em volta
+      do `=` que o `ini` do pnpm apara e uma peneira ingênua não —, a terceira
+      com `registry: https://espelho.exemplo/` no `pnpm-workspace.yaml`, e a
+      quarta com `@empresa:registry=https://espelho.exemplo/` no `.npmrc`, que é
+      a declaração com escopo, montadas na raiz do repositório por
+      `for i in 1 2 3 4; do d=/tmp/vuln-registro-$i; rm -r "$d" 2>/dev/null; mkdir -p "$d/bin"; printf "lockfileVersion: '9.0'\n" > "$d/pnpm-lock.yaml"; printf '#!/bin/sh\n[ "$1" = "audit" ] || exit 0\n: > "%s/chamou-audit"\ncat "%s/scripts/gates/__tests__/fixtures/pnpm-audit-limpo.json"\nexit 0\n' "$d" "$PWD" > "$d/bin/pnpm"; chmod +x "$d/bin/pnpm"; done; printf 'registry=https://espelho.exemplo/\n' > /tmp/vuln-registro-1/.npmrc; printf 'registry = https://espelho.exemplo/\n' > /tmp/vuln-registro-2/.npmrc; printf 'registry: https://espelho.exemplo/\nminimumReleaseAge: 10080\n' > /tmp/vuln-registro-3/pnpm-workspace.yaml; printf '@empresa:registry=https://espelho.exemplo/\n' > /tmp/vuln-registro-4/.npmrc`
+      *Quando*
+      `env GITHUB_WORKSPACE=/tmp/vuln-registro-1 PATH=/tmp/vuln-registro-1/bin:$PATH bash scripts/gates/vulnerabilidade.sh 2>&1`
+      é executado na raiz do repositório, e o mesmo comando trocando
+      `/tmp/vuln-registro-1` por `/tmp/vuln-registro-2`, por
+      `/tmp/vuln-registro-3` e por `/tmp/vuln-registro-4`, cada um com as duas
+      saídas capturadas juntas
+      *Então* as quatro terminam com código de saída diferente de `0`; as quatro
+      saídas contêm a cadeia `não consegui auditar`, a cadeia
+      `medido: 1 registro(s) declarado(s) fora de https://registry.npmjs.org`, a
+      cadeia `aponta o registro para fora de https://registry.npmjs.org` — que
+      nomeia o registro esperado — e a cadeia
+      `REPROVADO por impossibilidade de medição, não por resultado.`; e nenhum
+      dos arquivos `/tmp/vuln-registro-1/chamou-audit`,
+      `/tmp/vuln-registro-2/chamou-audit`, `/tmp/vuln-registro-3/chamou-audit` e
+      `/tmp/vuln-registro-4/chamou-audit` existe
 - [ ] `comportamental` — `RF-09`
       *Dado* o diretório sem `pnpm-lock.yaml` cujo `pnpm` de mentira registra em
       `/tmp/vuln-sem-lock/chamou-audit` que foi chamado, montado na raiz do
