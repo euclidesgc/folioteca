@@ -177,7 +177,12 @@ while [ "$rodada" -lt "$ate" ]; do
 
   marca "rodada $rodada: empilhando o PR"
   if gh stack view >/dev/null 2>&1; then
-    gh stack submit --auto || printf 'motor: gh stack submit falhou; os commits continuam locais.\n' >&2
+    # `--open` não é enfeite: com `--auto` e sem ele, todo PR nasce RASCUNHO, e
+    # rascunho é `mergeStateStatus: DRAFT` — que a tranca recusa, com razão. A
+    # corrida abriria PR a noite inteira sem mergear nenhum, e o sintoma de manhã
+    # seria uma pilha alta e o develop parado, sem nada acusando por quê. Medido
+    # nesta noite: os PRs #31 e #32 nasceram em rascunho.
+    gh stack submit --auto --open || printf 'motor: gh stack submit falhou; os commits continuam locais.\n' >&2
   else
     printf 'motor: a branch corrente não está numa pilha; os commits continuam locais. `gh stack init --base develop <branch>` adota o que existe.\n' >&2
   fi
