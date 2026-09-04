@@ -40,7 +40,7 @@ ESPERADO=10080
 # `qs` está aqui porque a espera fixou a versão vulnerável dele em vez da
 # corrigida; o porquê inteiro está em `pnpm-workspace.yaml`, ao lado da lista que
 # esta constante espelha.
-ISENCOES_ESPERADAS=()
+ISENCOES_ESPERADAS=("qs:2026-09-06")
 
 exige_comando pnpm
 exige_caminho pnpm-workspace.yaml "a declaração de minimumReleaseAge"

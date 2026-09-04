@@ -41,37 +41,39 @@ PR e commit já escritos.
       de o `checkout` já ter gravado o token no disco — a correção é fixar cada
       uma em SHA de 40 caracteres com a versão em comentário.
 
-- [x] `049-a-isencao-de-qs-vence-e-alguem-precisa-fecha-la` — o nome `qs` saiu da
-      lista de isenções da quarentena, nos dois lugares que o portão compara,
-      antes de o vencimento deixar todo PR vermelho
+- [ ] `049-a-isencao-de-qs-vence-e-alguem-precisa-fecha-la` — o nome `qs` sai da
+      lista de isenções da quarentena, nos dois lugares que o portão compara, a
+      partir de **2026-09-06**
       **Depende de:** `023-endurecimento-antes-da-sessao` — é a fase 5 dele que
       cria a isenção e o vencimento que a mata.
       **Origem:** discovery de `027-vulnerabilidade-conhecida-reprova-no-ci`,
-      medição de datas. A isenção vencia em **2026-09-05**, e a partir daquele dia
-      `scripts/gates/quarentena.sh` reprovaria por vencimento — todo PR do
-      repositório, não só o que mexe em dependência. Fechar foi tirar `qs` de
-      `pnpm-workspace.yaml` e da constante `ISENCOES_ESPERADAS` do portão, que é o
-      par que ele compara. Era seguro para o lockfile de hoje: ele resolve
-      `qs@6.16.0`, a versão corrigida. A nuance medida é de horas — `6.16.0` foi
-      publicada em `2026-08-29T23:50Z` e só completa os sete dias em
-      `2026-09-05T23:50Z`, então uma reconstrução de lockfile feita naquele dia
-      antes desse horário cairia de volta em `6.15.3`, que é a vulnerável.
-      Reconstruir a partir de `2026-09-06` não tem essa aresta.
-      **Fechado fora da corrida autônoma, em 04/09/2026, por decisão do dono.**
-      O discovery deste item já estava feito — o de `027` mediu tudo e escreveu a
-      análise acima —, e o que restava era uma mudança de duas linhas com prazo
-      correndo. Gastar quatro rodadas da noite nela adiaria em duas horas o item
-      que o dono pediu de véspera. Passou pelos portões e pela tranca de merge
-      como qualquer fase; o que não teve foi brief, plano e validação cega, e
-      isso está escrito aqui porque o veredicto de um item conta como ele foi
-      fechado.
-      **Levou junto uma correção que ele revelou:** os casos de
-      `scripts/gates/__tests__/quarentena.test.sh` embutiam `qs` na fixture e
-      dependiam de a constante do portão ter pelo menos um nome. Quando a última
-      isenção saiu — o desfecho normal de toda isenção com prazo —, três casos
-      pararam de morder em silêncio. Eles passam a derivar a fixture da constante
-      e a injetar a constante de que precisam: um teste que só funciona enquanto a
-      política tiver um valor específico mede a política, não o portão.
+      medição de datas. Fechar é tirar `qs` de `pnpm-workspace.yaml:53-54` e da
+      constante `ISENCOES_ESPERADAS` em `scripts/gates/quarentena.sh:43`, que é o
+      par que o portão compara.
+      **O vencimento passou de 05 para 06 de setembro, e o dia é o item inteiro.**
+      A análise anterior dizia que fechar já era seguro, porque o lockfile resolve
+      `qs@6.16.0` — a versão corrigida — e que a única aresta era reconstruir o
+      lockfile no dia 5 antes de 23:50Z. **Isso foi medido e está errado.**
+      `pnpm install` verifica a política contra as entradas **já existentes** do
+      lockfile, não apenas ao resolvê-lo: sem a isenção, ele reprova com
+      `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` — "qs@6.16.0 was published at
+      2026-08-29T23:50:15.803Z, within the minimumReleaseAge cutoff". Medido no CI
+      em 04/09/2026, em cinco jobs de uma vez, no PR que tentou fechar o item.
+      A consequência é uma janela de vinte e quatro horas em que os **dois** lados
+      reprovam: o portão a partir de 05/09 00:00Z, porque a isenção venceu à
+      meia-noite; e o `install` até 05/09 23:50Z, porque a versão só então
+      completa os sete dias. Nenhuma das duas escolhas simples resolve — manter a
+      isenção deixa o portão vermelho, tirá-la deixa o `install` vermelho.
+      A saída é a que o próprio portão prevê: reescrever o vencimento com o motivo
+      novo. `2026-09-06` fecha a janela, porque a data de vencimento precisa ser o
+      dia **seguinte** ao instante da liberação, nunca o mesmo dia. Isso não é
+      adiar o vermelho, que é o antipadrão que o prazo existe para impedir: é
+      corrigir uma data que não era executável.
+      **A generalização, que vale para toda isenção com prazo:** o vencimento é
+      escrito como data e a liberação acontece num instante. Quando o instante cai
+      no fim do dia, os dois não coincidem, e a diferença é uma janela inteira de
+      CI vermelho. A regra é datar o vencimento pelo dia seguinte ao instante
+      medido — e medir o instante, em vez de arredondar para o dia da publicação.
 
 - [-] `027-vulnerabilidade-conhecida-reprova-no-ci` — o CI reprova quando uma
       dependência do lockfile tem aviso de severidade alta, em vez de a conta ser
