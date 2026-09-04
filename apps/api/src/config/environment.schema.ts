@@ -1,13 +1,16 @@
 import * as Joi from "joi";
-
-// contorno: o navegador manda Origin sem path e sem barra final; um valor com qualquer um dos dois faz o CORS falhar em silêncio, sem log para o plantão.
-const ORIGIN_PATTERN = /^https?:\/\/[^/]+$/;
+import { isWebOriginList } from "./web-origins";
 
 export const environmentSchema = Joi.object({
-  NODE_ENV: Joi.string().required(),
+  NODE_ENV: Joi.string()
+    .valid("development", "test", "production")
+    .required(),
   PORT: Joi.number().port().default(3000),
   DATABASE_URL: Joi.string().required(),
   WEB_ORIGIN: Joi.string()
-    .pattern(ORIGIN_PATTERN)
-    .default("http://localhost:5173"),
+    .custom((value: string, helpers) =>
+      isWebOriginList(value) ? value : helpers.error("any.invalid"),
+    )
+    .default("http://localhost:5173")
+    .when("NODE_ENV", { is: "production", then: Joi.required() }),
 }).options({ errors: { wrap: { label: false } } });

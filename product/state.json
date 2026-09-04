@@ -58,10 +58,7 @@
           "verdict_file": "product/items/001-esqueleto-do-monorepo/05-veredictos/fase-3.md",
           "validated_sha": "fef04e605e635ebbfff3396eb3f4b9d41d9d685c",
           "pr": null,
-          "blocked_on": [
-            "D-011",
-            "D-012"
-          ],
+          "blocked_on": [],
           "verdict_at": "2026-09-03T07:39:11Z",
           "validated_trees": {
             "apps/api": "5834265686640bd4edbee3e5fc00f1a94de3e48a",
@@ -285,7 +282,7 @@
     "023-endurecimento-antes-da-sessao": {
       "title": "Endurecimento antes da sessão: cabeçalhos de segurança e CSP no navegador, artefato de build medido contra segredo, origem autorizada em lista, quarentena de dependência e ações do CI fixadas em SHA",
       "track": "completa",
-      "stage": "plan",
+      "stage": "execute",
       "stacks": [],
       "created_at": "2026-09-03T09:33:47Z",
       "approvals": {
@@ -302,14 +299,30 @@
           "por": "autonomo"
         },
         "plan": {
-          "at": "2026-09-03T20:52:04Z",
-          "sha": "640df504b5e744e60e86d65b597c51e9291b08a6",
+          "at": "2026-09-03T12:06:52Z",
+          "sha": "2a4928f2e797c0001b4cd1a1ce8922ee7ad426c9",
           "file": "product/items/023-endurecimento-antes-da-sessao/03-plan.md",
           "por": "humano"
         }
       },
-      "current_phase": null,
-      "phases": {},
+      "current_phase": 1,
+      "phases": {
+        "1": {
+          "status": "aprovada",
+          "reproved_count": 0,
+          "verdict": "APROVADO",
+          "verdict_file": "product/items/023-endurecimento-antes-da-sessao/05-veredictos/fase-1.md",
+          "validated_sha": "2bb7fe48c299a34a91227d4e2d82a68dd4c0f0ef",
+          "pr": null,
+          "blocked_on": [],
+          "verdict_at": "2026-09-03T12:18:47Z",
+          "validated_trees": {
+            "apps/api": "94d817949b25e9e6f2c28fb9d817a444f2e4bb32",
+            "apps/site": "89ed1a14167c883397d83f4f9641908ccfaab434",
+            "apps/web": "94c9cfdbf62e6d1baa64d43614230676fe4d7b3d"
+          }
+        }
+      },
       "divergences": {
         "D-001": {
           "status": "RECONCILIADA",
@@ -320,6 +333,56 @@
           "ratificada_por": "humano",
           "reconciliada_at": "2026-09-03T10:20:51Z",
           "ratificacao_humana_at": "2026-09-03T20:51:56Z"
+        },
+        "D-002": {
+          "status": "RECONCILIADA",
+          "kind": "normal",
+          "phase": 1,
+          "detected_at": "2026-09-03T11:36:28Z",
+          "aprovada_at": "2026-09-03T11:36:31Z",
+          "ratificada_por": "humano",
+          "reconciliada_at": "2026-09-03T12:06:51Z",
+          "ratificacao_humana_at": "2026-09-03T19:23:48Z"
+        },
+        "D-003": {
+          "status": "RECONCILIADA",
+          "kind": "normal",
+          "phase": 1,
+          "detected_at": "2026-09-03T11:36:28Z",
+          "aprovada_at": "2026-09-03T11:36:31Z",
+          "ratificada_por": "humano",
+          "reconciliada_at": "2026-09-03T12:06:51Z",
+          "ratificacao_humana_at": "2026-09-03T19:23:48Z"
+        },
+        "D-004": {
+          "status": "RECONCILIADA",
+          "kind": "normal",
+          "phase": 4,
+          "detected_at": "2026-09-03T11:36:28Z",
+          "aprovada_at": "2026-09-03T11:36:31Z",
+          "ratificada_por": "humano",
+          "reconciliada_at": "2026-09-03T12:06:51Z",
+          "ratificacao_humana_at": "2026-09-03T19:23:48Z"
+        },
+        "D-005": {
+          "status": "RECONCILIADA",
+          "kind": "normal",
+          "phase": 1,
+          "detected_at": "2026-09-03T11:45:12Z",
+          "aprovada_at": "2026-09-03T11:45:12Z",
+          "ratificada_por": "humano",
+          "reconciliada_at": "2026-09-03T12:06:51Z",
+          "ratificacao_humana_at": "2026-09-03T19:23:49Z"
+        },
+        "D-006": {
+          "status": "RECONCILIADA",
+          "kind": "normal",
+          "phase": 1,
+          "detected_at": "2026-09-03T11:56:47Z",
+          "aprovada_at": "2026-09-03T11:56:47Z",
+          "ratificada_por": "humano",
+          "reconciliada_at": "2026-09-03T12:06:51Z",
+          "ratificacao_humana_at": "2026-09-03T19:23:49Z"
         }
       },
       "criteria_exception": null

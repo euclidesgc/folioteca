@@ -1,6 +1,78 @@
 import { environmentSchema } from "./environment.schema";
 
 describe("environmentSchema", () => {
+  it("deve reprovar NODE_ENV fora do domínio development, test ou production", () => {
+    const { error } = environmentSchema.validate(
+      {
+        NODE_ENV: "staging",
+        DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
+      },
+      { abortEarly: false, allowUnknown: true },
+    );
+
+    expect(error).toBeDefined();
+    expect(error?.details[0].type).toBe("any.only");
+  });
+
+  it("deve aceitar NODE_ENV=test e NODE_ENV=production, além de development", () => {
+    for (const nodeEnv of ["test", "production"]) {
+      const { error } = environmentSchema.validate(
+        {
+          NODE_ENV: nodeEnv,
+          DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
+          WEB_ORIGIN: "https://app.folioteca.com",
+        },
+        { abortEarly: false, allowUnknown: true },
+      );
+
+      expect(error).toBeUndefined();
+    }
+  });
+
+  it("deve reprovar quando NODE_ENV=production e WEB_ORIGIN não é informada", () => {
+    const { error } = environmentSchema.validate(
+      {
+        NODE_ENV: "production",
+        DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
+      },
+      { abortEarly: false, allowUnknown: true },
+    );
+
+    expect(error).toBeDefined();
+    expect(error?.details.map((detail) => detail.type)).toContain(
+      "any.required",
+    );
+  });
+
+  it("deve aceitar quando NODE_ENV=production e WEB_ORIGIN é informada", () => {
+    const { error, value } = environmentSchema.validate(
+      {
+        NODE_ENV: "production",
+        DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
+        WEB_ORIGIN: "https://app.folioteca.exemplo",
+      },
+      { abortEarly: false, allowUnknown: true },
+    );
+
+    expect(error).toBeUndefined();
+    expect(value.WEB_ORIGIN).toBe("https://app.folioteca.exemplo");
+  });
+
+  it("deve manter o padrão http://localhost:5173 de WEB_ORIGIN fora de produção mesmo sem a variável", () => {
+    for (const nodeEnv of ["development", "test"]) {
+      const { error, value } = environmentSchema.validate(
+        {
+          NODE_ENV: nodeEnv,
+          DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
+        },
+        { abortEarly: false, allowUnknown: true },
+      );
+
+      expect(error).toBeUndefined();
+      expect(value.WEB_ORIGIN).toBe("http://localhost:5173");
+    }
+  });
+
   it("deve aceitar a configuração quando as três chaves estão presentes e válidas", () => {
     const { error, value } = environmentSchema.validate(
       {
@@ -41,6 +113,37 @@ describe("environmentSchema", () => {
     expect(value.WEB_ORIGIN).toBe("http://localhost:5173");
   });
 
+  it("deve aceitar WEB_ORIGIN com uma lista de origens separadas por vírgula, todas válidas", () => {
+    const { error, value } = environmentSchema.validate(
+      {
+        NODE_ENV: "development",
+        DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
+        WEB_ORIGIN: "http://localhost:5173,https://app.folioteca.com",
+      },
+      { abortEarly: false, allowUnknown: true },
+    );
+
+    expect(error).toBeUndefined();
+    expect(value.WEB_ORIGIN).toBe(
+      "http://localhost:5173,https://app.folioteca.com",
+    );
+  });
+
+  it("deve reprovar WEB_ORIGIN quando um item da lista não casa com o formato de origem", () => {
+    const { error } = environmentSchema.validate(
+      {
+        NODE_ENV: "development",
+        DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
+        WEB_ORIGIN: "http://localhost:5173,not-a-uri",
+      },
+      { abortEarly: false, allowUnknown: true },
+    );
+
+    expect(error).toBeDefined();
+    expect(error?.details).toHaveLength(1);
+    expect(error?.details[0].type).toBe("any.invalid");
+  });
+
   it('deve reprovar WEB_ORIGIN="not-a-uri" por não casar com o formato de origem', () => {
     const { error } = environmentSchema.validate(
       {
@@ -53,7 +156,7 @@ describe("environmentSchema", () => {
 
     expect(error).toBeDefined();
     expect(error?.details).toHaveLength(1);
-    expect(error?.details[0].type).toBe("string.pattern.base");
+    expect(error?.details[0].type).toBe("any.invalid");
   });
 
   it("deve reprovar WEB_ORIGIN com barra final, porque o navegador manda Origin sem ela", () => {
@@ -67,7 +170,7 @@ describe("environmentSchema", () => {
     );
 
     expect(error).toBeDefined();
-    expect(error?.details[0].type).toBe("string.pattern.base");
+    expect(error?.details[0].type).toBe("any.invalid");
   });
 
   it("deve reprovar WEB_ORIGIN com path, porque origem não carrega path", () => {
@@ -81,7 +184,7 @@ describe("environmentSchema", () => {
     );
 
     expect(error).toBeDefined();
-    expect(error?.details[0].type).toBe("string.pattern.base");
+    expect(error?.details[0].type).toBe("any.invalid");
   });
 
   it('deve reprovar WEB_ORIGIN="javascript:alert(1)", porque só http e https são esquemas válidos', () => {
@@ -95,10 +198,24 @@ describe("environmentSchema", () => {
     );
 
     expect(error).toBeDefined();
-    expect(error?.details[0].type).toBe("string.pattern.base");
+    expect(error?.details[0].type).toBe("any.invalid");
   });
 
-  it("deve aceitar WEB_ORIGIN sem path e sem barra final, com http ou https", () => {
+  it("deve reprovar WEB_ORIGIN vazio ou só com vírgulas, porque a lista fica sem item", () => {
+    const { error } = environmentSchema.validate(
+      {
+        NODE_ENV: "development",
+        DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
+        WEB_ORIGIN: " , ,",
+      },
+      { abortEarly: false, allowUnknown: true },
+    );
+
+    expect(error).toBeDefined();
+    expect(error?.details[0].type).toBe("any.invalid");
+  });
+
+  it("deve aceitar WEB_ORIGIN com um único item, sem vírgula, sem path e sem barra final, com http ou https", () => {
     const { error } = environmentSchema.validate(
       {
         NODE_ENV: "development",
