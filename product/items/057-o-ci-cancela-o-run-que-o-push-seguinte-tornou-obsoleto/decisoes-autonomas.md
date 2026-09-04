@@ -594,3 +594,66 @@ o head, o critério é inexequível por push nenhum — nem vazio, nem com mudan
 real de arquivo. Não é o roteiro do critério que está errado; é a pré-condição
 "com o GitHub Actions criando runs" que está falsa, e o próprio critério a
 enuncia como *Dado*.
+
+### D26 — Reabrir o pull request foi tentado, não destravou, e apagou o merge ref
+
+`reopened` está nos `types` dos cinco fluxos justamente para que sair de um
+estado volte a disparar o CI, e forçar o recálculo da mergeabilidade fechando e
+reabrindo é a manobra mais comum e mais reversível para um PR cujo merge o
+GitHub não calcula. Por isso ela foi escolhida antes de qualquer coisa que
+tocasse história ou código.
+
+**Resultado medido:** não destravou. Nenhum run nasceu do evento `reopened`,
+`mergeable` seguiu `null` e `mergeable_state` seguiu `unknown`. E houve efeito
+colateral: `refs/pull/46/merge`, que antes existia apontando para `3b242ae`,
+**deixou de existir**, e `merge_commit_sha` passou de `3b242ae` para `null`. O
+merge ref velho era o que fazia os reruns funcionarem; sem ele, essa saída também
+se fecha.
+
+**Consequência aceita:** o efeito é sobre metadado que o GitHub recalcula sozinho
+quando voltar, não sobre história, código ou o número do PR — a branch e o `#46`
+estão intactos. Mas a manobra fica registrada como **tentada e ineficaz**: quem
+repetir gasta o mesmo e perde o mesmo.
+
+### D27 — Não é conflito de merge, e com isso todas as causas locais estão descartadas
+
+A hipótese seguinte era a única que ainda seria reparável daqui: PR em conflito
+não tem merge ref, e workflow de `pull_request` não roda sem ele. Medido na raiz,
+com a base `057-…/plano` recém-buscada:
+
+```
+base(plano) = 7be81cde0d09e08e34ffad7b88b32aa76e3cfa85
+head        = ad7b02beeae76f6a793210355fdfabd6a7a7e6b1
+merge-base  = 7be81cde0d09e08e34ffad7b88b32aa76e3cfa85
+git merge-tree --write-tree base head -> rc=0, árvore c4f3411
+```
+
+A `merge-base` **é** a base: o head é avanço direto dela, sem nada para conciliar,
+e o merge resolve sem conflito nenhum. O GitHub está deixando de calcular o merge
+de um pull request que não tem o que calcular.
+
+**Decidido:** a causa é da plataforma, do lado do GitHub, e não há reparo daqui.
+Ficam descartadas, cada uma por medição própria: cota (o rerun executou o job da
+nuvem e terminou `success` às `18:41:16Z`), incidente do provedor (`Actions =
+operational`, `incidents: []`), Actions desligado (`enabled: true`), workflow
+inativo (os seis em `state: active`), runner indisponível (os quatro
+`QuidoBookLinux-folioteca*` online e ociosos), gatilho errado (`synchronize` nos
+cinco `types`, e `portoes.yml` e `bloqueio.yml` sem filtro de `paths`), commit
+vazio (`1464782`, `af8638a` e `ad7b02b` mudam arquivo de verdade e também não
+criaram run) e conflito de merge (acima).
+
+### Nota de método — dois medidores meus mentiram nesta sessão, do jeito que a norma nomeia
+
+Os dois laços de espera compararam `merge_ref` com a constante e trataram
+**string vazia** como "mudou". As chamadas de rede falharam dentro do subshell de
+segundo plano, devolveram vazio, e os dois imprimiram `DESTRAVOU` sem nada ter
+destravado — `merge_ref=` aparece vazio na própria saída deles. Antes disso, o
+somatório de minutos faturáveis somou `0` tanto para "não faturável" quanto para
+"não consegui ler o campo", e quase virou a conclusão de que a cota estava
+esgotada.
+
+É a regra 19 do `CLAUDE.md` mordendo o próprio processo: um medidor que não
+pergunta *consegui medir?* responde igual para ausência e para mudança. As duas
+medições foram refeitas em primeiro plano com a falha explícita, e é a versão
+refeita que sustenta `D25` e `D27`. Nenhum veredicto desta sessão se apoia na
+saída dos laços.

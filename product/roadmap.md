@@ -898,6 +898,40 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       retrospectiva junto com `037` — o que cabe aqui é a asserção que o
       encerramento de item passa a executar antes de marcar `[x]`.
 
+- [ ] `061-a-sessao-reconhece-o-pull-request-cujo-merge-o-github-parou-de-calcular`
+      — quando o CI para de criar runs, a sessão separa "a plataforma parou" de
+      "a conta acabou" por medição, e não por suposição
+      **Depende de:** `047-o-veredicto-de-fase-mede-se-o-ci-chegou-a-rodar` — o
+      `047` faz a pergunta "alguma suíte do `github-actions` rodou neste PR?";
+      este responde o que fazer quando a resposta é nenhuma, e sem ele não há
+      onde pendurar a resposta.
+      **Origem:** fase 1 de
+      `057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto`, terceira
+      parada do CI no mesmo dia, ver `decisoes-autonomas.md` (`D24` a `D27`).
+      Duas sessões seguidas atribuíram a parada a esgotamento da cota de minutos
+      e reprovaram o mesmo critério comportamental, e a terceira mediu: o
+      sintoma é o **merge ref do pull request parar de ser recalculado**.
+      `refs/pull/46/merge` ficou congelado no commit de `18:13:38Z` enquanto
+      cinco pushes posteriores chegavam, e `mergeable` responde `null` com
+      `mergeable_state: unknown` em consultas repetidas. Workflow disparado por
+      `pull_request` roda sobre o merge commit: sem merge commit novo, o app
+      `github-actions` não cria suíte — enquanto `gitguardian`, `railway-app`,
+      `cursor` e `claude`, que reagem ao head ref, seguem criando as suas a cada
+      push. Essa assimetria é a assinatura, e é o que distingue esta falha de
+      todas as outras. O que o item escreve é a rotina de diagnóstico, com três
+      medições que custam uma chamada de API cada: a **sonda do rerun**
+      (`POST …/actions/runs/<id>/rerun` — se o run executa, a conta tem cota e a
+      hipótese de faturamento está refutada), a **comparação do merge ref com o
+      head** (`git ls-remote origin refs/pull/<n>/merge` contra
+      `gh pr view <n> --json headRefOid`, com a saída vazia reprovando como *não
+      medido* e nunca como *igual*) e a **prova de que não é conflito**
+      (`git merge-tree --write-tree <base> <head>`). Fechar e reabrir o PR já
+      está medido como ineficaz e some com o merge ref antigo, então a rotina o
+      desaconselha em vez de sugeri-lo. O destravamento em si não é daqui: é
+      chamado no suporte do GitHub, ou esperar. O que cabe ao repositório é
+      nomear o sintoma na primeira ocorrência, para que a segunda não gaste uma
+      sessão inteira redescobrindo-o.
+
 - [ ] `037-a-fronteira-de-agent-mede-quem-escreve` — o guard de escopo recusa a
       escrita pelo agent que a fez, e não pelo último agent despachado
       **Depende de:** nada — o guard já existe nos hooks do harness.
