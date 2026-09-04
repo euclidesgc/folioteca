@@ -1,0 +1,33 @@
+{
+  "actions": [],
+  "advisories": {
+    "1104724": {
+      "module_name": "qs",
+      "severity": "critical",
+      "github_advisory_id": "GHSA-4mjr-xmp4-gh2g",
+      "url": "https://github.com/advisories/GHSA-4mjr-xmp4-gh2g",
+      "title": "aviso de severidade crítica em qs",
+      "vulnerable_versions": "<6.16.0",
+      "patched_versions": ">=6.16.0",
+      "findings": [
+        { "version": "6.15.3", "paths": ["api>@nestjs/platform-express>express>qs"] }
+      ]
+    },
+    "1104725": {
+      "module_name": "pacote-sem-identificador-de-aviso",
+      "severity": "high",
+      "patched_versions": ">=2.0.0",
+      "findings": [
+        { "version": "1.0.0", "paths": ["web>pacote-sem-identificador-de-aviso"] }
+      ]
+    }
+  },
+  "muted": [],
+  "metadata": {
+    "vulnerabilities": { "info": 0, "low": 0, "moderate": 0, "high": 1, "critical": 1 },
+    "dependencies": 199,
+    "devDependencies": 686,
+    "optionalDependencies": 95,
+    "totalDependencies": 923
+  }
+}

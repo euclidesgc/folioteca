@@ -42,7 +42,16 @@ jobs:
     runs-on: ${{ inputs.runner }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      # `dest` fora do HOME, e isto não é preferência: os runners desta casa são
+      # quatro processos na MESMA máquina, com o MESMO `$HOME`. O padrão da ação é
+      # `~/setup-pnpm`, então dois jobs simultâneos instalam e apagam o mesmo
+      # diretório, e o segundo morre com `ENOTEMPTY: rmdir '/home/.../setup-pnpm'`
+      # — ou pior, com `uv_cwd`, quando um apaga o diretório de trabalho do outro.
+      # O sintoma é vermelho intermitente que não tem nada a ver com o diff, e que
+      # some ao reexecutar sozinho. `runner.temp` é próprio de cada job.
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+        with:
+          dest: ${{ runner.temp }}/setup-pnpm
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "24"
@@ -66,6 +75,8 @@ jobs:
         run: bash scripts/gates/__tests__/acoes-em-sha.test.sh
       - name: o portão dos fluxos morde a guarda, o ready_for_review e a ordem dos estágios
         run: bash scripts/gates/__tests__/fluxos.test.sh
+      - name: o portão do pnpm isolado separa o vazio do ilegível
+        run: bash scripts/gates/__tests__/pnpm-isolado.test.sh
       - name: a peneira do packageManager recusa o que não é pnpm@X.Y.Z
         run: bash scripts/ci/__tests__/instalar-pnpm.test.sh
       - name: a tranca de merge trata verificação pendente como não medida
@@ -80,6 +91,15 @@ jobs:
         run: bash scripts/gates/quarentena.sh
       - name: Toda ação do CI está fixada em SHA
         run: bash scripts/gates/acoes_em_sha.sh
+
+      # Estes dois medem o PRÓPRIO `.github/workflows`, e por isso pertencem a
+      # este fluxo e não aos de cada frente: um PR que mexa só num workflow não
+      # casa com nenhum filtro de `paths` deles, que é justamente o PR em que um
+      # job sem guarda ou uma instalação de pnpm no HOME compartilhado entra.
+      - name: Nada roda em rascunho, e a nuvem confirma o que a casa aprovou
+        run: bash scripts/gates/fluxos.sh
+      - name: Nenhuma instalação de pnpm escreve no HOME compartilhado
+        run: bash scripts/gates/pnpm_isolado.sh
 
       # A partir daqui o job constrói: o portão de segredo varre os três
       # artefatos de build além das fontes rastreadas, e artefato que não existe

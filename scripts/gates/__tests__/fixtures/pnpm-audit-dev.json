@@ -1,0 +1,25 @@
+{
+  "actions": [],
+  "advisories": {
+    "GHSA-fals-odev-1111": {
+      "module_name": "pacote-de-desenvolvimento-de-mentira",
+      "severity": "critical",
+      "github_advisory_id": "GHSA-fals-odev-1111",
+      "url": "https://github.com/advisories/GHSA-fals-odev-1111",
+      "title": "aviso sintético de severidade crítica em dependência de desenvolvimento",
+      "vulnerable_versions": "<2.0.0",
+      "patched_versions": ">=2.0.0",
+      "findings": [
+        { "version": "1.0.0", "paths": [".>pacote-de-desenvolvimento-de-mentira"] }
+      ]
+    }
+  },
+  "muted": [],
+  "metadata": {
+    "vulnerabilities": { "info": 0, "low": 0, "moderate": 0, "high": 0, "critical": 1 },
+    "dependencies": 199,
+    "devDependencies": 686,
+    "optionalDependencies": 95,
+    "totalDependencies": 923
+  }
+}

@@ -3,12 +3,14 @@
 # este arquivo é quem propõe a subida do pino. O robô lê o `# vX.Y.Z` ao lado do
 # SHA para saber de onde está saindo, e atualiza os dois juntos.
 #
-# O ecossistema dos pacotes de JavaScript fica de fora de propósito, e uma única
-# entrada é o arquivo inteiro. Quem julga um PR de dependência precisa saber se a
-# versão de saída tem vulnerabilidade conhecida, e essa conta é do item
-# `027-vulnerabilidade-conhecida-reprova-no-ci`. Ligá-lo antes produz PR semanal
-# que ninguém sabe aprovar ou recusar por critério escrito — e PR de robô que
-# fica parado ensina a ignorar PR de robô.
+# O ecossistema dos pacotes de JavaScript fica de fora, e uma única entrada é o
+# arquivo inteiro. A conta que falta a quem julga um PR de dependência — se a
+# versão de saída tem vulnerabilidade conhecida — é de
+# `scripts/gates/vulnerabilidade.sh`, que audita o lockfile inteiro em todo pull
+# request. Quem falta é a rotina que abre o PR de subida, e ela é o item
+# `041-a-rotina-alcanca-os-pacotes-de-javascript`. Ligá-la antes da conta
+# produziria PR semanal que ninguém sabe aprovar ou recusar por critério escrito —
+# e PR de robô que fica parado ensina a ignorar PR de robô.
 #
 # O destino é `develop`, e não `main`: `main` só recebe o que passou pela pilha.
 #

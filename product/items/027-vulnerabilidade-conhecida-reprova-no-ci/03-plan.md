@@ -1,8 +1,8 @@
 # Plano — 027-vulnerabilidade-conhecida-reprova-no-ci · O CI reprova quando uma dependência do lockfile tem vulnerabilidade conhecida
 
 **Item:** `027-vulnerabilidade-conhecida-reprova-no-ci` · **Trilha:** rápida ·
-**Brief:** `01-brief.md` (aprovado em 04/09/2026, `RF-01` a `RF-18`, funde PRD e
-spec) · **Decisões fixadas:** `decisoes-autonomas.md` (`D1` a `D12`)
+**Brief:** `01-brief.md` (aprovado em 04/09/2026, `RF-01` a `RF-20`, funde PRD e
+spec) · **Decisões fixadas:** `decisoes-autonomas.md` (`D1` a `D37`)
 
 ## Objetivo
 
@@ -61,25 +61,51 @@ em vez de erro de parse silencioso.
       `ISENCOES_DECLARADAS=()` com a lista vazia, e a linha
       `source "$RAIZ_DO_SCRIPT/scripts/gates/medir.sh"`.
 - [ ] `estrutural` — `RF-09`, `RF-10` — `scripts/gates/vulnerabilidade.sh` contém
-      `exige_comando pnpm`, `exige_comando jq` e `exige_caminho pnpm-lock.yaml`,
-      e a linha com `exige_comando pnpm` aparece antes da linha com
-      `exige_comando jq`.
-- [ ] `estrutural` — `RF-03`, `RF-05` — existem
-      `scripts/gates/__tests__/fixtures/pnpm-audit-limpo.json`,
-      `scripts/gates/__tests__/fixtures/pnpm-audit-qs-alto.json`,
-      `scripts/gates/__tests__/fixtures/pnpm-audit-moderado.json`,
-      `scripts/gates/__tests__/fixtures/pnpm-audit-dev.json` e
-      `scripts/gates/__tests__/fixtures/pnpm-audit-sem-pacote.json`; sobre
-      `pnpm-audit-qs-alto.json`, `jq -r '.advisories | keys | join(",")'` imprime
+      `exige_comando pnpm`, `exige_comando jq`, `exige_comando timeout`,
+      `exige_comando mktemp` e `exige_caminho pnpm-lock.yaml`; a linha com
+      `exige_comando pnpm` aparece antes da linha com `exige_comando jq` e antes
+      de qualquer outra linha que comece com `exige_comando` ou `exige_caminho`.
+- [ ] `estrutural` — `RF-03`, `RF-05`, `RF-07`, `RF-19` — existem, em
+      `scripts/gates/__tests__/fixtures/`, os nove arquivos
+      `pnpm-audit-limpo.json`, `pnpm-audit-qs-alto.json`,
+      `pnpm-audit-moderado.json`, `pnpm-audit-dev.json`,
+      `pnpm-audit-sem-pacote.json`, `pnpm-audit-podado.json`,
+      `pnpm-audit-forma-desconhecida.json`, `pnpm-audit-erro-de-rede.json` e
+      `pnpm-audit-erro-com-quebra.json`; sobre `pnpm-audit-qs-alto.json`,
+      `jq -r '.advisories | keys | join(",")'` imprime
       `GHSA-4mjr-xmp4-gh2g,GHSA-x5fp-wj9c-mxmx`,
       `jq -r '.metadata.totalDependencies'` imprime `923` e
       `jq -r '.metadata.vulnerabilities.high'` imprime `2`; sobre
       `pnpm-audit-dev.json`, `jq -r '.metadata.vulnerabilities.critical'` imprime
       `1` e `jq -r '[.advisories[].findings[].paths[]] | join(" ")'` imprime uma
-      cadeia que contém `pacote-de-desenvolvimento-de-mentira`.
-- [ ] `estrutural` — `RF-16` — `scripts/gates/gates_runner.sh` contém a linha
-      `bash "$ROOT/scripts/gates/vulnerabilidade.sh" || VEREDICTO=1`, e ela
-      aparece antes da linha `if [ "$SEM_ARTEFATOS" -eq 1 ]; then`.
+      cadeia que contém `pacote-de-desenvolvimento-de-mentira`; sobre
+      `pnpm-audit-podado.json`, `jq -r '.advisories | length'` imprime `0` e
+      `jq -r '.metadata.vulnerabilities.high'` imprime `2`; sobre
+      `pnpm-audit-forma-desconhecida.json`, `jq -r '.advisories | type'` imprime
+      `string` e `jq -r '.metadata.vulnerabilities.high'` imprime `1`; sobre
+      `pnpm-audit-erro-de-rede.json`, `jq -r '.error.message'` imprime
+      `The operation was aborted due to timeout` e `jq -r 'has("metadata")'`
+      imprime `false`; e sobre `pnpm-audit-erro-com-quebra.json`,
+      `jq -r '.error.message | contains("\n::stop-commands::")'` imprime `true`.
+      Cada `jq` recebe o arquivo por argumento e corre na raiz do repositório: o
+      arquivo que não existe, ou que não é JSON, faz o comando sair com erro em
+      vez de imprimir o valor esperado, e aí o critério reprova por não ter
+      conseguido medir, não por ter medido e achado outra coisa.
+- [ ] `estrutural` — `RF-16` — cada uma das quatro cadeias
+      `bash "$ROOT/scripts/gates/quarentena.sh" || VEREDICTO=1`,
+      `bash "$ROOT/scripts/gates/acoes_em_sha.sh" || VEREDICTO=1`,
+      `bash "$ROOT/scripts/gates/vulnerabilidade.sh" || VEREDICTO=1` e
+      `if [ "$SEM_ARTEFATOS" -eq 1 ]; then` aparece exatamente uma vez em
+      `scripts/gates/gates_runner.sh`, medido por
+      `grep -c -F '<a cadeia>' scripts/gates/gates_runner.sh`, que imprime `1`
+      para cada uma das quatro — arquivo ausente ou cadeia que não está lá faz o
+      comando terminar sem imprimir `1`, e o critério reprova por não ter
+      conseguido medir. E, nos números de linha que
+      `grep -n -F '<a cadeia>' scripts/gates/gates_runner.sh` imprime, o da linha
+      de `vulnerabilidade.sh` é **maior** que o da linha de `quarentena.sh` e
+      **maior** que o da linha de `acoes_em_sha.sh`, e **menor** que o da linha
+      `if [ "$SEM_ARTEFATOS" -eq 1 ]; then`: é a vizinhança dessas duas
+      invocações, antes do `if`, que faz do lugar o bloco de portões diretos.
 - [ ] `estrutural` — `RF-17` — em `.github/workflows/portoes.yml`, o passo cujo
       corpo é `run: bash scripts/gates/vulnerabilidade.sh` é o passo
       imediatamente seguinte ao passo cujo corpo é
@@ -87,15 +113,39 @@ em vez de erro de parse silencioso.
       corpo é `run: bash scripts/gates/__tests__/vulnerabilidade.test.sh`, e ele
       aparece antes do passo cujo corpo é `run: bash scripts/gates/quarentena.sh`;
       o bloco `on:` do arquivo declara `push:` com `branches: [main, develop]` e
-      declara `pull_request:`, o bloco `pull_request:` não contém a chave
-      `branches:` nem nenhuma outra chave que reduza o gatilho a um subconjunto
-      dos pull requests, e o arquivo inteiro não contém a chave `paths:`.
+      declara `pull_request:`, medido por
+      `grep -c -F '  pull_request:' .github/workflows/portoes.yml`, que imprime
+      `1` — arquivo ausente faz o comando terminar sem imprimir `1`, e o critério
+      reprova por não ter conseguido medir. O bloco `pull_request:` são as linhas
+      seguintes a essa com recuo maior que o dela, até a primeira linha de recuo
+      igual ou menor: nele não aparece nenhuma das quatro chaves `branches:`,
+      `branches-ignore:`, `paths:` e `paths-ignore:`, e, se aparecer a chave
+      `types:`, o conjunto de valores dela é exatamente `opened`, `reopened` e
+      `synchronize`, em qualquer ordem — esses três são o conjunto que o GitHub
+      Actions aplica quando `types:` é omitido, então declará-lo à mão não
+      estreita gatilho nenhum. E o arquivo inteiro não traz nenhuma das duas
+      chaves `paths:` e `paths-ignore:`, medido por
+      `grep -c -E '^[[:space:]]*paths(-ignore)?:' .github/workflows/portoes.yml`,
+      que imprime `0`.
 - [ ] `estrutural` — `RF-18` — `.github/dependabot.yml` contém a cadeia
       `041-a-rotina-alcanca-os-pacotes-de-javascript` e não contém a cadeia
       `027-vulnerabilidade-conhecida-reprova-no-ci`.
-- [ ] `comando` — `RF-01`, `RF-11` —
-      `grep -vE '^[[:space:]]*#' scripts/gates/vulnerabilidade.sh | grep -nE -- 'pnpm config|npmrc|ignoreGhsas|auditConfig|--prod'`
-      não imprime nenhuma linha, e
+- [ ] `comando` — `RF-01`, `RF-11` — o portão fixa em si mesmo o piso de
+      severidade e o alcance da auditoria, e a lista de isenções é a constante do
+      próprio arquivo. Executados na raiz do repositório, os quatro comandos, e o
+      primeiro é o que separa *não achei* de *não consegui procurar*:
+      `grep -cvE '^[[:space:]]*#' scripts/gates/vulnerabilidade.sh`
+      imprime um número **maior que** `0`, que é a prova de que
+      `scripts/gates/vulnerabilidade.sh` existe, foi lido e tem linha de código —
+      sem ela, um arquivo ausente ou ilegível faria os dois comandos seguintes
+      saírem mudos e passarem pelo mesmo teste por que passa o arquivo correto;
+      `grep -vE '^[[:space:]]*#' scripts/gates/vulnerabilidade.sh | grep -E -- 'pnpm config|--prod|--dev|--no-optional'`
+      não imprime nenhuma linha;
+      `grep -vE '^[[:space:]]*#' scripts/gates/vulnerabilidade.sh | grep -E -- 'pnpm audit|auditConfig|ignoreGhsas|audit\.ignore' | grep -vE -- '_reprova|--audit-level=high'`
+      não imprime nenhuma linha — toda linha de código que invoca a auditoria traz
+      `--audit-level=high` na própria invocação, e as chaves de isenção da
+      configuração do pnpm só aparecem em linha que também é uma reprovação, que é
+      onde nomeá-las torna o log acionável; e
       `grep -c '^ISENCOES_DECLARADAS=' scripts/gates/vulnerabilidade.sh` imprime
       o número `1`.
 - [ ] `comando` — `RF-02`, `RF-03`, `RF-04`, `RF-05`, `RF-07`, `RF-08`, `RF-12`,
@@ -181,7 +231,7 @@ em vez de erro de parse silencioso.
       das duas contém a cadeia `critical:` — sem `metadata.totalDependencies`
       lido não existe contagem de severidade a imprimir, e imprimir zeros aqui
       seria dizer `0 achados` por outro nome
-- [ ] `comportamental` — `RF-07`, `RF-11`
+- [ ] `comportamental` — `RF-11`
       *Dado* a fixture em que a auditoria devolve os dois avisos altos e termina
       com código de saída `0`, e em que o diretório de quem executa declara os
       dois identificadores como ignorados, montada na raiz do repositório por
@@ -191,6 +241,48 @@ em vez de erro de parse silencioso.
       é executado na raiz do repositório
       *Então* o código de saída é diferente de `0` e a saída contém
       `GHSA-4mjr-xmp4-gh2g` e `GHSA-x5fp-wj9c-mxmx` em linhas de achado
+- [ ] `comportamental` — `RF-11`, `RF-19`
+      *Dado* o relatório que a ferramenta devolve quando a isenção está na
+      configuração do pnpm — a contagem inteira em `metadata`, com
+      `vulnerabilities.high` igual a `2` e `totalDependencies` igual a `923`, e
+      `advisories` vazio —, montado na raiz do repositório por
+      `d=/tmp/vuln-podado; rm -r "$d" 2>/dev/null; mkdir -p "$d/bin"; printf "lockfileVersion: '9.0'\n" > "$d/pnpm-lock.yaml"; printf '#!/bin/sh\n[ "$1" = "audit" ] || exit 0\ncat "%s/scripts/gates/__tests__/fixtures/pnpm-audit-podado.json"\nexit 0\n' "$PWD" > "$d/bin/pnpm"; chmod +x "$d/bin/pnpm"`
+      *Quando*
+      `env GITHUB_WORKSPACE=/tmp/vuln-podado PATH=/tmp/vuln-podado/bin:$PATH bash scripts/gates/vulnerabilidade.sh 2>&1`
+      é executado na raiz do repositório, com as duas saídas capturadas juntas
+      *Então* o código de saída é diferente de `0`; a saída contém a cadeia
+      `não consegui auditar` e a cadeia
+      `REPROVADO por impossibilidade de medição, não por resultado.`; nomeia os
+      dois números divergentes, na cadeia
+      `a contagem do relatório diz 2 aviso(s) de severidade alta ou crítica` e na
+      cadeia `a lista de avisos traz 0`; contém a cadeia
+      `ISENCOES_DECLARADAS de scripts/gates/vulnerabilidade.sh`; e não contém nem
+      a cadeia `0 achados de severidade alta ou crítica` nem a cadeia `critical:`
+- [ ] `comportamental` — `RF-20`
+      *Dado* quatro raízes auditadas iguais, cada uma com o `pnpm` de mentira que
+      registra em `chamou-audit` que foi chamado, diferindo só na declaração de
+      registro: a primeira com `registry=https://espelho.exemplo/` no `.npmrc`, a
+      segunda com `registry = https://espelho.exemplo/` — com o espaço em volta
+      do `=` que o `ini` do pnpm apara e uma peneira ingênua não —, a terceira
+      com `registry: https://espelho.exemplo/` no `pnpm-workspace.yaml`, e a
+      quarta com `@empresa:registry=https://espelho.exemplo/` no `.npmrc`, que é
+      a declaração com escopo, montadas na raiz do repositório por
+      `for i in 1 2 3 4; do d=/tmp/vuln-registro-$i; rm -r "$d" 2>/dev/null; mkdir -p "$d/bin"; printf "lockfileVersion: '9.0'\n" > "$d/pnpm-lock.yaml"; printf '#!/bin/sh\n[ "$1" = "audit" ] || exit 0\n: > "%s/chamou-audit"\ncat "%s/scripts/gates/__tests__/fixtures/pnpm-audit-limpo.json"\nexit 0\n' "$d" "$PWD" > "$d/bin/pnpm"; chmod +x "$d/bin/pnpm"; done; printf 'registry=https://espelho.exemplo/\n' > /tmp/vuln-registro-1/.npmrc; printf 'registry = https://espelho.exemplo/\n' > /tmp/vuln-registro-2/.npmrc; printf 'registry: https://espelho.exemplo/\nminimumReleaseAge: 10080\n' > /tmp/vuln-registro-3/pnpm-workspace.yaml; printf '@empresa:registry=https://espelho.exemplo/\n' > /tmp/vuln-registro-4/.npmrc`
+      *Quando*
+      `env GITHUB_WORKSPACE=/tmp/vuln-registro-1 PATH=/tmp/vuln-registro-1/bin:$PATH bash scripts/gates/vulnerabilidade.sh 2>&1`
+      é executado na raiz do repositório, e o mesmo comando trocando
+      `/tmp/vuln-registro-1` por `/tmp/vuln-registro-2`, por
+      `/tmp/vuln-registro-3` e por `/tmp/vuln-registro-4`, cada um com as duas
+      saídas capturadas juntas
+      *Então* as quatro terminam com código de saída diferente de `0`; as quatro
+      saídas contêm a cadeia `não consegui auditar`, a cadeia
+      `medido: 1 registro(s) declarado(s) fora de https://registry.npmjs.org`, a
+      cadeia `aponta o registro para fora de https://registry.npmjs.org` — que
+      nomeia o registro esperado — e a cadeia
+      `REPROVADO por impossibilidade de medição, não por resultado.`; e nenhum
+      dos arquivos `/tmp/vuln-registro-1/chamou-audit`,
+      `/tmp/vuln-registro-2/chamou-audit`, `/tmp/vuln-registro-3/chamou-audit` e
+      `/tmp/vuln-registro-4/chamou-audit` existe
 - [ ] `comportamental` — `RF-09`
       *Dado* o diretório sem `pnpm-lock.yaml` cujo `pnpm` de mentira registra em
       `/tmp/vuln-sem-lock/chamou-audit` que foi chamado, montado na raiz do
@@ -214,7 +306,7 @@ em vez de erro de parse silencioso.
       *Então* o código de saída é diferente de `0` e a saída contém
       `o comando 'pnpm' não está no PATH` e
       `REPROVADO por impossibilidade de medição, não por resultado.`
-- [ ] `comportamental` — `RF-12`, `RF-13`
+- [ ] `comportamental` — `RF-02`, `RF-12`, `RF-13`
       *Dado* a fixture com os dois avisos altos, montada por
       `d=/tmp/vuln-qs; rm -rf "$d"; mkdir -p "$d/bin"; printf "lockfileVersion: '9.0'\n" > "$d/pnpm-lock.yaml"; printf '#!/bin/sh\n[ "$1" = "audit" ] || exit 0\ncat "%s/scripts/gates/__tests__/fixtures/pnpm-audit-qs-alto.json"\nexit 1\n' "$PWD" > "$d/bin/pnpm"; chmod +x "$d/bin/pnpm"`,
       e uma cópia do portão com a lista de isenções preenchida com prazo no
@@ -241,15 +333,17 @@ em vez de erro de parse silencioso.
       `GHSA-4mjr-xmp4-gh2g` e `VENCIDA em 2020-01-01` juntos; e a saída contém
       `GHSA-4mjr-xmp4-gh2g` e `GHSA-x5fp-wj9c-mxmx` em linhas de achado que
       reprovam
-- [ ] `comportamental` — `RF-11`, `RF-15`
+- [ ] `comportamental` — `RF-11`, `RF-14`, `RF-15`
       *Dado* o diretório cujo `pnpm` de mentira registra a chamada em
       `/tmp/vuln-isencao-larga/chamou-audit`, montado por
       `d=/tmp/vuln-isencao-larga; rm -rf "$d"; mkdir -p "$d/bin"; printf "lockfileVersion: '9.0'\n" > "$d/pnpm-lock.yaml"; printf '#!/bin/sh\n[ "$1" = "audit" ] || exit 0\n: > /tmp/vuln-isencao-larga/chamou-audit\ncat "%s/scripts/gates/__tests__/fixtures/pnpm-audit-limpo.json"\nexit 0\n' "$PWD" > "$d/bin/pnpm"; chmod +x "$d/bin/pnpm"`,
       e três cópias do portão, a primeira com a isenção `qs:2099-01-01`, que
       nomeia um pacote e não um aviso, a segunda com `*:2099-01-01`, que casa com
       qualquer aviso, e a terceira com `GHSA-4mjr-xmp4-gh2g:amanha`, que nomeia um
-      aviso e põe no lugar da data de vencimento algo que não é uma data,
-      montadas por
+      aviso e põe no lugar da data de vencimento algo que não é uma data — esta
+      terceira é falha de `RF-14`, e não de `RF-15`: ela nomeia um aviso só, que é
+      o que o `RF-15` cobra, mas um vencimento que não é data nunca chega, e a
+      isenção que não vence sozinha é o que o `RF-14` proíbe —, montadas por
       `i=0; for entrada in 'qs:2099-01-01' '*:2099-01-01' 'GHSA-4mjr-xmp4-gh2g:amanha'; do i=$((i+1)); c=/tmp/vuln-larga-$i; rm -rf "$c"; mkdir -p "$c/scripts/gates"; cp scripts/gates/medir.sh "$c/scripts/gates/"; sed "s|^ISENCOES_DECLARADAS=()\$|ISENCOES_DECLARADAS=(\"$entrada\")|" scripts/gates/vulnerabilidade.sh > "$c/scripts/gates/vulnerabilidade.sh"; done`
       *Quando* as três cópias são executadas em seguida na raiz do repositório
       com
@@ -268,19 +362,39 @@ em vez de erro de parse silencioso.
 
 - [ ] 1.1 Criar `scripts/gates/vulnerabilidade.sh`, no molde de
       `scripts/gates/quarentena.sh`: cabeçalho de comentário longo explicando o
-      **porquê** — o veredicto vem do conteúdo do JSON e não do código de saída
-      de `pnpm audit`; a lista de isenções mora no script e não em
-      `auditConfig.ignoreGhsas`; o piso é `high` e ele cobre `critical` junto —,
-      `set -uo pipefail` sem `-e`, e o carregamento verbatim
+      **porquê** em cinco blocos — o veredicto vem do conteúdo do JSON e não do
+      código de saída de `pnpm audit`; a lista de isenções mora no script e não
+      em `auditConfig.ignoreGhsas`; o piso é `high`, ele cobre `critical` junto e
+      `moderate` e `low` aparecem só na contagem; a contagem de `metadata` é
+      confrontada com a lista de avisos lida de `.advisories`; e o motor é uma
+      função só, com teto de tempo porque ele fala com a rede —, `set -uo
+      pipefail` sem `-e`, e o carregamento verbatim
       `RAIZ_DO_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"`
       seguido de `source "$RAIZ_DO_SCRIPT/scripts/gates/medir.sh"`.
-      A constante nasce vazia — `ISENCOES_DECLARADAS=()` —, uma entrada por
-      `identificador:AAAA-MM-DD`, com o motivo de cada entrada futura em
-      comentário logo acima dela e nunca como terceiro campo. Toda iteração sobre
-      ela usa `${ISENCOES_DECLARADAS[@]+"${ISENCOES_DECLARADAS[@]}"}`.
-      O motor é uma função só, `auditar_lockfile()`, que executa
-      `(cd "$RAIZ" && pnpm audit --audit-level=high --json 2>/dev/null)` e imprime
-      a saída padrão crua, **sem** ler o código de saída da ferramenta.
+      **As constantes:** `ISENCOES_DECLARADAS=()`, que nasce vazia, uma entrada
+      por `identificador:AAAA-MM-DD`, com o motivo de cada entrada futura em
+      comentário logo acima dela e nunca como terceiro campo — toda iteração
+      sobre ela usa `${ISENCOES_DECLARADAS[@]+"${ISENCOES_DECLARADAS[@]}"}`;
+      `PADRAO_DE_ISENCAO`, o predicado que valida a entrada;
+      `TETO_DA_AUDITORIA=600`, em segundos, que é limite superior e não alvo — uma
+      auditoria que passa daqui não está medindo, está pendurada; e
+      `ARQUIVO_DE_ERRO=""` junto da função `limpar_arquivo_de_erro()`, que o
+      `trap limpar_arquivo_de_erro EXIT` arma ali mesmo.
+      **As três funções:** `auditar_lockfile()`, o motor, que executa
+      `(cd "$RAIZ" && timeout -k 30 "$TETO_DA_AUDITORIA" pnpm audit --audit-level=high --json 2>"$ARQUIVO_DE_ERRO")`
+      e imprime a saída padrão crua, **sem** ler o código de saída da ferramenta;
+      `em_uma_linha()`, que passa `tr '\n\r\t' '   '` em toda mensagem vinda de
+      fora antes de ela chegar ao log; e `conta_registros() <arquivo>
+      <separador>`, que lê o arquivo linha a linha em bash puro — sem `grep` —,
+      pula linha vazia e linha iniciada por `#` ou `;`, apara o espaço em volta do
+      separador, apara aspas e barra final do valor, conta as chaves `registry` e
+      `*:registry` cujo valor **não** é `$REGISTRO_ESPERADO`, e imprime `0` quando
+      o arquivo não existe.
+      **Todo caminho de impossibilidade sai por `_reprova`**, de `medir.sh`, que é
+      quem imprime `::error::portão não conseguiu medir: <razão>` e
+      `REPROVADO por impossibilidade de medição, não por resultado.` e sai `1`; o
+      portão não repete essas duas cadeias à mão, e cada razão que ele passa a
+      `_reprova` começa por `não consegui auditar o pnpm-lock.yaml`.
       A ordem das checagens é:
       (a) validar cada entrada de `ISENCOES_DECLARADAS` contra
       `^(GHSA-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}|[0-9]+):[0-9]{4}-[0-9]{2}-[0-9]{2}$`
@@ -289,49 +403,136 @@ em vez de erro de parse silencioso.
       seguido de `exit 1`;
       (b) `exige_comando pnpm`;
       (c) `exige_comando jq`;
-      (d) `exige_caminho pnpm-lock.yaml "o lockfile da raiz que a auditoria lê"`;
-      (e) `RAIZ="$(medir_raiz)"`, `HOJE="$(date -u +%Y-%m-%d)"`, a linha
-      `medido: <n> isenção(ões) declarada(s)` e uma linha por isenção —
-      `  isenção: <id> vigente até <data>` quando `[[ "$HOJE" < "$vence" ]]`, e
+      (d) `exige_comando timeout`, porque o motor envolve a chamada de rede em
+      `timeout -k 30 "$TETO_DA_AUDITORIA"`. Justificativa: chamada de rede sem
+      teto não reprova nem aprova — ela pendura o job até o limite de seis horas
+      do runner, e medido nesta máquina uma execução levou 242 segundos e a
+      anterior não respondeu em 180 —, e com o teto o processo morre, a saída
+      padrão fica vazia e o portão cai no mesmo `não consegui auditar` de (k); o
+      `-k 30` existe para o processo que ignora o `SIGTERM`, que é o cenário que o
+      teto existe para eliminar (`D19`, `D24`);
+      (e) `exige_comando mktemp`, porque a saída de erro da auditoria é lida de um
+      arquivo criado por `mktemp` em (g). Justificativa: descartar a saída de erro
+      com `2>/dev/null` esconde se foi proxy, TLS ou registro fora do ar, e o
+      portão reprovaria certo sem dizer o que consertar (`D24`); o arquivo vem de
+      `mktemp` e não de nome derivado do PID porque nome previsível em diretório
+      compartilhado é arquivo que outro usuário planta como link antes, e o `2>`
+      do shell segue link — o `trap` cobre a interrupção, que o `rm` do caminho
+      feliz não cobre (`D28`);
+      (f) `exige_caminho pnpm-lock.yaml "o lockfile da raiz que a auditoria lê"`;
+      (g) `ARQUIVO_DE_ERRO="$(mktemp)"`, e o `mktemp` que não cria o arquivo cai
+      em `_reprova "não consegui auditar o pnpm-lock.yaml: mktemp não criou o arquivo onde a saída de erro da auditoria seria lida"`;
+      (h) `RAIZ="$(medir_raiz)"` e `HOJE="$(date -u +%Y-%m-%d)"`;
+      (i) a peneira de registro: a constante
+      `REGISTRO_ESPERADO='https://registry.npmjs.org'`,
+      `REDIRECIONAMENTOS=$(( $(conta_registros "$RAIZ/.npmrc" '=') + $(conta_registros "$RAIZ/pnpm-workspace.yaml" ':') ))`,
+      a linha
+      `medido: <n> registro(s) declarado(s) fora de https://registry.npmjs.org em .npmrc e pnpm-workspace.yaml`
+      e, com `<n>` diferente de zero,
+      `_reprova "não consegui auditar o pnpm-lock.yaml: a configuração da raiz sob $RAIZ aponta o registro para fora de $REGISTRO_ESPERADO, e quem responde a auditoria passa a ser escolhido pelo arquivo do pull request — a contagem de pacotes é local e continuaria dizendo o número certo sobre uma resposta que ninguém verificou"`.
+      Justificativa: quem responde a auditoria é escolhido pela configuração da
+      raiz, que é arquivo do PR, e um espelho que devolva `{"advisories":{}}` é
+      internamente coerente — passa pelo confronto de (o), faria o portão imprimir
+      os pacotes do lockfile, que são contados localmente, e aprovar com zero
+      achados, de quebra entregando a árvore de dependências ao servidor que o
+      autor do PR escolheu (`D22`). As duas casas valem porque o `ini` que o npm e
+      o pnpm leem apara o espaço em volta do `=` — uma peneira que só casasse
+      `registry=` seria derrotada por um espaço, e a linha `medido:` passaria a
+      afirmar zero com um redirecionamento em vigor — e porque o
+      `pnpm-workspace.yaml` é onde este repositório já guarda `minimumReleaseAge`
+      e `overrides`; e o que se compara é **para onde** o registro aponta, e não a
+      existência da declaração, porque fixar o registro oficial à mão é
+      endurecimento (`D27`). A leitura é em bash puro para não acrescentar binário
+      à lista que os critérios de PATH mínimo fixam (`D22`). Esta checagem vem
+      antes de `auditar_lockfile`, e é ela que faz `RF-20` reprovar antes de
+      qualquer chamada de rede;
+      (j) `ISENCOES_VIGENTES=()`, a linha `medido: <n> isenção(ões) declarada(s)`
+      e uma linha por isenção — `  isenção: <id> vigente até <data>` quando
+      `[[ "$HOJE" < "$vence" ]]`, caso em que o `<id>` entra em
+      `ISENCOES_VIGENTES`, e
       `  isenção: <id> VENCIDA em <data> — o aviso volta a reprovar` quando não;
-      (f) `auditar_lockfile`, e sem JSON parseável
-      `_reprova "não consegui auditar o pnpm-lock.yaml: 'pnpm audit --audit-level=high --json' não devolveu JSON sob $RAIZ — registro inalcançável e vulnerabilidade encontrada saem as duas com código 1, e só o conteúdo do JSON as separa"`;
-      (g) as contagens por
+      (k) `JSON="$(auditar_lockfile)"`; a razão que a ferramenta escreveu é lida
+      do arquivo de erro por
+      `RAZAO_DA_FERRAMENTA="$(em_uma_linha "$(head -c 400 "$ARQUIVO_DE_ERRO" 2>/dev/null)")"`
+      — os 400 primeiros bytes — e o arquivo é removido em seguida; com `$JSON`
+      vazio ou que não passe em `jq -e 'type == "object"'`,
+      `_reprova "não consegui auditar o pnpm-lock.yaml: 'pnpm audit --audit-level=high --json' não devolveu JSON sob $RAIZ — registro inalcançável e vulnerabilidade encontrada saem as duas com código 1, e só o conteúdo do JSON as separa. A ferramenta disse: ${RAZAO_DA_FERRAMENTA:-nada}"`.
+      Justificativa: a mensagem atravessa `em_uma_linha` porque ela vem de fora, e
+      uma quebra de linha no meio dela poria `::stop-commands::` ou `::add-mask::`
+      no começo de uma linha do log, que o runner obedeceria — comando de fluxo só
+      vale no começo da linha (`D24`);
+      (l) `ERRO_DA_FERRAMENTA`, lido por `jq -r '.error.message // empty'` e
+      também passado por `em_uma_linha`, e com ele não vazio
+      `_reprova "não consegui auditar o pnpm-lock.yaml: a ferramenta devolveu erro em vez de auditoria sob $RAIZ — $ERRO_DA_FERRAMENTA"`.
+      Justificativa: medido contra o registro de verdade, quando ele não responde
+      `pnpm audit --json` **não** fica sem saída — devolve JSON válido cujo corpo
+      inteiro é
+      `{"error": {"code": 23, "message": "The operation was aborted due to timeout"}}`,
+      que passa por qualquer teste de forma e cairia no `// 0` do filtro de (m),
+      fazendo o portão reprovar pelo caminho certo dizendo a razão errada,
+      *auditoria de nenhum pacote*, que manda quem lê procurar um lockfile vazio
+      que não existe (`D20`);
+      (m) as contagens por
       `jq -r '[.metadata.vulnerabilities.critical // 0, .metadata.vulnerabilities.high // 0, .metadata.vulnerabilities.moderate // 0, .metadata.vulnerabilities.low // 0, .metadata.totalDependencies // 0] | @tsv'`,
-      e com total zero ou não numérico
-      `_reprova "não consegui auditar o pnpm-lock.yaml: o JSON da auditoria traz metadata.totalDependencies = 0 sob $RAIZ — auditoria de nenhum pacote não é lockfile limpo"`;
-      (h) a linha
-      `medido: <total> pacote(s) auditado(s) — critical: <c>, high: <h>, moderate: <m>, low: <l>`;
-      (i) os achados por
+      com o código de saída do `jq` lido —
+      `|| _reprova "não consegui auditar o pnpm-lock.yaml: o JSON da auditoria sob $RAIZ não respondeu ao filtro de contagem — o relatório mudou de forma, e ler zero de um formato que este portão já não conhece é dizer 0 achados por outro nome"` —,
+      `IFS=$'\t' read -r CRITICAS ALTAS MODERADAS BAIXAS TOTAL`, `TOTAL` vazio ou
+      não numérico normalizado para `0`, e com `TOTAL` igual a zero
+      `_reprova "não consegui auditar o pnpm-lock.yaml: o JSON da auditoria traz metadata.totalDependencies = 0 sob $RAIZ — auditoria de nenhum pacote não é lockfile limpo"`.
+      Justificativa: sem ler o código de saída do `jq`, a atribuição engole o erro,
+      a variável fica vazia, e vazio é indistinguível de lockfile limpo;
+      (n) os achados por
       `jq -r '(.advisories // {}) | to_entries[] | .value as $a | ($a.github_advisory_id // .key) as $id | select($a.severity == "high" or $a.severity == "critical") | [$id, ($a.module_name // "?"), ((($a.findings // [])[0]).version // "?"), $a.severity, ($a.patched_versions // "?")] | @tsv'`,
-      descartando os `$id` que tenham isenção cujo vencimento `HOJE` ainda não
-      alcançou, e uma linha por achado restante —
-      `  achado: <pacote>@<versão> <id> <severidade> — corrigido em <patched_versions>`;
-      (j) com achado restante,
+      com o código de saída lido pelo mesmo motivo —
+      `|| _reprova "não consegui auditar o pnpm-lock.yaml: o JSON da auditoria sob $RAIZ não respondeu ao filtro de achados — sem a lista, vazio é indistinguível de lockfile limpo"` —
+      e `LIDOS` contando as linhas não vazias que o filtro devolveu;
+      (o) o confronto: `GRAVES=$((CRITICAS + ALTAS))` e, com `LIDOS` diferente de
+      `GRAVES`,
+      `_reprova "não consegui auditar o pnpm-lock.yaml: a contagem do relatório diz $GRAVES aviso(s) de severidade alta ou crítica sob $RAIZ e a lista de avisos traz $LIDOS — 'pnpm audit --json' poda .advisories pela isenção da configuração (audit.ignore ou auditConfig.ignoreGhsas, que 'pnpm audit --ignore' grava sozinho no pnpm-workspace.yaml) e pelo piso de nível, sem tocar em metadata, e a diferença é exatamente o que ficaria escondido. Se a isenção é legítima, ela se declara em ISENCOES_DECLARADAS de scripts/gates/vulnerabilidade.sh, com prazo"`.
+      Justificativa: medido em `pnpm@11.25.0` (`dist/pnpm.mjs`), `pnpm audit
+      --json` poda `.advisories` duas vezes antes de serializar — pela isenção da
+      configuração e pelo piso de nível — e serializa `metadata` intacta, e a
+      contagem sobe uma vez por aviso no mesmo laço que preenche `.advisories`,
+      então a diferença entre os dois números é exatamente o aviso escondido: sem
+      o confronto, um `pnpm-workspace.yaml` com quatro linhas de `audit.ignore`
+      faz o portão imprimir `high: 2` e aprovar dizendo `0 achados` na linha
+      seguinte (`D21`);
+      (p) a linha
+      `medido: <total> pacote(s) auditado(s) — critical: <c>, high: <h>, moderate: <m>, low: <l>`;
+      (q) uma passagem por `$ACHADOS` que descarta o `$id` presente em
+      `ISENCOES_VIGENTES`, contando-o em `ESCONDIDOS`, e imprime uma linha por
+      achado restante —
+      `  achado: <pacote>@<versão> <id> <severidade> — corrigido em <patched_versions>` —,
+      contando-o em `RESTANTES`;
+      (r) com `RESTANTES` maior que zero,
       `printf '::error::vulnerabilidade conhecida no lockfile: %s achado(s) de severidade alta ou crítica fora de isenção vigente. Atualize a dependência ou escreva a isenção nominal com prazo em ISENCOES_DECLARADAS de scripts/gates/vulnerabilidade.sh.\n' … >&2`
       e `exit 1`;
-      (k) sem achado restante,
-      `✓ vulnerabilidade: <total> pacotes auditados, <n> achados de severidade alta ou crítica, <k> isenções.`
-      A ordem de (h) antes de (i) e (j) é parte do requisito, não estética: é a
+      (s) sem achado restante,
+      `✓ vulnerabilidade: <total> pacotes auditados, <RESTANTES> achados de severidade alta ou crítica, <ESCONDIDOS> isenções.`
+      A ordem de (p) antes de (q) e (r) é parte do requisito, não estética: é a
       linha de contagem que torna a reprovação acionável para quem executa o
       portão à mão, e ela vem **antes** dos achados e do `::error::` na mesma
-      saída padrão. Nos caminhos (f) e (g) a linha de contagem **não** é impressa.
+      saída padrão. A linha de contagem de severidades **não** sai em nenhum
+      caminho que reprove antes dela: (i), (k), (l), (m), (n) e (o) saem com a
+      razão nomeada e a frase `não consegui auditar`, nunca com zeros.
       Justificativa: `RF-07` mediu que `pnpm audit` sai `1` tanto para "achei
       vulnerabilidade" quanto para "não consegui falar com o registro", então ler
       o código de saída funde as duas — e uma delas tem de reprovar dizendo `não
       consegui auditar`, que é a regra 19 do `CLAUDE.md` e o motivo de `medir.sh`
       existir. `RF-06` pede o número de pacotes lido de
-      `metadata.totalDependencies`, e nos caminhos (f) e (g) esse campo não existe
+      `metadata.totalDependencies`, e nos caminhos (k) e (m) esse campo não existe
       ou é zero: imprimir zeros ali seria dizer `0 achados` por outro nome, que é
       exatamente o que `RF-07` proíbe e o defeito que `medir.sh` existe para
       matar — por isso o caminho de impossibilidade sai com a razão nomeada e a
-      frase `não consegui auditar`, e sem contagem nenhuma. O motor isolado numa
-      função é o que torna a troca por `osv-scanner` reversível sem mexer em quem
-      chama o portão nem no que ele imprime (`D1`). A constante no script, e não
-      `auditConfig.ignoreGhsas`, porque a configuração **fundida** do pnpm soma o
-      `.npmrc` da máquina de quem executa ao arquivo do repositório — é o buraco
-      que o item `044` existe para tapar na quarentena, e repeti-lo de propósito
-      criaria a segunda ocorrência do mesmo defeito (`D3`). A expansão
+      frase `não consegui auditar`, e sem contagem nenhuma (`D13`). O motor
+      isolado numa função é o que torna a troca por `osv-scanner` reversível sem
+      mexer em quem chama o portão nem no que ele imprime (`D1`). A constante no
+      script, e não `auditConfig.ignoreGhsas`, porque a configuração **fundida**
+      do pnpm soma o `.npmrc` da máquina de quem executa ao arquivo do
+      repositório — é o buraco que o item `044` existe para tapar na quarentena, e
+      repeti-lo de propósito criaria a segunda ocorrência do mesmo defeito (`D3`);
+      o portão **lê** `.npmrc` e `pnpm-workspace.yaml` em (i), e lê para recusar,
+      nunca para honrar. A expansão
       `${ISENCOES_DECLARADAS[@]+"${ISENCOES_DECLARADAS[@]}"}` existe porque a
       lista **nasce vazia**: `"${arr[@]}"` sobre array vazio sob `set -u` aborta
       em bash antigo, e o estado de entrega é justamente o caminho que roda em
@@ -342,11 +543,11 @@ em vez de erro de parse silencioso.
       prazo junto do identificador porque o formato da entrada é o que o `RF-11`
       declara — identificador do aviso mais data de vencimento —, e uma entrada
       cujo vencimento não é uma data nunca vence, contra o que o `RF-14` afirma:
-      a isenção vence sozinha, e ninguém precisa lembrar de removê-la. Isenção
-      vencida deixa de proteger e nada mais: reprovar também pela linha morta
-      faria este portão ficar vermelho por higiene de arquivo, que é assunto de
-      outro portão.
-- [ ] 1.2 Criar as cinco fixtures em `scripts/gates/__tests__/fixtures/`,
+      a isenção vence sozinha, e ninguém precisa lembrar de removê-la (`D14`).
+      Isenção vencida deixa de proteger e nada mais: reprovar também pela linha
+      morta faria este portão ficar vermelho por higiene de arquivo, que é assunto
+      de outro portão (`D15`).
+- [ ] 1.2 Criar as nove fixtures em `scripts/gates/__tests__/fixtures/`,
       reproduzindo a forma real de `pnpm audit --audit-level=high --json`:
       `advisories` indexado por identificador do aviso, e `metadata` com as
       severidades e as quatro contagens de pacote. A forma exata, na fixture com
@@ -391,7 +592,7 @@ em vez de erro de parse silencioso.
         }
       }
       ```
-      As outras quatro repetem esse esqueleto e mudam só o que o caso mede:
+      Quatro delas repetem esse esqueleto e mudam só o que o caso mede:
       `pnpm-audit-limpo.json` com `"advisories": {}` e as cinco severidades em
       `0`; `pnpm-audit-moderado.json` com `"advisories": {}`, `"moderate": 3` e
       `"low": 5`; `pnpm-audit-dev.json` com um único aviso `GHSA-fals-odev-1111`
@@ -399,8 +600,26 @@ em vez de erro de parse silencioso.
       `patched_versions` `>=2.0.0`, `paths`
       `[".>pacote-de-desenvolvimento-de-mentira"]` e `"critical": 1`;
       `pnpm-audit-sem-pacote.json` com `"advisories": {}`, as severidades em `0` e
-      `"totalDependencies": 0`. As quatro mantêm `"totalDependencies": 923`
-      menos a última.
+      `"totalDependencies": 0`. Dessas quatro, as três primeiras mantêm
+      `"totalDependencies": 923`, e só a última traz `0`.
+      As quatro restantes são os relatórios que **não** são auditoria utilizável,
+      uma por caminho de impossibilidade: `pnpm-audit-podado.json` repete o
+      esqueleto com `"advisories": {}` sobre `"high": 2` e
+      `"totalDependencies": 923` — a contagem inteira sobre a lista podada, que é
+      o que `pnpm audit --json` devolve quando a isenção mora na configuração do
+      pnpm (`D21`); `pnpm-audit-forma-desconhecida.json` repete o esqueleto com
+      `"advisories": "nenhum"` — uma cadeia no lugar do objeto —, `"high": 1` e
+      `"totalDependencies": 923`, que é o relatório cuja forma mudou e faz o
+      filtro de achados devolver lista vazia sobre uma contagem que acusa aviso
+      (`D21`); `pnpm-audit-erro-de-rede.json` não tem esqueleto nenhum, e seu
+      corpo inteiro é
+      `{"error": {"code": 23, "message": "The operation was aborted due to timeout"}}`
+      — JSON válido, sem `metadata`, medido contra o registro de verdade quando
+      ele não responde (`D20`); e `pnpm-audit-erro-com-quebra.json` repete esse
+      corpo de erro com `message` igual a
+      `falhou\n::stop-commands::marcador-plantado\nfim`, que é a quebra de linha
+      capaz de pôr um comando de fluxo no começo de uma linha do log do runner
+      (`D24`).
       Justificativa: é a forma do JSON que amarra o parser do portão ao formato
       real — fixture inventada por conveniência faria o teste morder um contrato
       que o `pnpm` não devolve, e o portão passaria verde contra o mundo. As
@@ -416,7 +635,12 @@ em vez de erro de parse silencioso.
       `acoes-em-sha.test.sh` já usa em `SHA_DE_MENTIRA`, para ninguém sair
       procurando um aviso real que não existe. `title` e `url` não são lidos pelo
       portão e estão ali só pela forma; se a página do aviso estiver ao alcance,
-      copie o resumo dela.
+      copie o resumo dela. As quatro últimas são lidas pelos casos de
+      impossibilidade de `scripts/gates/__tests__/vulnerabilidade.test.sh`, que a
+      etapa 1.3 cria e o passo de `portoes.yml` da etapa 1.5 executa: fixture que
+      nenhum caso lê é arquivo que a sessão seguinte apaga sem ninguém notar, e
+      caminho de impossibilidade sem entrada real é o que volta a aprovar por não
+      ter medido.
 - [ ] 1.3 Criar `scripts/gates/__tests__/vulnerabilidade.test.sh`, no molde de
       `scripts/gates/__tests__/quarentena.test.sh`: `set -uo pipefail`, sandbox em
       `${TMPDIR:-/tmp}/vulnerabilidade-test-$$` sem faxina por `trap`,

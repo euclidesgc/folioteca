@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "active_item": "027-vulnerabilidade-conhecida-reprova-no-ci",
+  "active_item": "057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto",
   "items": {
     "001-esqueleto-do-monorepo": {
       "title": "Esqueleto do monorepo: os três apps sobem, o contrato é gerado e o CI fica verde",
@@ -509,22 +509,70 @@
     },
     "027-vulnerabilidade-conhecida-reprova-no-ci": {
       "title": "Vulnerabilidade conhecida reprova no CI: o portão audita o lockfile inteiro e reprova achado de severidade alta ou crítica, com isenção nominal e prazo",
-      "track": "rapida",
-      "stage": "plan",
+      "track": "completa",
+      "stage": "done",
       "stacks": [],
       "created_at": "2026-09-03T19:13:55Z",
       "approvals": {
         "brief": {
-          "at": "2026-09-04T04:24:02Z",
-          "sha": "e10ce415b870ad946c411a3612cc66d2e7d6d57b",
+          "at": "2026-09-04T09:07:25Z",
+          "sha": "6469d94931b28115dae47e7ac1f5033172b52096",
           "file": "product/items/027-vulnerabilidade-conhecida-reprova-no-ci/01-brief.md",
           "por": "autonomo"
         },
         "plan": {
-          "at": "2026-09-04T05:32:13Z",
-          "sha": "18813a2af24bd0d6747a08d2d47ce4e2751b19ba",
+          "at": "2026-09-04T09:25:13Z",
+          "sha": "6fc2235911c86f2c2451cce872403a1dff9c836e",
           "file": "product/items/027-vulnerabilidade-conhecida-reprova-no-ci/03-plan.md",
           "por": "autonomo"
+        }
+      },
+      "current_phase": 1,
+      "phases": {
+        "1": {
+          "status": "aprovada",
+          "reproved_count": 0,
+          "verdict": "APROVADO",
+          "verdict_file": "product/items/027-vulnerabilidade-conhecida-reprova-no-ci/05-veredictos/fase-1.md",
+          "validated_sha": "785da9a6a6f1f8059a0f785eaa60a45c60d89355",
+          "pr": null,
+          "blocked_on": [
+            "D-001"
+          ],
+          "verdict_at": "2026-09-04T10:57:14Z",
+          "validated_trees": {
+            "apps/api": "f472bbf7585a1090ff4f41595d859768c172edf7",
+            "apps/web": "bcb6297b9195060c3eeade874dc899e48a5e84cd"
+          },
+          "criteria_sha": "ea022a5027da9cfe8eb0f614daad6fc6be8b58cf460bd0a49c0c5706f968844d"
+        }
+      },
+      "divergences": {
+        "D-001": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 1,
+          "detected_at": "2026-09-04T10:11:47Z",
+          "aprovada_at": "2026-09-04T10:11:47Z",
+          "ratificada_por": "autonomo"
+        }
+      },
+      "criteria_exception": null
+    },
+    "057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto": {
+      "title": "O CI cancela o run que o push seguinte tornou obsoleto: cada fluxo declara concorrência por referência, e main e develop não cancelam",
+      "track": "rapida",
+      "stage": "brief",
+      "stacks": [],
+      "created_at": "2026-09-04T11:38:58Z",
+      "approvals": {
+        "brief": {
+          "at": null,
+          "sha": null
+        },
+        "plan": {
+          "at": null,
+          "sha": null
         }
       },
       "current_phase": null,
