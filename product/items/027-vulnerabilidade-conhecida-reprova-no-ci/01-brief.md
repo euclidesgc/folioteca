@@ -114,11 +114,15 @@ O motor da auditoria é `pnpm audit --audit-level=high --json`, subcomando do
   na máquina de quem programa e no runner onde o `checkout` já gravou o token do
   repositório em disco.*
 
-- **RF-06** — O sistema deve imprimir, em toda execução e antes do veredicto, a
-  contagem de avisos das quatro severidades — `critical`, `high`, `moderate` e
-  `low` — e o número de pacotes auditados lido de `metadata.totalDependencies`.
-  A linha vale também quando o portão reprova: é ela que torna a reprovação
-  acionável para quem executa o portão à mão.
+- **RF-06** — Quando o portão chega ao veredicto por resultado da auditoria, o
+  sistema deve imprimir, antes desse veredicto, a contagem de avisos das quatro
+  severidades — `critical`, `high`, `moderate` e `low` — e o número de pacotes
+  auditados lido de `metadata.totalDependencies`. A linha vale tanto na
+  aprovação do `RF-02` quanto na reprovação por achado do `RF-03`: é ela que
+  torna a reprovação acionável para quem executa o portão à mão. Em todo caminho
+  que reprova por impossibilidade de medir, o que sai no lugar dela é a razão
+  nomeada e a frase `não consegui auditar`, sem contagem nenhuma — zero ali
+  seria dizer `0 achados` por outro nome, que é o que o `RF-07` proíbe.
 
 ### Não conseguir auditar
 
@@ -252,8 +256,8 @@ O motor da auditoria é `pnpm audit --audit-level=high --json`, subcomando do
   `moderate` e `low` conta e não reprova. Ganho: `moderate` em npm é populoso e
   majoritariamente inalcançável a partir do código real, e um portão que fica
   vermelho por ruído ensina a ignorar o vermelho do portão ao lado. A contagem
-  das quatro severidades é impressa em toda execução, então o número que não
-  reprova continua visível.
+  das quatro severidades sai sempre que a auditoria pôde ser medida, então o
+  número que não reprova continua visível.
 
 - **Decisão tomada contra `auditConfig.ignoreGhsas`, que é a forma nativa de
   isentar.** Custo aceito: o filtro do JSON é escrito à mão, em poucas linhas de

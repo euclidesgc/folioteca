@@ -515,14 +515,14 @@
       "created_at": "2026-09-03T19:13:55Z",
       "approvals": {
         "brief": {
-          "at": "2026-09-04T04:24:02Z",
-          "sha": "e10ce415b870ad946c411a3612cc66d2e7d6d57b",
+          "at": "2026-09-04T09:07:25Z",
+          "sha": "6469d94931b28115dae47e7ac1f5033172b52096",
           "file": "product/items/027-vulnerabilidade-conhecida-reprova-no-ci/01-brief.md",
           "por": "autonomo"
         },
         "plan": {
-          "at": "2026-09-04T05:32:13Z",
-          "sha": "18813a2af24bd0d6747a08d2d47ce4e2751b19ba",
+          "at": "2026-09-04T09:25:13Z",
+          "sha": "6fc2235911c86f2c2451cce872403a1dff9c836e",
           "file": "product/items/027-vulnerabilidade-conhecida-reprova-no-ci/03-plan.md",
           "por": "autonomo"
         }
@@ -540,13 +540,7 @@
         }
       },
       "divergences": {},
-      "criteria_exception": {
-        "file": "product/items/027-vulnerabilidade-conhecida-reprova-no-ci/03-plan.md",
-        "agent": "plan-writer",
-        "phase": 1,
-        "opened_at": "2026-09-04T07:55:26Z",
-        "ttl_min": 30
-      }
+      "criteria_exception": null
     }
   }
 }
