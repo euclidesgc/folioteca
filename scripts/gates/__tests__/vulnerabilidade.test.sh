@@ -213,6 +213,24 @@ caso_sem "erro da ferramenta não é confundido com auditoria de nenhum pacote" 
   "auditoria de nenhum pacote não é lockfile limpo" "$erro_rede"
 caso_sem "erro da ferramenta não imprime contagem de severidade" 1 "critical:" "$erro_rede"
 
+# A mensagem vem de fora — do registro, ou de quem quer que responda por ele — e
+# vai para o log do runner. Com quebra de linha preservada, `::stop-commands::`
+# no começo de uma linha desliga o processamento de anotações do job inteiro, e
+# `::add-mask::` esconde o que o revisor precisava ler. O comando de fluxo só
+# vale no início da linha, então é isso que se mede.
+erro_injetado="$tmp/erro-com-quebra"
+monta_stub "$erro_injetado" pnpm-audit-erro-com-quebra.json 1
+saida_injetada="$tmp/erro-com-quebra.saida"
+env GITHUB_WORKSPACE="$erro_injetado" PATH="$erro_injetado/bin:$PATH" \
+  "$bash_absoluto" "$portao" > "$saida_injetada" 2>&1
+if grep -q '^::stop-commands::' "$saida_injetada"; then
+  printf '  FALHA a mensagem da ferramenta injetou comando de fluxo no log do runner\n'
+  falhas=$((falhas + 1))
+else
+  printf '  ok    quebra de linha na mensagem da ferramenta não injeta comando de fluxo\n'
+fi
+caso "mensagem com quebra de linha continua sendo citada" 1 "marcador-plantado" "$erro_injetado"
+
 zero="$tmp/zero-pacotes"
 monta_stub "$zero" pnpm-audit-sem-pacote.json 0
 caso "auditoria de nenhum pacote REPROVA por não ter medido" 1 "não consegui auditar" "$zero"
@@ -223,15 +241,70 @@ caso_sem "auditoria de nenhum pacote não diz 0 achados" 1 \
   "0 achados de severidade alta ou crítica" "$zero"
 
 # A configuração do pnpm é fundida: `auditConfig.ignoreGhsas` no arquivo do
-# repositório e `.npmrc` na máquina de quem executa somam. Um portão que
-# delegasse a isenção a eles ficaria verde para quem tem a máquina certa.
+# repositório e `.npmrc` na máquina de quem executa somam. O portão não lê nem um
+# nem outro para isentar — e estes dois casos provam só isso, porque o `pnpm` de
+# mentira não lê configuração nenhuma. Quem prova que a isenção pela configuração
+# não passa é o bloco do relatório podado, logo abaixo: é lá que mora a defesa, e
+# um teste que a cobrasse daqui passaria verde com o portão quebrado.
 config="$tmp/config-fundida"
 monta_stub "$config" pnpm-audit-qs-alto.json 0
 printf 'auditConfig:\n  ignoreGhsas:\n    - GHSA-4mjr-xmp4-gh2g\n    - GHSA-x5fp-wj9c-mxmx\n' \
   > "$config/pnpm-workspace.yaml"
 printf 'audit-level=critical\n' > "$config/.npmrc"
-caso "ignoreGhsas do repositório não isenta nada" 1 "GHSA-4mjr-xmp4-gh2g" "$config"
-caso "audit-level da máquina não baixa o piso do portão" 1 "GHSA-x5fp-wj9c-mxmx" "$config"
+caso "portão não lê a isenção do repositório para esconder achado" 1 "GHSA-4mjr-xmp4-gh2g" "$config"
+caso "portão não lê o audit-level da máquina para baixar o piso" 1 "GHSA-x5fp-wj9c-mxmx" "$config"
+
+# O que `pnpm audit --json` devolve quando a isenção está na configuração: a
+# contagem inteira em `metadata`, e `.advisories` podado. Medido em pnpm 11.25.0.
+# Sem o confronto das duas, o portão imprimiria `high: 2` e aprovaria dizendo
+# `0 achados` na linha seguinte — e `pnpm audit --ignore` grava essa configuração
+# sozinho, então o caminho acidental é mais provável que o deliberado.
+podado="$tmp/relatorio-podado"
+monta_stub "$podado" pnpm-audit-podado.json 0
+caso "aviso podado da lista pela configuração REPROVA por não ter medido" 1 \
+  "REPROVADO por impossibilidade de medição, não por resultado." "$podado"
+caso "aviso podado nomeia a divergência entre a contagem e a lista" 1 \
+  "diz 2 aviso(s) de severidade alta ou crítica" "$podado"
+caso "aviso podado nomeia onde a isenção legítima se declara" 1 \
+  "ISENCOES_DECLARADAS" "$podado"
+caso_sem "aviso podado não diz 0 achados" 1 "0 achados de severidade alta ou crítica" "$podado"
+caso_sem "aviso podado não imprime contagem de severidade" 1 "critical:" "$podado"
+
+# O mesmo confronto pega a troca de formato do relatório: aqui `.advisories` vem
+# com tipo inesperado, o filtro de achados morre, e a lista fica vazia com a
+# contagem dizendo que há um aviso alto. Antes do confronto isso saía verde.
+forma="$tmp/forma-desconhecida"
+monta_stub "$forma" pnpm-audit-forma-desconhecida.json 0
+caso "relatório de forma desconhecida REPROVA por não ter medido" 1 \
+  "REPROVADO por impossibilidade de medição, não por resultado." "$forma"
+caso_sem "relatório de forma desconhecida não diz 0 achados" 1 \
+  "0 achados de severidade alta ou crítica" "$forma"
+
+# O registro que responde a auditoria é escolhido pelo `.npmrc` da raiz, que é
+# arquivo do PR. Um espelho que devolve nada faria o portão imprimir os 923
+# pacotes do lockfile — a contagem é local — e aprovar.
+espelho="$tmp/registro-espelhado"
+monta_stub "$espelho" pnpm-audit-limpo.json 0
+printf 'engine-strict=true\nregistry=https://espelho.exemplo/\n' > "$espelho/.npmrc"
+caso "registro redirecionado no .npmrc REPROVA por não ter medido" 1 \
+  "REPROVADO por impossibilidade de medição, não por resultado." "$espelho"
+caso "registro redirecionado é contado em voz alta" 1 \
+  "medido: 1 redirecionamento(s) de registro em .npmrc" "$espelho"
+marcador_ausente "registro redirecionado reprova antes de chamar a auditoria" "$espelho"
+
+escopado="$tmp/registro-escopado"
+monta_stub "$escopado" pnpm-audit-limpo.json 0
+printf '@empresa:registry=https://espelho.exemplo/\n' > "$escopado/.npmrc"
+caso "registro de escopo redirecionado também REPROVA" 1 \
+  "redireciona o registro" "$escopado"
+
+# O `.npmrc` que não mexe no registro não reprova: o portão mede o
+# redirecionamento, não a existência do arquivo.
+npmrc_inocente="$tmp/npmrc-inocente"
+monta_stub "$npmrc_inocente" pnpm-audit-limpo.json 0
+printf 'engine-strict=true\n' > "$npmrc_inocente/.npmrc"
+caso ".npmrc sem redirecionamento não atrapalha a auditoria" 0 \
+  "medido: 0 redirecionamento(s) de registro em .npmrc" "$npmrc_inocente"
 
 # O marcador é a única forma de separar "reprovou" de "reprovou depois de
 # auditar". Sem ele, as duas têm a mesma cara.

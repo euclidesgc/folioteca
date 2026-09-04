@@ -60,6 +60,43 @@ PR e commit já escritos.
       redondo igual para todos: teto que não sai de medição é teto que reprova o
       job legítimo no dia em que a rede está lenta.
 
+- [ ] `053-o-portao-de-vulnerabilidade-insiste-antes-de-desistir` — uma
+      indisponibilidade curta do registro npm deixa de reprovar o pull request de
+      quem não mexeu em dependência nenhuma
+      **Depende de:** `027-vulnerabilidade-conhecida-reprova-no-ci` — é o portão
+      dele que ganha a insistência, e ela só faz sentido depois de a falha
+      fechada existir.
+      **Origem:** fase 1 de `027-vulnerabilidade-conhecida-reprova-no-ci`,
+      levantado pelo validador cego e pela auditoria de segurança. O portão fala
+      com o registro npm em todo pull request e reprova quando não alcança —
+      correto, e é a razão de ele existir —, mas não tenta de novo: das quatro
+      execuções contra o registro de verdade nesta sessão, uma terminou em `The
+      operation was aborted due to timeout`. Hoje a única saída é reexecutar o job
+      à mão. Fechar é insistir um número declarado de vezes, com espera crescente
+      entre elas, dentro do `TETO_DA_AUDITORIA` que já existe, e imprimir quantas
+      tentativas foram gastas — sem isso a insistência esconde justamente a
+      degradação que interessa medir. O que **não** se faz é aprovar depois de
+      esgotar as tentativas: continuar reprovando é o requisito, e o item só muda
+      quantas vezes se pergunta antes de desistir.
+
+- [ ] `054-o-fluxo-de-portoes-instala-o-pnpm-pela-mesma-peneira-dos-outros` — a
+      versão de pnpm que julga vulnerabilidade deixa de sair do arquivo do pull
+      request sem passar por verificação
+      **Depende de:** `027-vulnerabilidade-conhecida-reprova-no-ci` — antes dele o
+      fluxo de portões não executava nada que dependesse de qual pnpm roda.
+      **Origem:** fase 1 de `027-vulnerabilidade-conhecida-reprova-no-ci`,
+      levantado pela auditoria de segurança como suspeita a confirmar. O job
+      `medir` de `.github/workflows/portoes.yml` usa `pnpm/action-setup` sem
+      `with: version`, então a versão instalada vem do campo `packageManager` do
+      `package.json` do próprio PR; os três fluxos por frente não fazem assim —
+      eles passam por `scripts/ci/instalar-pnpm.sh`, que peneira a forma do campo
+      e instala com `--ignore-scripts`. A ação está fixada em SHA, então o risco
+      não é a ação: é o job que julga vulnerabilidade rodar uma versão que o PR
+      escolheu sem a peneira que os outros fluxos exigem. Fechar é usar o mesmo
+      script nos dois jobs deste fluxo. Falta confirmar, antes de decidir a forma,
+      se `pnpm/action-setup@v4.3.0` valida o campo e instala sem scripts de ciclo
+      de vida — se validar, o item vira consistência e não correção.
+
 - [ ] `049-a-isencao-de-qs-vence-e-alguem-precisa-fecha-la` — o nome `qs` sai da
       lista de isenções da quarentena, nos dois lugares que o portão compara,
       antes que o vencimento deixe todo PR vermelho
