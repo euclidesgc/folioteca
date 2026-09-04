@@ -50,28 +50,18 @@ PR e commit já escritos.
       espera declarada, e imprime quantas tentativas gastou. Ela **não** resolve o
       limite de taxa do endpoint, que é a causa; isso é o `055`.
 
-- [x] `027-vulnerabilidade-conhecida-reprova-no-ci` — o CI reprova quando uma
+- [-] `027-vulnerabilidade-conhecida-reprova-no-ci` — o CI reprova quando uma
       dependência do lockfile tem aviso de severidade alta, em vez de a conta ser
       feita à mão numa auditoria de fase
-      **Fechado na fase 1,** a única do item: `scripts/gates/vulnerabilidade.sh`
-      audita o lockfile inteiro em todo pull request e em todo push para `main` e
-      `develop`, reprova achado alto ou crítico sem isenção nominal com prazo em
-      vigor, e reprova dizendo `não consegui auditar` quando não mediu — nunca
-      `0 achados`. No runner, sobre `bae9b89`, três dos quatro fluxos que auditam
-      mediram na primeira tentativa — `✓ vulnerabilidade: 923 pacotes auditados,
-      0 achados de severidade alta ou crítica, 0 isenções` — e o quarto gastou as
-      três e reprovou por não ter medido. O portão está de pé; o motor é que não
-      responde a quatro chamadas do mesmo lockfile no mesmo minuto, e é o `055`
-      que troca. O resto do que sobra está em `056`, `052` e `054`.
       **Depende de:** `023-endurecimento-antes-da-sessao` — é o item que traz a
       cadeia de suprimentos para dentro do CI, e o passo novo nasce junto dos
       outros dois.
-      **Origem:** discovery de `023`. Nenhum fluxo rodava `pnpm audit` nem
-      `osv-scanner`: a única conta feita até então foi a decisão `D29` da Fase 3
-      de `001`, à mão, que prendeu `js-yaml` em `>=4.3.2` por `overrides`. A
-      quarentena de `023` atrasa a versão maliciosa e não diz nada sobre a
-      vulnerável que já está no lockfile — são portas diferentes, e só uma delas
-      fechava em `023`.
+      **Origem:** discovery de `023`. Nenhum fluxo roda `pnpm audit` nem
+      `osv-scanner`: a única conta já feita foi a decisão `D29` da Fase 3 de
+      `001`, à mão, que prendeu `js-yaml` em `>=4.3.2` por `overrides`. A
+      quarentena que `023` instala atrasa a versão maliciosa e não diz nada sobre
+      a vulnerável que já está no lockfile — são portas diferentes, e só uma
+      delas fecha em `023`.
 
 - [ ] `050-linguagem-visual-e-sistema-de-design` — o produto ganha linguagem
       visual própria: tokens de cor, tipografia, espaço e movimento em tema claro
@@ -389,6 +379,7 @@ acima deles era longa o bastante para que nenhuma tela ficasse pronta.
 Eles **não saem**: cada um continua com a origem que o gerou, e o que sobe de
 volta é o item que uma sessão provar ser pré-requisito real do que está fazendo.
 
+
 **Item de portão nasce aqui**, inclusive o que uma fase acabou de descobrir. A
 regra de escrever a pendência na posição de precedência certa vale entre os
 itens desta seção, e não contra o produto: para o que mede o processo, a posição
@@ -397,26 +388,38 @@ sozinha na frente do produto — seis itens numa noite, cada um inserido
 corretamente pela régua local, e nenhuma tela pronta de manhã.
 
 - [ ] `049-a-isencao-de-qs-vence-e-alguem-precisa-fecha-la` — o nome `qs` sai da
-      lista de isenções da quarentena, nos dois lugares que o portão compara,
-      antes que o vencimento deixe todo PR vermelho
+      lista de isenções da quarentena, nos dois lugares que o portão compara, a
+      partir de **2026-09-06**
       **Depende de:** `023-endurecimento-antes-da-sessao` — é a fase 5 dele que
       cria a isenção e o vencimento que a mata.
       **Origem:** discovery de `027-vulnerabilidade-conhecida-reprova-no-ci`,
-      medição de datas. A isenção nominal de `qs` vence em **2026-09-05**, e a
-      partir desse dia `scripts/gates/quarentena.sh` reprova por vencimento —
-      todo PR do repositório, não só o que mexe em dependência. Fechar é tirar
-      `qs` de `pnpm-workspace.yaml:48-49` e da constante `ISENCOES_ESPERADAS`
-      em `scripts/gates/quarentena.sh:43`, que é o par que o portão compara.
-      Fechar já é seguro para o lockfile de hoje: ele resolve `qs@6.16.0`, a
-      versão corrigida, e nenhuma auditoria acusa nada. A nuance medida é de
-      horas — `6.16.0` foi publicada em `2026-08-29T23:50Z`, então ela só
-      completa os sete dias de quarentena em `2026-09-05T23:50Z`, e uma
-      reconstrução de lockfile feita naquele dia antes desse horário cairia de
-      volta em `6.15.3`, que é a vulnerável. Reconstruir o lockfile a partir de
-      `2026-09-06` não tem essa aresta. O que **não** se faz é esticar a data
-      para destravar o vermelho: a isenção tem prazo justamente para não virar
-      política permanente, e adiar sem motivo novo é o antipadrão que o portão
-      existe para impedir.
+      medição de datas. Fechar é tirar `qs` de `pnpm-workspace.yaml:53-54` e da
+      constante `ISENCOES_ESPERADAS` em `scripts/gates/quarentena.sh:43`, que é o
+      par que o portão compara.
+      **O vencimento passou de 05 para 06 de setembro, e o dia é o item inteiro.**
+      A análise anterior dizia que fechar já era seguro, porque o lockfile resolve
+      `qs@6.16.0` — a versão corrigida — e que a única aresta era reconstruir o
+      lockfile no dia 5 antes de 23:50Z. **Isso foi medido e está errado.**
+      `pnpm install` verifica a política contra as entradas **já existentes** do
+      lockfile, não apenas ao resolvê-lo: sem a isenção, ele reprova com
+      `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` — "qs@6.16.0 was published at
+      2026-08-29T23:50:15.803Z, within the minimumReleaseAge cutoff". Medido no CI
+      em 04/09/2026, em cinco jobs de uma vez, no PR que tentou fechar o item.
+      A consequência é uma janela de vinte e quatro horas em que os **dois** lados
+      reprovam: o portão a partir de 05/09 00:00Z, porque a isenção venceu à
+      meia-noite; e o `install` até 05/09 23:50Z, porque a versão só então
+      completa os sete dias. Nenhuma das duas escolhas simples resolve — manter a
+      isenção deixa o portão vermelho, tirá-la deixa o `install` vermelho.
+      A saída é a que o próprio portão prevê: reescrever o vencimento com o motivo
+      novo. `2026-09-06` fecha a janela, porque a data de vencimento precisa ser o
+      dia **seguinte** ao instante da liberação, nunca o mesmo dia. Isso não é
+      adiar o vermelho, que é o antipadrão que o prazo existe para impedir: é
+      corrigir uma data que não era executável.
+      **A generalização, que vale para toda isenção com prazo:** o vencimento é
+      escrito como data e a liberação acontece num instante. Quando o instante cai
+      no fim do dia, os dois não coincidem, e a diferença é uma janela inteira de
+      CI vermelho. A regra é datar o vencimento pelo dia seguinte ao instante
+      medido — e medir o instante, em vez de arredondar para o dia da publicação.
 
 - [-] `057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto` — um push novo
       para de deixar atrás de si um run inteiro medindo um commit que ninguém vai
@@ -530,6 +533,25 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       se `pnpm/action-setup@v4.3.0` valida o campo e instala sem scripts de ciclo
       de vida — se validar, o item vira consistência e não correção.
 
+- [ ] `058-o-endereco-de-homologacao-diz-o-nome-do-produto` — os três FQDNs de
+      homologação saem de `gbdocs.duckdns.org`, herdado do projeto anterior, para
+      um domínio que nomeia esta aplicação
+      **Depende de:** nada técnico — depende do token da conta DuckDNS, que não
+      está em lugar nenhum do repositório e é do dono.
+      **Origem:** migração do ambiente do GB Docs Hub para a Folioteca, em
+      04/09/2026. O ambiente subiu em `hml.gbdocs.duckdns.org`,
+      `api-hml.gbdocs.duckdns.org` e `site-hml.gbdocs.duckdns.org` porque
+      `*.gbdocs.duckdns.org` é wildcard e resolve para `64.181.165.16` sem
+      registro novo — foi isso que permitiu ter homologação no mesmo dia. O nome
+      está errado para este produto, e o certo é `folioteca.duckdns.org`, mantendo
+      a convenção da casa de um DuckDNS por projeto.
+      **Não é ajuste de painel, e é por isso que virou item.** Trocar o campo
+      `fqdn` das três aplicações sem trocar `VITE_API_URL`, `NEXT_PUBLIC_SITE_URL`
+      e `WEB_ORIGIN` produz um front que carrega e não fala com a API, e um
+      hotsite cuja prévia de link aponta para um endereço morto — os dois sem erro
+      que aponte para a causa, porque as duas primeiras são variáveis de **build**
+      e só mudam com uma reconstrução. A ordem é: criar o domínio, trocar as
+      variáveis, reconstruir, trocar os FQDNs, e só então soltar o nome antigo.
 - [ ] `042-o-sha-fixado-e-conferido-contra-a-versao-que-ele-diz-ser` — o portão
       das ações reprova o SHA que não corresponde à tag do comentário ao lado, em
       vez de validar só a forma dos dois
@@ -1026,25 +1048,27 @@ não bloqueia trabalho que não dependa dela.
   **Origem:** estágio `spec` de `023-endurecimento-antes-da-sessao`, ao ratificar
   `D-001` — ver `product/items/023-endurecimento-antes-da-sessao/04-divergencias/D-001.md`.
 
-- **O CI da corrida depende de uma cota que ninguém aqui consegue ler.** O
-  GitHub Actions voltou a executar em 04/09/2026, depois de um dia parado: os
-  cinco fluxos rodam nos pull requests e em `develop`, e o código das fases 4 e 5
-  de `023` — mergeado sem CI, pelos PRs #23 e #24 — está medido, porque `develop`
-  em `26432ff` fecha verde nos quatro fluxos que disparam nela. Nem a parada nem
-  a volta foram lidas daqui: o repositório é privado em plano de usuário, os
-  minutos incluídos acabam sem aviso no pull request, e `settings/billing/actions`
-  exige o escopo `user`, que este token não tem — conceder escopo de conta não é
-  decisão de quem roda a corrida. Durante a parada, o sintoma foi ausência: os
-  commits de cabeça das fases 4 e 5 não tinham nenhuma suíte de `github-actions`,
-  e nenhum erro apareceu em lugar nenhum.
-  **A decisão é sua:** olhar `settings/billing` e escolher entre pagar o
-  excedente, elevar o teto de gasto, ou tornar o repositório público, que zera o
-  custo de minuto. Cada fase de cada item consome minutos, e enquanto o teto não
-  estiver resolvido a regra 10 do `CLAUDE.md` — "pronto é build verde" — repousa
-  numa cota que pode acabar no meio de uma fase, do mesmo jeito silencioso.
-  **Origem:** encerramento de `023-endurecimento-antes-da-sessao`; a volta foi
-  medida no encerramento de `027-vulnerabilidade-conhecida-reprova-no-ci`. O
-  conserto do processo — perguntar ao GitHub se rodou, em vez de supor — é o item
+- **O GitHub Actions parou de executar neste repositório, e a corrida seguiu no
+  escuro.** Medido: o último run de qualquer fluxo é `NestJS`/`React` em
+  `develop`, às 16:54Z de 03/09/2026. Os commits de cabeça das fases 4 e 5 —
+  `0489eb1` e `d0ecaae` — têm suíte de `gitguardian`, `railway-app`, `cursor` e
+  `claude`, e **nenhuma de `github-actions`**; a fase 3 tem quatro. Não é
+  configuração deste repositório: `actions/permissions` responde
+  `{"enabled": true}`, os cinco fluxos estão `active`, o YAML dos cinco carrega
+  sem erro, e `portoes.yml` e `bloqueio.yml` não têm filtro de caminho que
+  pudesse pular. A causa provável é cota — repositório privado em plano de
+  usuário, cujos minutos incluídos acabam sem aviso no PR — e ela não se lê
+  daqui: `settings/billing/actions` exige o escopo `user`, que este token não
+  tem, e conceder escopo de conta não é decisão de quem roda a corrida.
+  **A decisão é sua:** abrir a aba Actions do repositório, ver o motivo que só
+  ela mostra, e resolver — pagar o excedente, elevar o teto de gasto, ou tornar
+  o repositório público, que zera o custo de minuto. Enquanto isso não acontece,
+  **os PRs #23 e #24 não têm CI**, e a regra 10 do `CLAUDE.md` — "pronto é build
+  verde" — não pode ser satisfeita por nenhuma sessão, autônoma ou não. Os
+  portões locais equivalentes rodaram e passaram nas duas fases, o que é a
+  melhor evidência que esta máquina produz e não substitui o runner.
+  **Origem:** encerramento de `023-endurecimento-antes-da-sessao`. O conserto do
+  processo — perguntar ao GitHub se rodou, em vez de supor — é o item
   `047-o-veredicto-de-fase-mede-se-o-ci-chegou-a-rodar`.
 
 - **Três ativos deste repositório são mais novos que o gabarito do plugin, e o
@@ -1108,6 +1132,15 @@ verificação**.
   `002-conta-e-organizacao`, e a verificação é abrir `vite preview` com o console
   aberto.
 
+- **`023-endurecimento-antes-da-sessao`, Fase 4 — a instalação do `gitleaks` no
+  runner do GitHub.** O download da release fixada, a conferência do checksum, o
+  checksum divergente reprovando e os quatro universos de varredura estão medidos
+  nesta máquina. O que só o runner prova é o binário `linux_x64` rodando em
+  `ubuntu-latest` e o `${{ runner.temp }}/gitleaks-bin` chegando ao `PATH` do
+  passo seguinte pelo `$GITHUB_PATH` — e o tempo total do job, de que a cópia de
+  ~67 MB de `apps/site/.next` levou 1,8 s aqui. Se o passo reprovar por não achar
+  a ferramenta, é o próprio portão dizendo que não mediu.
+
 - **`023-endurecimento-antes-da-sessao`, Fase 4 — o cache do Actions entre PR de
   fork e `main`.** A auditoria de segurança da fase disse explicitamente que
   raciocinou pelo modelo documentado do isolamento de cache, sem medir. Só uma
@@ -1129,35 +1162,6 @@ verificação**.
   em quatorze dias e houver ação desatualizada, o arquivo está sendo ignorado e a
   rotina que destrava os SHAs não existe.
 
-O runner executa de novo desde 04/09/2026, e as linhas que só dependiam dele
-estão verificadas abaixo. As que sobram esperam outra coisa: um fork de verdade,
-uma configuração de conta que nenhum comando daqui lê, o agendamento semanal do
-robô e um navegador com gente na frente.
-
-### Verificadas
-
-Ficam escritas em vez de apagadas: o run que serve de evidência expira da aba
-Actions antes de o item que o citou fechar, e sem a linha a próxima sessão reabre
-uma dúvida já respondida.
-
-- **`023-endurecimento-antes-da-sessao`, Fase 4 — a instalação do `gitleaks` no
-  runner do GitHub.** Verificada em 04/09/2026, no fluxo `Portões` sobre
-  `bae9b89`: `baixando gitleaks 8.30.1 …`, `gitleaks_8.30.1_linux_x64.tar.gz: OK`
-  e `instalado: gitleaks 8.30.1 em /home/runner/work/_temp/gitleaks-bin, sha256
-  conferido contra o lock`. O `$GITHUB_PATH` leva o binário ao passo seguinte: a
-  suíte do portão passa lá — inclusive `gitleaks fora do PATH REPROVA por não ter
-  medido` — e a varredura fecha com `medido com gitleaks 8.30.1`.
-
-- **`027-vulnerabilidade-conhecida-reprova-no-ci`, Fase 1 — o portão de
-  vulnerabilidade sob o limite de taxa do runner.** Verificada em 04/09/2026, e o
-  que ela mostrou é pior do que a mitigação prometia. Sobre `a97f80a`, sem a
-  repetição, o portão reprovou com `não consegui auditar o pnpm-lock.yaml: a
-  ferramenta devolveu erro em vez de auditoria … The operation was aborted due to
-  timeout`. Sobre `bae9b89`, com a repetição, três dos quatro fluxos que auditam
-  mediram na primeira tentativa e o quarto — `Site`, que audita catorze segundos
-  depois deles — **gastou as três tentativas em 13m34s e reprovou por não ter
-  medido**; re-executado sozinho, mediu de primeira em 1m23s. O portão responde
-  certo nos três casos: ele diz que não mediu, em vez de dizer `0 achados`. O que
-  não está de pé é o motor, e o vermelho cai sobre pull request que não mexeu em
-  dependência nenhuma. É o `055`, e a linha fica aqui porque a próxima medição
-  não precisa ser refeita para chegar à mesma conclusão.
+As quatro linhas acima esperam o **runner**, e o runner está parado desde 16:54Z
+de 03/09/2026 — ver a pendência de produto aberta sobre o GitHub Actions. Nenhuma
+delas se verifica sozinha enquanto o Actions não voltar a executar.

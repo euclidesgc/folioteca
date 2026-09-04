@@ -1,0 +1,125 @@
+# Deploy — o ambiente de homologação da Folioteca
+
+Escrito em 04/09/2026, com os valores **medidos** contra a instância, não copiados
+de memória.
+
+O ambiente não foi criado do zero: ele é a infraestrutura do **GB Docs Hub**,
+descontinuado em 04/09/2026, readequada para a Folioteca. O projeto no Coolify, os
+dois ambientes, as duas aplicações e o domínio DuckDNS vieram de lá; o que nasceu
+aqui foi a terceira aplicação — o hotsite —, o banco e as três imagens.
+
+## Estado, em uma tabela
+
+| Peça | Estado |
+|---|---|
+| `apps/api/Dockerfile` | ✅ imagem provada rodando: `/health` → `200 {"status":"ok"}`, 309 MB |
+| `apps/web/Dockerfile` | ✅ provada: raiz e rota de cliente `200`, CSP no HTML, 93 MB |
+| `apps/site/Dockerfile` | ✅ provada: `200`, cinco cabeçalhos de segurança, 277 MB |
+| Projeto no Coolify | ✅ `Folioteca`, uuid `eypuotbiw5y24rsfmqzrnvpq` |
+| Ambientes | ✅ `hml` `c3iaqne8c5d76q2vrcq8vwbu`, `prod` `qzaqiuod1u90kuxxritg1ql5` |
+| Banco de homologação | ✅ `folioteca-db-hml`, `pgvector/pgvector:pg16`, `running:healthy` |
+| Três aplicações de `hml` | ✅ criadas e configuradas |
+| Aplicações de `prod` | ⚠️ ainda apontam para o repositório antigo — ver "O que falta" |
+| DNS | ⚠️ `gbdocs.duckdns.org`, herdado — ver "A dívida do nome" |
+
+## As aplicações
+
+Repositório `euclidesgc/folioteca` nas três de homologação.
+
+| Aplicação | uuid | Ambiente | Branch | `dockerfile_location` | Porta | FQDN |
+|---|---|---|---|---|---|---|
+| `folioteca-api-hml` | `hvn6t37t7ul3xkhsg9h1etqo` | `hml` | `develop` | `/apps/api/Dockerfile` | `3000` | `https://api-hml.gbdocs.duckdns.org` |
+| `folioteca-web-hml` | `ux4birniuxj5x1tjimbtp4af` | `hml` | `develop` | `/apps/web/Dockerfile` | `80` | `https://hml.gbdocs.duckdns.org` |
+| `folioteca-site-hml` | `e6uflu8xu7vvbhfvlrlnvoou` | `hml` | `develop` | `/apps/site/Dockerfile` | `3001` | `https://site-hml.gbdocs.duckdns.org` |
+
+⚠️ **`dockerfile_location` não é `/Dockerfile`.** Esse é o default do Coolify e
+está errado para este monorepo: o arquivo está dentro do workspace, e o
+**contexto** continua sendo a raiz (`base_directory: /`), porque os três apps
+resolvem `@folioteca/editor` por `workspace:*`.
+
+## A dívida do nome
+
+O domínio é `gbdocs.duckdns.org`, herdado do projeto anterior. Ele é **wildcard** —
+`*.gbdocs.duckdns.org` resolve para `64.181.165.16` —, então os três subdomínios
+funcionam sem nenhum registro novo, e foi isso que permitiu subir o ambiente hoje.
+
+O nome está errado para este produto, e a troca depende de criar
+`folioteca.duckdns.org` na conta DuckDNS, o que exige o token que não está em
+lugar nenhum do repositório. Quando ele existir, a mudança é **uma linha por
+aplicação** — o campo `fqdn` — mais os valores de `VITE_API_URL`,
+`NEXT_PUBLIC_SITE_URL` e `WEB_ORIGIN`, que carregam o domínio.
+
+Isto está registrado como item de roadmap, e não como ajuste de painel: trocar o
+FQDN sem trocar as três variáveis produz um front que carrega e não fala com a
+API, sem erro que aponte para a causa.
+
+## Variáveis: as do web e do site são de **build**, as da api são de **runtime**
+
+Esta distinção não é detalhe de painel — errá-la produz um app que sobe e não
+funciona, sem mensagem de erro que aponte para a causa.
+
+### Web — marcar `is_buildtime`
+
+O Vite **embute** o valor no bundle em tempo de build, e o runtime é só o nginx
+servindo arquivos: trocar a URL da API depois do build não muda nada no que o
+navegador baixa. `apps/web/src/shared/config/env.ts` transforma a ausência em
+exceção, então o build reprova em vez de gerar um bundle apontando para lugar
+nenhum.
+
+| Variável | `folioteca-web-hml` |
+|---|---|
+| `VITE_API_URL` | `https://api-hml.gbdocs.duckdns.org` |
+
+### Site — `is_buildtime` **e** `is_runtime`
+
+`NEXT_PUBLIC_SITE_URL` alimenta `metadataBase`, `openGraph` e o canonical, que o
+Next resolve ao gerar as páginas. Fornecida só no runtime, ela chega `undefined` e
+o defeito aparece na prévia do link compartilhado — longe da causa, e sem nada no
+log.
+
+| Variável | `folioteca-site-hml` |
+|---|---|
+| `NEXT_PUBLIC_SITE_URL` | `https://site-hml.gbdocs.duckdns.org` |
+
+### API — runtime, e duas derrubam o processo
+
+`apps/api/src/config/environment.schema.ts` valida com Joi antes de o Nest subir.
+`DATABASE_URL` é obrigatória sempre; `WEB_ORIGIN` passa a ser obrigatória quando
+`NODE_ENV=production`.
+
+| Variável | Valor |
+|---|---|
+| `NODE_ENV` | `production` |
+| `PORT` | `3000` |
+| `DATABASE_URL` | a URL interna de `folioteca-db-hml` — o host é o uuid do banco |
+| `WEB_ORIGIN` | `https://hml.gbdocs.duckdns.org,https://site-hml.gbdocs.duckdns.org` |
+
+`WEB_ORIGIN` é **lista**, e as duas origens estão nela porque tanto a SPA quanto
+o hotsite chamam a API. `apps/api/src/config/web-origins.ts` faz a leitura.
+
+## Health check — e é aqui que se erra
+
+| Aplicação | `health_check_path` |
+|---|---|
+| api | `/health` |
+| web | `/` |
+| site | `/` |
+
+⚠️ **A API da Folioteca não usa prefixo global.** `@Controller("health")` sem
+`setGlobalPrefix`, então o caminho é `/health` e não `/api/health` — que era o do
+projeto anterior. Health check apontado para o caminho errado derruba um contêiner
+saudável a cada `health_check_retries`.
+
+## O que falta
+
+- **As duas aplicações de `prod`** (`gb-docs-web-prod`, `gb-docs-api-prod`) ainda
+  apontam para `euclidesgc/gb-docs-hub`. Elas não foram tocadas porque produção não
+  tem o que publicar ainda: o roadmap está no item `050`, e subir uma casca vazia
+  em `prod` só produz um endereço que decepciona quem o abrir.
+- **O hotsite de produção** não existe como aplicação.
+- **O CI ainda não dispara o deploy.** No projeto anterior isso era um passo do
+  fluxo depois da cancela verde, com o `COOLIFY_TOKEN` em secret. Aqui o deploy é
+  manual até o ambiente provar que sobe sozinho algumas vezes.
+- **A senha do banco apareceu em texto claro numa sessão de configuração.** Ela é
+  de um Postgres privado (`is_public: false`), acessível só pela rede interna do
+  Coolify, mas rotacioná-la é barato e a decisão é do dono.

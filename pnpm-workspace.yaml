@@ -42,8 +42,20 @@ minimumReleaseAge: 10080
 # Isenção é a política morrendo por dentro quando não tem dono nem prazo, então
 # esta tem os dois, e os dois são medidos: `scripts/gates/quarentena.sh` compara
 # esta lista com uma constante própria e reprova qualquer nome a mais, e reprova
-# também quando o vencimento chega. O de `qs` é 2026-09-05, quando `6.16.0`
-# completa sete dias; nesse dia o portão fica vermelho até alguém tirar o nome
-# daqui e da constante, ou reescrever a data com o motivo novo.
+# também quando o vencimento chega.
+#
+# O vencimento é 2026-09-06, e o dia importa. `qs@6.16.0` foi publicada em
+# 2026-08-29T23:50:15Z e completa os sete dias em 2026-09-05T23:50:15Z — quase o
+# fim daquele dia. Até esse instante, `pnpm install` REPROVA o lockfile inteiro
+# sem esta isenção, e não apenas ao reconstruí-lo: a verificação de política é
+# feita contra as entradas já existentes, e devolve
+# ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION. Medido no CI, em cinco jobs de uma vez.
+#
+# Uma data de vencimento igual ao DIA em que a versão sai da quarentena abre uma
+# janela de vinte e quatro horas em que os dois lados reprovam: o portão porque a
+# isenção venceu à meia-noite, e o `install` porque a versão ainda não completou a
+# espera. A data certa é o dia SEGUINTE ao instante da liberação. Foi por isso
+# que ela mudou de 05 para 06 — não para adiar o vermelho, que é o antipadrão que
+# o prazo existe para impedir, mas porque a data anterior não era executável.
 minimumReleaseAgeExclude:
   - qs

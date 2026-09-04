@@ -56,7 +56,7 @@ fixada="$tmp/fixada"
 monta_fixture "$fixada" ""
 caso "tudo fixado passa" 0 "✓ ações do CI" "$fixada"
 caso "declara quantas referências mediu, e contra qual piso" 0 \
-  "medido: 27 referência(s) 'uses:' em 1 fluxo(s) de .github/workflows (piso 27)" "$fixada"
+  "medido: 27 referência(s) 'uses:' externa(s) e 0 local(is) em 1 fluxo(s)" "$fixada"
 
 movel="$tmp/tag-movel"
 monta_fixture "$movel" "      - uses: actions/checkout@v4
@@ -138,6 +138,36 @@ caso "diretório sem fluxo reprova por medição, não por resultado" 1 \
 ausente="$tmp/sem-o-diretorio"
 mkdir -p "$ausente"
 caso "diretório ausente REPROVA nomeando o caminho" 1 ".github/workflows" "$ausente"
+
+# REFERÊNCIA LOCAL NÃO SE FIXA EM SHA, PORQUE ELA JÁ ESTÁ FIXA
+#
+# `uses: ./.github/workflows/x.yml` chama um fluxo do próprio repositório, e o
+# GitHub o resolve no commit que está rodando. Não há ponteiro móvel para alguém
+# repontar, que é a única coisa que o pino evita. Cobrar SHA aqui reprovaria um
+# desenho correto — e a saída barata seria afrouxar a asserção inteira.
+#
+# O segundo caso é a fronteira: fluxo reutilizável de OUTRO repositório tem
+# ponteiro móvel de verdade e continua cobrado. Sem ele, a exceção viraria um
+# buraco do tamanho de qualquer `uses:` que contenha uma barra.
+local_ok="$tmp/local-ok"
+mkdir -p "$local_ok/.github/workflows"
+{
+  printf 'name: X\non:\n  pull_request:\njobs:\n  a:\n    uses: ./.github/workflows/_suite.yml\n'
+  for i in $(seq 1 27); do
+    printf '  j%s:\n    steps:\n      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0\n' "$i"
+  done
+} > "$local_ok/.github/workflows/ci.yml"
+caso 'referência local não é cobrada em SHA' 0 '1 local(is)' "$local_ok"
+
+remoto_movel="$tmp/remoto-movel"
+mkdir -p "$remoto_movel/.github/workflows"
+{
+  printf 'name: X\non:\n  pull_request:\njobs:\n  a:\n    uses: outra/org/.github/workflows/x.yml@v1\n'
+  for i in $(seq 1 27); do
+    printf '  j%s:\n    steps:\n      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0\n' "$i"
+  done
+} > "$remoto_movel/.github/workflows/ci.yml"
+caso 'fluxo reutilizável de OUTRO repo continua cobrado' 1 'tag móvel' "$remoto_movel"
 
 if [ "$falhas" -eq 0 ]; then
   printf '\n✓ acoes_em_sha.sh: reprova a tag móvel, o SHA mudo e o diretório sem fluxo.\n'
