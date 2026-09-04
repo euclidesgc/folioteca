@@ -76,6 +76,20 @@ qualquer trabalho deste item.
 | D61 | fase 3 | **O portão que me deu verde sem ter medido virou o item `036`, e não uma correção no meio da fase** | Consertar `gates_runner.sh` agora, na branch da fase, já que o defeito me atingiu nesta sessão | Rodei `gates_runner.sh` antes do `git add` e ele imprimiu `limpos (árvore completa, 256 arquivo(s))` sobre uma árvore em que o arquivo novo ainda não existia para o `git ls-files` — o mesmo comando reprovou depois de adicionado. É a classe que este repositório persegue, e por isso está registrada com o comando que a reproduz. Mas o conserto não é de uma linha: ou o runner passa a varrer o não rastreado, e aí muda o que **todo** portão julga, ou passa a declarar quantos ficaram de fora e recusar o verde. Escolher isso dentro de uma fase de cabeçalhos, sem teste que prove a mudança, é o remendo que a norma da reincidência condena. Enquanto o item não sai, a regra é uma linha: rode o portão **depois** do `git add` |
 | D62 | fase 3 | **O despacho do validador cego passa a apontar o diff filtrado pelas frentes de código, e não o diff inteiro** | Manter o ponteiro como `git diff <base>...HEAD` e confiar em que o validador não abra o que não deve | O próprio validador registrou, nos dois vereditos: o `--stat` do ponteiro trouxe os nomes de `03-plan.md`, `02-spec.md`, das divergências e do veredicto anterior. Ele diz não ter lido nenhum, e a evidência de cada critério sustenta isso — mas cegueira que depende da boa vontade de quem é medido não é cegueira, é a mesma falha que virou o item `035`. O conserto é uma palavra no ponteiro: `git diff <base>...HEAD -- apps/web .github`. Vale a partir da fase 4 |
 | D58 | fase 3 | **Esperei o agent encerrar para gravar `D-007.md`, em vez de contornar o guard de escopo pelo shell** | Escrever o arquivo por heredoc, que o guard não intercepta — verificado que funciona | Com um `react-implementer` vivo, o guard atribuiu à thread principal o escopo do agent despachado e recusou a escrita em `product/`. O escopo estava certo e o sujeito errado, mas contornar um portão porque ele mede pelo caminho errado é ensinar que portão se contorna. O defeito virou o item `037`, e a espera custou o tempo de uma rodada de agent |
+| D63 | fase 5 | **As quatro dependências fixadas dentro da janela de sete dias foram rebaixadas para a última versão madura, e o lockfile reconstruído (`D-011`)** | Isentá-las com `minimumReleaseAgeExclude`; ou baixar a janela até caber no que já está declarado | Com toda dependência declarada em versão exata — norma deste repositório — não há faixa onde o resolvedor escolha uma versão madura: `pnpm install` reprova com `ERR_PNPM_NO_MATURE_MATCHING_VERSION` sobre 252 versões, e `--frozen-lockfile` reprova antes disso sobre 66 entradas. Sem rebaixar, RF-18.3 é impossível e os cinco fluxos do CI quebram na instalação. Isentar `next` e a família `jest` desligaria a política sobre 250 dos 923 pacotes resolvidos, sem data para religá-la; encolher a janela inverteria quem manda em quem. O rebaixamento é a política mordendo onde ela foi feita para morder. Nada as traz de volta sozinho — o `dependabot.yml` desta fase cobre só `github-actions` (D14) —, e por isso a subida virou o item de roadmap `041` |
+| D64 | fase 5 | **`pnpm/action-setup@v4` foi fixado no SHA de `v4.3.0`, que é o commit para onde a tag móvel aponta hoje, e não no de `v4.4.0`, que existe** | Fixar as quatro ações na última versão `v4` publicada | As outras três tags móveis já resolvem para a última `v4`; só esta está uma versão atrás porque o mantenedor não moveu a tag major. Fixar `v4.4.0` faria esta fase carregar junto uma mudança de versão: se um job quebrasse, ninguém saberia se foi o pino ou o código novo. Assim, fixar é uma operação de identidade — o CI passa a rodar exatamente o que já rodava — e a subida vira o primeiro PR do Dependabot, revisável sozinho |
+| D65 | fase 5 | **Os dois jobs `Gates arquiteturais` instalam o pnpm com `npm install --global`, lendo a versão do `packageManager` da raiz** | Acrescentar `pnpm/action-setup` aos dois jobs, como fazem os demais | A imagem do runner traz npm e Yarn, nunca pnpm, e o portão da quarentena precisa perguntar a ele. Esses dois jobs não constroem nada: não precisam do Node do `setup-node` nem do cache de dependência, só do binário que responde. Trazer a ação de terceiro para uma leitura acrescentaria código de terceiro rodando no runner — mais superfície de cadeia de suprimentos do que a pergunta justifica, num item cuja tese é reduzi-la — e levaria a contagem de RF-21.3 de 27 para 29 sem que nenhuma ação nova estivesse em uso |
+| D66 | fase 5 | **Os dois portões novos são cobrados também no fluxo `Portões`, além do `gates_runner.sh` dos três fluxos por frente** | Deixá-los só no `gates_runner.sh`, como a etapa 5.4 descreve | Os três fluxos por frente têm filtro de `paths`: um PR que mexa apenas em `.github/workflows/bloqueio.yml` não dispara nenhum deles, e a tag móvel introduzida ali passaria sem cobrança. O fluxo `Portões` roda em todo pull request e é o único com essa cobertura. A etapa 5.4 continua cumprida — as duas invocações estão no `gates_runner.sh`, nos dois modos —, e o custo da duplicação é de segundos |
+| D67 | fase 5 | **`acoes_em_sha.sh` conta como referência toda linha que contenha `uses:`, comentário incluído, e explica isso na reprovação** | Ignorar linhas comentadas, que é o que um portão "esperto" faria | RF-20.1 e RF-20.2 são `grep` cru sobre a linha inteira: um portão mais esperto que o critério aprovaria exatamente o que o critério reprova, e as duas medidas passariam a discordar sem que ninguém percebesse. Medido nesta sessão: um comentário meu com a palavra dentro derrubou o portão. O que mudou foi só a frase da reprovação, que agora diz que a palavra está num comentário |
+| D68 | fase 5 | **Os dois portões nascem com teste em `scripts/gates/__tests__/`, embora o plano da fase não os peça** | Exercer os três critérios comportamentais à mão uma vez e seguir | É o precedente que a fase 4 abriu com `segredo.test.sh`, e a razão é a mesma: caminho de reprovação exercido à mão uma única vez continua verde a cada push depois de a asserção parar de morder, porque o portão que mede e o portão que desistiu de medir têm a mesma cara. Os passos entram no fluxo `Portões`, que já roda os outros três, e não acrescentam referência de ação nenhuma |
+| D69 | fase 5 | **`qs` sai da espera por nome, com prazo escrito, e o portão passa a cobrar a lista de isenções (`D-012`)** | Conviver com `qs@6.15.3` até 05/09, quando a versão corrigida completa sete dias | A reconstrução do lockfile sob a espera trocou `qs@6.16.0` por `qs@6.15.3`, com duas falhas de negação de serviço exploráveis pela query de qualquer requisição, no caminho `express` da API. A espera existe para atrasar a versão maliciosa, não a correção de uma falha conhecida — e as duas se distinguem por haver aviso publicado. A isenção nasce com data de saída e com um portão que reprova a próxima: `quarentena.sh` compara `minimumReleaseAgeExclude` com uma constante própria, porque `minimumReleaseAgeExclude: ["*"]` desliga a política inteira sem mudar o número que o portão lia |
+| D70 | fase 5 | **O passo que instala o pnpm virou `scripts/ci/instalar-pnpm.sh`, com peneira de forma e `--ignore-scripts`** | Manter `npm install --global "$(node -p …)"` inline no YAML, como a primeira rodada escreveu | A auditoria mostrou que o valor lido vem do `package.json` do pull request que o job está prestes a julgar, que `npm install` aceita tarball, atalho de repositório e caminho local, e que os scripts de ciclo de vida rodariam **antes** do passo dos portões — bastando plantar um `pnpm`, um `git` ou um `grep` no início do PATH para todo portão dizer o que o PR quiser. É o padrão que `D55` já tinha fixado para `VITE_API_URL` e que `instalar-gitleaks.sh` usa: peneirar a forma antes de o valor virar comando |
+| D71 | fase 5 | **`acoes_em_sha.sh` afirma a contagem contra um piso versionado de 27, além de imprimi-la** | Manter a contagem só como linha informativa, como a primeira rodada escreveu | `"uses":` e `uses :` são a mesma chave para o interpretador do GitHub e nenhuma das duas contém a cadeia que o `grep` procura: uma referência reescrita assim saía da contagem, voltava a ser tag móvel e o portão anunciava `medido: 0 referência(s)` numa linha verde. O cabeçalho do script prometia que "a contagem denuncia o dia em que 27 viram 3" e a guarda existente era sobre arquivos, não sobre referências. O piso é mínimo, não exato: job novo passa, e é a queda que reprova |
+| D72 | fase 5 | **O `dependabot.yml` nasce com `cooldown: default-days: 7`** | Deixar o robô propor a subida no mesmo dia da publicação, como a primeira rodada escreveu | Metade da tese valendo só para um dos dois ecossistemas é a metade que não vale: sem o `cooldown`, uma ação comprometida que publique tag nova chega como PR de subida no mesmo dia, o portão aprova a forma do SHA novo, e a janela de sete dias em que a campanha seria detectada nunca é usada. É a mesma espera que `pnpm-workspace.yaml` impõe à resolução de pacote |
+| D73 | fase 5 | **Dois dos oito achados da auditoria viraram os itens de roadmap `042` e `043`, e os outros seis viraram correção nesta fase** | Corrigir todos aqui | Os dois que saem mudam a natureza do que já existe: conferir o SHA contra a tag exige rede e token dentro de um portão que hoje é hermético e roda offline — decisão de desenho, não remendo —, e fechar a faixa aberta de `js-yaml` obriga a reconstruir o lockfile de novo, no mesmo commit em que a reconstrução anterior acabou de trocar `qs` por uma versão vulnerável. Reabrir a resolução ali trocaria um risco conhecido por um desconhecido |
+| D74 | fase 5 | **A fronteira de agent recusou de novo a escrita da thread principal, e esperei o agent encerrar em vez de contornar pelo shell** | Gravar pelo shell, que o guard não cobre | Segunda ocorrência do mesmo defeito, depois das três da fase 3 que abriram o item `037`. A causa raiz já está escrita lá e mora no plugin, fora deste repositório: o `PreToolUse` não informa qual agent chamou a ferramenta, e o arquivo que guarda o tipo do agent fica preenchido enquanto quem orquestra continua trabalhando. O próprio item registra que contornar pelo shell é o efeito pior — a fronteira empurrando para o caminho que ela não mede |
+| D75 | fase 5 | **`02-spec.md` e `03-plan.md` foram reaprovados em modo autônomo, fechando uma pendência que a fase 4 deixou** | Deixar o `check` acusando os dois, já que a mudança não foi desta fase | A fase 4 reconciliou os dois documentos por `D-008`, `D-009` e `D-010` — as âncoras "Reconciliado em D-00n" estão lá — e não os reaprovou, então o `sha` gravado deixou de bater e o `check` passou a dizer "mudou depois da aprovação". Reconciliação sem reaprovação é exatamente o que o `sha` existe para denunciar, e a norma manda resolver no trabalho em andamento o que se consegue fechar agora, em vez de abrir item para isso |
+| D76 | fase 5 | **As três observações da validação cega viraram correção, embora nenhuma reprovasse** | Registrá-las e abrir o PR com o veredicto que já estava APROVADO | Duas delas eram promessa que o código não cumpria, escrita pela própria fase: o comentário dizia que a isenção de `qs` "tem dono e prazo" e o prazo não era medido por ninguém — vencimento silencioso é como isenção temporária vira permanente —, e o portão da quarentena argumentava longamente sobre não ler o valor esperado do arquivo medido sem tratar a proveniência do valor lido, de modo que um `minimumReleaseAge` global deixaria o portão verde com o arquivo do repositório quebrado. A terceira era o limite conhecido do piso, que agora tem asserção própria: a chave passou a ser reconhecida pela estrutura do YAML, então a troca compensada por um job novo também reprova. As três custaram menos que o parágrafo que as descreveria como dívida |
 
 ## Aprovações registradas em modo autônomo
 
@@ -101,6 +115,10 @@ Cada linha aqui é um `state.sh approve --por autonomo` ou um
 | spec (reaprovação) | `02-spec.md` | Reaprovada sem você depois da reconciliação de `D-007`: `sha 79b328ca1cda866cd3d0667cb2c5d595a88989cf`. RF-12 ganhou **RF-12.4**, o comportamento indesejado que faltava: origem malformada mata o build, sem gravar `apps/web/dist/index.html`. São sessenta e nove frases EARS, dezesseis delas de comportamento indesejado | 2026-09-03 |
 | plan (reaprovação) | `03-plan.md` | Reaprovado sem você depois da reconciliação de `D-007`: `sha 0a054f5d9faf6b58fd21c6041e56d8f2bb1fa602`. Só as etapas 3.2 e 3.3 da Fase 3 foram reescritas, no presente. **Nenhum critério de aceite foi tocado** — a implementação já tinha sido medida contra eles e a validação cega ainda ia executá-los; critério reescrito depois do fato valida outra coisa | 2026-09-03 |
 
+| divergência | `04-divergencias/D-011.md` | Ratificada sem você na opção **(a)**: as quatro dependências dentro da janela de sete dias foram rebaixadas para a última versão madura, e o lockfile reconstruído. `diverge-set --id D-011 --status APROVADA --por autonomo`, 03/09/2026 |
+| divergência | `04-divergencias/D-012.md` | Ratificada sem você na opção **(a)**: `qs` sai da espera por nome, com prazo até 05/09/2026, e o portão passa a cobrar a lista de isenções. `diverge-set --id D-012 --status APROVADA --por autonomo`, 03/09/2026 |
+| spec (reaprovação) | `02-spec.md` | Reaprovada sem você para fechar a reconciliação que a fase 4 deixou aberta: `state.sh approve --stage spec --por autonomo`, 03/09/2026 |
+| plan (reaprovação) | `03-plan.md` | Reaprovado sem você pelo mesmo motivo: `state.sh approve --stage plan --por autonomo`, 03/09/2026 |
 
 ## O que ficou para o dono
 
@@ -287,3 +305,66 @@ Dois achados **não** viraram correção aqui, e por quê:
 A auditoria também disse o que **não** conseguiu medir: o padrão de permissão da
 organização, que é configuração do GitHub e não do repositório, e o
 comportamento real do cache do Actions entre PR de fork e `main`.
+
+### Fase 5 — o que a validação cega mudou, e o que ela deixou para o roadmap
+
+A fase foi **APROVADA** contra `db7060598ff2d828aeaa9be79e2033bf53925536`, doze
+critérios de doze, cada um com comando executado e saída colada em
+`05-veredictos/fase-5.md`. O veredicto foi gravado com
+`state.sh verdict --result APROVADO`; a aprovação de estágio desta fase é a do
+plano, já registrada como autônoma.
+
+- **Os quatro apontamentos de portão não viraram correção nesta branch, e sim
+  itens de roadmap.** É o inverso do que a fase 4 fez com os achados da auditoria
+  de segurança, e a diferença é o momento: lá os achados chegaram **antes** do
+  veredicto, aqui chegaram **depois**. Corrigir código já julgado põe no mesmo PR
+  linhas que nenhum validador cego viu, e o `validated_sha` passa a apontar para
+  outra coisa. Pesou também que os quatro são latentes, não presentes: o
+  validador mediu cada um e nenhum abre buraco na árvore entregue — a precedência
+  do `pnpm-workspace.yaml` sobre o `.npmrc` da máquina segura a lista de isenções
+  hoje, e o piso de 27 igual à contagem exata faz o fluxo ilegível reprovar hoje.
+  A alternativa descartada era corrigir e revalidar com um agent cego novo:
+  custa uma validação inteira para fechar buracos que ninguém consegue abrir
+  nesta árvore, e a sessão faz uma unidade de trabalho. Viraram
+  `044-a-lista-de-isencoes-da-quarentena-e-medida-no-arquivo-versionado` e
+  `045-o-portao-das-acoes-separa-o-fluxo-vazio-do-fluxo-ilegivel`, os dois
+  ancorados no item que criou os portões. O terceiro apontamento — o SHA que não
+  é conferido contra a versão do comentário ao lado — já era o item `042`, aberto
+  pela auditoria de segurança da própria fase.
+
+- **A frase do item `043` foi reconciliada no presente (regras 7 e 8).** Ela
+  afirmava que "a reconstrução desta fase acabou de trocar `qs` por uma versão
+  vulnerável", e o lockfile entregue resolve `qs@6.16.0`, a corrigida: o fato e a
+  correção entraram no mesmo commit `800aed5`, que criou a isenção nominal e
+  escreveu a justificativa. O documento nasceu com cicatriz. O argumento de adiar
+  o item continua de pé — o que estava velho era a frase, e ela agora diz o que a
+  árvore diz.
+
+- **Os rótulos `blocked-on-D-011` e `blocked-on-D-012` são homônimos entre dois
+  itens.** Os identificadores de divergência são por item, os rótulos do GitHub
+  não: os mesmos dois nomes já estavam no PR #13 (fase 3 de `001`) e agora estão
+  no PR #24 (fase 5 de `023`), apontando para quatro divergências diferentes.
+  Apliquei assim mesmo, porque o bloqueio precisa existir e mudar o esquema de
+  nomes no meio de uma pilha aberta é pior. Mitiguei com o que era barato e
+  reversível: a descrição dos dois rótulos passou a dizer que são homônimos e que
+  se tira do PR, não do repositório — um `gh label delete` depois de ratificar uma
+  das quatro destravaria o PR do outro item sem ninguém ter decidido nada. O
+  conserto virou o item `046-o-rotulo-de-bloqueio-diz-de-qual-item-e-a-divergencia`.
+  A alternativa descartada era renomear agora os doze rótulos vivos e reaplicá-los
+  em sete PRs abertos, mexendo em PRs de outro item a partir da branch do topo da
+  pilha.
+
+- **`D-011` e `D-012` continuam ratificadas só em modo autônomo.** O PR #24 nasce
+  e permanece `blocked-on-D-011` e `blocked-on-D-012` até o dono ratificar com
+  `--por humano`. As duas decidem a mesma coisa por caminhos opostos — a espera
+  de sete dias vale sobre o repositório inteiro (D-011), e ela cede por nome,
+  com prazo medido pelo portão, quando o que ela está atrasando é a correção de
+  uma vulnerabilidade publicada (D-012). É o par que mais merece o olhar do dono
+  neste item.
+
+- **A data de 05/09/2026 é um vermelho programado.** A isenção de `qs` vence dois
+  dias depois deste commit, e o validador confirmou com relógio simulado que o
+  portão fica vermelho em todo PR a partir daí, até alguém tirar `qs` de
+  `pnpm-workspace.yaml` e da constante de `quarentena.sh`, ou reescrever a data
+  com o motivo novo. É o comportamento desenhado, não um defeito — mas quem
+  encontrar o vermelho precisa saber que ele foi agendado de propósito.

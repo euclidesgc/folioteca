@@ -293,19 +293,19 @@
           "por": "autonomo"
         },
         "spec": {
-          "at": "2026-09-03T22:08:04Z",
+          "at": "2026-09-03T18:15:23Z",
           "sha": "1929f7ad1e3a294d37a7936800be7aef88db3adc",
           "file": "product/items/023-endurecimento-antes-da-sessao/02-spec.md",
           "por": "autonomo"
         },
         "plan": {
-          "at": "2026-09-03T22:08:04Z",
+          "at": "2026-09-03T18:15:23Z",
           "sha": "326deac98d33b31057aa16674901d0e4d5fb8ec3",
           "file": "product/items/023-endurecimento-antes-da-sessao/03-plan.md",
           "por": "humano"
         }
       },
-      "current_phase": 4,
+      "current_phase": 5,
       "phases": {
         "1": {
           "status": "aprovada",
@@ -365,6 +365,24 @@
             "apps/api": "94d817949b25e9e6f2c28fb9d817a444f2e4bb32",
             "apps/site": "c40cb4778ae97ac94831f01ef68f76e34d956ab8",
             "apps/web": "0cf0f8ba163abd68660669963dd7b6b138664388"
+          }
+        },
+        "5": {
+          "status": "aprovada",
+          "reproved_count": 0,
+          "verdict": "APROVADO",
+          "verdict_file": "product/items/023-endurecimento-antes-da-sessao/05-veredictos/fase-5.md",
+          "validated_sha": "db7060598ff2d828aeaa9be79e2033bf53925536",
+          "pr": null,
+          "blocked_on": [
+            "D-011",
+            "D-012"
+          ],
+          "verdict_at": "2026-09-03T18:50:56Z",
+          "validated_trees": {
+            "apps/api": "f472bbf7585a1090ff4f41595d859768c172edf7",
+            "apps/site": "4e1b4a2c8557b2a9fc31e93ace30a8e27c337714",
+            "apps/web": "bcb6297b9195060c3eeade874dc899e48a5e84cd"
           }
         }
       },
@@ -463,6 +481,24 @@
           "phase": 4,
           "detected_at": "2026-09-03T17:02:23Z",
           "aprovada_at": "2026-09-03T17:03:36Z",
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-03T19:23:49Z"
+        },
+        "D-011": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 5,
+          "detected_at": "2026-09-03T17:57:37Z",
+          "aprovada_at": "2026-09-03T17:57:37Z",
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-03T19:23:49Z"
+        },
+        "D-012": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 5,
+          "detected_at": "2026-09-03T18:14:25Z",
+          "aprovada_at": "2026-09-03T18:14:25Z",
           "ratificada_por": "humano",
           "ratificacao_humana_at": "2026-09-03T19:23:49Z"
         }
