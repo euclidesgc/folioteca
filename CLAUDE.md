@@ -54,6 +54,11 @@ Vite com TypeScript, SPA: sem componente nem ação de servidor.
 - Variante é `cva`; valor mágico não entra; cor não é o único sinal.
 - Teste consulta por papel e texto acessível, nunca por classe CSS.
 - Violação de acessibilidade crítica ou séria reprova.
+- Fonte de tipografia é auto-hospedada e entra no build. A política de conteúdo
+  do artefato é `style-src 'self'` sob `default-src 'self'`: folha de estilo e
+  arquivo de fonte servidos por outra origem — Google Fonts entre eles — são
+  bloqueados no navegador, e o sintoma aparece como texto na fonte de reserva,
+  longe da causa. Traga os arquivos para dentro; não afrouxe a política.
 
 Detalhe nas skills `react-*`.
 
