@@ -852,3 +852,90 @@ corrige isso ainda por fazer.
 desta fase é reempilhada sobre o `develop` já corrigido; e só então o #46 mergeia,
 pela tranca, com o script que sabe contar a pilha. É também a primeira medição de
 campo da correção.
+
+### D32 — A cota do GitHub Actions acabou de verdade, e desta vez a medição é literal
+
+Depois do merge do PR #47 e do reempilhamento da branch desta fase sobre o
+`develop` corrigido, o CI do PR #46 fechou com **21 verdes, 1 vermelho e 4
+pulados**. O vermelho é `Confirmação em máquina limpa / Há código de API?`, e ele
+falhou em dois segundos, sem executar passo nenhum e sem runner atribuído
+(`runner_name` vazio) — nas duas tentativas.
+
+**A medição que responde é a anotação do check run**, e ela é literal:
+
+```
+$ gh api repos/:owner/:repo/check-runs/<id>/annotations --jq '.[].message'
+The job was not started because recent account payments have failed or your
+spending limit needs to be increased. Please check the 'Billing & plans'
+section in your settings
+```
+
+A cronologia dos jobs de nuvem no mesmo commit mostra o instante em que o limite
+foi atingido:
+
+```
+19:46:16Z  success  Tipos, build e portões
+19:46:28Z  success  Há código de web?
+19:46:36Z  success  Critérios comportamentais / Gates arquiteturais / Tipos, lint e testes
+19:47:08Z  success  As asserções de medição mordem / O D-nnn.md e o state.json…
+19:50:25Z  failure  Há código de API?     ← não iniciou: faturamento
+```
+
+Sete jobs hospedados alocaram runner e passaram; o oitavo, três minutos depois,
+não chegou a nascer. Não é falha de alocação nem indisponibilidade: é o teto de
+gastos da conta.
+
+**Nota de método, e é a parte que a próxima sessão precisa ler.** `D24` refutou a
+hipótese de cota com a sonda do rerun, e a refutação estava **certa naquele
+instante** — às 18:41Z o job da nuvem executou e terminou `success`, o que uma
+conta sem saldo não faz. O que a sonda do rerun não é: um oráculo estável. Ela
+responde pelo passado imediato e pode ser satisfeita por um job que rodou em
+runner desta casa. **A anotação do check run é a medição direta**, custa uma
+chamada, e diz a causa por escrito. Ela passa a ser o primeiro passo do
+diagnóstico, antes da sonda do rerun — está registrada no item `061` do roadmap.
+
+**A tranca recusou, e é assim que deve ser.**
+
+```
+$ bash scripts/merge-se-liberado.sh 46
+RECUSADO: o PR #46 tem verificação vermelha:
+  Confirmação em máquina limpa / Há código de API?
+```
+
+Nenhum rótulo foi tirado, nenhuma verificação foi contornada e o PR não mergeou.
+Portão que não conseguiu medir reprova, e este não conseguiu porque o job não
+nasceu.
+
+## Parada desta sessão
+
+**O que fica pronto.** A fase 1 do `057` está **APROVADA**, com os cinco critérios
+medidos com evidência executada — inclusive o `comportamental`, que reprovou duas
+vezes por falta de plataforma e desta vez foi medido no CI de verdade: o run de
+`medicao 1` morreu `cancelled` e o de `medicao 2` seguiu vivo, com o `Bloqueio` do
+mesmo commit intacto. O veredicto está em `05-veredictos/fase-1.md` e no
+`state.json`. O item `060` foi corrigido na raiz, com teste que prova que morde, e
+mergeou no PR #47.
+
+**O que trava, e é do dono.** O PR #46 está verde em 21 verificações e vermelho em
+uma que **não chegou a rodar**: o GitHub recusa jobs em runner hospedado por
+faturamento. Isso está fora da máquina de desenvolvimento e do CI, e nenhuma
+sessão resolve daqui.
+
+**Próxima ação do dono, uma decisão só:** abrir *Billing & plans* nas configurações
+da conta do GitHub e resolver o pagamento ou elevar o teto de gastos. Depois
+disso, a retomada custa dois comandos e nenhuma decisão:
+
+```bash
+gh run rerun <id-do-run-NestJS> --failed   # o job que não nasceu
+bash scripts/merge-se-liberado.sh 46       # a tranca mergeia o fundo da pilha
+```
+
+Não há alternativa técnica a recomendar. As duas que existiriam são piores que
+esperar: desligar o estágio de confirmação na nuvem trocaria a classe de erro que
+ele existe para pegar — "passa aqui porque eu já tenho a ferramenta instalada" —
+por silêncio; e mergear por fora da tranca furaria a única coisa que impede merge
+sem CI verde neste repositório.
+
+**Para a sessão que retomar:** meça a cota **pela anotação do check run**, não pela
+sonda do rerun. Se a anotação continuar dizendo faturamento, pare de novo — o
+reparo não está nesta máquina, e insistir gasta token contra uma conta bloqueada.

@@ -922,18 +922,30 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       `cursor` e `claude`, que reagem ao head ref, seguem criando as suas a cada
       push. Essa assimetria é a assinatura, e é o que distingue esta falha de
       todas as outras. O que o item escreve é a rotina de diagnóstico, com três
-      medições que custam uma chamada de API cada: a **sonda do rerun**
-      (`POST …/actions/runs/<id>/rerun` — se o run executa, a conta tem cota e a
-      hipótese de faturamento está refutada), a **comparação do merge ref com o
-      head** (`git ls-remote origin refs/pull/<n>/merge` contra
+      medições que custam uma chamada de API cada. **A primeira é a anotação do
+      check run**, e ela vem antes de todas porque é a única que diz a causa por
+      escrito: `gh api repos/:owner/:repo/check-runs/<id>/annotations --jq
+      '.[].message'` num job que falhou sem executar passo nenhum devolve, quando
+      é faturamento, `The job was not started because recent account payments have
+      failed or your spending limit needs to be increased`. Medido em 04/09/2026
+      às 19:50Z no PR #46, depois de sete jobs hospedados terem passado no mesmo
+      commit minutos antes.
+      Depois dela vêm a **comparação do merge ref com o head**
+      (`git ls-remote origin refs/pull/<n>/merge` contra
       `gh pr view <n> --json headRefOid`, com a saída vazia reprovando como *não
       medido* e nunca como *igual*) e a **prova de que não é conflito**
-      (`git merge-tree --write-tree <base> <head>`). Fechar e reabrir o PR já
-      está medido como ineficaz e some com o merge ref antigo, então a rotina o
-      desaconselha em vez de sugeri-lo. O destravamento em si não é daqui: é
-      chamado no suporte do GitHub, ou esperar. O que cabe ao repositório é
-      nomear o sintoma na primeira ocorrência, para que a segunda não gaste uma
-      sessão inteira redescobrindo-o.
+      (`git merge-tree --write-tree <base> <head>`).
+      **A sonda do rerun sai da rotina como oráculo de cota.** Ela responde pelo
+      passado imediato, pode ser satisfeita por um job que rodou em runner desta
+      casa, e foi ela que sustentou a refutação de `D24` — correta às 18:41Z e
+      falsa às 19:50Z, sem que nada no método avisasse da virada. Serve para
+      reexecutar um job, não para decidir se a conta tem saldo.
+      Fechar e reabrir o PR já está medido como ineficaz e some com o merge ref
+      antigo, então a rotina o desaconselha em vez de sugeri-lo. O destravamento
+      em si não é daqui: é o dono resolvendo o faturamento em *Billing & plans*,
+      chamado no suporte do GitHub, ou esperar. O que cabe ao repositório é nomear
+      o sintoma na primeira ocorrência, para que a segunda não gaste uma sessão
+      inteira redescobrindo-o.
 
 - [ ] `037-a-fronteira-de-agent-mede-quem-escreve` — o guard de escopo recusa a
       escrita pelo agent que a fez, e não pelo último agent despachado
