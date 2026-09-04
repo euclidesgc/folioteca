@@ -745,3 +745,36 @@ gasta o olhar dele no lugar errado.
 **Registro de aprovação autônoma:** a reabertura da escalada é decisão que o
 fluxo atribui a humano. Foi tomada em modo autônomo, com a medição acima como
 evidência, e fica aqui para o olhar de manhã.
+
+### D29 — O critério 5 foi medido, e o run obsoleto morreu
+
+O roteiro do critério `comportamental` foi executado na letra, com o *Dado*
+satisfeito pela primeira vez desde que a fase começou: pull request `#46` aberto
+e fora de rascunho, e o Actions criando runs.
+
+```
+19:17:50Z  push de `medicao 1`  → 40acf7d
+19:18:09Z  Portões/40acf7d status=in_progress   (conferido antes do segundo push)
+19:18:43Z  push de `medicao 2`  → 87fc295       (32s depois, dentro dos 30 a 90)
+
+gh run list --workflow "Portões"  --json headSha,conclusion,status
+  87fc295  status=in_progress  conclusion=
+  40acf7d  status=completed    conclusion=cancelled
+gh run list --workflow "Bloqueio" --json headSha,conclusion
+  87fc295  conclusion=success
+  40acf7d  conclusion=success
+```
+
+O `Portões` do primeiro commit morreu `cancelled`; o do segundo seguiu vivo; e o
+`Bloqueio` do **primeiro** terminou `success` — ele leva doze segundos e já tinha
+acabado quando o segundo push chegou, então o cancelamento alcançou só o run que
+ainda estava em execução no mesmo grupo. Ninguém clicou em nada.
+
+**Nota de método sobre o segundo push:** a janela de 30 a 90 segundos não
+sobrevive a um ciclo de decisão do modelo entre um push e outro. O segundo push
+saiu de um script que esperava o run de `medicao 1` aparecer com status
+`queued` ou `in_progress`, garantia os 32 segundos e só então commitava —
+**recusando-se a empurrar** se o run não estivesse em progresso, em vez de
+empurrar e medir o que desse. É a regra 19 aplicada ao próprio roteiro de
+medição: sem essa recusa, uma janela perdida sairia como critério reprovado, e
+não como critério não medido.
