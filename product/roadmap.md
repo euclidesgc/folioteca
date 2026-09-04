@@ -947,6 +947,30 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       o sintoma na primeira ocorrência, para que a segunda não gaste uma sessão
       inteira redescobrindo-o.
 
+- [ ] `062-o-criterio-comportamental-monta-a-arvore-de-mentira-com-o-que-o-ambiente-aceita`
+      — quem escreve critério de aceite monta o diretório temporário com
+      `mktemp -d`, e quem o executa não precisa reescrever o comando
+      **Depende de:** nada — é norma escrita numa skill, e vale para o próximo
+      plano que nascer.
+      **Origem:** fase 2 de
+      `057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto`, ver
+      `decisoes-autonomas.md` (`D23`). Os seis critérios `comportamental` da fase
+      montam a árvore de mentira em caminho fixo sob `/tmp`, precedido de uma
+      remoção recursiva que existe só para tornar a montagem idempotente. O
+      ambiente da sessão autônoma recusa essa remoção por hook de segurança, e
+      recusa até quando a cadeia aparece dentro de um `grep` que não apaga nada —
+      o hook casa o texto do comando, não o que ele faz. O efeito é que **cada**
+      sessão que valida esses critérios reescreve o comando à mão, e reescrever o
+      comando de um critério é exatamente o que o critério existe para impedir:
+      duas sessões podem reescrevê-lo diferente e medir coisas diferentes com o
+      mesmo texto por trás. A correção é do lado de cá e é barata: `mktemp -d`
+      devolve um diretório novo a cada chamada, então não há o que limpar antes, o
+      caminho não colide entre execuções simultâneas, e o critério deixa de
+      depender de um `/tmp` que outra sessão pode ter sujado. `harness:acceptance-criteria`
+      passa a dizer isso, e os planos novos nascem assim; os seis critérios do
+      `057` ficam como estão, porque reescrevê-los depois de medidos trocaria o
+      texto que o veredicto cego executou.
+
 - [ ] `037-a-fronteira-de-agent-mede-quem-escreve` — o guard de escopo recusa a
       escrita pelo agent que a fez, e não pelo último agent despachado
       **Depende de:** nada — o guard já existe nos hooks do harness.

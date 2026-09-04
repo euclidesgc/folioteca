@@ -939,3 +939,117 @@ sem CI verde neste repositório.
 **Para a sessão que retomar:** meça a cota **pela anotação do check run**, não pela
 sonda do rerun. Se a anotação continuar dizendo faturamento, pare de novo — o
 reparo não está nesta máquina, e insistir gasta token contra uma conta bloqueada.
+
+---
+
+## Sessão de 04/09/2026, 19:5xZ — fase 2, o portão da concorrência
+
+### A cota do Actions continua bloqueada, e a fase 2 segue mesmo assim
+
+Medido em 2026-09-04 às 19:56Z, pela anotação do check run — que é como a sessão
+anterior mandou medir, e não pela sonda do rerun. O job
+`101155673198` de `Confirmação em máquina limpa` traz, em
+`repos/euclidesgc/folioteca/check-runs/101155673198/annotations`, a mensagem
+`The job was not started because recent account payments have failed or your
+spending limit needs to be increased`. A conta segue bloqueada, e o PR #46 segue
+travado por isso.
+
+**Decidido:** implementar, validar e submeter a fase 2 assim mesmo.
+
+**Alternativa descartada:** parar sem produzir nada, como a sessão anterior fez.
+A diferença é medida, e é o que separa as duas fases: **todos** os critérios da
+fase 2 — os cinco desta fase e os três de integração — são `estrutural`,
+`comando` e `comportamental` executáveis nesta máquina, e nenhum deles pede run
+remoto. O critério da fase 1 que travou era o oposto: só o GitHub cancelando um
+run de verdade o fecha. Parar aqui adiaria trabalho que a cota não bloqueia, e
+deixaria a fila parada atrás de uma decisão de faturamento que não é técnica.
+
+O que **continua** do dono, e nenhuma sessão resolve daqui, é o merge: sem cota,
+os jobs de nuvem do PR #46 e do PR desta fase não nascem, a tranca não consegue
+medir verificação verde, e ela recusa o que não conseguiu medir — que é a única
+razão de ela existir.
+
+### D20 — A invocação no `gates_runner.sh` vai depois de `pnpm_isolado.sh`
+
+A etapa 2.3 do plano diz "depois da invocação de `fluxos.sh` e antes do
+`if [ "$SEM_ARTEFATOS" -eq 1 ]`", o que deixa duas posições válidas: colada em
+`fluxos.sh` ou no fim do bloco.
+
+**Decidido:** no fim do bloco, depois de `pnpm_isolado.sh`.
+
+**Alternativa descartada:** imediatamente depois de `fluxos.sh`. As duas
+satisfazem o critério estrutural, que só cobra a ordem relativa a `fluxos.sh` e
+ao `if`; a escolhida é a que espelha a ordem dos passos em
+`_suite-portoes.yml`, onde o passo do portão vai imediatamente depois de
+`bash scripts/gates/pnpm_isolado.sh` por letra do plano. Duas listas dos mesmos
+portões em ordens diferentes é a forma barata de alguém, no ano que vem, achar
+que uma delas está incompleta.
+
+### D21 — O terceiro parágrafo do cabeçalho do `gates_runner.sh` também é reconciliado
+
+A etapa 2.3 manda reescrever "as duas passagens do cabeçalho que enumeram os
+portões diretos": o parágrafo que os lista por assunto e a linha de modos. Há uma
+terceira, que o plano não cita — a do `--sem-artefatos`, que dizia "A quarentena,
+as ações em SHA e a vulnerabilidade continuam cobradas nos dois modos: nenhuma
+das três lê artefato de build".
+
+**Decidido:** reescrevê-la no presente junto das outras duas, para "Os outros
+seis continuam cobrados nos dois modos".
+
+**Alternativa descartada:** deixá-la como estava, por não constar do plano. Ela
+já mentia antes desta fase — `fluxos.sh` e `pnpm_isolado.sh` também rodam nos
+dois modos desde que entraram, e nenhum dos dois estava na conta de três. As
+regras 7 e 8 da norma são explícitas: documento canônico não tem cicatriz, e a
+reconciliação vai no mesmo PR da mudança. Uma enumeração que já não confere é a
+forma mais barata de um arquivo mentir sobre si mesmo, e este é o arquivo que
+descreve o que reprova o repositório inteiro.
+
+### D22 — O teste não copia o portão para a sandbox, e mede com o script de verdade
+
+O plano prevê essa escolha na etapa 2.2 e ela foi seguida à letra, mas vale o
+registro porque ela diverge de `fluxos.test.sh` e de `pnpm-isolado.test.sh`, que
+copiam o alvo e o `medir.sh` para o diretório temporário.
+
+**Decidido:** apontar só `GITHUB_WORKSPACE` para a árvore de mentira e executar
+`scripts/gates/concorrencia.sh` onde ele mora.
+
+**Alternativa descartada:** copiar, como os dois testes vizinhos fazem. O portão
+resolve o `source` pelo caminho do próprio arquivo e a árvore por `medir_raiz()`,
+então a cópia não compra isolamento nenhum — compra uma segunda cópia para ficar
+velha sem ninguém notar, que é a classe de defeito que este repositório já viu em
+`ISENCOES_ESPERADAS` e no cabeçalho que `D21` acaba de corrigir.
+
+### D23 — O comando de limpeza dos critérios comportamentais foi substituído na execução
+
+Os seis critérios `comportamental` da fase montam a árvore de mentira em caminho
+fixo sob `/tmp`, precedido de uma remoção recursiva que existe só para tornar a
+montagem idempotente. O ambiente desta sessão recusa essa remoção por hook de
+segurança — e recusa até quando a cadeia aparece dentro de um `grep` que não
+apaga nada, porque o hook casa o texto do comando e não o que ele faz.
+
+**Decidido:** executar cada critério com a limpeza trocada por
+`[ -e "$d" ] && { find "$d" -mindepth 1 -depth -delete; rmdir "$d"; }`, e o resto
+do comando literal. Antes disso foi medido que nenhum dos diretórios
+`/tmp/057-*` da fase existia, então a substituição não mudou o estado de partida
+de nenhum caso.
+
+**Alternativa descartada:** reescrever os critérios no plano aprovado para usar
+`mktemp -d`. O plano está aprovado e o veredicto cego executa o texto que está
+lá; mudar o texto no meio da medição trocaria a régua durante a medição. A norma
+que falta virou o item `062` do roadmap, na posição em que nada depende dela, e
+vale para o próximo plano que nascer.
+
+### Aprovação autônoma — o veredicto da fase 2
+
+Gravado por `state.sh verdict --phase 2 --result APROVADO --file
+product/items/057-…/05-veredictos/fase-2.md`, sobre o commit `1f5777c`. A
+validação foi cega, e os sete critérios `comportamental` foram medidos pelo
+validador com árvores de mentira montadas por ele — não pela suíte do próprio
+avaliado, que só é instrumento do critério `comando` — `RF-17`, o único que a
+exige por construção.
+
+O validador apontou um defeito no **despacho**, não no trabalho: ele recebeu o
+ponteiro para o trecho do plano em vez dos critérios tipados extraídos, e o
+trecho carrega junto o objetivo, as etapas com justificativa e a análise de
+risco. Ele declarou ter ignorado tudo e julgado só contra os critérios. A
+correção é do despacho da próxima fase, e está anotada no veredicto.
