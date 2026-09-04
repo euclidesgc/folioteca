@@ -101,7 +101,16 @@ PR e commit já escritos.
       minuto, com o lockfile limpo, e na máquina de desenvolvimento três chamadas
       iguais espaçadas por 45 segundos responderam em 74 s, em 90 s e em nenhum
       tempo. A repetição do `053` reduz a chance, não a remove, e portão que
-      reprova quem não errou é portão que se aprende a ignorar. Fechar é trocar o
+      reprova quem não errou é portão que se aprende a ignorar. Medido de novo no
+      encerramento do `027`, já com a repetição em vigor: sobre `bae9b89` o fluxo
+      `Site` gastou as três tentativas em **13m34s** e reprovou por não ter
+      medido, enquanto os outros três mediram de primeira. Soma-se o desperdício
+      que multiplica a chance — **um commit dispara quatro auditorias do mesmo
+      lockfile**, porque cada fluxo por frente chama o `gates_runner.sh` e o fluxo
+      `Portões` ainda tem o passo dedicado: quatro chamadas para uma resposta,
+      numa cota de minutos que ninguém aqui consegue ler. Enquanto isto não
+      fechar, **o merge do `027` depende de sorte com o endpoint** — o PR #36 está
+      vermelho por isto, e não pelo que o portão mede. Fechar é trocar o
       motor por `osv-scanner` — a ferramenta que a skill `security-baseline`
       nomeia —, instalado por binário com par versão/`sha256` fixado, no padrão de
       `scripts/ci/instalar-gitleaks.sh`. A troca reabre a `D1` do
@@ -148,9 +157,19 @@ PR e commit já escritos.
       política permanente, e adiar sem motivo novo é o antipadrão que o portão
       existe para impedir.
 
-- [-] `027-vulnerabilidade-conhecida-reprova-no-ci` — o CI reprova quando uma
+- [x] `027-vulnerabilidade-conhecida-reprova-no-ci` — o CI reprova quando uma
       dependência do lockfile tem aviso de severidade alta, em vez de a conta ser
       feita à mão numa auditoria de fase
+      **Fechado na fase 1,** a única do item: `scripts/gates/vulnerabilidade.sh`
+      audita o lockfile inteiro em todo pull request e em todo push para `main` e
+      `develop`, reprova achado alto ou crítico sem isenção nominal com prazo em
+      vigor, e reprova dizendo `não consegui auditar` quando não mediu — nunca
+      `0 achados`. No runner, sobre `bae9b89`, três dos quatro fluxos que auditam
+      mediram na primeira tentativa — `✓ vulnerabilidade: 923 pacotes auditados,
+      0 achados de severidade alta ou crítica, 0 isenções` — e o quarto gastou as
+      três e reprovou por não ter medido. O portão está de pé; o motor é que não
+      responde a quatro chamadas do mesmo lockfile no mesmo minuto, e é o `055`
+      que troca. O resto do que sobra está em `056`, `052` e `054`.
       **Depende de:** `023-endurecimento-antes-da-sessao` — é o item que traz a
       cadeia de suprimentos para dentro do CI, e o passo novo nasce junto dos
       outros dois.
@@ -973,27 +992,25 @@ não bloqueia trabalho que não dependa dela.
   **Origem:** estágio `spec` de `023-endurecimento-antes-da-sessao`, ao ratificar
   `D-001` — ver `product/items/023-endurecimento-antes-da-sessao/04-divergencias/D-001.md`.
 
-- **O GitHub Actions parou de executar neste repositório, e a corrida seguiu no
-  escuro.** Medido: o último run de qualquer fluxo é `NestJS`/`React` em
-  `develop`, às 16:54Z de 03/09/2026. Os commits de cabeça das fases 4 e 5 —
-  `0489eb1` e `d0ecaae` — têm suíte de `gitguardian`, `railway-app`, `cursor` e
-  `claude`, e **nenhuma de `github-actions`**; a fase 3 tem quatro. Não é
-  configuração deste repositório: `actions/permissions` responde
-  `{"enabled": true}`, os cinco fluxos estão `active`, o YAML dos cinco carrega
-  sem erro, e `portoes.yml` e `bloqueio.yml` não têm filtro de caminho que
-  pudesse pular. A causa provável é cota — repositório privado em plano de
-  usuário, cujos minutos incluídos acabam sem aviso no PR — e ela não se lê
-  daqui: `settings/billing/actions` exige o escopo `user`, que este token não
-  tem, e conceder escopo de conta não é decisão de quem roda a corrida.
-  **A decisão é sua:** abrir a aba Actions do repositório, ver o motivo que só
-  ela mostra, e resolver — pagar o excedente, elevar o teto de gasto, ou tornar
-  o repositório público, que zera o custo de minuto. Enquanto isso não acontece,
-  **os PRs #23 e #24 não têm CI**, e a regra 10 do `CLAUDE.md` — "pronto é build
-  verde" — não pode ser satisfeita por nenhuma sessão, autônoma ou não. Os
-  portões locais equivalentes rodaram e passaram nas duas fases, o que é a
-  melhor evidência que esta máquina produz e não substitui o runner.
-  **Origem:** encerramento de `023-endurecimento-antes-da-sessao`. O conserto do
-  processo — perguntar ao GitHub se rodou, em vez de supor — é o item
+- **O CI da corrida depende de uma cota que ninguém aqui consegue ler.** O
+  GitHub Actions voltou a executar em 04/09/2026, depois de um dia parado: os
+  cinco fluxos rodam nos pull requests e em `develop`, e o código das fases 4 e 5
+  de `023` — mergeado sem CI, pelos PRs #23 e #24 — está medido, porque `develop`
+  em `26432ff` fecha verde nos quatro fluxos que disparam nela. Nem a parada nem
+  a volta foram lidas daqui: o repositório é privado em plano de usuário, os
+  minutos incluídos acabam sem aviso no pull request, e `settings/billing/actions`
+  exige o escopo `user`, que este token não tem — conceder escopo de conta não é
+  decisão de quem roda a corrida. Durante a parada, o sintoma foi ausência: os
+  commits de cabeça das fases 4 e 5 não tinham nenhuma suíte de `github-actions`,
+  e nenhum erro apareceu em lugar nenhum.
+  **A decisão é sua:** olhar `settings/billing` e escolher entre pagar o
+  excedente, elevar o teto de gasto, ou tornar o repositório público, que zera o
+  custo de minuto. Cada fase de cada item consome minutos, e enquanto o teto não
+  estiver resolvido a regra 10 do `CLAUDE.md` — "pronto é build verde" — repousa
+  numa cota que pode acabar no meio de uma fase, do mesmo jeito silencioso.
+  **Origem:** encerramento de `023-endurecimento-antes-da-sessao`; a volta foi
+  medida no encerramento de `027-vulnerabilidade-conhecida-reprova-no-ci`. O
+  conserto do processo — perguntar ao GitHub se rodou, em vez de supor — é o item
   `047-o-veredicto-de-fase-mede-se-o-ci-chegou-a-rodar`.
 
 - **Três ativos deste repositório são mais novos que o gabarito do plugin, e o
@@ -1057,15 +1074,6 @@ verificação**.
   `002-conta-e-organizacao`, e a verificação é abrir `vite preview` com o console
   aberto.
 
-- **`023-endurecimento-antes-da-sessao`, Fase 4 — a instalação do `gitleaks` no
-  runner do GitHub.** O download da release fixada, a conferência do checksum, o
-  checksum divergente reprovando e os quatro universos de varredura estão medidos
-  nesta máquina. O que só o runner prova é o binário `linux_x64` rodando em
-  `ubuntu-latest` e o `${{ runner.temp }}/gitleaks-bin` chegando ao `PATH` do
-  passo seguinte pelo `$GITHUB_PATH` — e o tempo total do job, de que a cópia de
-  ~67 MB de `apps/site/.next` levou 1,8 s aqui. Se o passo reprovar por não achar
-  a ferramenta, é o próprio portão dizendo que não mediu.
-
 - **`023-endurecimento-antes-da-sessao`, Fase 4 — o cache do Actions entre PR de
   fork e `main`.** A auditoria de segurança da fase disse explicitamente que
   raciocinou pelo modelo documentado do isolamento de cache, sem medir. Só uma
@@ -1087,6 +1095,35 @@ verificação**.
   em quatorze dias e houver ação desatualizada, o arquivo está sendo ignorado e a
   rotina que destrava os SHAs não existe.
 
-As quatro linhas acima esperam o **runner**, e o runner está parado desde 16:54Z
-de 03/09/2026 — ver a pendência de produto aberta sobre o GitHub Actions. Nenhuma
-delas se verifica sozinha enquanto o Actions não voltar a executar.
+O runner executa de novo desde 04/09/2026, e as linhas que só dependiam dele
+estão verificadas abaixo. As que sobram esperam outra coisa: um fork de verdade,
+uma configuração de conta que nenhum comando daqui lê, o agendamento semanal do
+robô e um navegador com gente na frente.
+
+### Verificadas
+
+Ficam escritas em vez de apagadas: o run que serve de evidência expira da aba
+Actions antes de o item que o citou fechar, e sem a linha a próxima sessão reabre
+uma dúvida já respondida.
+
+- **`023-endurecimento-antes-da-sessao`, Fase 4 — a instalação do `gitleaks` no
+  runner do GitHub.** Verificada em 04/09/2026, no fluxo `Portões` sobre
+  `bae9b89`: `baixando gitleaks 8.30.1 …`, `gitleaks_8.30.1_linux_x64.tar.gz: OK`
+  e `instalado: gitleaks 8.30.1 em /home/runner/work/_temp/gitleaks-bin, sha256
+  conferido contra o lock`. O `$GITHUB_PATH` leva o binário ao passo seguinte: a
+  suíte do portão passa lá — inclusive `gitleaks fora do PATH REPROVA por não ter
+  medido` — e a varredura fecha com `medido com gitleaks 8.30.1`.
+
+- **`027-vulnerabilidade-conhecida-reprova-no-ci`, Fase 1 — o portão de
+  vulnerabilidade sob o limite de taxa do runner.** Verificada em 04/09/2026, e o
+  que ela mostrou é pior do que a mitigação prometia. Sobre `a97f80a`, sem a
+  repetição, o portão reprovou com `não consegui auditar o pnpm-lock.yaml: a
+  ferramenta devolveu erro em vez de auditoria … The operation was aborted due to
+  timeout`. Sobre `bae9b89`, com a repetição, três dos quatro fluxos que auditam
+  mediram na primeira tentativa e o quarto — `Site`, que audita depois do build
+  do Next e portanto sozinho no fim — **gastou as três tentativas em 13m34s e
+  reprovou por não ter medido**. O portão responde certo nos dois casos: ele diz
+  que não mediu, em vez de dizer `0 achados`. O que não está de pé é o motor, e o
+  vermelho cai sobre pull request que não mexeu em dependência nenhuma. É o
+  `055`, e a linha fica aqui porque a próxima medição não precisa ser refeita
+  para chegar à mesma conclusão.
