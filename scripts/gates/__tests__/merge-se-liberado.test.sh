@@ -145,6 +145,19 @@ if command -v jq >/dev/null 2>&1; then
     '{"branches":[{"name":"a","pr":{"number":42,"state":"OPEN"}}]}'
   caso_via 'pilha de dois PRs mergeia pela pilha'  stack-merge \
     '{"branches":[{"name":"a","pr":{"number":41,"state":"OPEN"}},{"name":"b","pr":{"number":42,"state":"OPEN"}}]}'
+  # O caso do último PR aberto de uma pilha, que é toda pilha no fim da vida.
+  # Contando só os abertos, esta pilha responde `1` e vai para o `gh pr merge`,
+  # que o GitHub recusa com `must be merged using the asynchronous merge REST
+  # API` — e a pilha nunca esvazia. Aconteceu duas vezes em 04/09/2026, nos PRs
+  # #44 e #46. A pilha existe lá porque tem dois PRs; que um deles já tenha
+  # mergeado não a desfaz.
+  caso_via 'pilha cujo penúltimo PR já mergeou ainda mergeia pela pilha' stack-merge \
+    '{"branches":[{"name":"a","pr":{"number":41,"state":"MERGED"}},{"name":"b","pr":{"number":42,"state":"OPEN"}}]}'
+  # A outra ponta: branch numa pilha local cujo único PR está fechado não tem
+  # pilha no GitHub, e o merge é o do PR. Sem este caso, a correção acima
+  # poderia ter sido "sempre stack-merge", que quebra o PR solto.
+  caso_via 'pilha de um PR mergeado mergeia como PR comum' pr-merge \
+    '{"branches":[{"name":"a","pr":{"number":42,"state":"OPEN"}},{"name":"b","pr":null}]}'
   caso_pilha_ilegivel
 else
   printf '  FALHA %s\n' 'jq ausente: os casos de via do merge não puderam ser medidos'
