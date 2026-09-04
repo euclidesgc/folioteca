@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "active_item": "027-vulnerabilidade-conhecida-reprova-no-ci",
+  "active_item": "057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto",
   "items": {
     "001-esqueleto-do-monorepo": {
       "title": "Esqueleto do monorepo: os três apps sobem, o contrato é gerado e o CI fica verde",
@@ -557,6 +557,27 @@
           "ratificada_por": "autonomo"
         }
       },
+      "criteria_exception": null
+    },
+    "057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto": {
+      "title": "O CI cancela o run que o push seguinte tornou obsoleto: cada fluxo declara concorrência por referência, e main e develop não cancelam",
+      "track": "rapida",
+      "stage": "brief",
+      "stacks": [],
+      "created_at": "2026-09-04T11:38:58Z",
+      "approvals": {
+        "brief": {
+          "at": null,
+          "sha": null
+        },
+        "plan": {
+          "at": null,
+          "sha": null
+        }
+      },
+      "current_phase": null,
+      "phases": {},
+      "divergences": {},
       "criteria_exception": null
     }
   }
