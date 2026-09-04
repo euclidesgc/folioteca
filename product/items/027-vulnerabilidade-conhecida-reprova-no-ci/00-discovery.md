@@ -21,10 +21,10 @@ virar cartão.
 | Achados no lockfile, hoje | **Zero, nas duas bases.** `pnpm audit --audit-level=high --json` devolve `high: 0`, `critical: 0` sobre `totalDependencies: 923`; `osv-scanner scan source -L pnpm-lock.yaml` sai 0 com nenhum pacote acusado sobre os mesmos 923. As duas ferramentas leem o mesmo universo e concordam |
 | Composição desses 923 | `dependencies: 199`, `devDependencies: 686`, `optionalDependencies: 95`. Três em cada quatro pacotes do lockfile são de desenvolvimento |
 | A única conta já feita | À mão, na decisão `D29` da Fase 3 de `001`: `overrides: js-yaml: ">=4.3.2"` em `pnpm-workspace.yaml:23-24`. Ninguém a reexecuta |
-| Portões diretos da cadeia de suprimentos | Dois, e é neles que o terceiro se espelha: `scripts/gates/quarentena.sh` e `scripts/gates/acoes_em_sha.sh`, chamados com código de saída propagado em `scripts/gates/gates_runner.sh:220-228` e em `.github/workflows/portoes.yml:59-62` |
+| Portões diretos da cadeia de suprimentos | Dois, e é neles que o terceiro se espelha: `scripts/gates/quarentena.sh` e `scripts/gates/acoes_em_sha.sh`, chamados com código de saída propagado no bloco de portões diretos de `scripts/gates/gates_runner.sh` e nos dois passos de `.github/workflows/portoes.yml` que precedem a instalação de dependências |
 | Isenção com prazo | O padrão existe: `qs` isento da quarentena até **2026-09-05**, declarado em `pnpm-workspace.yaml:48-49` e espelhado na constante `ISENCOES_ESPERADAS` de `scripts/gates/quarentena.sh:43`. É isenção de *publicação recente*, não de *severidade* — a lista deste item é outra |
 | Parse de lockfile reaproveitável | **Nenhum.** Nada em `scripts/` lê `pnpm-lock.yaml`; `quarentena.sh` só compara configuração com constante |
-| Instalação de ferramenta no CI | O padrão da casa é binário de release com versão e `sha256` fixados — `scripts/ci/instalar-gitleaks.sh`, chamado em `.github/workflows/portoes.yml:86-89`. Foi a decisão `D6` de `023`, tomada para não acrescentar ação de terceiro |
+| Instalação de ferramenta no CI | O padrão da casa é binário de release com versão e `sha256` fixados — `scripts/ci/instalar-gitleaks.sh`, chamado em `.github/workflows/portoes.yml` no passo que precede o portão de segredo. Foi a decisão `D6` de `023`, tomada para não acrescentar ação de terceiro |
 | Rotina de atualização | `.github/dependabot.yml` cobre **só** `github-actions`. O comentário no topo do arquivo deixa o ecossistema npm de fora **de propósito**, e nomeia este item como o dono da *conta* que falta. Quando este item fechar, o ponteiro passa a apontar `041`, que é quem liga a rotina — e atualizá-lo é da fase de execução daqui, no mesmo PR, pela regra 8 |
 | Na máquina de desenvolvimento | `pnpm 11.25.0` (o mesmo do `packageManager`), `osv-scanner 2.5.1`, `gitleaks 8.30.1`, `semgrep 1.176.0`, `jq 1.7`. `trivy` e `yq` ausentes |
 
@@ -99,10 +99,10 @@ entra — e não por ninguém ter olhado.
 ### R4 — O portão roda onde os dois irmãos da cadeia de suprimentos já rodam
 
 - **E4.1** — `bash scripts/gates/gates_runner.sh` executa a auditoria e propaga o
-  código de saída, no mesmo bloco de portões diretos das linhas 220-228, junto de
+  código de saída, no mesmo bloco de portões diretos, junto de
   `quarentena.sh` e `acoes_em_sha.sh`.
 - **E4.2** — `.github/workflows/portoes.yml` ganha o passo logo depois do de
-  `acoes_em_sha.sh` (linhas 61-62). Esse fluxo não tem filtro de `paths`, e é por
+  `acoes_em_sha.sh`. Esse fluxo não tem filtro de `paths`, e é por
   isso que ele é o lugar certo: um aviso novo aparece **sem o lockfile mudar**,
   porque a base é externa e se move sozinha. Um passo condicionado a
   `pnpm-lock.yaml` nunca acusaria a vulnerabilidade publicada depois do último

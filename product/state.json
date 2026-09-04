@@ -510,13 +510,15 @@
     "027-vulnerabilidade-conhecida-reprova-no-ci": {
       "title": "Vulnerabilidade conhecida reprova no CI: o portão audita o lockfile inteiro e reprova achado de severidade alta ou crítica, com isenção nominal e prazo",
       "track": "rapida",
-      "stage": "brief",
+      "stage": "plan",
       "stacks": [],
       "created_at": "2026-09-03T19:13:55Z",
       "approvals": {
         "brief": {
-          "at": null,
-          "sha": null
+          "at": "2026-09-04T04:24:02Z",
+          "sha": "e10ce415b870ad946c411a3612cc66d2e7d6d57b",
+          "file": "product/items/027-vulnerabilidade-conhecida-reprova-no-ci/01-brief.md",
+          "por": "autonomo"
         },
         "plan": {
           "at": null,
