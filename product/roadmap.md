@@ -41,6 +41,28 @@ PR e commit já escritos.
       de o `checkout` já ter gravado o token no disco — a correção é fixar cada
       uma em SHA de 40 caracteres com a versão em comentário.
 
+- [ ] `057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto` — um push novo
+      para de deixar atrás de si um run inteiro medindo um commit que ninguém vai
+      mergear
+      **Depende de:** nada — é configuração de fluxo, e não depende de código
+      nenhum deste repositório.
+      **Origem:** encerramento de `027-vulnerabilidade-conhecida-reprova-no-ci`.
+      Nenhum dos cinco fluxos de `.github/workflows` declara `concurrency` —
+      `grep -c concurrency` devolve `0` nos cinco —, então três commits empurrados
+      em três minutos para a mesma branch deixam três runs de `Portões` correndo
+      ao mesmo tempo: medido nesta branch em 04/09/2026, com `315250d`, `569c0e6`
+      e `b996a93`. Cada um audita o mesmo lockfile, e é assim que a janela do
+      endpoint enche — ver `055`. Custa minutos de uma cota que ninguém aqui
+      consegue ler, e ainda entrega vermelho de um commit já substituído. Fechar é
+      declarar `concurrency` com `group` por fluxo e referência e
+      `cancel-in-progress: true` nas branches de trabalho — e **não** em `main`
+      nem em `develop`, onde cancelar apaga a única medição que aquele commit vai
+      ter.
+      **Precede `052`:** aquele item declara `timeout-minutes` a partir do tempo
+      medido de cada job, e enquanto runs concorrentes disputam o mesmo endpoint o
+      tempo medido não serve de régua — o mesmo job saiu **13m34s** acompanhado e
+      **1m23s** sozinho.
+
 - [ ] `052-todo-job-do-ci-declara-teto-de-tempo` — um passo que pendura para de
       consumir a cota de minutos do repositório em silêncio, porque cada job diz
       em quanto tempo ele desiste
