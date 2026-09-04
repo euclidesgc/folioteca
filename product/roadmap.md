@@ -443,7 +443,7 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       tempo medido não serve de régua — o mesmo job saiu **13m34s** acompanhado e
       **1m23s** sozinho.
 
-- [ ] `058-a-tranca-nao-le-check-cancelado-como-verde` — um pull request cuja
+- [ ] `059-a-tranca-nao-le-check-cancelado-como-verde` — um pull request cuja
       verificação foi cancelada para de mergear como se ela tivesse passado
       **Depende de:** nada. É uma medição a mais em `scripts/merge-se-liberado.sh`,
       e não depende de item nenhum.

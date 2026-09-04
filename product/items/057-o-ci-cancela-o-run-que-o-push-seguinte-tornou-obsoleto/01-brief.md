@@ -244,6 +244,21 @@ concurrency:
   portão deve sair 1 nomeando o arquivo e o erro de leitura, nunca contá-lo
   como fluxo sem `concurrency`.
 
+- **RF-21** — Se um arquivo de `.github/workflows` não cai em nenhuma das duas
+  populações de `RF-07` — não declara `push` nem `pull_request`, e também não
+  declara `workflow_call` —, então o portão deve sair 1 nomeando o arquivo e a
+  chave `on:` que leu, sem contá-lo em nenhuma das duas populações.
+  *Um fluxo que só escuta `schedule` ou `workflow_dispatch` não é ilegível nem
+  está errado; ele é o caso que a classificação de duas populações não previu.
+  Sem esta reprovação, o portão teria de escolher em silêncio entre ignorá-lo —
+  e a linha `medido:` de `RF-09` deixaria de somar, com o total do diretório
+  maior que a soma das duas populações, sem que ninguém soubesse por quê — ou
+  arrastá-lo para uma das duas, cobrando dele uma regra que não é a dele. As
+  duas escolhas silenciosas transformam "não consegui classificar" em "medi e
+  está tudo bem", que é a resposta que `scripts/gates/medir.sh` existe para
+  impedir. Reprovar devolve a decisão a quem escreveu o fluxo novo, que é quem
+  sabe se ele deve cancelar run obsoleto.*
+
 ## Métrica de sucesso
 
 | Métrica | Onde se observa | Alvo |
@@ -292,7 +307,7 @@ concurrency:
   para acabar: ausência de vermelho lida como verde. Resposta: o defeito não é
   criado aqui e não é tornado alcançável aqui — cancelamento por
   `cancel-in-progress` sempre tem sucessor, que é o run que o disparou. O dono é
-  o item `058-a-tranca-nao-le-check-cancelado-como-verde`, e a tranca fica fora
+  o item `059-a-tranca-nao-le-check-cancelado-como-verde`, e a tranca fica fora
   do escopo deste item.
 
 - **Decisão tomada contra declarar `concurrency` nos nove arquivos.** Custo

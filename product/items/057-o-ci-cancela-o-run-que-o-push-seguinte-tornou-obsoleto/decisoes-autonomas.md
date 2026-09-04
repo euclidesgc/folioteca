@@ -23,7 +23,7 @@ qualquer trabalho deste item.
 | D9 | discovery | **A seção da dívida de portão passa a dizer, no presente, que item de portão nasce dentro dela** | Mover os seis e parar por aí | Mover sem escrever a regra deixa a causa de pé: a próxima sessão que descobrir uma pendência de CI vai inseri-la no topo, corretamente pela régua local, e em três noites a fila está reconstituída de novo. É a segunda ocorrência do mesmo efeito — a primeira foram os seis desta noite —, e a regra da casa manda tratar a classe, não o caso. O parágrafo novo delimita o alcance da frase "na posição de precedência certa": ela ordena os itens **dentro** da seção, e não os promove contra o produto |
 | D10 | brief | **Só os cinco fluxos com gatilho de evento declaram `concurrency`; as quatro suítes de `workflow_call` não declaram** | Declarar o mesmo bloco nos nove arquivos de `.github/workflows/`, que é a leitura literal do `00-discovery.md` | O terreno mudou depois do discovery: a refatoração casa/nuvem dos PRs #41 e #42 partiu os cinco fluxos em cinco de gatilho — `bloqueio`, `ci-nestjs`, `ci-react`, `ci-site`, `portoes` — e quatro suítes `_suite-*.yml` chamadas por `workflow_call`. Suíte chamada não produz run próprio: os jobs dela correm dentro do run de quem a chamou, e o `cancel-in-progress` do pai já os cancela junto. Declarar no chamado é redundante e é a forma documentada de produzir impasse, com o job do pai esperando o filho que está enfileirado atrás do próprio pai. O `00-discovery.md` não é reescrito: ele não é documento canônico e nem tem aprovação registrada — é o registro do que se soube naquele estágio, e quem mede de novo é o brief |
 | D11 | brief | **O portão `concorrencia.sh` reprova nos dois sentidos: fluxo de gatilho sem `concurrency`, e suíte de `workflow_call` com `concurrency`** | Contar quantos arquivos declaram e reprovar quando a conta não fecha, que é o que o `E5.1` do discovery descreve | Contador que só soma aprova a declaração posta no arquivo errado — que é exatamente o defeito do impasse que a `D10` evita. Com as duas populações medidas em separado, o portão responde as duas perguntas que importam, e a linha `medido:` imprime as duas contagens em vez de uma só. O custo é uma classificação por gatilho dentro do script, e ela já é necessária para o portão saber de quem cobrar |
-| D12 | brief | **A pergunta aberta do `doc-writer` foi decidida medindo, e a medição descartou a hipótese: o brief fica como está, e o achado colateral vira o item `058`** | Aceitar a hipótese e seguir; ou tirar `bloqueio.yml` dos cinco fluxos; ou ensinar a tranca a ignorar `cancel` como carona deste item | O `doc-writer` levantou que dois eventos do mesmo fluxo sobre o mesmo head — `bloqueio.yml` escuta `labeled` e `unlabeled`, e o motor mexe em rótulo por script — deixariam um check `cancelled` no head, e que `scripts/merge-se-liberado.sh` poderia lê-lo como vermelho. Ele recomendou medir antes de planejar, e medir custou um comando. Não há PR no repositório com check cancelado no head — varridos #34 a #42 —, então a medição foi na fonte da versão instalada, `gh 2.92.0`: `pkg/cmd/pr/checks/aggregate.go` põe `CANCELLED` no balde `cancel`, separado de `fail`, `pending` e `pass`, e `checks.go` só devolve código não-zero por `Failed > 0` ou `Pending > 0`. A tranca filtra `$2=="fail"` e `$2=="pending"`, e não enxerga `cancel`: ela não recusa nem trava, e o travamento temido não existe. Tirar `bloqueio.yml` dos cinco foi descartado por contrariar a `D4` e a `D10` sem ter problema que resolvesse; mexer na tranca foi descartado por ela ser a última linha antes do merge e merecer item com teste próprio, não carona. O que a medição revelou de verdade é o inverso — a tranca não distingue `cancel`, e um check cancelado sem sucessor passa como não-vermelho —, e isso virou o item `058-a-tranca-nao-le-check-cancelado-como-verde`, registrado no roadmap logo depois do `057`. Não é defeito criado por este item: cancelamento por `cancel-in-progress` sempre tem sucessor |
+| D12 | brief | **A pergunta aberta do `doc-writer` foi decidida medindo, e a medição descartou a hipótese: o brief fica como está, e o achado colateral vira o item `058`** | Aceitar a hipótese e seguir; ou tirar `bloqueio.yml` dos cinco fluxos; ou ensinar a tranca a ignorar `cancel` como carona deste item | O `doc-writer` levantou que dois eventos do mesmo fluxo sobre o mesmo head — `bloqueio.yml` escuta `labeled` e `unlabeled`, e o motor mexe em rótulo por script — deixariam um check `cancelled` no head, e que `scripts/merge-se-liberado.sh` poderia lê-lo como vermelho. Ele recomendou medir antes de planejar, e medir custou um comando. Não há PR no repositório com check cancelado no head — varridos #34 a #42 —, então a medição foi na fonte da versão instalada, `gh 2.92.0`: `pkg/cmd/pr/checks/aggregate.go` põe `CANCELLED` no balde `cancel`, separado de `fail`, `pending` e `pass`, e `checks.go` só devolve código não-zero por `Failed > 0` ou `Pending > 0`. A tranca filtra `$2=="fail"` e `$2=="pending"`, e não enxerga `cancel`: ela não recusa nem trava, e o travamento temido não existe. Tirar `bloqueio.yml` dos cinco foi descartado por contrariar a `D4` e a `D10` sem ter problema que resolvesse; mexer na tranca foi descartado por ela ser a última linha antes do merge e merecer item com teste próprio, não carona. O que a medição revelou de verdade é o inverso — a tranca não distingue `cancel`, e um check cancelado sem sucessor passa como não-vermelho —, e isso virou o item `059-a-tranca-nao-le-check-cancelado-como-verde`, registrado no roadmap logo depois do `057`. Não é defeito criado por este item: cancelamento por `cancel-in-progress` sempre tem sucessor |
 | A1 | brief | **Aprovação autônoma do `01-brief.md`** | Esperar o dono | Não há humano acordado, e o dono autorizou autonomia para o roadmap inteiro. Registrada com `state.sh approve --stage brief --file product/items/057-…/01-brief.md --por autonomo` em 2026-09-04T17:23:41Z, `sha 3b187bdc204dedf9e3646446e782c748e065f904`. O `--por autonomo` é o que separa, de manhã, o que gente decidiu do que a máquina decidiu sozinha |
 
 ## Nota para o estágio `plan`, que nasce sem este contexto
@@ -125,3 +125,148 @@ traz `ISENCOES_ESPERADAS=("qs:2026-09-06")` em `scripts/gates/quarentena.sh:43`,
 medido em 2026-09-04. Não há mais o que reempilhar: a branch do `brief` nasce de
 `develop` e herda o vencimento correto. O `049` segue no roadmap pelo que lhe
 cabe — a isenção vence em 06/09, e alguém precisa fechá-la antes disso.
+
+## Estágio `plan`
+
+### D13 — O brief ganha `RF-21`: arquivo fora das duas populações reprova
+
+O `plan-writer` mediu uma lacuna do brief ao decompor a fase 2: `RF-07`
+classifica os fluxos em duas populações — gatilho de evento e suíte chamada por
+`workflow_call` —, e nenhum requisito dizia o que o portão faz com um arquivo
+que não cai em nenhuma delas, como um fluxo que só escutasse `schedule` ou
+`workflow_dispatch`. Não existe arquivo assim hoje: os nove de
+`.github/workflows` caem nas duas populações, então a lacuna não bloqueia fase
+nenhuma — ela decai.
+
+**Decidido:** reprovar, nomeando o arquivo e a chave `on:` lida, sem contá-lo em
+nenhuma das duas populações. Escrito como `RF-21` na seção *Não conseguir medir*
+do brief, que é a seção dos casos de "não consegui medir", e coberto por
+critério na fase 2.
+
+**Alternativa descartada:** deixar o comportamento só na etapa de implementação,
+sem requisito nem critério. Custaria menos agora e é exatamente a forma de
+decaimento que o item existe para impedir — a etapa não é medida por ninguém
+depois que a fase fecha, e a primeira sessão que reescrever o portão escolhe de
+novo, em silêncio. A segunda alternativa descartada foi ignorar o arquivo
+contando-o só no total: a linha `medido:` de `RF-09` deixaria de somar, com o
+total do diretório maior que a soma das duas populações, e "não consegui
+classificar" sairia como número verde.
+
+**Aprovação autônoma A2:** brief reaprovado com o `RF-21` dentro, por
+`state.sh approve --stage brief --file …/01-brief.md --por autonomo`. A
+aprovação anterior (A1) amarrava um conteúdo que mudou; sem reaprovar, o `sha`
+gravado denunciaria edição depois do "sim", que é precisamente o que ele existe
+para fazer.
+
+### D14 — Achado fora do escopo: dois itens diferentes usavam o número `058`
+
+Medido em 2026-09-04, ao conferir a posição do `057` no roadmap: a lista trazia
+`058-o-endereco-de-homologacao-diz-o-nome-do-produto`, que entrou em `develop`
+pelo commit `51c1bf0` (PR #41), e `058-a-tranca-nao-le-check-cancelado-como-verde`,
+que o estágio `brief` deste item escreveu depois, no commit `14836b6`. Dois itens
+com o mesmo identificador é rastreabilidade morta: "o item `058`" deixa de
+apontar para alguma coisa, e o brief deste item já apontava para um dos dois.
+
+**Decidido:** o número fica com quem chegou primeiro. O item da tranca passa a
+ser `059-a-tranca-nao-le-check-cancelado-como-verde`, sem mudar de posição no
+roadmap — a posição diz precedência, o número só identifica. Corrigido no
+`roadmap.md`, no `01-brief.md`, neste arquivo e no `03-plan.md`.
+
+**Alternativa descartada:** renumerar o item do endereço de homologação, que tem
+uma referência só contra as quatro do outro e seria menos edição. Ele está em
+`develop` desde o PR #41 e é o ocupante legítimo do número; mudá-lo faria o ID
+que já circulou apontar para outra coisa, que é o mesmo defeito com o sinal
+trocado.
+
+**Por que resolvido aqui, e não como item de roadmap:** o defeito nasceu no
+brief deste item, os quatro arquivos afetados são os que esta sessão já está
+editando, e a correção é a troca de um dígito. Item de roadmap para o que se
+fecha agora é pendência que ninguém reencontra.
+
+**Aprovação autônoma A3:** brief reaprovado depois da correção, pela mesma razão
+de A2 — o `sha` da aprovação amarra um conteúdo, e o conteúdo mudou.
+
+### D15 — O diretório vazio imprime a forma curta, e não as seis contagens
+
+`RF-21` obriga o portão a imprimir as duas populações contadas antes de reprovar
+um arquivo órfão, e `RF-19` manda reprovar o diretório vazio dizendo que não
+havia o que medir. As duas juntas se contradizem na forma longa: um diretório
+vazio imprimiria `0 de gatilho (0 com concurrency na forma esperada, 0 sem)`,
+que contém a cadeia `0 sem` e lê, de relance e em log de CI, como árvore limpa —
+precisamente a confusão entre "procurei e não achei" e "não consegui procurar"
+que `scripts/gates/medir.sh` existe para matar.
+
+**Decidido:** o diretório vazio imprime a forma curta
+`medido: 0 fluxo(s) em .github/workflows` e só então reprova, no padrão que
+`scripts/gates/acoes_em_sha.sh` já usa. A forma longa das seis contagens fica
+para quando há o que contar.
+
+**Alternativa descartada:** imprimir sempre a forma longa, por simetria. Custaria
+menos código e devolveria a linha ambígua no único caso em que ela precisa ser
+inequívoca. A segunda alternativa descartada foi não imprimir nada no diretório
+vazio: portão que reprova sem dizer o que mediu não pode ser auditado, que é a
+regra 19 do `CLAUDE.md`.
+
+Não é requisito novo: é a única leitura em que `RF-19` e `RF-21` não se
+contradizem, e por isso não voltou ao brief.
+
+### D16 — A fase 2 fica com quinze critérios, e não vira duas fases
+
+O `plan-writer` declarou o sinal: a fase 2 tem doze critérios de aceite mais três
+de integração, acima da dúzia que ele usa como alarme de corte.
+
+**Decidido:** manter as duas fases. Sete dos doze são comportamentais da mesma
+forma — montar árvore de mentira em `/tmp`, rodar o portão, conferir código de
+saída e cadeias na saída —, cada um na casa dos segundos, e o trabalho que os
+produz são dois arquivos de shell e duas linhas de registro.
+
+**Alternativa descartada:** cortar em três, com o portão numa fase e o teste mais
+as duas invocações noutra. O corte produziria um pull request inteiro em que o
+portão existe no disco e ninguém o chama — e portão que ninguém chama fica verde
+por não ser executado, que é a forma de aprovação sem medição que este
+repositório já pagou três vezes. O custo do corte é maior que o risco que ele
+evita.
+
+**Gatilho para rever:** se a fase 2 precisar de rodada de conserto depois do
+primeiro veredicto, o corte natural passa a valer a pena, e é aí que ele se faz.
+
+### D17 — Dois avisos do `criteria-lint` ficam como estão
+
+O `criteria-lint` aponta as linhas 117 e 451 do plano — `` `True` produz saída
+fixa e não observa nada``. Nos dois casos ele casou a palavra `True` na **prosa
+que descreve a saída esperada** do critério, não num comando: a linha 117 diz que
+a expressão dá `True` para uma referência de trabalho, e a 451 descreve a saída
+`['workflow_call'] False True True` de um `yaml.safe_load`. O que os dois
+critérios medem sai inteiramente do conteúdo dos arquivos, e o acumulador
+literal que existia no avaliador da fase 1 — esse sim, um alvo justo — já foi
+trocado por uma lista fechada com `all(...)`.
+
+**Decidido:** ficam. Reescrever a prosa para esconder a palavra do lint pioraria
+o critério para agradar a ferramenta, e critério que se contorce para passar em
+lint é o começo do contorno criativo na tentativa seguinte. Aviso não reprova
+sozinho, mas todo aviso é resposta a dar — esta é a resposta.
+
+### A4 — Plano aprovado em modo autônomo
+
+`03-plan.md` aprovado por `state.sh approve --stage plan --file … --por autonomo`
+depois das duas redes que o processo exige, nesta ordem:
+
+- **`criteria-lint`** (determinístico, primeiro): `✓ critérios: forma válida`,
+  sem erro. Três avisos, todos respondidos — o de *Critérios de integração*
+  ausentes foi corrigido, e os dois de `` `True` produz saída fixa`` são falso
+  positivo, registrados em `D17`.
+- **`criteria-auditor`**: `COBERTURA: COMPLETA`. Os vinte e um requisitos do
+  brief têm critério que os cubra, nenhum critério existe sem requisito, e nenhum
+  critério está mal formado para o tipo que declara. A primeira passada devolveu
+  `INCOMPLETA` por `RF-21`, que era o requisito recém-nascido de `D13`; a segunda,
+  depois do critério correspondente entrar na fase 2, fechou.
+
+**Observação do auditor que fica registrada e não muda nada:** o critério de
+`RF-19` ficou mais rígido que o brief. Ele exige a cadeia
+`medido: 0 fluxo(s) em .github/workflows` que `RF-19` não pede — o brief só manda
+sair 1 dizendo que não havia o que medir. É a forma decidida em `D15`, e ser mais
+rígido que a spec não abre lacuna de cobertura: uma implementação que satisfaça o
+critério satisfaz o requisito. Fica como está.
+
+**Estágio movido para `execute`.** A próxima sessão pega a fase 1, que é a
+declaração de `concurrency` nos cinco fluxos de gatilho.
