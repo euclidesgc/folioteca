@@ -41,27 +41,37 @@ PR e commit já escritos.
       de o `checkout` já ter gravado o token no disco — a correção é fixar cada
       uma em SHA de 40 caracteres com a versão em comentário.
 
-- [ ] `049-a-isencao-de-qs-vence-e-alguem-precisa-fecha-la` — o nome `qs` sai da
+- [x] `049-a-isencao-de-qs-vence-e-alguem-precisa-fecha-la` — o nome `qs` saiu da
       lista de isenções da quarentena, nos dois lugares que o portão compara,
-      antes que o vencimento deixe todo PR vermelho
+      antes de o vencimento deixar todo PR vermelho
       **Depende de:** `023-endurecimento-antes-da-sessao` — é a fase 5 dele que
       cria a isenção e o vencimento que a mata.
       **Origem:** discovery de `027-vulnerabilidade-conhecida-reprova-no-ci`,
-      medição de datas. A isenção nominal de `qs` vence em **2026-09-05**, e a
-      partir desse dia `scripts/gates/quarentena.sh` reprova por vencimento —
-      todo PR do repositório, não só o que mexe em dependência. Fechar é tirar
-      `qs` de `pnpm-workspace.yaml:48-49` e da constante `ISENCOES_ESPERADAS`
-      em `scripts/gates/quarentena.sh:43`, que é o par que o portão compara.
-      Fechar já é seguro para o lockfile de hoje: ele resolve `qs@6.16.0`, a
-      versão corrigida, e nenhuma auditoria acusa nada. A nuance medida é de
-      horas — `6.16.0` foi publicada em `2026-08-29T23:50Z`, então ela só
-      completa os sete dias de quarentena em `2026-09-05T23:50Z`, e uma
-      reconstrução de lockfile feita naquele dia antes desse horário cairia de
-      volta em `6.15.3`, que é a vulnerável. Reconstruir o lockfile a partir de
-      `2026-09-06` não tem essa aresta. O que **não** se faz é esticar a data
-      para destravar o vermelho: a isenção tem prazo justamente para não virar
-      política permanente, e adiar sem motivo novo é o antipadrão que o portão
-      existe para impedir.
+      medição de datas. A isenção vencia em **2026-09-05**, e a partir daquele dia
+      `scripts/gates/quarentena.sh` reprovaria por vencimento — todo PR do
+      repositório, não só o que mexe em dependência. Fechar foi tirar `qs` de
+      `pnpm-workspace.yaml` e da constante `ISENCOES_ESPERADAS` do portão, que é o
+      par que ele compara. Era seguro para o lockfile de hoje: ele resolve
+      `qs@6.16.0`, a versão corrigida. A nuance medida é de horas — `6.16.0` foi
+      publicada em `2026-08-29T23:50Z` e só completa os sete dias em
+      `2026-09-05T23:50Z`, então uma reconstrução de lockfile feita naquele dia
+      antes desse horário cairia de volta em `6.15.3`, que é a vulnerável.
+      Reconstruir a partir de `2026-09-06` não tem essa aresta.
+      **Fechado fora da corrida autônoma, em 04/09/2026, por decisão do dono.**
+      O discovery deste item já estava feito — o de `027` mediu tudo e escreveu a
+      análise acima —, e o que restava era uma mudança de duas linhas com prazo
+      correndo. Gastar quatro rodadas da noite nela adiaria em duas horas o item
+      que o dono pediu de véspera. Passou pelos portões e pela tranca de merge
+      como qualquer fase; o que não teve foi brief, plano e validação cega, e
+      isso está escrito aqui porque o veredicto de um item conta como ele foi
+      fechado.
+      **Levou junto uma correção que ele revelou:** os casos de
+      `scripts/gates/__tests__/quarentena.test.sh` embutiam `qs` na fixture e
+      dependiam de a constante do portão ter pelo menos um nome. Quando a última
+      isenção saiu — o desfecho normal de toda isenção com prazo —, três casos
+      pararam de morder em silêncio. Eles passam a derivar a fixture da constante
+      e a injetar a constante de que precisam: um teste que só funciona enquanto a
+      política tiver um valor específico mede a política, não o portão.
 
 - [-] `027-vulnerabilidade-conhecida-reprova-no-ci` — o CI reprova quando uma
       dependência do lockfile tem aviso de severidade alta, em vez de a conta ser

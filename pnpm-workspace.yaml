@@ -40,10 +40,14 @@ minimumReleaseAge: 10080
 # `express`, e é caminho de produção da API.
 #
 # Isenção é a política morrendo por dentro quando não tem dono nem prazo, então
-# esta tem os dois, e os dois são medidos: `scripts/gates/quarentena.sh` compara
-# esta lista com uma constante própria e reprova qualquer nome a mais, e reprova
-# também quando o vencimento chega. O de `qs` é 2026-09-05, quando `6.16.0`
-# completa sete dias; nesse dia o portão fica vermelho até alguém tirar o nome
-# daqui e da constante, ou reescrever a data com o motivo novo.
-minimumReleaseAgeExclude:
-  - qs
+# toda isenção daqui tem os dois, e os dois são medidos: `scripts/gates/quarentena.sh`
+# compara esta lista com uma constante própria e reprova qualquer nome a mais, e
+# reprova também quando o vencimento chega.
+#
+# A lista está vazia porque a isenção de `qs` cumpriu o prazo e saiu: o lockfile
+# resolve `qs@6.16.0`, a versão que corrige as duas vulnerabilidades, e ela
+# completa os sete dias de espera em 2026-09-05T23:50Z. Reconstruir o lockfile
+# antes desse instante faria a espera fixar `6.15.3` de volta — depois dele, não
+# há mais aresta. O que não se faz é esticar a data para adiar o vermelho: o
+# prazo existe justamente para a isenção não virar política permanente.
+minimumReleaseAgeExclude: []
