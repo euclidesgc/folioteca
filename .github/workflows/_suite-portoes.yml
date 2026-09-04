@@ -82,6 +82,8 @@ jobs:
         run: bash scripts/gates/__tests__/fluxos.test.sh
       - name: o portão do pnpm isolado separa o vazio do ilegível
         run: bash scripts/gates/__tests__/pnpm-isolado.test.sh
+      - name: o portão da concorrência reprova o fluxo sem declaração e a suíte que declara
+        run: bash scripts/gates/__tests__/concorrencia.test.sh
       - name: a peneira do packageManager recusa o que não é pnpm@X.Y.Z
         run: bash scripts/ci/__tests__/instalar-pnpm.test.sh
       - name: a tranca de merge trata verificação pendente como não medida
@@ -97,14 +99,17 @@ jobs:
       - name: Toda ação do CI está fixada em SHA
         run: bash scripts/gates/acoes_em_sha.sh
 
-      # Estes dois medem o PRÓPRIO `.github/workflows`, e por isso pertencem a
+      # Estes três medem o PRÓPRIO `.github/workflows`, e por isso pertencem a
       # este fluxo e não aos de cada frente: um PR que mexa só num workflow não
       # casa com nenhum filtro de `paths` deles, que é justamente o PR em que um
-      # job sem guarda ou uma instalação de pnpm no HOME compartilhado entra.
+      # job sem guarda, uma instalação de pnpm no HOME compartilhado ou um fluxo
+      # de gatilho sem `concurrency` entra.
       - name: Nada roda em rascunho, e a nuvem confirma o que a casa aprovou
         run: bash scripts/gates/fluxos.sh
       - name: Nenhuma instalação de pnpm escreve no HOME compartilhado
         run: bash scripts/gates/pnpm_isolado.sh
+      - name: Todo fluxo de gatilho declara concurrency, e nenhuma suíte declara
+        run: bash scripts/gates/concorrencia.sh
 
       # A partir daqui o job constrói: o portão de segredo varre os três
       # artefatos de build além das fontes rastreadas, e artefato que não existe
