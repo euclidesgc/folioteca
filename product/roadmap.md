@@ -76,6 +76,322 @@ PR e commit já escritos.
       a vulnerável que já está no lockfile — são portas diferentes, e só uma
       delas fecha em `023`.
 
+- [ ] `050-linguagem-visual-e-sistema-de-design` — o produto ganha linguagem
+      visual própria: tokens de cor, tipografia, espaço e movimento em tema claro
+      e escuro, os primitivos de interface que toda tela daqui em diante monta, e
+      o esqueleto de aplicação onde elas moram — tudo exercitado numa página viva
+      que é também onde a acessibilidade é medida
+      **Depende de:** `001-esqueleto-do-monorepo` — não há onde montar componente
+      antes de a SPA subir, e o primitivo que fala com a API precisa do cliente
+      gerado do contrato.
+      **Origem:** decisão do dono, 04/09/2026. `apps/web` tem hoje três arquivos
+      de verificação de saúde e **nenhuma folha de estilo**: zero cor declarada,
+      zero escala tipográfica, zero primitivo, e a pasta `shared/components/`
+      contém só um `.gitkeep`. A regra 11 do `CLAUDE.md` — "variante é `cva`;
+      valor mágico não entra; cor não é o único sinal" — e a skill `react-styling`
+      descrevem uma camada que não existe, e a primeira tela de produto inventaria
+      a sua. Sistema de design escrito depois de cinco telas é cinco telas
+      reescritas, e é a diferença entre uma aplicação e um formulário.
+      **O que ele fecha:**
+      1. **Os tokens são a fonte única.** Cor, tipografia, espaço, raio, sombra e
+         duração moram no tema, e o código de feature não escreve valor literal.
+         O portão que já mede valor mágico passa a ter o que comparar.
+      2. **Tema claro e escuro pela mesma folha**, respeitando
+         `prefers-color-scheme` e sobrescrevível pela pessoa, com a escolha
+         persistida. Nenhuma cor tem definição única dentro do bloco escuro.
+      3. **Os primitivos de `shared/components/ui`** são os que as telas de `002`
+         a `007` precisam, e não mais: botão, campo com rótulo, dica e erro
+         associados por `aria-describedby`, seleção, caixa de marcação,
+         alternador, cartão, etiqueta, avatar, diálogo, menu, aviso temporário,
+         dica de foco, esqueleto de carregamento, estado vazio acionável e
+         paginação. Variante é `cva`, nunca concatenação condicional.
+      4. **O esqueleto de aplicação** — barra lateral navegável, cabeçalho com
+         identidade e conta, área de conteúdo — que `002` preenche em vez de
+         inventar. A rota entra aqui: `apps/web` não tem roteador, e o esqueleto
+         é o primeiro consumidor dele.
+      5. **Uma página viva em `/design`** exercita cada primitivo em cada variante
+         e cada estado — repouso, foco, carregando, desabilitado, erro. Ela é a
+         evidência do critério estrutural e o alvo do axe.
+      6. **Acessibilidade medida, não afirmada:** contraste AA em ambos os temas,
+         foco visível em todo elemento focável, ordem de foco que segue a leitura,
+         e nenhuma violação crítica ou séria do axe na página viva.
+      **A entrada de direção, do dono.** Não é a escolha pronta — a escolha é do
+      discovery, com a skill `frontend-design` carregada. É a restrição dentro da
+      qual escolher, que é o que só quem é dono do produto pode dar:
+      - **O que a marca precisa comunicar, nesta ordem:** que o documento tem
+        dono; que o acesso é legível de relance; que a ferramenta é da empresa
+        inteira, não do time de tecnologia. Confiança antes de modernidade — quem
+        decide a compra responde "quem viu o quê" para uma auditoria.
+      - **De onde tirar material:** o mundo do produto é o do arquivo e da
+        biblioteca — fólio, lombada, etiqueta, catalogação, colofão, marginália,
+        numeração de folha. É de lá que sai vocabulário visual que ninguém mais
+        tem. O que **não** se faz é nostalgia: nada de textura de papel velho,
+        serifa de máquina de escrever ou pastiche de biblioteca antiga. A
+        referência é o arquivo bem feito de hoje — preciso, silencioso, legível —,
+        não o cenário de época.
+      - **Contra o que se medir.** Notion é neutro a ponto de não ter opinião;
+        Confluence é azul corporativo; Linear é escuro com gradiente roxo; Slack é
+        berinjela. Chegar em qualquer um deles é não ter escolhido. E os três
+        gabaritos que a skill `frontend-design` nomeia — creme com serifa de alto
+        contraste e acento terracota, quase-preto com acento verde-ácido,
+        jornal com fios de cabelo e raio zero — estão fora por serem o que a
+        máquina produz quando não decide.
+      - **A ousadia mora em um lugar só.** Escolha o elemento que assina o
+        produto e execute-o bem; o resto fica quieto e disciplinado. Uma
+        aplicação onde a pessoa passa o dia inteiro escrevendo não suporta
+        interface barulhenta, e o público-alvo não configura permissão por
+        gosto — ele quer entender de relance.
+      - **A tipografia carrega a personalidade,** e é onde vale gastar: uma face
+        de display com caráter editorial e uma face de texto que aguente parágrafo
+        longo em tela. Não a mesma dupla que qualquer painel usaria.
+      - **O texto da interface é material de desenho, não legenda.** Rótulo em
+        pt-BR, voz ativa, o mesmo verbo do começo ao fim de cada ação, e estado
+        vazio que convida a agir em vez de avisar que está vazio.
+      **A escolha de camada de estilo é decisão de desenho e cabe ao discovery,**
+      com uma restrição herdada: `apps/web` é SPA em Vite sem servidor, e
+      `023-endurecimento-antes-da-sessao` publica política de conteúdo por
+      `<meta http-equiv>` no artefato — então a camada escolhida não pode exigir
+      estilo em atributo `style=` nem folha injetada em runtime sem nonce, e a
+      fase que trouxer a primeira folha reverifica `style-src` no navegador antes
+      de fechar. `verificar-politica.sh` já reprova o `dist/` que nomeia cabeçalho
+      constante; é ele quem acusa se a escolha vazar.
+
+- [ ] `014-norma-do-hotsite` — `apps/site` ganha norma de código escrita:
+      estrutura de rotas, camada de estilo e fronteira de import, com os
+      portões que a cobrem
+      **Depende de:** `050-linguagem-visual-e-sistema-de-design` — a camada de
+      estilo do hotsite é a mesma que o produto escolhe ali, e norma escrita
+      antes dessa escolha descreve um estilo que o produto não usa. Precede
+      `051-identidade-e-hotsite` porque é ele quem faz o hotsite crescer, e norma
+      escrita depois vira a descrição do que o crescimento deixou.
+      **Origem:** decisão autônoma `D8` de `001` — o app não tem pack do
+      harness, e o harness proíbe inventar norma não exercitada de madrugada.
+      Também revisita a configuração de lint da frente: a fase 4 de `001`
+      montou `@next/eslint-plugin-next` sobre `typescript-eslint` porque o
+      `eslint-config-next` não roda no ESLint 10 do repositório, e volta a ser a
+      escolha natural quando `eslint-plugin-react` alcançar essa série — ver
+      `04-divergencias/D-013.md`.
+
+- [ ] `051-identidade-e-hotsite` — o hotsite deixa de ser a página do bootstrap e
+      passa a apresentar o produto a quem chega sem sessão: a tese na primeira
+      dobra, as três dores que ela resolve, o modelo de acesso explicado por
+      imagem em vez de por parágrafo, e a porta para o cadastro no canto superior
+      direito
+      **Depende de:** `050-linguagem-visual-e-sistema-de-design` e
+      `014-norma-do-hotsite` — a identidade do hotsite e a do produto saem dos
+      mesmos tokens, senão a empresa tem duas marcas e quem clica em "entrar"
+      troca de aplicação; e norma escrita depois que o hotsite cresceu é a
+      descrição do que o crescimento deixou.
+      **Origem:** decisão do dono, 04/09/2026. `apps/site` tem hoje um `page.tsx`
+      e um `layout.tsx` de bootstrap, sem folha de estilo nenhuma. O PRD de
+      produto declara um quarto público — "quem visita o hotsite, não está
+      autenticado, não conhece o produto, e decide em menos de um minuto" — e o
+      texto que convence esse público não é o texto que orienta os outros três.
+      **O que ele fecha:**
+      1. **A identidade** — logotipo, paleta aplicada, escala tipográfica de
+         display, tom de voz — derivada dos tokens de `050` e não paralela a eles.
+      2. **A dobra principal** carrega a tese em uma frase: *o acesso segue o
+         trabalho, não o organograma*. Sem jargão de permissão: o público-alvo
+         nunca configurou acesso além de "qualquer pessoa com o link".
+      3. **As três dores do PRD** — o acesso que não acompanha a organização, o
+         documento que perde o dono, achar que depende de conhecer — cada uma com
+         a resposta do produto ao lado.
+      4. **O modelo de acesso mostrado**, não descrito: canal, pessoa e
+         precedência num diagrama que o visitante entende sem ler a spec.
+      5. **A porta para o cadastro** no canto superior direito, como o PRD manda,
+         levando ao fluxo de `002` quando ele existir e a uma lista de espera
+         enquanto não existe.
+      6. **Responsivo de verdade** — do telefone ao monitor largo —, tema claro e
+         escuro, e o corpo da página nunca rolando na horizontal.
+      **Carrega, da Fase 4 de `001`:** os metadados de prévia de link —
+      `metadataBase`, `openGraph` e canonical —, que são a razão declarada de o
+      hotsite ser um app separado e ainda não têm dono. A origem vem de
+      `NEXT_PUBLIC_SITE_URL`, e o `.env` que o `pnpm dev` materializa fica na raiz
+      do repositório, onde o Next não o lê: ou o arquivo passa a existir em
+      `apps/site/`, ou a variável chega `undefined` e o sintoma aparece na prévia
+      do link, longe da causa.
+      **Carrega, da Fase 2 de `023`:** a diretiva `style-src 'self'` da política
+      de conteúdo, que hoje passa porque o hotsite não tem folha de estilo
+      nenhuma — zero `<style>` e zero atributo `style=` no HTML servido. A
+      política não reserva nonce para estilo, então a fase que trouxer a primeira
+      folha reverifica a diretiva no navegador junto, em vez de descobrir o
+      bloqueio depois de publicar.
+
+- [ ] `002-conta-e-organizacao` — quem se cadastra cria a organização e vira o
+      seu primeiro administrador; o endereço é confirmado por e-mail, a senha se
+      recupera sozinha, e a tela responde a mesma coisa exista ou não a conta
+      **Depende de:** `001-esqueleto-do-monorepo` — não há onde rodar, nem banco,
+      nem cliente gerado do contrato.
+      **Carrega, da Fase 3 de `001`:** o cookie de sessão nasce `httpOnly`,
+      `SameSite` e `Secure` fora de desenvolvimento, e as rotas que mudam estado
+      recusam `Content-Type` que não seja JSON — CORS impede o atacante de
+      **ler** a resposta e não impede a escrita, porque um formulário
+      `urlencoded` de outro site é requisição simples e chega ao handler com o
+      cookie anexado. O corpo da resposta passa a ser validado em runtime na
+      fronteira do cliente, porque é aqui que ele deixa de virar texto e passa a
+      dirigir comportamento. E o e2e passa a escrever no banco, então a URL de
+      conexão vem de container efêmero em runtime, não de literal versionado.
+
+- [ ] `003-documento-privado` — o documento nasce no espaço privado do criador,
+      que é o seu primeiro proprietário; escreve-se nele com texto formatado,
+      títulos e listas, e ninguém além dele o alcança — nem quem administra
+      **Depende de:** `002-conta-e-organizacao` — não há criador sem conta, nem
+      espaço privado sem organização que o contenha.
+
+- [ ] `004-canais` — qualquer pessoa cria um canal aberto ou restrito, entra e
+      sai em um clique, e toda pessoa admitida é membro do canal geral; canal
+      restrito não aparece na busca de quem está de fora
+      **Depende de:** `002-conta-e-organizacao` — o canal geral nasce com a
+      organização, e o membro do canal é a pessoa admitida nela.
+
+- [ ] `005-publicacao-em-canal` — publicar concede leitura a todos os membros, o
+      proprietário muda o nível para comentário ou edição, um documento está em
+      mais de um canal e vale o maior nível, sair do canal revoga na hora e
+      retirar o documento do canal revoga para todos; toda essa resolução
+      acontece por um caminho único no servidor. É aqui que outra pessoa ganha o
+      poder de editar, então é daqui em diante que cada salvamento registra quem
+      o fez
+      **Depende de:** `003-documento-privado` e `004-canais` — não há o que
+      publicar sem documento, nem onde publicar sem canal.
+
+- [ ] `006-concessao-individual` — o proprietário compartilha com uma pessoa e
+      essa concessão prevalece sobre a do canal nas duas direções, inclusive
+      quando vale "sem acesso"; ela sobrevive à saída do canal; a tela de
+      compartilhamento mostra de onde vem cada acesso, e é dela que o
+      proprietário propõe a transferência da propriedade a outra pessoa — que
+      precisa aceitar, e até lá nada muda de mãos. A proposta não dá acesso a
+      quem ainda não tinha, e a autoria não muda nunca
+      **Depende de:** `005-publicacao-em-canal` — precedência só existe contra um
+      acesso de canal já resolvido.
+
+- [ ] `007-lista-e-busca-do-canal` — a lista de documentos do canal é a porta de
+      entrada de quem chegou agora, e a busca por título devolve apenas o que a
+      pessoa pode ver, sem revelar a existência do que ela não pode
+      **Depende de:** `006-concessao-individual` — filtrar sem a precedência
+      completa devolveria documento que a concessão individual já havia tirado.
+
+- [ ] `008-registro-de-auditoria` — todo ato sensível sobre acesso vira uma linha
+      consultável, com quem fez, o quê, quando e por quê: proposta, aceite,
+      recusa e cancelamento de transferência de propriedade, abertura de
+      documento herdado do espaço privado, mudança de nível de um canal e
+      desligamento de pessoa
+      **Depende de:** `006-concessao-individual` — os atos que ele registra são
+      atos sobre acesso, e o acesso só está completo depois da precedência
+      individual.
+
+- [ ] `009-convite-e-desligamento` — a pessoa entra por convite com prazo, uso
+      único e preso ao endereço convidado; quem administra a admite e a desliga,
+      e desligar **desativa a conta**: ela não entra mais na plataforma e todo o
+      acesso dela termina no ato, o de canal e o individual. Os documentos não
+      somem, não ficam órfãos e não perdem os compartilhamentos já feitos; a
+      propriedade passa ao papel de administração e aparece numa lista de
+      herdados, de onde qualquer administrador a propõe a um dono definitivo que
+      precisa aceitar —
+      e abrir um documento que nunca saiu do espaço privado exige um segundo ato,
+      com justificativa
+      **Depende de:** `008-registro-de-auditoria` — abrir documento herdado só é
+      aceitável porque fica registrado; sem o registro, o ato existe e ninguém o vê.
+
+- [ ] `010-revogacao-verificada` — uma verificação diária reexecuta a resolução
+      de acesso sobre os registros do dia e acusa qualquer acesso resolvido para
+      conta desativada, ou para quem já não é membro do canal e não tem concessão
+      individual
+      **Depende de:** `009-convite-e-desligamento` — o desligamento é o evento de
+      revogação mais amplo, e sem ele a verificação não cobre o caso que mais
+      importa.
+
+- [ ] `011-instrumentacao-e-metricas` — cada abertura de documento registra de
+      onde veio — busca, lista de canal ou link colado — e cada publicação vira
+      evento; um painel mostra as cinco métricas do PRD, cada uma ganhando dado
+      quando o item que a produz existir. A mudança de acesso já é gravada por
+      `008-registro-de-auditoria`: aqui ela é agregada, não registrada de novo
+      **Depende de:** `007-lista-e-busca-do-canal` — a origem da abertura só
+      distingue busca, lista e link depois que a lista e a busca existem.
+
+- [ ] `012-hierarquia-da-organizacao` — quem administra monta unidades, times e
+      as pessoas que os compõem; a hierarquia serve para encontrar gente, montar
+      canais e administrar entradas e saídas, e não concede acesso a documento
+      nenhum
+      **Depende de:** `009-convite-e-desligamento` — não há quem organizar antes
+      de as pessoas entrarem na organização.
+
+- [ ] `013-blocos-da-primeira-versao` — o editor fecha a lista declarada de
+      blocos: tarefas, tabelas, imagens, arquivos, código, citações, divisores,
+      links entre documentos, comandos de barra e arrastar para reordenar
+      **Depende de:** `003-documento-privado` — a base do editor e a persistência
+      do documento em blocos vêm de lá.
+
+- [ ] `015-hotsite` — o hotsite ganha a demonstração viva: o editor rodando de
+      verdade ao lado do texto, e logo em seguida a tela que decide quem vê o
+      documento
+      **Depende de:** `013-blocos-da-primeira-versao` e `006-concessao-individual`
+      — a demonstração é o produto, não uma captura: precisa do editor com os
+      blocos fechados e da tela de compartilhamento que distingue esta plataforma.
+      Também de `051-identidade-e-hotsite`, que é onde a página passa a existir
+      para receber a demonstração.
+      **Origem:** PRD de produto, escopo do hotsite público. `051` entrega a
+      apresentação e a porta para o cadastro; o que fica para aqui é a única parte
+      que não se pode escrever antes de o produto existir — mostrar o produto
+      funcionando dentro da página.
+
+- [ ] `016-comentarios-ancorados` — quem tem acesso de comentário comenta
+      ancorado no trecho, resolve um comentário e menciona alguém que já tenha
+      acesso ao documento; a âncora sobrevive à edição do texto ao redor
+      **Depende de:** `013-blocos-da-primeira-versao` — âncora escrita antes de o
+      conjunto de blocos fechar é âncora reescrita a cada bloco novo.
+
+- [ ] `017-historico-de-versoes` — o documento guarda as versões e cada uma diz
+      quem a salvou, marca que já vem sendo gravada desde `005`; o proprietário
+      compara duas e volta a uma anterior, e é daqui que sai a lista de
+      contribuintes do documento
+      **Depende de:** `013-blocos-da-primeira-versao` — versionar antes de o
+      conjunto de blocos fechar produz histórico que a versão seguinte não lê.
+
+- [ ] `018-edicao-concorrente` — quando duas pessoas mexem no mesmo documento
+      isso é anunciado e resolvido antes de salvar, e ninguém sobrescreve o
+      trabalho do outro em silêncio
+      **Depende de:** `017-historico-de-versoes` — resolver a divergência exige
+      poder mostrar e restaurar a versão que seria perdida.
+
+- [ ] `019-pesquisa-com-filtros` — uma área de pesquisa aceita termos e filtros e
+      devolve apenas documentos que a pessoa pode ler, nem que seja só de leitura
+      **Depende de:** `007-lista-e-busca-do-canal` — é a mesma leitura restrita
+      por permissão, ampliada de um canal para a organização inteira.
+
+- [ ] `020-provedor-de-modelo` — cada organização conecta a própria chave de
+      provedor, escolhe qual modelo usar e vê o consumo; a chave é de terceiro e
+      fica cifrada em repouso
+      **Depende de:** `009-convite-e-desligamento` — conectar provedor é ato de
+      quem administra a organização.
+
+- [ ] `021-indice-e-recuperacao` — o conteúdo dos documentos é indexado por
+      vetores na mesma base que guarda permissões, e a recuperação filtra por
+      permissão antes de buscar e reverifica depois de recuperar — os dois, nunca
+      só um
+      **Depende de:** `019-pesquisa-com-filtros` — a condição de permissão já
+      resolvida ali é a mesma que entra na consulta de vetores.
+
+- [ ] `022-conversa-com-documentos` — a pessoa seleciona documentos do resultado
+      e abre uma sessão que responde com a citação do bloco exato, e a citação
+      abre no documento no parágrafo certo; sem trecho recuperado que sustente a
+      afirmação, a sessão responde que não encontrou; perder o acesso a um
+      documento o remove da sessão
+      **Depende de:** `021-indice-e-recuperacao` e `020-provedor-de-modelo` — não
+      há resposta sem recuperação, nem recuperação respondida sem modelo conectado.
+
+### A dívida de portão desce, e não sai
+
+O que vem daqui para baixo mede o processo, não o produto: portão que não cobre
+o que anuncia, veredicto que supõe o que não perguntou, varredura que não alcança
+o histórico. Nenhum deles é dependência de item de produto nenhum — eles
+protegem o que já está medido, e o que ainda falta medir é justamente o que
+ainda não existe. Por isso desceram para depois do produto, em 04/09/2026, por
+decisão do dono: a ordenação por dependência não os prendia acima, e a fila
+acima deles era longa o bastante para que nenhuma tela ficasse pronta.
+
+Eles **não saem**: cada um continua com a origem que o gerou, e o que sobe de
+volta é o item que uma sessão provar ser pré-requisito real do que está fazendo.
+
 - [ ] `042-o-sha-fixado-e-conferido-contra-a-versao-que-ele-diz-ser` — o portão
       das ações reprova o SHA que não corresponde à tag do comentário ao lado, em
       vez de validar só a forma dos dois
@@ -471,188 +787,6 @@ PR e commit já escritos.
       semgrep` fora de `product/` não devolve nada, e não há arquivo de regra.
       `semgrep 1.176.0` já está na máquina de desenvolvimento. Rodar duas das
       três dá a sensação das três, e é a análise do código que fica de fora.
-
-- [ ] `002-conta-e-organizacao` — quem se cadastra cria a organização e vira o
-      seu primeiro administrador; o endereço é confirmado por e-mail, a senha se
-      recupera sozinha, e a tela responde a mesma coisa exista ou não a conta
-      **Depende de:** `001-esqueleto-do-monorepo` — não há onde rodar, nem banco,
-      nem cliente gerado do contrato.
-      **Carrega, da Fase 3 de `001`:** o cookie de sessão nasce `httpOnly`,
-      `SameSite` e `Secure` fora de desenvolvimento, e as rotas que mudam estado
-      recusam `Content-Type` que não seja JSON — CORS impede o atacante de
-      **ler** a resposta e não impede a escrita, porque um formulário
-      `urlencoded` de outro site é requisição simples e chega ao handler com o
-      cookie anexado. O corpo da resposta passa a ser validado em runtime na
-      fronteira do cliente, porque é aqui que ele deixa de virar texto e passa a
-      dirigir comportamento. E o e2e passa a escrever no banco, então a URL de
-      conexão vem de container efêmero em runtime, não de literal versionado.
-
-- [ ] `003-documento-privado` — o documento nasce no espaço privado do criador,
-      que é o seu primeiro proprietário; escreve-se nele com texto formatado,
-      títulos e listas, e ninguém além dele o alcança — nem quem administra
-      **Depende de:** `002-conta-e-organizacao` — não há criador sem conta, nem
-      espaço privado sem organização que o contenha.
-
-- [ ] `004-canais` — qualquer pessoa cria um canal aberto ou restrito, entra e
-      sai em um clique, e toda pessoa admitida é membro do canal geral; canal
-      restrito não aparece na busca de quem está de fora
-      **Depende de:** `002-conta-e-organizacao` — o canal geral nasce com a
-      organização, e o membro do canal é a pessoa admitida nela.
-
-- [ ] `005-publicacao-em-canal` — publicar concede leitura a todos os membros, o
-      proprietário muda o nível para comentário ou edição, um documento está em
-      mais de um canal e vale o maior nível, sair do canal revoga na hora e
-      retirar o documento do canal revoga para todos; toda essa resolução
-      acontece por um caminho único no servidor. É aqui que outra pessoa ganha o
-      poder de editar, então é daqui em diante que cada salvamento registra quem
-      o fez
-      **Depende de:** `003-documento-privado` e `004-canais` — não há o que
-      publicar sem documento, nem onde publicar sem canal.
-
-- [ ] `006-concessao-individual` — o proprietário compartilha com uma pessoa e
-      essa concessão prevalece sobre a do canal nas duas direções, inclusive
-      quando vale "sem acesso"; ela sobrevive à saída do canal; a tela de
-      compartilhamento mostra de onde vem cada acesso, e é dela que o
-      proprietário propõe a transferência da propriedade a outra pessoa — que
-      precisa aceitar, e até lá nada muda de mãos. A proposta não dá acesso a
-      quem ainda não tinha, e a autoria não muda nunca
-      **Depende de:** `005-publicacao-em-canal` — precedência só existe contra um
-      acesso de canal já resolvido.
-
-- [ ] `007-lista-e-busca-do-canal` — a lista de documentos do canal é a porta de
-      entrada de quem chegou agora, e a busca por título devolve apenas o que a
-      pessoa pode ver, sem revelar a existência do que ela não pode
-      **Depende de:** `006-concessao-individual` — filtrar sem a precedência
-      completa devolveria documento que a concessão individual já havia tirado.
-
-- [ ] `008-registro-de-auditoria` — todo ato sensível sobre acesso vira uma linha
-      consultável, com quem fez, o quê, quando e por quê: proposta, aceite,
-      recusa e cancelamento de transferência de propriedade, abertura de
-      documento herdado do espaço privado, mudança de nível de um canal e
-      desligamento de pessoa
-      **Depende de:** `006-concessao-individual` — os atos que ele registra são
-      atos sobre acesso, e o acesso só está completo depois da precedência
-      individual.
-
-- [ ] `009-convite-e-desligamento` — a pessoa entra por convite com prazo, uso
-      único e preso ao endereço convidado; quem administra a admite e a desliga,
-      e desligar **desativa a conta**: ela não entra mais na plataforma e todo o
-      acesso dela termina no ato, o de canal e o individual. Os documentos não
-      somem, não ficam órfãos e não perdem os compartilhamentos já feitos; a
-      propriedade passa ao papel de administração e aparece numa lista de
-      herdados, de onde qualquer administrador a propõe a um dono definitivo que
-      precisa aceitar —
-      e abrir um documento que nunca saiu do espaço privado exige um segundo ato,
-      com justificativa
-      **Depende de:** `008-registro-de-auditoria` — abrir documento herdado só é
-      aceitável porque fica registrado; sem o registro, o ato existe e ninguém o vê.
-
-- [ ] `010-revogacao-verificada` — uma verificação diária reexecuta a resolução
-      de acesso sobre os registros do dia e acusa qualquer acesso resolvido para
-      conta desativada, ou para quem já não é membro do canal e não tem concessão
-      individual
-      **Depende de:** `009-convite-e-desligamento` — o desligamento é o evento de
-      revogação mais amplo, e sem ele a verificação não cobre o caso que mais
-      importa.
-
-- [ ] `011-instrumentacao-e-metricas` — cada abertura de documento registra de
-      onde veio — busca, lista de canal ou link colado — e cada publicação vira
-      evento; um painel mostra as cinco métricas do PRD, cada uma ganhando dado
-      quando o item que a produz existir. A mudança de acesso já é gravada por
-      `008-registro-de-auditoria`: aqui ela é agregada, não registrada de novo
-      **Depende de:** `007-lista-e-busca-do-canal` — a origem da abertura só
-      distingue busca, lista e link depois que a lista e a busca existem.
-
-- [ ] `012-hierarquia-da-organizacao` — quem administra monta unidades, times e
-      as pessoas que os compõem; a hierarquia serve para encontrar gente, montar
-      canais e administrar entradas e saídas, e não concede acesso a documento
-      nenhum
-      **Depende de:** `009-convite-e-desligamento` — não há quem organizar antes
-      de as pessoas entrarem na organização.
-
-- [ ] `013-blocos-da-primeira-versao` — o editor fecha a lista declarada de
-      blocos: tarefas, tabelas, imagens, arquivos, código, citações, divisores,
-      links entre documentos, comandos de barra e arrastar para reordenar
-      **Depende de:** `003-documento-privado` — a base do editor e a persistência
-      do documento em blocos vêm de lá.
-
-- [ ] `014-norma-do-hotsite` — `apps/site` ganha norma de código escrita:
-      estrutura de rotas, camada de estilo e fronteira de import, com os
-      portões que a cobrem
-      **Depende de:** `013-blocos-da-primeira-versao` — a norma precisa existir antes de o hotsite
-      crescer, senão ela vira a descrição do que o bootstrap deixou.
-      **Origem:** decisão autônoma `D8` de `001` — o app não tem pack do
-      harness, e o harness proíbe inventar norma não exercitada de madrugada.
-      Também revisita a configuração de lint da frente: a fase 4 de `001`
-      montou `@next/eslint-plugin-next` sobre `typescript-eslint` porque o
-      `eslint-config-next` não roda no ESLint 10 do repositório, e volta a ser a
-      escolha natural quando `eslint-plugin-react` alcançar essa série — ver
-      `04-divergencias/D-013.md`.
-
-- [ ] `015-hotsite` — a página pública apresenta o produto com o editor rodando
-      de verdade ao lado do texto e, logo em seguida, a tela que decide quem vê o
-      documento; o acesso fica no canto superior direito e leva ao cadastro
-      **Depende de:** `013-blocos-da-primeira-versao` e `006-concessao-individual`
-      — a demonstração é o produto, não uma captura: precisa do editor com os
-      blocos fechados e da tela de compartilhamento que distingue esta plataforma.
-      **Carrega, da Fase 4 de `001`:** os metadados de prévia de link —
-      `metadataBase`, `openGraph` e canonical —, que são a razão declarada de o
-      hotsite ser um app separado e ainda não têm dono. A origem vem de
-      `NEXT_PUBLIC_SITE_URL`, e o `.env` que o `pnpm dev` materializa fica na
-      raiz do repositório, onde o Next não o lê: ou o arquivo passa a existir em
-      `apps/site/`, ou a variável chega `undefined` e o sintoma aparece na prévia
-      do link, longe da causa.
-      **Carrega, da Fase 2 de `023`:** a diretiva `style-src 'self'` da política
-      de conteúdo, que hoje passa porque o hotsite não tem folha de estilo
-      nenhuma — zero `<style>` e zero atributo `style=` no HTML servido. A
-      política não reserva nonce para estilo, então a fase que trouxer a primeira
-      folha reverifica a diretiva junto, em vez de descobrir o bloqueio no
-      navegador.
-
-- [ ] `016-comentarios-ancorados` — quem tem acesso de comentário comenta
-      ancorado no trecho, resolve um comentário e menciona alguém que já tenha
-      acesso ao documento; a âncora sobrevive à edição do texto ao redor
-      **Depende de:** `013-blocos-da-primeira-versao` — âncora escrita antes de o
-      conjunto de blocos fechar é âncora reescrita a cada bloco novo.
-
-- [ ] `017-historico-de-versoes` — o documento guarda as versões e cada uma diz
-      quem a salvou, marca que já vem sendo gravada desde `005`; o proprietário
-      compara duas e volta a uma anterior, e é daqui que sai a lista de
-      contribuintes do documento
-      **Depende de:** `013-blocos-da-primeira-versao` — versionar antes de o
-      conjunto de blocos fechar produz histórico que a versão seguinte não lê.
-
-- [ ] `018-edicao-concorrente` — quando duas pessoas mexem no mesmo documento
-      isso é anunciado e resolvido antes de salvar, e ninguém sobrescreve o
-      trabalho do outro em silêncio
-      **Depende de:** `017-historico-de-versoes` — resolver a divergência exige
-      poder mostrar e restaurar a versão que seria perdida.
-
-- [ ] `019-pesquisa-com-filtros` — uma área de pesquisa aceita termos e filtros e
-      devolve apenas documentos que a pessoa pode ler, nem que seja só de leitura
-      **Depende de:** `007-lista-e-busca-do-canal` — é a mesma leitura restrita
-      por permissão, ampliada de um canal para a organização inteira.
-
-- [ ] `020-provedor-de-modelo` — cada organização conecta a própria chave de
-      provedor, escolhe qual modelo usar e vê o consumo; a chave é de terceiro e
-      fica cifrada em repouso
-      **Depende de:** `009-convite-e-desligamento` — conectar provedor é ato de
-      quem administra a organização.
-
-- [ ] `021-indice-e-recuperacao` — o conteúdo dos documentos é indexado por
-      vetores na mesma base que guarda permissões, e a recuperação filtra por
-      permissão antes de buscar e reverifica depois de recuperar — os dois, nunca
-      só um
-      **Depende de:** `019-pesquisa-com-filtros` — a condição de permissão já
-      resolvida ali é a mesma que entra na consulta de vetores.
-
-- [ ] `022-conversa-com-documentos` — a pessoa seleciona documentos do resultado
-      e abre uma sessão que responde com a citação do bloco exato, e a citação
-      abre no documento no parágrafo certo; sem trecho recuperado que sustente a
-      afirmação, a sessão responde que não encontrou; perder o acesso a um
-      documento o remove da sessão
-      **Depende de:** `021-indice-e-recuperacao` e `020-provedor-de-modelo` — não
-      há resposta sem recuperação, nem recuperação respondida sem modelo conectado.
 
 O texto do item é a entrada do discovery. Entrada ambígua produz Example Mapping
 raso: "melhorar o compartilhamento" não diz o que perguntar; "sair do canal
