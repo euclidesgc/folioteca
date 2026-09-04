@@ -971,6 +971,27 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       `057` ficam como estão, porque reescrevê-los depois de medidos trocaria o
       texto que o veredicto cego executou.
 
+- [ ] `063-o-motor-para-a-corrida-quando-o-bloqueio-e-da-conta` — quando o que
+      trava é o faturamento, o motor para com o motivo escrito em vez de gastar
+      uma sessão por rodada redescobrindo-o
+      **Depende de:** `061-a-sessao-reconhece-o-pull-request-cujo-merge-o-github-parou-de-calcular`
+      — o `061` escreve a rotina que separa "a plataforma parou" de "a conta
+      acabou"; este a executa uma vez por rodada, antes de invocar a sessão, e
+      sem ela o motor não tem como perguntar.
+      **Origem:** encerramento de
+      `057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto`, ver
+      `decisoes-autonomas.md` (`D35`). Três sessões seguidas — 19:5xZ, 20:0xZ e
+      20:1xZ de 04/09/2026 — chegaram à mesma parede, mediram a mesma anotação de
+      check run e pararam pelo mesmo motivo. O `decide-next-action.mjs` é função
+      pura sobre `product/state.json` e não tem como saber disso: o estado diz que
+      as duas fases do `057` estão aprovadas, então a decisão é `close`, e ela é
+      correta em cima do que ele enxerga. O que falta é uma pergunta antes da
+      rodada — o estágio hospedado consegue nascer? — cuja resposta negativa vale
+      `exit 1` no motor, que é o código que ele já obedece. A pergunta custa uma
+      chamada de API e cabe no `proxima-sessao.sh`, que é onde a rede já tem teto
+      de tempo; não cabe no `decide-next-action.mjs`, que é puro de propósito e
+      não fala com a rede.
+
 - [ ] `037-a-fronteira-de-agent-mede-quem-escreve` — o guard de escopo recusa a
       escrita pelo agent que a fez, e não pelo último agent despachado
       **Depende de:** nada — o guard já existe nos hooks do harness.

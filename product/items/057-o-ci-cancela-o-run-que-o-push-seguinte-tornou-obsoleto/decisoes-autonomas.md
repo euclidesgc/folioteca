@@ -1191,13 +1191,49 @@ primeiro caminho**, resolver o faturamento: é o único que não mexe em nada aq
 e mexer no portão para contornar a conta é a classe de contorno que este
 repositório inteiro foi construído para não fazer.
 
+### D35 — O motor da corrida foi parado, e a reincidência virou item `063`
+
+Esta é a **terceira** sessão seguida a bater na mesma parede: medir a anotação do
+check run, confirmar o faturamento, e parar. A regra 20 do `CLAUDE.md` diz que a
+segunda reincidência vira causa raiz, não terceiro remendo — então parei o motor
+(`kill` no processo de `scripts/loop/proxima-sessao.sh --ate 30`, que estava na
+rodada 3 de 30) e escrevi a causa como item de roadmap.
+
+**A alternativa descartada** era deixar o motor rodar as 27 rodadas restantes.
+Cada uma abriria uma sessão nova, que leria o estado, decidiria `close`, mediria
+a mesma anotação e pararia — vinte e sete vezes o mesmo trabalho, contra uma
+conta bloqueada, sem produzir nada. **A segunda alternativa descartada**, mais
+tentadora, era **fechar o `057` sem merge** para o motor puxar o item seguinte: o
+`state.py` permite, e o `decide-next-action.mjs` nunca mergeia por projeto. Não
+fiz porque marcaria `done` num item cujos dois PRs estão abertos — o `state.json`
+dizendo uma coisa e o GitHub outra é exatamente a classe de instrumento mentiroso
+que este repositório caça — e porque a prática medida aqui é mergear a cada PR
+verde: dos cinco últimos PRs, os cinco foram mergeados, o mais recente às
+19:42:58Z de hoje. Fechar sem merge começaria a torre de PRs que o prompt da
+corrida nomeia como o resultado ruim de uma manhã.
+
+O que falta ao motor está no item `063-o-motor-para-a-corrida-quando-o-bloqueio-e-da-conta`,
+que depende do `061`: uma pergunta por rodada, antes de invocar a sessão, cuja
+resposta negativa vale `exit 1` — o código de parada que o motor já obedece.
+
+**Para religar**, depois de resolver o faturamento:
+
+```bash
+bash scripts/loop/proxima-sessao.sh --ate 30
+```
+
 ## Parada desta sessão
 
 **O que fica pronto.** O `product/roadmap.md` está reconciliado: as duas
 validações de campo do `057` estão registradas na seção própria, a pendência de
 produto sobre o Actions descreve o bloqueio de hoje com a evidência literal, e o
 fecho da seção diz o que cada linha espera — runner hospedado, configuração de
-conta, ou a plataforma agir sozinha. Não há implementação pendente no item.
+conta, ou a plataforma agir sozinha. O item `063` registra o que falta ao motor
+para parar sozinho numa parede dessas. Não há implementação pendente no `057`.
+
+**O motor da corrida está parado**, na rodada 3 de 30, por `D35`. Ele não para
+sozinho quando o bloqueio é da conta, e as 27 rodadas restantes repetiriam esta
+sessão sem produzir nada.
 
 **O que trava, e é do dono.** O merge dos PRs #46 e #48. A causa é o faturamento
 da conta do GitHub, fora da máquina de desenvolvimento e do CI — a condição de
