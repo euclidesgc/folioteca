@@ -404,6 +404,26 @@ acima deles era longa o bastante para que nenhuma tela ficasse pronta.
 Eles **não saem**: cada um continua com a origem que o gerou, e o que sobe de
 volta é o item que uma sessão provar ser pré-requisito real do que está fazendo.
 
+
+- [ ] `058-o-endereco-de-homologacao-diz-o-nome-do-produto` — os três FQDNs de
+      homologação saem de `gbdocs.duckdns.org`, herdado do projeto anterior, para
+      um domínio que nomeia esta aplicação
+      **Depende de:** nada técnico — depende do token da conta DuckDNS, que não
+      está em lugar nenhum do repositório e é do dono.
+      **Origem:** migração do ambiente do GB Docs Hub para a Folioteca, em
+      04/09/2026. O ambiente subiu em `hml.gbdocs.duckdns.org`,
+      `api-hml.gbdocs.duckdns.org` e `site-hml.gbdocs.duckdns.org` porque
+      `*.gbdocs.duckdns.org` é wildcard e resolve para `64.181.165.16` sem
+      registro novo — foi isso que permitiu ter homologação no mesmo dia. O nome
+      está errado para este produto, e o certo é `folioteca.duckdns.org`, mantendo
+      a convenção da casa de um DuckDNS por projeto.
+      **Não é ajuste de painel, e é por isso que virou item.** Trocar o campo
+      `fqdn` das três aplicações sem trocar `VITE_API_URL`, `NEXT_PUBLIC_SITE_URL`
+      e `WEB_ORIGIN` produz um front que carrega e não fala com a API, e um
+      hotsite cuja prévia de link aponta para um endereço morto — os dois sem erro
+      que aponte para a causa, porque as duas primeiras são variáveis de **build**
+      e só mudam com uma reconstrução. A ordem é: criar o domínio, trocar as
+      variáveis, reconstruir, trocar os FQDNs, e só então soltar o nome antigo.
 - [ ] `042-o-sha-fixado-e-conferido-contra-a-versao-que-ele-diz-ser` — o portão
       das ações reprova o SHA que não corresponde à tag do comentário ao lado, em
       vez de validar só a forma dos dois
