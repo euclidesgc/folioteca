@@ -115,6 +115,38 @@ PR e commit já escritos.
       6. **Acessibilidade medida, não afirmada:** contraste AA em ambos os temas,
          foco visível em todo elemento focável, ordem de foco que segue a leitura,
          e nenhuma violação crítica ou séria do axe na página viva.
+      **A entrada de direção, do dono.** Não é a escolha pronta — a escolha é do
+      discovery, com a skill `frontend-design` carregada. É a restrição dentro da
+      qual escolher, que é o que só quem é dono do produto pode dar:
+      - **O que a marca precisa comunicar, nesta ordem:** que o documento tem
+        dono; que o acesso é legível de relance; que a ferramenta é da empresa
+        inteira, não do time de tecnologia. Confiança antes de modernidade — quem
+        decide a compra responde "quem viu o quê" para uma auditoria.
+      - **De onde tirar material:** o mundo do produto é o do arquivo e da
+        biblioteca — fólio, lombada, etiqueta, catalogação, colofão, marginália,
+        numeração de folha. É de lá que sai vocabulário visual que ninguém mais
+        tem. O que **não** se faz é nostalgia: nada de textura de papel velho,
+        serifa de máquina de escrever ou pastiche de biblioteca antiga. A
+        referência é o arquivo bem feito de hoje — preciso, silencioso, legível —,
+        não o cenário de época.
+      - **Contra o que se medir.** Notion é neutro a ponto de não ter opinião;
+        Confluence é azul corporativo; Linear é escuro com gradiente roxo; Slack é
+        berinjela. Chegar em qualquer um deles é não ter escolhido. E os três
+        gabaritos que a skill `frontend-design` nomeia — creme com serifa de alto
+        contraste e acento terracota, quase-preto com acento verde-ácido,
+        jornal com fios de cabelo e raio zero — estão fora por serem o que a
+        máquina produz quando não decide.
+      - **A ousadia mora em um lugar só.** Escolha o elemento que assina o
+        produto e execute-o bem; o resto fica quieto e disciplinado. Uma
+        aplicação onde a pessoa passa o dia inteiro escrevendo não suporta
+        interface barulhenta, e o público-alvo não configura permissão por
+        gosto — ele quer entender de relance.
+      - **A tipografia carrega a personalidade,** e é onde vale gastar: uma face
+        de display com caráter editorial e uma face de texto que aguente parágrafo
+        longo em tela. Não a mesma dupla que qualquer painel usaria.
+      - **O texto da interface é material de desenho, não legenda.** Rótulo em
+        pt-BR, voz ativa, o mesmo verbo do começo ao fim de cada ação, e estado
+        vazio que convida a agir em vez de avisar que está vazio.
       **A escolha de camada de estilo é decisão de desenho e cabe ao discovery,**
       com uma restrição herdada: `apps/web` é SPA em Vite sem servidor, e
       `023-endurecimento-antes-da-sessao` publica política de conteúdo por
