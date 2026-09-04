@@ -178,12 +178,12 @@ PR e commit já escritos.
       **Depende de:** `023-endurecimento-antes-da-sessao` — é o item que traz a
       cadeia de suprimentos para dentro do CI, e o passo novo nasce junto dos
       outros dois.
-      **Origem:** discovery de `023`. Nenhum fluxo roda `pnpm audit` nem
-      `osv-scanner`: a única conta já feita foi a decisão `D29` da Fase 3 de
-      `001`, à mão, que prendeu `js-yaml` em `>=4.3.2` por `overrides`. A
-      quarentena que `023` instala atrasa a versão maliciosa e não diz nada sobre
-      a vulnerável que já está no lockfile — são portas diferentes, e só uma
-      delas fecha em `023`.
+      **Origem:** discovery de `023`. Nenhum fluxo rodava `pnpm audit` nem
+      `osv-scanner`: a única conta feita até então foi a decisão `D29` da Fase 3
+      de `001`, à mão, que prendeu `js-yaml` em `>=4.3.2` por `overrides`. A
+      quarentena de `023` atrasa a versão maliciosa e não diz nada sobre a
+      vulnerável que já está no lockfile — são portas diferentes, e só uma delas
+      fechava em `023`.
 
 - [ ] `050-linguagem-visual-e-sistema-de-design` — o produto ganha linguagem
       visual própria: tokens de cor, tipografia, espaço e movimento em tema claro
