@@ -530,15 +530,21 @@
       "current_phase": 1,
       "phases": {
         "1": {
-          "status": "em_execucao",
+          "status": "aprovada",
           "reproved_count": 0,
-          "verdict": null,
-          "verdict_file": null,
-          "validated_sha": null,
+          "verdict": "APROVADO",
+          "verdict_file": "product/items/027-vulnerabilidade-conhecida-reprova-no-ci/05-veredictos/fase-1.md",
+          "validated_sha": "785da9a6a6f1f8059a0f785eaa60a45c60d89355",
           "pr": null,
           "blocked_on": [
             "D-001"
-          ]
+          ],
+          "verdict_at": "2026-09-04T10:57:14Z",
+          "validated_trees": {
+            "apps/api": "f472bbf7585a1090ff4f41595d859768c172edf7",
+            "apps/web": "bcb6297b9195060c3eeade874dc899e48a5e84cd"
+          },
+          "criteria_sha": "ea022a5027da9cfe8eb0f614daad6fc6be8b58cf460bd0a49c0c5706f968844d"
         }
       },
       "divergences": {

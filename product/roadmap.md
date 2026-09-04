@@ -69,6 +69,26 @@ PR e commit já escritos.
       espera declarada, e imprime quantas tentativas gastou. Ela **não** resolve o
       limite de taxa do endpoint, que é a causa; isso é o `055`.
 
+- [ ] `056-o-portao-de-vulnerabilidade-fecha-os-residuos-que-a-validacao-cega-mediu` —
+      as três brechas que sobraram no portão deixam de existir, e a suíte passa a
+      morder o caso que hoje ela cobre por acidente
+      **Depende de:** `027-vulnerabilidade-conhecida-reprova-no-ci` — são resíduos
+      do portão dele, e nenhum deles é alcançado por critério de aceite.
+      **Origem:** validação cega da fase 1 de
+      `027-vulnerabilidade-conhecida-reprova-no-ci`, ver `05-veredictos/fase-1.md`,
+      apontamentos A1, A2 e A3. São três, e cada um foi medido com resposta
+      forjada, não deduzido: (a) o confronto compara a **soma** `critical + high`
+      com o número de avisos lidos, e soma se anula — um relatório com
+      `critical: 2` e `high: -2` casa com lista vazia e o portão imprime
+      `critical: 2` e `0 achados` na mesma tela; fecha com guarda de
+      não-negatividade; (b) a peneira de registro segue `npm_config_userconfig`
+      mas não `npm_config_globalconfig`, que é a quinta casa e redireciona a mesma
+      chamada; (c) quatro casos da suíte passam com o ramo do `.error` removido,
+      porque a checagem de forma reprova logo adiante com outra mensagem — o
+      comportamento continua coberto por dois casos, mas quatro afirmam provar o
+      que não provam. Nenhum dos três é aprovação que o portão declare falsamente
+      ter medido, e por isso a fase foi aprovada; são o que sobra depois dela.
+
 - [ ] `055-a-auditoria-de-dependencia-troca-de-motor` — o portão de
       vulnerabilidade passa a medir por uma base que responde em toda execução, e
       o vermelho volta a significar dependência vulnerável
