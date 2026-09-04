@@ -540,3 +540,57 @@ para lá. Se não voltar, a segunda reprovação escala o estado sozinho, e aí 
 decisão é dele: liberar a cota de minutos, ou aceitar a medição de casa
 (`gates_runner.sh` verde e os cinco runs `success` em `ca7b244`) como evidência
 suficiente para esta fase.
+
+---
+
+## Sessão de 04/09/2026, 18:33Z — retentativa da fase 1
+
+### D24 — A causa da parada do CI não é cota, e a hipótese anterior está refutada
+
+As duas paradas anteriores e esta foram atribuídas a esgotamento da cota de
+minutos do GitHub Actions, com a observação de que a causa estaria fora da
+máquina. **Isso está errado, e a medição mostra o contrário.**
+
+`POST repos/{owner}/{repo}/actions/runs/33904771757/rerun` foi aceito com `201`, e
+o run entrou em fila às `18:37:11Z` e executou — inclusive o job `Confirmação em
+máquina limpa`, que roda em runner **hospedado pelo GitHub**, o único que consome
+minuto. Uma conta sem cota não executa esse job. Somam-se: `Actions =
+operational` sem incidente aberto, `actions/permissions` com `enabled: true`, os
+seis workflows em `state: active`, e os quatro runners self-hosted
+`QuidoBookLinux-folioteca*` **online e ociosos**.
+
+**Decidido:** a hipótese de cota sai do registro como refutada, e nenhuma sessão
+futura deve reabri-la sem antes rodar a sonda do rerun, que custa uma chamada de
+API e responde em segundos.
+
+**Alternativa descartada:** ler o faturamento por
+`/users/{owner}/settings/billing/actions`. O token da corrida tem os escopos
+`gist`, `read:org`, `repo` e `workflow`, e o endpoint exige `user`. Pedir escopo
+novo mexe em credencial do dono e não cabe na autonomia desta corrida — e a sonda
+do rerun responde a mesma pergunta sem tocar em credencial nenhuma.
+
+### D25 — A causa raiz é o merge ref do PR congelado, e é ela que impede o run
+
+O que quebrou não é a **execução** de runs, é a **criação** deles a partir de
+evento. `refs/pull/46/merge` aponta para `3b242ae`, cujos dois pais são
+`7be81cde` (topo da base) e **`ca7b244`** — o commit de `18:13:38Z`. Os quatro
+pushes seguintes (`00ee340`, `91c1379`, `1464782` e `af8638a`) nunca foram
+incorporados ao merge ref, e `GET repos/{owner}/{repo}/pulls/46` devolve
+`mergeable: null` e `mergeable_state: unknown` em três consultas seguidas, que é
+o GitHub dizendo que não tem o merge calculado.
+
+Workflow disparado por `pull_request` roda sobre o merge commit. Sem merge commit
+novo, não há o que executar, e o app `github-actions` não cria suíte — enquanto
+`gitguardian`, `railway-app`, `cursor` e `claude`, que reagem ao **head ref** e
+não ao merge ref, continuam criando as suas a cada push. É exatamente o padrão
+observado, e nenhuma outra hipótese explica as duas metades ao mesmo tempo.
+
+**Decidido:** a causa raiz registrada passa a ser esta. O rerun funcionar e o
+push não funcionar deixa de ser contradição e vira o sintoma que identifica a
+falha: o rerun reusa o merge ref já materializado, o push precisaria de um novo.
+
+**Consequência para o critério 5:** enquanto o merge ref não voltar a acompanhar
+o head, o critério é inexequível por push nenhum — nem vazio, nem com mudança
+real de arquivo. Não é o roteiro do critério que está errado; é a pré-condição
+"com o GitHub Actions criando runs" que está falsa, e o próprio critério a
+enuncia como *Dado*.
