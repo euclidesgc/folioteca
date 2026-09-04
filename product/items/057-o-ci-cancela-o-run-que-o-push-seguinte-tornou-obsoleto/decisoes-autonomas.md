@@ -778,3 +778,34 @@ saiu de um script que esperava o run de `medicao 1` aparecer com status
 empurrar e medir o que desse. É a regra 19 aplicada ao próprio roteiro de
 medição: sem essa recusa, uma janela perdida sairia como critério reprovado, e
 não como critério não medido.
+
+### D30 — Os dois commits vazios de medição ficam na história
+
+O validador cego apontou que `medicao 1` (`40acf7d`) e `medicao 2` (`87fc295`)
+são commits vazios na branch que vira pull request, e deixou a decisão de mantê-los
+ou removê-los para quem fecha a fase.
+
+**Decidido: ficam.** O veredicto da fase 1 cita os dois SHAs como o objeto da
+única medição que prova o cancelamento, e o dono precisa poder reconferir
+`gh run list --json headSha,conclusion` contra eles de manhã. Um `squash` ou um
+`rebase --no-keep-empty` apagaria exatamente os dois pontos de referência que a
+evidência usa, e o critério passaria a apontar para SHAs que não existem mais.
+
+**Alternativa descartada:** limpar a história antes do merge, pelo asseio de não
+levar commit vazio para `develop`. Custo: a evidência do critério `comportamental`
+deixa de ser reconferível, e evidência que não se reconfere é prosa. Dois commits
+vazios em `develop` custam duas linhas de log; a régua deste repositório é medir,
+e medição sem objeto não é medição.
+
+## Fecho desta sessão
+
+A fase 1 fecha com veredicto `APROVADO` — os cinco critérios verificados com
+evidência executada, `gates_runner.sh` verde, e o critério `comportamental` medido
+no CI de verdade pela primeira vez. A escalada humana que a sessão anterior
+registrou está arquivada em `escalation_history`, com a causa nomeada (`D25`) e a
+sua extinção medida (`D28`).
+
+**Próxima unidade de trabalho:** a fase 2 do item — `scripts/gates/concorrencia.sh`,
+o teste que prova que ele morde, e as duas linhas que o executam. Ela nasce
+empilhada sobre a branch desta fase, porque o critério que mede a linha `medido:`
+sobre a árvore real só fecha com a fase 1 dentro dela.
