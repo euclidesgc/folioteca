@@ -50,20 +50,28 @@ jobs:
         run: bash scripts/gates/__tests__/quarentena.test.sh
       - name: o portão das ações reprova a tag móvel e o diretório sem fluxo
         run: bash scripts/gates/__tests__/acoes-em-sha.test.sh
+      - name: o portão de vulnerabilidade reprova o achado alto e o que não conseguiu auditar
+        run: bash scripts/gates/__tests__/vulnerabilidade.test.sh
       - name: a peneira do packageManager recusa o que não é pnpm@X.Y.Z
         run: bash scripts/ci/__tests__/instalar-pnpm.test.sh
       - name: a tranca de merge trata verificação pendente como não medida
         run: bash scripts/gates/__tests__/merge-se-liberado.test.sh
 
-      # Os dois portões da cadeia de suprimentos são cobrados aqui, e não só
+      # Os três portões da cadeia de suprimentos são cobrados aqui, e não só
       # pelo `gates_runner.sh` dos três fluxos por frente: aqueles têm filtro de
       # `paths`, e um PR que mexa apenas em `.github/workflows/bloqueio.yml` não
       # dispara nenhum deles. Este fluxo roda em todo pull request, que é
-      # exatamente a cobertura que uma referência de ação nova precisa ter.
+      # exatamente a cobertura que uma referência de ação nova precisa ter — e a
+      # que a auditoria de vulnerabilidade exige por um motivo mais forte: um
+      # aviso novo é publicado sem o lockfile mudar, então um portão condicionado
+      # ao arquivo nunca acusaria a vulnerabilidade que apareceu depois do último
+      # PR que mexeu nele.
       - name: A quarentena de sete dias está valendo
         run: bash scripts/gates/quarentena.sh
       - name: Toda ação do CI está fixada em SHA
         run: bash scripts/gates/acoes_em_sha.sh
+      - name: Nenhuma dependência do lockfile com aviso de severidade alta
+        run: bash scripts/gates/vulnerabilidade.sh
 
       # A partir daqui o job constrói: o portão de segredo varre os três
       # artefatos de build além das fontes rastreadas, e artefato que não existe

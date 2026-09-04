@@ -41,6 +41,25 @@ PR e commit já escritos.
       de o `checkout` já ter gravado o token no disco — a correção é fixar cada
       uma em SHA de 40 caracteres com a versão em comentário.
 
+- [ ] `052-todo-job-do-ci-declara-teto-de-tempo` — um passo que pendura para de
+      consumir a cota de minutos do repositório em silêncio, porque cada job diz
+      em quanto tempo ele desiste
+      **Depende de:** `027-vulnerabilidade-conhecida-reprova-no-ci` — é a fase
+      dele que traz o primeiro passo de CI que fala com a rede em toda execução,
+      e portanto o primeiro que pode pendurar sem nada acusar.
+      **Origem:** fase 1 de `027-vulnerabilidade-conhecida-reprova-no-ci`. O
+      portão de vulnerabilidade ganhou teto próprio — `TETO_DA_AUDITORIA=600`,
+      decisão `D19` de `decisoes-autonomas.md` —, mas o teto está no portão e não
+      no job: nenhum dos jobs de `.github/workflows/portoes.yml` declara
+      `timeout-minutes`, e o limite que vale por omissão é o do GitHub, de seis
+      horas. Um passo que pendura por outro motivo — instalação de dependência,
+      build, um binário baixado — continua consumindo a cota até lá, e quem paga
+      só descobre no fim do mês. Fechar é declarar `timeout-minutes` em cada job
+      de cada fluxo, com o número saído do tempo medido de cada um, e um portão
+      que reprove o job novo que não o declare. O que **não** se faz é um número
+      redondo igual para todos: teto que não sai de medição é teto que reprova o
+      job legítimo no dia em que a rede está lenta.
+
 - [ ] `049-a-isencao-de-qs-vence-e-alguem-precisa-fecha-la` — o nome `qs` sai da
       lista de isenções da quarentena, nos dois lugares que o portão compara,
       antes que o vencimento deixe todo PR vermelho
