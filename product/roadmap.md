@@ -41,7 +41,29 @@ PR e commit já escritos.
       de o `checkout` já ter gravado o token no disco — a correção é fixar cada
       uma em SHA de 40 caracteres com a versão em comentário.
 
-- [ ] `027-vulnerabilidade-conhecida-reprova-no-ci` — o CI reprova quando uma
+- [ ] `049-a-isencao-de-qs-vence-e-alguem-precisa-fecha-la` — o nome `qs` sai da
+      lista de isenções da quarentena, nos dois lugares que o portão compara,
+      antes que o vencimento deixe todo PR vermelho
+      **Depende de:** `023-endurecimento-antes-da-sessao` — é a fase 5 dele que
+      cria a isenção e o vencimento que a mata.
+      **Origem:** discovery de `027-vulnerabilidade-conhecida-reprova-no-ci`,
+      medição de datas. A isenção nominal de `qs` vence em **2026-09-05**, e a
+      partir desse dia `scripts/gates/quarentena.sh` reprova por vencimento —
+      todo PR do repositório, não só o que mexe em dependência. Fechar é tirar
+      `qs` de `pnpm-workspace.yaml:48-49` e da constante `ISENCOES_ESPERADAS`
+      em `scripts/gates/quarentena.sh:43`, que é o par que o portão compara.
+      Fechar já é seguro para o lockfile de hoje: ele resolve `qs@6.16.0`, a
+      versão corrigida, e nenhuma auditoria acusa nada. A nuance medida é de
+      horas — `6.16.0` foi publicada em `2026-08-29T23:50Z`, então ela só
+      completa os sete dias de quarentena em `2026-09-05T23:50Z`, e uma
+      reconstrução de lockfile feita naquele dia antes desse horário cairia de
+      volta em `6.15.3`, que é a vulnerável. Reconstruir o lockfile a partir de
+      `2026-09-06` não tem essa aresta. O que **não** se faz é esticar a data
+      para destravar o vermelho: a isenção tem prazo justamente para não virar
+      política permanente, e adiar sem motivo novo é o antipadrão que o portão
+      existe para impedir.
+
+- [-] `027-vulnerabilidade-conhecida-reprova-no-ci` — o CI reprova quando uma
       dependência do lockfile tem aviso de severidade alta, em vez de a conta ser
       feita à mão numa auditoria de fase
       **Depende de:** `023-endurecimento-antes-da-sessao` — é o item que traz a
@@ -433,6 +455,22 @@ PR e commit já escritos.
       `.claude/skills/react-testing-behavioral/SKILL.md` @1f50033. O item nasce
       junto de um `.gitleaksignore` com esses dois fingerprints — e a decisão de
       qual dos dois some do histórico em vez de ser perdoado é do dono.
+
+- [ ] `048-o-codigo-passa-por-analise-estatica-de-seguranca` — o padrão inseguro
+      no código é acusado por ferramenta em todo PR, em vez de depender de
+      alguém reconhecê-lo na revisão
+      **Depende de:** `001-esqueleto-do-monorepo` — precisa existir código nas
+      três frentes para haver o que analisar.
+      **Origem:** discovery de `027-vulnerabilidade-conhecida-reprova-no-ci`. A
+      skill `security-baseline` nomeia três ferramentas que não se cobrem:
+      `gitleaks` para segredo, `osv-scanner` ou equivalente para dependência
+      vulnerável, e `semgrep` para padrão inseguro no código — SQL concatenada,
+      `eval`, comparação de segredo sem tempo constante, desserialização
+      insegura. A primeira entrou na fase 4 de `023`; a segunda entra em `027`;
+      a terceira **não existe em lugar nenhum do repositório** — `git grep
+      semgrep` fora de `product/` não devolve nada, e não há arquivo de regra.
+      `semgrep 1.176.0` já está na máquina de desenvolvimento. Rodar duas das
+      três dá a sensação das três, e é a análise do código que fica de fora.
 
 - [ ] `002-conta-e-organizacao` — quem se cadastra cria a organização e vira o
       seu primeiro administrador; o endereço é confirmado por e-mail, a senha se

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "active_item": "023-endurecimento-antes-da-sessao",
+  "active_item": "027-vulnerabilidade-conhecida-reprova-no-ci",
   "items": {
     "001-esqueleto-do-monorepo": {
       "title": "Esqueleto do monorepo: os três apps sobem, o contrato é gerado e o CI fica verde",
@@ -23,8 +23,8 @@
           "file": "product/items/001-esqueleto-do-monorepo/02-spec.md"
         },
         "plan": {
-          "at": "2026-09-03T09:20:33Z",
-          "sha": "fd54f28fe7b17ccc1c63d73787a2d61d74232eca",
+          "at": "2026-09-03T21:59:34Z",
+          "sha": "54147d2676aa7d394d0a5875ba1b4d32679e43d6",
           "file": "product/items/001-esqueleto-do-monorepo/03-plan.md",
           "por": "autonomo"
         }
@@ -189,22 +189,24 @@
           "ratificada_por": "humano"
         },
         "D-011": {
-          "status": "APROVADA",
+          "status": "RECONCILIADA",
           "kind": "normal",
           "phase": 3,
           "detected_at": "2026-09-03T06:55:43Z",
           "aprovada_at": "2026-09-03T06:55:43Z",
           "ratificada_por": "humano",
-          "ratificacao_humana_at": "2026-09-03T20:51:56Z"
+          "ratificacao_humana_at": "2026-09-03T20:51:56Z",
+          "reconciliada_at": "2026-09-03T19:24:55Z"
         },
         "D-012": {
-          "status": "APROVADA",
+          "status": "RECONCILIADA",
           "kind": "normal",
           "phase": 3,
           "detected_at": "2026-09-03T07:45:51Z",
           "aprovada_at": "2026-09-03T07:45:51Z",
           "ratificada_por": "humano",
-          "ratificacao_humana_at": "2026-09-03T20:51:56Z"
+          "ratificacao_humana_at": "2026-09-03T20:51:56Z",
+          "reconciliada_at": "2026-09-03T19:31:05Z"
         },
         "D-013": {
           "status": "RECONCILIADA",
@@ -293,14 +295,14 @@
           "por": "autonomo"
         },
         "spec": {
-          "at": "2026-09-03T18:15:23Z",
-          "sha": "1929f7ad1e3a294d37a7936800be7aef88db3adc",
+          "at": "2026-09-03T21:59:34Z",
+          "sha": "c499fd20de68190cc92a80f0b85a29a712b55592",
           "file": "product/items/023-endurecimento-antes-da-sessao/02-spec.md",
           "por": "autonomo"
         },
         "plan": {
-          "at": "2026-09-03T18:15:23Z",
-          "sha": "326deac98d33b31057aa16674901d0e4d5fb8ec3",
+          "at": "2026-09-03T21:59:35Z",
+          "sha": "408ffb37d60391b44b338b69937e6077df95caa2",
           "file": "product/items/023-endurecimento-antes-da-sessao/03-plan.md",
           "por": "humano"
         }
@@ -318,7 +320,7 @@
           "verdict_at": "2026-09-03T12:18:47Z",
           "validated_trees": {
             "apps/api": "94d817949b25e9e6f2c28fb9d817a444f2e4bb32",
-            "apps/site": "89ed1a14167c883397d83f4f9641908ccfaab434",
+            "apps/site": "afbe408efb4f61e6f9cbe031b5fb08a5a077a9a1",
             "apps/web": "94c9cfdbf62e6d1baa64d43614230676fe4d7b3d"
           }
         },
@@ -333,7 +335,7 @@
           "verdict_at": "2026-09-03T12:57:14Z",
           "validated_trees": {
             "apps/api": "94d817949b25e9e6f2c28fb9d817a444f2e4bb32",
-            "apps/site": "c40cb4778ae97ac94831f01ef68f76e34d956ab8",
+            "apps/site": "20c3155f7ce5c3e95eb401bebe38d24290adcf3d",
             "apps/web": "94c9cfdbf62e6d1baa64d43614230676fe4d7b3d"
           }
         },
@@ -348,7 +350,7 @@
           "verdict_at": "2026-09-03T16:40:45Z",
           "validated_trees": {
             "apps/api": "94d817949b25e9e6f2c28fb9d817a444f2e4bb32",
-            "apps/site": "c40cb4778ae97ac94831f01ef68f76e34d956ab8",
+            "apps/site": "20c3155f7ce5c3e95eb401bebe38d24290adcf3d",
             "apps/web": "0cf0f8ba163abd68660669963dd7b6b138664388"
           }
         },
@@ -363,7 +365,7 @@
           "verdict_at": "2026-09-03T17:39:08Z",
           "validated_trees": {
             "apps/api": "94d817949b25e9e6f2c28fb9d817a444f2e4bb32",
-            "apps/site": "c40cb4778ae97ac94831f01ef68f76e34d956ab8",
+            "apps/site": "20c3155f7ce5c3e95eb401bebe38d24290adcf3d",
             "apps/web": "0cf0f8ba163abd68660669963dd7b6b138664388"
           }
         },
@@ -381,7 +383,7 @@
           "verdict_at": "2026-09-03T18:50:56Z",
           "validated_trees": {
             "apps/api": "f472bbf7585a1090ff4f41595d859768c172edf7",
-            "apps/site": "4e1b4a2c8557b2a9fc31e93ace30a8e27c337714",
+            "apps/site": "c45bae8f1599c00c98ae0aa25efdac2612d3aacc",
             "apps/web": "bcb6297b9195060c3eeade874dc899e48a5e84cd"
           }
         }
@@ -503,6 +505,27 @@
           "ratificacao_humana_at": "2026-09-03T19:23:49Z"
         }
       },
+      "criteria_exception": null
+    },
+    "027-vulnerabilidade-conhecida-reprova-no-ci": {
+      "title": "Vulnerabilidade conhecida reprova no CI: o portão audita o lockfile inteiro e reprova achado de severidade alta ou crítica, com isenção nominal e prazo",
+      "track": "rapida",
+      "stage": "brief",
+      "stacks": [],
+      "created_at": "2026-09-03T19:13:55Z",
+      "approvals": {
+        "brief": {
+          "at": null,
+          "sha": null
+        },
+        "plan": {
+          "at": null,
+          "sha": null
+        }
+      },
+      "current_phase": null,
+      "phases": {},
+      "divergences": {},
       "criteria_exception": null
     }
   }
