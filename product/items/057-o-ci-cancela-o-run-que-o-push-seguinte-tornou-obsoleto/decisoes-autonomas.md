@@ -1053,3 +1053,65 @@ ponteiro para o trecho do plano em vez dos critérios tipados extraídos, e o
 trecho carrega junto o objetivo, as etapas com justificativa e a análise de
 risco. Ele declarou ter ignorado tudo e julgado só contra os critérios. A
 correção é do despacho da próxima fase, e está anotada no veredicto.
+
+## Parada desta sessão
+
+**O que fica pronto.** A fase 2 do `057` está **APROVADA** — o veredicto cego mediu
+os dez critérios da fase e os três de integração, com evidência executada em todos,
+e as nove reprovações do portão foram provocadas pelo validador com árvores de
+mentira montadas por ele, não pela suíte do próprio avaliado. O veredicto está em
+`05-veredictos/fase-2.md` e no `state.json`, sobre o commit `1f5777c`. O **PR #48**
+está aberto, empilhado sobre o #46 pelo `gh stack`, com as sete seções e a evidência
+de cada critério. Com isso as **duas** fases do item estão aprovadas, e não resta
+trabalho de implementação no `057`.
+
+**O que trava, e é do dono.** O merge. Medido às 20:0xZ com a tranca, que é a
+medição autorizada:
+
+```
+$ bash scripts/merge-se-liberado.sh 46
+RECUSADO: o PR #46 tem verificação vermelha:
+  Confirmação em máquina limpa / As asserções de medição mordem
+  Confirmação em máquina limpa / Há código de API?
+  Confirmação em máquina limpa / Há código de web?
+  Confirmação em máquina limpa / O D-nnn.md e o state.json dizem o mesmo status
+  Confirmação em máquina limpa / Tipos, build e portões
+```
+
+As cinco são jobs de nuvem que **não chegaram a executar passo nenhum** — falharam
+em dois a três segundos. A causa está por escrito na anotação do check run, que é a
+primeira medição da rotina do item `061` e a única que diz a causa:
+
+```
+$ gh api repos/euclidesgc/folioteca/check-runs/101155673198/annotations --jq '.[].message'
+The job was not started because recent account payments have failed or your
+spending limit needs to be increased. Please check the 'Billing & plans' section
+in your settings
+```
+
+Isso está fora da máquina de desenvolvimento e do CI, e nenhuma sessão resolve
+daqui. Nenhum rótulo foi tirado, nenhuma verificação foi contornada, e nada mergeou.
+
+**Próxima ação do dono, uma decisão só:** abrir *Billing & plans* nas configurações
+da conta do GitHub e resolver o pagamento ou elevar o teto de gastos. Depois disso,
+a retomada custa dois comandos e nenhuma decisão — e é o **fundo** da pilha que
+mergeia primeiro:
+
+```bash
+bash scripts/merge-se-liberado.sh 46   # fase 1
+bash scripts/merge-se-liberado.sh 48   # fase 2, depois que o 46 entrar
+```
+
+Não há alternativa técnica a recomendar, e as duas que existiriam continuam piores
+que esperar: desligar o estágio de confirmação na nuvem trocaria a classe de erro
+que ele existe para pegar — "passa aqui porque eu já tenho a ferramenta instalada"
+— por silêncio; e mergear por fora da tranca furaria a única coisa que impede merge
+sem CI verde neste repositório.
+
+**Para a sessão que retomar:** o `057` não tem mais fase para implementar. Se a cota
+tiver voltado, o trabalho é mergear os dois PRs na ordem acima e encerrar o item,
+migrando as duas validações de campo pendentes da fase 1 para a seção homônima de
+`product/roadmap.md`. Se a cota ainda estiver bloqueada, meça **pela anotação do
+check run** — nunca pela sonda do rerun, que responde pelo passado imediato e pode
+ser satisfeita por um job desta casa — e pare de novo: o reparo não está nesta
+máquina, e insistir gasta token contra uma conta bloqueada.
