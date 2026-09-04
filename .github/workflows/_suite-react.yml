@@ -148,7 +148,25 @@ jobs:
           exige_pacote_pnpm web "o pacote da web"
 
       - name: Navegador
-        run: pnpm --filter web exec playwright install --with-deps chromium
+        # `--with-deps` chama `sudo apt-get` para as bibliotecas de sistema do
+        # navegador. No runner da nuvem isso funciona, porque o job roda como
+        # root numa máquina descartável; no runner desta casa ele para com
+        # "sudo: uma senha é necessária" — medido na primeira execução do
+        # estágio local, em 04/09/2026.
+        #
+        # As bibliotecas são estáveis e foram instaladas uma vez nesta máquina
+        # (`npx playwright install-deps chromium`). Reinstalá-las a cada job
+        # seria pagar apt-get por execução para não mudar nada.
+        #
+        # Esta é a única diferença entre os dois estágios, e ela é declarada em
+        # vez de resolvida com `|| true`: um passo que engole a falha faz o job
+        # seguinte quebrar no lugar errado, dizendo que o navegador não abriu.
+        run: |
+          if [ "${{ inputs.runner }}" = "self-hosted" ]; then
+            pnpm --filter web exec playwright install chromium
+          else
+            pnpm --filter web exec playwright install --with-deps chromium
+          fi
 
       # Cada critério comportamental do plano vira um caso aqui. Isto não é
       # suíte de regressão: é a prova do que unidade e integração não provam.
