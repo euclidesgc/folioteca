@@ -293,19 +293,19 @@
           "por": "autonomo"
         },
         "spec": {
-          "at": "2026-09-03T10:20:51Z",
-          "sha": "b499ec3c367b083dc0d87565c72397ed66142a30",
+          "at": "2026-09-03T16:23:34Z",
+          "sha": "79b328ca1cda866cd3d0667cb2c5d595a88989cf",
           "file": "product/items/023-endurecimento-antes-da-sessao/02-spec.md",
           "por": "autonomo"
         },
         "plan": {
-          "at": "2026-09-03T12:06:52Z",
-          "sha": "2a4928f2e797c0001b4cd1a1ce8922ee7ad426c9",
+          "at": "2026-09-03T16:23:34Z",
+          "sha": "0a054f5d9faf6b58fd21c6041e56d8f2bb1fa602",
           "file": "product/items/023-endurecimento-antes-da-sessao/03-plan.md",
           "por": "humano"
         }
       },
-      "current_phase": 2,
+      "current_phase": 3,
       "phases": {
         "1": {
           "status": "aprovada",
@@ -335,6 +335,21 @@
             "apps/api": "94d817949b25e9e6f2c28fb9d817a444f2e4bb32",
             "apps/site": "c40cb4778ae97ac94831f01ef68f76e34d956ab8",
             "apps/web": "94c9cfdbf62e6d1baa64d43614230676fe4d7b3d"
+          }
+        },
+        "3": {
+          "status": "aprovada",
+          "reproved_count": 0,
+          "verdict": "APROVADO",
+          "verdict_file": "product/items/023-endurecimento-antes-da-sessao/05-veredictos/fase-3.md",
+          "validated_sha": "caf226c9e48421ea61fd35e1440f04a23889cf0b",
+          "pr": null,
+          "blocked_on": [],
+          "verdict_at": "2026-09-03T16:40:45Z",
+          "validated_trees": {
+            "apps/api": "94d817949b25e9e6f2c28fb9d817a444f2e4bb32",
+            "apps/site": "c40cb4778ae97ac94831f01ef68f76e34d956ab8",
+            "apps/web": "0cf0f8ba163abd68660669963dd7b6b138664388"
           }
         }
       },
@@ -397,6 +412,16 @@
           "aprovada_at": "2026-09-03T11:56:47Z",
           "ratificada_por": "humano",
           "reconciliada_at": "2026-09-03T12:06:51Z",
+          "ratificacao_humana_at": "2026-09-03T19:23:49Z"
+        },
+        "D-007": {
+          "status": "RECONCILIADA",
+          "kind": "normal",
+          "phase": 3,
+          "detected_at": "2026-09-03T16:16:39Z",
+          "aprovada_at": "2026-09-03T16:16:39Z",
+          "ratificada_por": "humano",
+          "reconciliada_at": "2026-09-03T16:23:34Z",
           "ratificacao_humana_at": "2026-09-03T19:23:49Z"
         }
       },

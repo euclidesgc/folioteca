@@ -229,6 +229,56 @@ PR e commit já escritos.
       por arquivo ou por entrada padrão, não por argumento de linha de comando,
       que é público para todo processo da máquina.
 
+- [ ] `036-o-portao-declara-o-que-nao-conseguiu-ver` — `gates_runner.sh` diz
+      quantos arquivos mediu **e** quantos ficaram fora do alcance dele
+      **Depende de:** nada — o runner já existe em `scripts/gates/`.
+      **Origem:** fase 3 de `023-endurecimento-antes-da-sessao`. O runner enumera
+      por `git ls-files` (`scripts/gates/gates_runner.sh:81`), que não devolve
+      arquivo não rastreado. Rodado antes do `git add`, ele imprimiu
+      `✓ gates: limpos (árvore completa, 256 arquivo(s) considerados)` sobre uma
+      árvore em que `apps/web/src/shared/config/build-api-url.ts` acabara de
+      nascer e não tinha sido medido; adicionado ao índice, o mesmo comando
+      reprovou por G3 em três linhas daquele arquivo. Não é o número que mente, é
+      a palavra **completa**: ela afirma uma cobertura que a enumeração não tem, e
+      quem lê o verde não tem como suspeitar. As duas saídas honestas são varrer
+      também o não rastreado, ou dizer quantos ficaram de fora e recusar o verde
+      quando houver algum — a segunda é mais barata e não muda o que cada portão
+      julga. Enquanto isso não muda, roda-se o portão **depois** do `git add`.
+
+- [ ] `037-a-fronteira-de-agent-mede-quem-escreve` — o guard de escopo recusa a
+      escrita pelo agent que a fez, e não pelo último agent despachado
+      **Depende de:** nada — o guard já existe nos hooks do harness.
+      **Origem:** fase 3 de `023-endurecimento-antes-da-sessao`, três vezes na
+      mesma sessão. Com um agent vivo em segundo plano, a thread principal tentou
+      gravar em `product/` e o guard recusou dizendo que `react-implementer` só
+      escreve em `apps/web/**`; depois, que `phase-validator` não escreve arquivo
+      nenhum. O escopo estava certo nas três; o sujeito é que era outro. A causa
+      está escrita no próprio plugin, em `scripts/hooks/_hooklib.py:157`: o
+      `PreToolUse` não informa qual agent chamou a ferramenta, então o harness
+      grava o tipo do agent num arquivo enquanto ele roda e o apaga ao terminar.
+      O desenho pressupõe agent **sequencial** — a thread principal parada
+      esperando. Despachado em segundo plano, o arquivo fica preenchido enquanto
+      quem orquestra continua trabalhando, e a fronteira passa a valer para
+      quem ela não foi escrita. O efeito prático é pior do que a recusa: a mesma
+      escrita passa pelo shell, que o guard não cobre, de modo que a fronteira
+      empurra para o caminho que ela não mede. O conserto mora no plugin, fora
+      deste repositório, e vai à retrospectiva da corrida junto com `D39` e
+      `D52`. Enquanto isso não muda, quem orquestra espera o agent encerrar antes
+      de gravar em `product/`.
+
+- [ ] `038-o-carregador-de-configuracao-do-vite-para-de-avisar` — o build de
+      `apps/web` sobe sem o aviso de importação sem extensão
+      **Depende de:** `023-endurecimento-antes-da-sessao` — é a fase 3 dele que
+      cria o import que dispara o aviso.
+      **Origem:** fase 3 de `023-endurecimento-antes-da-sessao`. `vite.config.ts`
+      passou a importar `./src/shared/config/build-api-url` para peneirar a
+      origem antes de ela virar política (`D-007`), e o Vite avisa que o
+      carregador nativo, que vai virar padrão, exige a extensão `.ts` no
+      especificador. Acrescentá-la hoje quebra o `typecheck` com `TS5097`, que
+      pede `allowImportingTsExtensions` no `tsconfig.json` — mudança de
+      configuração de tipos que não cabia numa fase de endurecimento de
+      cabeçalhos. O aviso é ruído em todo build até lá.
+
 - [ ] `002-conta-e-organizacao` — quem se cadastra cria a organização e vira o
       seu primeiro administrador; o endereço é confirmado por e-mail, a senha se
       recupera sozinha, e a tela responde a mesma coisa exista ou não a conta
@@ -438,6 +488,18 @@ não bloqueia trabalho que não dependa dela.
   janela fique aberta até o primeiro deploy existir.
   **Origem:** discovery de `023-endurecimento-antes-da-sessao`, decisão autônoma
   `D1`, refinada por `D18` no estágio `spec`.
+  **Quando isto virar item, o portão vai reprovar a correção certa.**
+  `exige_dist_sem_cabecalhos_constantes`, em
+  `apps/web/scripts/verificar-politica.sh`, recusa qualquer arquivo sob `dist/`
+  que nomeie os quatro cabeçalhos constantes — e um `_headers` no diretório
+  publicado é exatamente como Netlify e Cloudflare Pages recebem configuração de
+  cabeçalho. Abra a exceção para o arquivo de configuração do host escolhido, em
+  vez de afrouxar a asserção: ela existe para impedir que o artefato decida por
+  quem serve, e o arquivo do host é o único lugar onde essa decisão é legítima.
+  Medido no navegador na fase 3: a página em `vite preview` sob a política real
+  hidrata e busca a API sem violação, e o único erro de console é o Chromium
+  dizendo que `frame-ancestors` entregue por `<meta>` é ignorado — a confirmação
+  de que a janela existe.
 
 - **O template do harness ensina a trava quebrada a todo projeto novo.**
   `templates/ci/harness.yml` do plugin, linha 26, tem a mesma leitura de rótulos
@@ -531,3 +593,15 @@ verificação**.
   real.** O HTML renderizado no servidor está verificado por comando, e a página
   não tem folha de estilo, então não há o que quebrar visualmente; ainda assim
   ninguém a abriu. Cai em `015-hotsite`, que é quem lhe dá aparência.
+
+- **`023-endurecimento-antes-da-sessao`, Fase 3 — o primeiro estilo do app sob a
+  política.** A política do `apps/web` foi carregada num Chromium real, servida
+  por `vite preview`: a página hidrata, busca a API pelo `connect-src` e não
+  produz nenhuma violação. Mas o app tem hoje uma página, nenhuma folha de estilo
+  e nenhum atributo `style=`. `style-src 'self'` governa também os estilos
+  embutidos, por queda para `style-src-attr`: o primeiro componente que escrever
+  `style="…"`, ou a primeira biblioteca que injetar `<style>` em tempo de
+  execução, quebra **só no artefato de produção** — em `vite dev` não há política
+  para violar. Cai no primeiro item que der aparência ao app,
+  `002-conta-e-organizacao`, e a verificação é abrir `vite preview` com o console
+  aberto.
