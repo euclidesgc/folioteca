@@ -82,9 +82,14 @@ que está acima, e os PRs de cima passam a mostrar o diff errado.
 ```bash
 gh stack add 001-esqueleto-do-monorepo/fase-3-web   # cria no topo e faz checkout
 # ... trabalho, commits ...
-gh stack submit                                      # empurra e liga tudo no GitHub
+gh stack submit --open                               # empurra, liga no GitHub, e abre para revisão
 gh stack view                                        # confere a corrente
 ```
+
+**Submeta sempre com `--open`.** Sem ele, `gh stack submit` num terminal que não
+é interativo — que é o seu — cria o PR como **rascunho**, e rascunho não
+mergeia: o CI roda, fica verde, a tranca libera, e o `gh` responde
+`Pull Request is still a draft`. Um PR já criado se abre com `gh pr ready <n>`.
 
 Se a pilha ainda não existe: `gh stack init --base develop <branch-de-baixo> …`,
 que adota branches já existentes de baixo para cima.

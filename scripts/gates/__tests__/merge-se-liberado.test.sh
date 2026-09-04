@@ -15,6 +15,14 @@
 # liberado não saía. Os dois casos de via abaixo prendem a contagem: com um PR
 # aberto o merge é o do PR, com dois é o da pilha.
 #
+# O terceiro é a família inteira das pré-condições. `mergeStateStatus` responde
+# pela branch — conflito, proteção, verificação — e diz `CLEAN` de um PR em
+# rascunho, que o merge recusa assim mesmo. A tranca imprimia "liberado" e o
+# `gh` respondia `Pull Request is still a draft`, às três da manhã, para
+# ninguém. Rascunho, PR fechado e estado sujo são medidos juntos para que a
+# próxima pré-condição esquecida tenha um lugar óbvio, em vez de virar a
+# terceira noite perdida.
+#
 # O `gh` é dublo: um script no PATH que responde por argumento. Sem ele o teste
 # mediria a rede e o repositório de verdade, e não o que a tranca decide.
 set -uo pipefail
@@ -22,15 +30,21 @@ raiz="$(cd "$(dirname "$0")/../../.." && pwd)"
 alvo="$raiz/scripts/merge-se-liberado.sh"
 falhas=0
 
-caso() { # caso <nome> <esperado> <checks-tsv> [rótulos]
-  local nome="$1" esperado="$2" checks="$3" rotulos="${4:-}" obtido dublo saida
+# caso <nome> <esperado> <checks-tsv> [rótulos] [pré-condições] [trecho da recusa]
+#
+# O trecho é o que separa recusar do recusar **pelo motivo certo**. Sem ele,
+# um dublo que devolve a linha de pré-condições inteira onde o script antigo
+# esperava só o estado de merge recusa por estado desconhecido, o caso fica
+# verde, e o teste deixa de morder exatamente o defeito que existe para prender.
+caso() {
+  local nome="$1" esperado="$2" checks="$3" rotulos="${4:-}" precond="${5:-false\tOPEN\tCLEAN}" trecho="${6:-}" obtido dublo saida
   dublo="$(mktemp -d)"
   cat > "$dublo/gh" <<GH
 #!/usr/bin/env bash
 case "\$*" in
   *"--json labels"*)        printf '%s' "$rotulos" ;;
   *"pr checks"*)            printf '%b' "$checks"; exit 0 ;;
-  *mergeStateStatus*)       printf 'CLEAN\n' ;;
+  *mergeStateStatus*)       printf '%b\n' "$precond" ;;
   *"stack view"*)           exit 1 ;;
   *"stack merge"*)          printf 'MERGEADO\n' ;;
   *"pr merge"*)             printf 'MERGEADO\n' ;;
@@ -41,10 +55,10 @@ GH
   saida="$(PATH="$dublo:$PATH" MERGE_ESPERA_SEGUNDOS=1 bash "$alvo" 42 2>&1)"
   obtido=$?
   [ "$obtido" -ne 0 ] && obtido=1
-  if [ "$obtido" = "$esperado" ]; then
+  if [ "$obtido" = "$esperado" ] && { [ -z "$trecho" ] || printf '%s' "$saida" | grep -q "$trecho"; }; then
     printf '  ok    %s\n' "$nome"
   else
-    printf '  FALHA %s — esperava %s, obteve %s\n' "$nome" "$esperado" "$obtido"
+    printf '  FALHA %s — esperava %s%s, obteve %s\n' "$nome" "$esperado" "${trecho:+ dizendo \"$trecho\"}" "$obtido"
     printf '%s\n' "$saida" | sed 's/^/        /'
     falhas=$((falhas + 1))
   fi
@@ -56,6 +70,10 @@ caso 'pendente recusa'              1 'ci\tpass\t1s\turl\nportoes\tpending\t0\tu
 caso 'vermelho recusa'              1 'ci\tfail\t1s\turl\n'
 caso 'rótulo de bloqueio recusa'    1 'ci\tpass\t1s\turl\n' 'blocked-on-D-007'
 caso 'pendente recusa mesmo com o resto verde' 1 'a\tpass\t1s\turl\nb\tpass\t1s\turl\nc\tpending\t0\turl\n'
+caso 'rascunho recusa, e diz que é rascunho'     1 'ci\tpass\t1s\turl\n' '' 'true\tOPEN\tCLEAN'  'está em rascunho'
+caso 'PR fechado recusa, e diz que não está aberto' 1 'ci\tpass\t1s\turl\n' '' 'false\tCLOSED\tCLEAN' 'não está aberto'
+caso 'estado de merge sujo recusa nomeando o estado' 1 'ci\tpass\t1s\turl\n' '' 'false\tOPEN\tDIRTY' 'estado DIRTY'
+caso 'pré-condição ilegível recusa por não medir' 1 'ci\tpass\t1s\turl\n' '' 'sei la\t\t' 'impossibilidade de medição'
 
 # caso_via <nome> <via esperada: pr-merge|stack-merge> <json da pilha>
 #
@@ -71,7 +89,7 @@ caso_via() {
 case "\$*" in
   *"--json labels"*)        printf '' ;;
   *"pr checks"*)            printf 'ci\tpass\t1s\turl\n'; exit 0 ;;
-  *mergeStateStatus*)       printf 'CLEAN\n' ;;
+  *mergeStateStatus*)       printf 'false\tOPEN\tCLEAN\n' ;;
   *"stack view"*)           printf '%s' '$json' ;;
   *"pr list"*)              printf '41\n42\n' ;;
   *"stack merge"*)          printf 'stack-merge' > "$rastro"; printf 'MERGEADO\n' ;;
@@ -103,10 +121,8 @@ case "$*" in
   *"--json labels"*)        printf '' ;;
   *"pr checks"*)            printf 'ci	pass	1s	url
 '; exit 0 ;;
-  *mergeStateStatus*)       printf 'CLEAN
-' ;;
-  *"stack view"*)           printf 'nao sou json
-' ;;
+  *mergeStateStatus*)       printf 'false\tOPEN\tCLEAN\n' ;;
+  *"stack view"*)           printf 'nao sou json\n' ;;
   *"pr merge"*)             printf 'MERGEADO
 ' ;;
   *)                        printf '
@@ -135,6 +151,6 @@ else
   falhas=$((falhas + 1))
 fi
 
-[ "$falhas" -eq 0 ] && { printf '✓ merge-se-liberado: %s\n' 'pendente não é verde, e a via do merge segue a pilha que existe'; exit 0; }
+[ "$falhas" -eq 0 ] && { printf '✓ merge-se-liberado: %s\n' 'pendente não é verde, rascunho não mergeia, e a via segue a pilha que existe'; exit 0; }
 printf '✗ merge-se-liberado: %s caso(s) falharam\n' "$falhas" >&2
 exit 1

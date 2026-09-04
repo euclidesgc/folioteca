@@ -133,15 +133,46 @@ if [ -n "$vermelhos" ]; then
   exit 1
 fi
 
-mede "estado de merge do PR #$pr" gh pr view "$pr" --json mergeStateStatus --jq .mergeStateStatus
-estado="$MEDIDO"
+# POR QUE AS PRÉ-CONDIÇÕES SÃO MEDIDAS JUNTAS
+# `mergeStateStatus` responde o que o GitHub pensa da **branch** — conflito,
+# proteção, verificação. Ele diz `CLEAN` de um PR em rascunho e de um PR já
+# fechado, e o merge dos dois é recusado assim mesmo. Cada pré-condição que
+# ficasse de fora daqui custaria a mesma noite: a tranca imprime "liberado", o
+# `gh` responde `Pull Request is still a draft` e ninguém está lendo às três da
+# manhã. Elas são medidas juntas, numa chamada só, e cada recusa é nominal.
+mede "pré-condições de merge do PR #$pr" \
+  gh pr view "$pr" --json isDraft,state,mergeStateStatus --jq '[.isDraft, .state, .mergeStateStatus] | @tsv'
+IFS="$(printf '\t')" read -r rascunho situacao estado <<PRECOND
+$MEDIDO
+PRECOND
+
+case "$rascunho" in
+  true|false) ;;
+  *) nao_mediu "pré-condições do PR #$pr: o GitHub respondeu, mas sem dizer se ele é rascunho." ;;
+esac
+[ -n "$situacao" ] || nao_mediu "pré-condições do PR #$pr: o GitHub respondeu, mas sem a situação do PR."
+[ -n "$estado" ] || nao_mediu "pré-condições do PR #$pr: o GitHub respondeu, mas sem estado de merge."
+
+printf 'medido: PR #%s situação %s, rascunho %s, estado de merge %s.\n' "$pr" "$situacao" "$rascunho" "$estado"
+
+if [ "$situacao" != "OPEN" ]; then
+  printf 'RECUSADO: o PR #%s não está aberto — situação %s.\n' "$pr" "$situacao" >&2
+  exit 1
+fi
+
+if [ "$rascunho" = "true" ]; then
+  printf 'RECUSADO: o PR #%s está em rascunho, e rascunho não mergeia.\n' "$pr" >&2
+  printf '`gh stack submit` cria o PR como rascunho quando o terminal não é interativo.\n' >&2
+  printf 'Submeta com `gh stack submit --open`, ou marque este com `gh pr ready %s`.\n' "$pr" >&2
+  exit 1
+fi
+
 case "$estado" in
   CLEAN|UNSTABLE|HAS_HOOKS) ;;
-  '') nao_mediu "estado de merge do PR #$pr: o GitHub respondeu, mas sem estado." ;;
   *) printf 'RECUSADO: o PR #%s está em estado %s.\n' "$pr" "$estado" >&2; exit 1 ;;
 esac
 
-printf 'PR #%s liberado: sem bloqueio, nenhuma verificação vermelha nem pendente, estado %s.\n' "$pr" "$estado"
+printf 'PR #%s liberado: sem bloqueio, nenhuma verificação vermelha nem pendente, aberto, fora de rascunho, estado %s.\n' "$pr" "$estado"
 
 # PR que pertence a uma pilha não mergeia por `gh pr merge`: o GitHub exige a
 # via da pilha. `gh stack merge` é atômico — tudo até o PR escolhido entra
