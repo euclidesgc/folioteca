@@ -64,7 +64,7 @@ jobs:
         run: bash scripts/gates/__tests__/quarentena.test.sh
       - name: o portão das ações reprova a tag móvel e o diretório sem fluxo
         run: bash scripts/gates/__tests__/acoes-em-sha.test.sh
-      - name: o portão do rascunho morde a guarda e o ready_for_review
+      - name: o portão dos fluxos morde a guarda, o ready_for_review e a ordem dos estágios
         run: bash scripts/gates/__tests__/fluxos.test.sh
       - name: a peneira do packageManager recusa o que não é pnpm@X.Y.Z
         run: bash scripts/ci/__tests__/instalar-pnpm.test.sh
