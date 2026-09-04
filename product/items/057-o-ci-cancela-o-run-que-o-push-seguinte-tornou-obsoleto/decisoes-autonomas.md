@@ -809,3 +809,46 @@ sua extinção medida (`D28`).
 o teste que prova que ele morde, e as duas linhas que o executam. Ela nasce
 empilhada sobre a branch desta fase, porque o critério que mede a linha `medido:`
 sobre a árvore real só fecha com a fase 1 dentro dela.
+
+### D31 — O defeito da tranca reincidiu, e a regra 20 mandou a causa raiz para worktree
+
+Ao mergear o PR #46 desta fase, `merge-se-liberado.sh` mediu tudo, imprimiu
+`PR #46 liberado: sem bloqueio, nenhuma verificação vermelha nem pendente,
+aberto, fora de rascunho, estado CLEAN` e falhou com
+`GraphQL: This pull request is part of a stack and must be merged using the
+asynchronous merge REST API`.
+
+**É a segunda ocorrência do defeito que `D18` registrou no PR #44.** Na primeira,
+a decisão foi escrever o item `060` no roadmap e deixar o PR aberto, porque
+`scripts/merge-se-liberado.sh` está no não-escopo do `057`. Repetir isso agora
+seria o terceiro remendo do mesmo caso, e a regra 20 do `CLAUDE.md` é explícita:
+a segunda ocorrência vira causa raiz, em worktree, com asserção, com teste que
+prove que ela morde, e com a regra escrita onde a próxima sessão a leia.
+
+**Decidido:** worktree em paralelo, branch
+`060-a-tranca-mergeia-o-ultimo-pr-aberto-de-uma-pilha/causa-raiz`, PR **#47**
+sobre `develop`. A tranca passa a contar o **total** de PRs da pilha — que é o que
+diz se a pilha existe no GitHub — para escolher a via, e segue contando os
+**abertos** para decidir quem verificar abaixo. O teste ganhou o caso da pilha
+cujo penúltimo PR já mergeou; rodado contra a versão de `origin/develop` do
+script, ele reprova esse caso e só ele, com os treze outros verdes.
+
+**Por que isto não fura o não-escopo do `057`:** a worktree é justamente o que
+mantém o arquivo fora do PR #46. O trabalho vai num PR do item `060`, que já era
+o dono declarado deste defeito desde `D18`. O não-escopo do `057` continua
+intacto — nenhuma linha de `merge-se-liberado.sh` entra na branch da fase 1.
+
+**Alternativa descartada:** mergear o #46 à mão pela REST assíncrona
+(`gh api --method PUT .../pulls/46/merge`). Custo: fura a tranca, que é a única
+coisa que impede merge sem CI verde neste repositório, e resolve o caso deixando
+a classe viva para o próximo PR de pilha — exatamente o que a regra 20 proíbe.
+
+**Segunda alternativa descartada:** deixar o #46 aberto e parar, como se fez com
+o #44. Custo: a pilha não esvazia, e de manhã o dono encontra dois pull requests
+verdes que a tranca liberou e não mergeou, pelo mesmo motivo, com o item que
+corrige isso ainda por fazer.
+
+**Ordem de merge, que é consequência disto:** o #47 mergeia primeiro; a branch
+desta fase é reempilhada sobre o `develop` já corrigido; e só então o #46 mergeia,
+pela tranca, com o script que sabe contar a pilha. É também a primeira medição de
+campo da correção.
