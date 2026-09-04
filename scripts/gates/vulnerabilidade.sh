@@ -50,11 +50,24 @@
 #
 # `pnpm audit` fala com o registro npm, e chamada de rede sem teto não reprova
 # nem aprova: ela pendura o job até o limite do runner, que é de seis horas por
-# omissão. Medido nesta máquina: 242 segundos numa execução e nenhuma resposta em
-# 180 na anterior. O teto transforma o pendurado em reprovação nomeada — o
-# processo morre, a saída padrão fica vazia, e o portão cai no mesmo caminho de
-# `não consegui auditar` que já existe para o registro inalcançável. É o idioma
-# que `scripts/merge-se-liberado.sh` já usa em toda chamada de rede.
+# omissão. O teto transforma o pendurado em reprovação nomeada — o processo
+# morre, a saída padrão fica vazia, e o portão cai no mesmo caminho de `não
+# consegui auditar` que já existe para o registro inalcançável. É o idioma que
+# `scripts/merge-se-liberado.sh` já usa em toda chamada de rede.
+#
+# POR QUE O TEMPO DE UMA TENTATIVA É DECLARADO AQUI
+#
+# O endpoint de auditoria responde sobre o lockfile inteiro numa requisição só, e
+# a resposta destes 923 pacotes leva 71 segundos numa chamada isolada — mais que
+# os 60 segundos de `fetch-timeout` que o pnpm assume por omissão. Com o valor de
+# omissão a tentativa é abortada a 11 segundos do fim, o pnpm reencadeia as
+# tentativas, e o que chega à saída padrão é um JSON válido de erro por tempo
+# esgotado: o portão reprova dizendo `não consegui auditar` em toda execução, num
+# repositório sem vulnerabilidade nenhuma. Portão que reprova sempre não é
+# rigoroso, é ignorado — e a saída seria desligá-lo. O tempo de uma tentativa fica
+# acima do que a chamada mede, com folga, e quem continua fechando o caso do
+# registro morto é o teto do processo, que não depende de configuração de
+# ferramenta.
 set -uo pipefail
 
 RAIZ_DO_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -75,6 +88,29 @@ PADRAO_DE_ISENCAO='^(GHSA-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}|[0-9]+):[0-9]{4}-[
 # medindo, está pendurada.
 TETO_DA_AUDITORIA=600
 
+# Milissegundos, e por tentativa. Fica abaixo do teto do processo mesmo somando a
+# tentativa de repetição: quem decide o fim é o teto, não a ferramenta.
+TEMPO_DE_UMA_TENTATIVA=240000
+REPETICOES_DA_TENTATIVA=1
+
+# POR QUE A AUDITORIA É TENTADA MAIS DE UMA VEZ
+#
+# O endpoint de auditoria do npm limita por volume, e a medição que o mostra está
+# na `D42` do `decisoes-autonomas.md` deste item: três chamadas iguais, espaçadas
+# por 45 segundos, responderam em 74 s, em 90 s e em nenhum tempo — a terceira
+# esgotou os 240 s da tentativa. Um pull request deste repositório dispara três
+# jobs que chamam a auditoria ao mesmo tempo, e foi assim que os três ficaram
+# vermelhos juntos, no mesmo minuto, com o lockfile limpo.
+#
+# A repetição com espera é mitigação, e não conserto: quem conserta é trocar o
+# motor por um que não limite assim, e essa decisão reabre a `D1` — está na
+# divergência `D-001` desta fase, com o roadmap `055`. Enquanto ela não vem, o
+# portão prefere esperar a reprovar quem não errou. O que ele **não** faz é
+# desistir em silêncio: esgotadas as tentativas, a reprovação continua sendo por
+# impossibilidade de medição, dizendo quantas vezes tentou.
+TENTATIVAS_DA_AUDITORIA=3
+ESPERA_ENTRE_TENTATIVAS=30
+
 # `mktemp` e não um nome derivado do PID: nome previsível em diretório
 # compartilhado é arquivo que outro usuário planta como link antes, e o `2>` do
 # shell segue link. O `trap` cobre a interrupção, que o `rm` no fim do caminho
@@ -88,7 +124,33 @@ trap limpar_arquivo_de_erro EXIT
 # vez do descarte porque é ela que diz se foi proxy, TLS ou registro fora do ar —
 # reprovar sem a razão manda quem lê o log adivinhar.
 auditar_lockfile() {
-  (cd "$RAIZ" && timeout -k 30 "$TETO_DA_AUDITORIA" pnpm audit --audit-level=high --json 2>"$ARQUIVO_DE_ERRO")
+  (cd "$RAIZ" && env npm_config_fetch_timeout="$TEMPO_DE_UMA_TENTATIVA" \
+    npm_config_fetch_retries="$REPETICOES_DA_TENTATIVA" \
+    timeout -k 30 "$TETO_DA_AUDITORIA" pnpm audit --audit-level=high --json 2>"$ARQUIVO_DE_ERRO")
+}
+
+# Só a resposta que não é auditoria nenhuma — sem JSON, ou JSON cujo corpo é um
+# erro — é tentada de novo. Achado, contagem e forma desconhecida saem na
+# primeira: repetir uma resposta que a ferramenta deu é gastar tempo para receber
+# a mesma coisa, e esconderia atrás de uma espera o relatório que mudou de forma.
+auditoria_utilizavel() {
+  [ -n "$1" ] || return 1
+  printf '%s' "$1" | jq -e 'type == "object" and (has("error") | not)' >/dev/null 2>&1
+}
+
+# Escreve em duas variáveis do escopo do script em vez de devolver pela saída
+# padrão: a contagem de tentativas é parte do que o portão mediu, e uma função
+# capturada por `$( )` roda em subshell, de onde nenhuma atribuição volta.
+auditar_com_repeticao() {
+  TENTATIVAS_GASTAS=1
+  while :; do
+    JSON_DA_AUDITORIA="$(auditar_lockfile)"
+    auditoria_utilizavel "$JSON_DA_AUDITORIA" && return
+    [ "$TENTATIVAS_GASTAS" -ge "$TENTATIVAS_DA_AUDITORIA" ] && return
+    echo "  tentativa $TENTATIVAS_GASTAS de $TENTATIVAS_DA_AUDITORIA não trouxe auditoria; esperando ${ESPERA_ENTRE_TENTATIVAS}s"
+    sleep "$ESPERA_ENTRE_TENTATIVAS"
+    TENTATIVAS_GASTAS=$((TENTATIVAS_GASTAS + 1))
+  done
 }
 
 # Toda mensagem que vem de fora — do registro, da ferramenta — atravessa isto
@@ -156,10 +218,28 @@ conta_registros() { # conta_registros <arquivo> <separador `=` ou `:`>
   printf '%s' "$total"
 }
 
-REDIRECIONAMENTOS=$(( $(conta_registros "$RAIZ/.npmrc" '=') + $(conta_registros "$RAIZ/pnpm-workspace.yaml" ':') ))
-echo "medido: $REDIRECIONAMENTOS registro(s) declarado(s) fora de $REGISTRO_ESPERADO em .npmrc e pnpm-workspace.yaml"
+# As quatro casas são medidas porque as quatro redirecionam a mesma chamada. O
+# `~/.npmrc` e o ambiente não são arquivo do pull request, e por isso não são
+# risco de quem abre o PR — são o buraco simétrico: o portão ficaria verde na
+# máquina de quem tem o espelho configurado, sobre uma resposta que ninguém
+# verificou, exatamente o defeito que as isenções deste arquivo recusam repetir.
+conta_registros_do_ambiente() {
+  local total=0
+  for valor in "${npm_config_registry:-}" "${NPM_CONFIG_REGISTRY:-}"; do
+    [ -z "$valor" ] && continue
+    valor="${valor%/}"
+    [ "$valor" = "$REGISTRO_ESPERADO" ] || total=$((total + 1))
+  done
+  printf '%s' "$total"
+}
+
+REDIRECIONAMENTOS=$(( $(conta_registros "$RAIZ/.npmrc" '=') \
+  + $(conta_registros "$RAIZ/pnpm-workspace.yaml" ':') \
+  + $(conta_registros "${HOME:-}/.npmrc" '=') \
+  + $(conta_registros_do_ambiente) ))
+echo "medido: $REDIRECIONAMENTOS registro(s) declarado(s) fora de $REGISTRO_ESPERADO em .npmrc, pnpm-workspace.yaml, ${HOME:-~}/.npmrc e no ambiente"
 if [ "$REDIRECIONAMENTOS" -ne 0 ]; then
-  _reprova "não consegui auditar o pnpm-lock.yaml: a configuração da raiz sob $RAIZ aponta o registro para fora de $REGISTRO_ESPERADO, e quem responde a auditoria passa a ser escolhido pelo arquivo do pull request — a contagem de pacotes é local e continuaria dizendo o número certo sobre uma resposta que ninguém verificou"
+  _reprova "não consegui auditar o pnpm-lock.yaml: a configuração que vale sob $RAIZ aponta o registro para fora de $REGISTRO_ESPERADO — em .npmrc, em pnpm-workspace.yaml, em ${HOME:-~}/.npmrc ou nas variáveis npm_config_registry e NPM_CONFIG_REGISTRY —, e quem responde a auditoria passa a ser escolhido por essa declaração: a contagem de pacotes é local e continuaria dizendo o número certo sobre uma resposta que ninguém verificou"
 fi
 
 ISENCOES_VIGENTES=()
@@ -175,11 +255,13 @@ for entrada in ${ISENCOES_DECLARADAS[@]+"${ISENCOES_DECLARADAS[@]}"}; do
   fi
 done
 
-JSON="$(auditar_lockfile)"
+auditar_com_repeticao
+JSON="$JSON_DA_AUDITORIA"
+echo "medido: $TENTATIVAS_GASTAS tentativa(s) de auditoria, de no máximo $TENTATIVAS_DA_AUDITORIA"
 RAZAO_DA_FERRAMENTA="$(em_uma_linha "$(head -c 400 "$ARQUIVO_DE_ERRO" 2>/dev/null)")"
 limpar_arquivo_de_erro
 if [ -z "$JSON" ] || ! printf '%s' "$JSON" | jq -e 'type == "object"' >/dev/null 2>&1; then
-  _reprova "não consegui auditar o pnpm-lock.yaml: 'pnpm audit --audit-level=high --json' não devolveu JSON sob $RAIZ — registro inalcançável e vulnerabilidade encontrada saem as duas com código 1, e só o conteúdo do JSON as separa. A ferramenta disse: ${RAZAO_DA_FERRAMENTA:-nada}"
+  _reprova "não consegui auditar o pnpm-lock.yaml: 'pnpm audit --audit-level=high --json' não devolveu JSON sob $RAIZ em $TENTATIVAS_GASTAS tentativa(s) — registro inalcançável e vulnerabilidade encontrada saem as duas com código 1, e só o conteúdo do JSON as separa. A ferramenta disse: ${RAZAO_DA_FERRAMENTA:-nada}"
 fi
 
 # Medido: quando o registro não responde, `pnpm audit --json` devolve um JSON
@@ -189,15 +271,32 @@ fi
 # reprovaria pelo caminho certo dizendo a razão errada, "auditoria de nenhum
 # pacote", quando o que houve foi rede. Dizer a razão errada é o defeito irmão de
 # dizer `0 achados`: as duas mandam quem lê consertar a coisa errada.
-ERRO_DA_FERRAMENTA="$(em_uma_linha "$(printf '%s' "$JSON" | jq -r '.error.message // empty')")"
-if [ -n "$ERRO_DA_FERRAMENTA" ]; then
-  _reprova "não consegui auditar o pnpm-lock.yaml: a ferramenta devolveu erro em vez de auditoria sob $RAIZ — $ERRO_DA_FERRAMENTA"
+# A presença da chave é o que decide, e não o texto dentro dela: um erro sem
+# `message` cairia adiante no ramo de `totalDependencies` e culparia `auditoria de
+# nenhum pacote`, mandando quem lê consertar lockfile quando o que houve foi rede.
+if printf '%s' "$JSON" | jq -e 'has("error")' >/dev/null 2>&1; then
+  ERRO_DA_FERRAMENTA="$(em_uma_linha "$(printf '%s' "$JSON" | jq -r '.error.message // (.error | tostring)')")"
+  _reprova "não consegui auditar o pnpm-lock.yaml: a ferramenta devolveu erro em vez de auditoria sob $RAIZ em $TENTATIVAS_GASTAS tentativa(s) — $ERRO_DA_FERRAMENTA"
 fi
 
 # O código de saída do `jq` é lido: sem isso a atribuição engole o erro, a
 # variável fica vazia, e vazio é indistinguível de lockfile limpo.
-CONTAGENS="$(printf '%s' "$JSON" | jq -r '[.metadata.vulnerabilities.critical // 0, .metadata.vulnerabilities.high // 0, .metadata.vulnerabilities.moderate // 0, .metadata.vulnerabilities.low // 0, .metadata.totalDependencies // 0] | @tsv')" \
-  || _reprova "não consegui auditar o pnpm-lock.yaml: o JSON da auditoria sob $RAIZ não respondeu ao filtro de contagem — o relatório mudou de forma, e ler zero de um formato que este portão já não conhece é dizer 0 achados por outro nome"
+#
+# A forma é cobrada por presença de chave, e nunca por valor de omissão: `jq` erra
+# por tipo errado, jamais por chave ausente, então um `// 0` sobre um relatório
+# que renomeou `metadata.vulnerabilities` devolveria a contagem toda em zero e
+# faria este portão imprimir `high: 0` sobre um formato que ele já não entende. É
+# a mesma frase `0 achados` que o arquivo inteiro existe para não dizer, só que
+# escrita pela ferramenta em vez de pelo lockfile.
+CONTAGENS="$(printf '%s' "$JSON" | jq -r '
+  if (.advisories | type) != "object" then error("advisories")
+  elif (.metadata | type) != "object" then error("metadata")
+  elif (.metadata.vulnerabilities | type) != "object" then error("metadata.vulnerabilities")
+  else [.metadata.vulnerabilities.critical, .metadata.vulnerabilities.high, .metadata.vulnerabilities.moderate, .metadata.vulnerabilities.low, .metadata.totalDependencies]
+  end
+  | if any(.[]; type != "number") then error("contagem") else . end
+  | @tsv')" \
+  || _reprova "não consegui auditar o pnpm-lock.yaml: o JSON da auditoria sob $RAIZ não traz .advisories e .metadata.vulnerabilities na forma que este portão lê — o relatório mudou de forma, e ler zero de um formato que este portão já não conhece é dizer 0 achados por outro nome"
 IFS=$'\t' read -r CRITICAS ALTAS MODERADAS BAIXAS TOTAL <<< "$CONTAGENS"
 
 case "${TOTAL:-}" in
@@ -207,7 +306,7 @@ if [ "$TOTAL" -eq 0 ]; then
   _reprova "não consegui auditar o pnpm-lock.yaml: o JSON da auditoria traz metadata.totalDependencies = 0 sob $RAIZ — auditoria de nenhum pacote não é lockfile limpo"
 fi
 
-ACHADOS="$(printf '%s' "$JSON" | jq -r '(.advisories // {}) | to_entries[] | .value as $a | ($a.github_advisory_id // .key) as $id | select($a.severity == "high" or $a.severity == "critical") | [$id, ($a.module_name // "?"), ((($a.findings // [])[0]).version // "?"), $a.severity, ($a.patched_versions // "?")] | @tsv')" \
+ACHADOS="$(printf '%s' "$JSON" | jq -r '.advisories | to_entries[] | .value as $a | ($a.github_advisory_id // .key) as $id | select($a.severity == "high" or $a.severity == "critical") | [$id, ($a.module_name // "?"), ((($a.findings // [])[0]).version // "?"), $a.severity, ($a.patched_versions // "?")] | @tsv')" \
   || _reprova "não consegui auditar o pnpm-lock.yaml: o JSON da auditoria sob $RAIZ não respondeu ao filtro de achados — sem a lista, vazio é indistinguível de lockfile limpo"
 
 LIDOS=0

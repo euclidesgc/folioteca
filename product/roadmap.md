@@ -60,24 +60,33 @@ PR e commit já escritos.
       redondo igual para todos: teto que não sai de medição é teto que reprova o
       job legítimo no dia em que a rede está lenta.
 
-- [ ] `053-o-portao-de-vulnerabilidade-insiste-antes-de-desistir` — uma
+- [x] `053-o-portao-de-vulnerabilidade-insiste-antes-de-desistir` — uma
       indisponibilidade curta do registro npm deixa de reprovar o pull request de
       quem não mexeu em dependência nenhuma
+      **Fechado na fase 1 de `027-vulnerabilidade-conhecida-reprova-no-ci`,** e
+      não numa fase futura: a insistência já estava escrita quando a medição
+      mostrou que a falha não é curta nem rara — o portão tenta três vezes, com
+      espera declarada, e imprime quantas tentativas gastou. Ela **não** resolve o
+      limite de taxa do endpoint, que é a causa; isso é o `055`.
+
+- [ ] `055-a-auditoria-de-dependencia-troca-de-motor` — o portão de
+      vulnerabilidade passa a medir por uma base que responde em toda execução, e
+      o vermelho volta a significar dependência vulnerável
       **Depende de:** `027-vulnerabilidade-conhecida-reprova-no-ci` — é o portão
-      dele que ganha a insistência, e ela só faz sentido depois de a falha
-      fechada existir.
-      **Origem:** fase 1 de `027-vulnerabilidade-conhecida-reprova-no-ci`,
-      levantado pelo validador cego e pela auditoria de segurança. O portão fala
-      com o registro npm em todo pull request e reprova quando não alcança —
-      correto, e é a razão de ele existir —, mas não tenta de novo: das quatro
-      execuções contra o registro de verdade nesta sessão, uma terminou em `The
-      operation was aborted due to timeout`. Hoje a única saída é reexecutar o job
-      à mão. Fechar é insistir um número declarado de vezes, com espera crescente
-      entre elas, dentro do `TETO_DA_AUDITORIA` que já existe, e imprimir quantas
-      tentativas foram gastas — sem isso a insistência esconde justamente a
-      degradação que interessa medir. O que **não** se faz é aprovar depois de
-      esgotar as tentativas: continuar reprovando é o requisito, e o item só muda
-      quantas vezes se pergunta antes de desistir.
+      dele que troca de motor, e a troca só se sustenta depois de a falha fechada,
+      a isenção com prazo e os testes existirem para serem reapontados.
+      **Origem:** fase 1 de `027-vulnerabilidade-conhecida-reprova-no-ci`, ver
+      `04-divergencias/D-001.md`. O endpoint de auditoria do npm limita por
+      volume: no PR #36 os três jobs que auditam reprovaram juntos, no mesmo
+      minuto, com o lockfile limpo, e na máquina de desenvolvimento três chamadas
+      iguais espaçadas por 45 segundos responderam em 74 s, em 90 s e em nenhum
+      tempo. A repetição do `053` reduz a chance, não a remove, e portão que
+      reprova quem não errou é portão que se aprende a ignorar. Fechar é trocar o
+      motor por `osv-scanner` — a ferramenta que a skill `security-baseline`
+      nomeia —, instalado por binário com par versão/`sha256` fixado, no padrão de
+      `scripts/ci/instalar-gitleaks.sh`. A troca reabre a `D1` do
+      `decisoes-autonomas.md` e o `RF-01` do brief, que nomeiam a ferramenta, e
+      por isso ela espera ratificação humana.
 
 - [ ] `054-o-fluxo-de-portoes-instala-o-pnpm-pela-mesma-peneira-dos-outros` — a
       versão de pnpm que julga vulnerabilidade deixa de sair do arquivo do pull
