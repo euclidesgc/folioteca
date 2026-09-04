@@ -133,15 +133,46 @@ if [ -n "$vermelhos" ]; then
   exit 1
 fi
 
-mede "estado de merge do PR #$pr" gh pr view "$pr" --json mergeStateStatus --jq .mergeStateStatus
-estado="$MEDIDO"
+# POR QUE AS PRÉ-CONDIÇÕES SÃO MEDIDAS JUNTAS
+# `mergeStateStatus` responde o que o GitHub pensa da **branch** — conflito,
+# proteção, verificação. Ele diz `CLEAN` de um PR em rascunho e de um PR já
+# fechado, e o merge dos dois é recusado assim mesmo. Cada pré-condição que
+# ficasse de fora daqui custaria a mesma noite: a tranca imprime "liberado", o
+# `gh` responde `Pull Request is still a draft` e ninguém está lendo às três da
+# manhã. Elas são medidas juntas, numa chamada só, e cada recusa é nominal.
+mede "pré-condições de merge do PR #$pr" \
+  gh pr view "$pr" --json isDraft,state,mergeStateStatus --jq '[.isDraft, .state, .mergeStateStatus] | @tsv'
+IFS="$(printf '\t')" read -r rascunho situacao estado <<PRECOND
+$MEDIDO
+PRECOND
+
+case "$rascunho" in
+  true|false) ;;
+  *) nao_mediu "pré-condições do PR #$pr: o GitHub respondeu, mas sem dizer se ele é rascunho." ;;
+esac
+[ -n "$situacao" ] || nao_mediu "pré-condições do PR #$pr: o GitHub respondeu, mas sem a situação do PR."
+[ -n "$estado" ] || nao_mediu "pré-condições do PR #$pr: o GitHub respondeu, mas sem estado de merge."
+
+printf 'medido: PR #%s situação %s, rascunho %s, estado de merge %s.\n' "$pr" "$situacao" "$rascunho" "$estado"
+
+if [ "$situacao" != "OPEN" ]; then
+  printf 'RECUSADO: o PR #%s não está aberto — situação %s.\n' "$pr" "$situacao" >&2
+  exit 1
+fi
+
+if [ "$rascunho" = "true" ]; then
+  printf 'RECUSADO: o PR #%s está em rascunho, e rascunho não mergeia.\n' "$pr" >&2
+  printf '`gh stack submit` cria o PR como rascunho quando o terminal não é interativo.\n' >&2
+  printf 'Submeta com `gh stack submit --open`, ou marque este com `gh pr ready %s`.\n' "$pr" >&2
+  exit 1
+fi
+
 case "$estado" in
   CLEAN|UNSTABLE|HAS_HOOKS) ;;
-  '') nao_mediu "estado de merge do PR #$pr: o GitHub respondeu, mas sem estado." ;;
   *) printf 'RECUSADO: o PR #%s está em estado %s.\n' "$pr" "$estado" >&2; exit 1 ;;
 esac
 
-printf 'PR #%s liberado: sem bloqueio, nenhuma verificação vermelha nem pendente, estado %s.\n' "$pr" "$estado"
+printf 'PR #%s liberado: sem bloqueio, nenhuma verificação vermelha nem pendente, aberto, fora de rascunho, estado %s.\n' "$pr" "$estado"
 
 # PR que pertence a uma pilha não mergeia por `gh pr merge`: o GitHub exige a
 # via da pilha. `gh stack merge` é atômico — tudo até o PR escolhido entra
@@ -152,7 +183,27 @@ printf 'PR #%s liberado: sem bloqueio, nenhuma verificação vermelha nem penden
 # pilha", e não "não consegui perguntar": as três medições acima já provaram
 # que o GitHub responde. Sem elas, esta linha seria o desvio silencioso para o
 # merge que não verifica a pilha.
-if timeout "$TETO" gh stack view >/dev/null 2>&1; then
+#
+# POR QUE ESTAR NUMA PILHA LOCAL NÃO BASTA
+# `gh stack view` responde pela pilha **local**, que existe a partir de uma
+# branch. A pilha do GitHub, que é quem o `gh stack merge` procura pelo número,
+# só nasce com dois PRs: o primeiro item de um roadmap, ou qualquer estágio de
+# documento sozinho, produz um PR único que o `gh stack merge` recusa dizendo
+# que ele "is not a stack number or a stacked pull request". A tranca então
+# media a coisa errada — perguntava "esta branch está numa pilha aqui?" quando
+# a decisão depende de "essa pilha existe lá?" — e o merge liberado não saía.
+# A contagem abaixo é a pergunta certa, e ela é impressa.
+if timeout "$TETO" gh stack view --json >/dev/null 2>&1; then
+  command -v jq >/dev/null 2>&1 || nao_mediu "a pilha respondeu, mas sem jq não há como contar os PRs abertos dela."
+  mede "a pilha da branch atual" gh stack view --json
+  abertos="$(printf '%s' "$MEDIDO" | jq '[.branches[] | select(.pr != null and .pr.state == "OPEN")] | length' 2>/dev/null)"
+  case "$abertos" in
+    ''|*[!0-9]*) nao_mediu "a pilha da branch atual: o \`gh stack view --json\` respondeu, mas sem contagem de PR aberto." ;;
+  esac
+  printf 'medido: a pilha da branch atual tem %s PR(s) aberto(s).\n' "$abertos"
+fi
+
+if [ "${abertos:-0}" -ge 2 ]; then
   mede "a lista de PRs abertos" gh pr list --state open --json number --jq '.[].number'
   abaixo_de_todos="$MEDIDO"
   for abaixo in $(printf '%s\n' "$abaixo_de_todos" | sort -n); do
