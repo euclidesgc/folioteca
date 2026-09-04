@@ -421,27 +421,30 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       CI vermelho. A regra é datar o vencimento pelo dia seguinte ao instante
       medido — e medir o instante, em vez de arredondar para o dia da publicação.
 
-- [ ] `060-a-tranca-mergeia-o-ultimo-pr-aberto-de-uma-pilha` — a pilha esvazia
+- [x] `060-a-tranca-mergeia-o-ultimo-pr-aberto-de-uma-pilha` — a pilha esvazia
       até o fim, em vez de travar no último pull request que sobrou nela
       **Depende de:** nada — é um desvio de uma linha em
       `scripts/merge-se-liberado.sh`.
-      **Precede todo item que fecha uma pilha**, o `057` inclusive: hoje o último
-      pull request de qualquer pilha não mergeia, então nenhuma pilha esvazia, e
+      **Precede todo item que fecha uma pilha**, o `057` inclusive: sem ele o
+      último pull request de qualquer pilha não mergeia, nenhuma pilha esvazia, e
       uma pilha que só cresce vira trinta pull requests que ninguém revisa.
-      **A causa raiz, medida em 2026-09-04 no PR #44:** a tranca escolhe entre
-      `gh stack merge` e `gh pr merge` contando os pull requests **abertos** da
-      pilha, e usa `gh pr merge` quando são menos de dois. A contagem responde
-      igual para duas situações diferentes — "não existe pilha no GitHub", que é
-      o caso do PR solto que `gh stack merge` recusa, e "a pilha existe e só
-      resta um aberto nela", que é toda pilha no seu último PR. No segundo caso o
-      GitHub recusa o `gh pr merge` com `This pull request is part of a stack and
-      must be merged using the asynchronous merge REST API`, depois de a tranca já
-      ter medido tudo e liberado. A pergunta certa não é quantos estão abertos, e
-      sim se este pull request pertence a uma pilha no GitHub — o que
-      `gh stack view --json` responde, e o `057` não pode responder porque
-      `scripts/merge-se-liberado.sh` está no não-escopo dele.
+      **A causa raiz, medida em 2026-09-04 nos PRs #44 e #46:** a tranca escolhia
+      entre `gh stack merge` e `gh pr merge` contando os pull requests **abertos**
+      da pilha, e usava `gh pr merge` quando eram menos de dois. A contagem
+      respondia igual para duas situações diferentes — "não existe pilha no
+      GitHub", que é o caso do PR solto que `gh stack merge` recusa, e "a pilha
+      existe e só resta um aberto nela", que é toda pilha no seu último PR. No
+      segundo caso o GitHub recusava o `gh pr merge` com `This pull request is
+      part of a stack and must be merged using the asynchronous merge REST API`,
+      depois de a tranca já ter medido tudo e liberado.
+      **Fechado pela segunda ocorrência, em worktree:** a tranca passa a contar
+      duas coisas e a imprimir as duas — o **total** de PRs da pilha, que decide a
+      via porque é ele que diz se a pilha existe no GitHub, e os **abertos**, que
+      seguem decidindo quem precisa ser verificado abaixo. Uma pilha não deixa de
+      ser pilha porque os de baixo mergearam.
       **Origem:** estágio `plan` de `057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto`,
-      ver `decisoes-autonomas.md`, decisão `D18`.
+      ver `decisoes-autonomas.md`, decisão `D18`; reincidiu no PR #46 da fase 1 do
+      mesmo item, e a regra 20 do `CLAUDE.md` mandou a causa raiz para worktree.
 
 - [-] `057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto` — um push novo
       para de deixar atrás de si um run inteiro medindo um commit que ninguém vai
