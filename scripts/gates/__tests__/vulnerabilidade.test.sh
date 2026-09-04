@@ -95,6 +95,21 @@ tempo_de_tentativa_acima_do_padrao() { # <nome> <diretório>
   printf '  ok    %s (%s ms)\n' "$1" "$anotado"
 }
 
+monta_stub_de_dois_valores() { # monta_stub_de_dois_valores <diretório>
+  local casa="$1"
+  mkdir -p "$casa/bin"
+  printf "lockfileVersion: '9.0'\n" > "$casa/pnpm-lock.yaml"
+  {
+    printf '#!/bin/sh\n'
+    printf '[ "$1" = "audit" ] || exit 0\n'
+    printf ': > "%s/chamou-audit"\n' "$casa"
+    printf 'echo %s\n' "'{\"lixo\":1}'"
+    printf 'cat "%s/pnpm-audit-limpo.json"\n' "$fixtures"
+    printf 'exit 0\n'
+  } > "$casa/bin/pnpm"
+  chmod +x "$casa/bin/pnpm"
+}
+
 monta_stub_que_conta() { # monta_stub_que_conta <diretório> — a ferramenta nunca devolve auditoria
   local casa="$1"
   mkdir -p "$casa/bin"
@@ -406,9 +421,11 @@ caso "aviso podado nomeia onde a isenção legítima se declara" 1 \
 caso_sem "aviso podado não diz 0 achados" 1 "0 achados de severidade alta ou crítica" "$podado"
 caso_sem "aviso podado não imprime contagem de severidade" 1 "critical:" "$podado"
 
-# O mesmo confronto pega a troca de formato do relatório: aqui `.advisories` vem
-# com tipo inesperado, o filtro de achados morre, e a lista fica vazia com a
-# contagem dizendo que há um aviso alto. Antes do confronto isso saía verde.
+# Quem pega a troca de formato não é o confronto de contagens, e sim a checagem de
+# tipo do filtro de contagem — medido removendo cada um dos dois: sem o confronto
+# estes casos continuam verdes, sem a checagem de tipo eles caem. A distinção
+# importa para quem for mexer em qualquer um dos dois: aqui `.advisories` vem com
+# tipo inesperado, e o relatório que não é objeto nunca chega a ser lista vazia.
 forma="$tmp/forma-desconhecida"
 monta_stub "$forma" pnpm-audit-forma-desconhecida.json 0
 caso "relatório de forma desconhecida REPROVA por não ter medido" 1 \
@@ -570,6 +587,40 @@ caso_sem "relatório que renomeia as chaves não imprime contagem nenhuma" 1 \
 # O erro sem `message` é o mesmo erro: quem decide é a presença da chave, e não o
 # texto dentro dela. Sem isso o portão reprova pelo caminho de `totalDependencies`
 # e manda consertar o lockfile quando o que houve foi rede.
+# `jq` com mais de um valor na entrada produz uma linha por valor e sai `0`,
+# engolindo o erro dos anteriores — medido com `jq-1.7`. Daí sairia um `read` que
+# lê a linha errada e uma contagem que ninguém pediu. O caso fixa o comportamento
+# que interessa, que é reprovar; qual das guardas o pega — a de valor único no
+# filtro, ou a de forma logo antes dela — é detalhe de implementação, e as duas
+# estão no arquivo de propósito.
+dois_valores="$tmp/dois-valores"
+monta_stub_de_dois_valores "$dois_valores"
+caso "saída com mais de um valor JSON REPROVA por não ter medido" 1 \
+  "não consegui auditar" "$dois_valores" "$dois_valores/bin:$PATH" "$rapido"
+caso_sem "saída com mais de um valor JSON não diz 0 achados" 1 \
+  "0 achados de severidade alta ou crítica" "$dois_valores" "$dois_valores/bin:$PATH" "$rapido"
+
+# `npm_config_userconfig` não declara registro: ele reloca o arquivo que declara.
+# Uma peneira ancorada em `$HOME` mede o arquivo que ninguém lê enquanto o espelho
+# responde pela auditoria, e a linha `medido:` passa a afirmar zero com um
+# redirecionamento em vigor.
+config_relocada="$tmp/config-relocada"
+monta_stub "$config_relocada" pnpm-audit-limpo.json 0
+printf 'registry=https://espelho.exemplo/\n' > "$tmp/espelho.npmrc"
+saida_relocada="$(env GITHUB_WORKSPACE="$config_relocada" PATH="$config_relocada/bin:$PATH" \
+  npm_config_userconfig="$tmp/espelho.npmrc" "$bash_absoluto" "$portao" 2>&1)"
+codigo_relocado=$?
+if [ "$codigo_relocado" -eq 0 ]; then
+  printf '  FALHA registro relocado por npm_config_userconfig REPROVA — o portão aprovou sobre um espelho\n'
+  falhas=$((falhas + 1))
+elif ! printf '%s' "$saida_relocada" | grep -qF 'medido: 1 registro(s) declarado(s)'; then
+  printf '  FALHA registro relocado por npm_config_userconfig é contado — a linha medido não o viu\n'
+  falhas=$((falhas + 1))
+else
+  printf '  ok    registro relocado por npm_config_userconfig REPROVA e é contado\n'
+fi
+marcador_ausente "registro relocado reprova antes de chamar a auditoria" "$config_relocada"
+
 erro_mudo="$tmp/erro-sem-mensagem"
 monta_stub "$erro_mudo" pnpm-audit-erro-sem-mensagem.json 1
 caso "erro sem mensagem REPROVA como erro da ferramenta" 1 \

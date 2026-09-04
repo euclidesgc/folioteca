@@ -135,7 +135,7 @@ auditar_lockfile() {
 # a mesma coisa, e esconderia atrás de uma espera o relatório que mudou de forma.
 auditoria_utilizavel() {
   [ -n "$1" ] || return 1
-  printf '%s' "$1" | jq -e 'type == "object" and (has("error") | not)' >/dev/null 2>&1
+  printf '%s' "$1" | jq -s -e 'length == 1 and (.[0] | type) == "object" and (.[0] | has("error") | not)' >/dev/null 2>&1
 }
 
 # Escreve em duas variáveis do escopo do script em vez de devolver pela saída
@@ -233,13 +233,19 @@ conta_registros_do_ambiente() {
   printf '%s' "$total"
 }
 
+# O arquivo do usuário não é `$HOME/.npmrc` por definição: `npm_config_userconfig`
+# reloca esse arquivo inteiro, e uma peneira ancorada no `$HOME` mediria o arquivo
+# que ninguém está lendo enquanto o espelho responde pelo que vale. Ler o caminho
+# que a ferramenta leria é o que faz a linha `medido:` dizer a verdade.
+CONFIG_DO_USUARIO="${npm_config_userconfig:-${NPM_CONFIG_USERCONFIG:-${HOME:-}/.npmrc}}"
+
 REDIRECIONAMENTOS=$(( $(conta_registros "$RAIZ/.npmrc" '=') \
   + $(conta_registros "$RAIZ/pnpm-workspace.yaml" ':') \
-  + $(conta_registros "${HOME:-}/.npmrc" '=') \
+  + $(conta_registros "$CONFIG_DO_USUARIO" '=') \
   + $(conta_registros_do_ambiente) ))
-echo "medido: $REDIRECIONAMENTOS registro(s) declarado(s) fora de $REGISTRO_ESPERADO em .npmrc, pnpm-workspace.yaml, ${HOME:-~}/.npmrc e no ambiente"
+echo "medido: $REDIRECIONAMENTOS registro(s) declarado(s) fora de $REGISTRO_ESPERADO em .npmrc, pnpm-workspace.yaml, $CONFIG_DO_USUARIO e no ambiente"
 if [ "$REDIRECIONAMENTOS" -ne 0 ]; then
-  _reprova "não consegui auditar o pnpm-lock.yaml: a configuração que vale sob $RAIZ aponta o registro para fora de $REGISTRO_ESPERADO — em .npmrc, em pnpm-workspace.yaml, em ${HOME:-~}/.npmrc ou nas variáveis npm_config_registry e NPM_CONFIG_REGISTRY —, e quem responde a auditoria passa a ser escolhido por essa declaração: a contagem de pacotes é local e continuaria dizendo o número certo sobre uma resposta que ninguém verificou"
+  _reprova "não consegui auditar o pnpm-lock.yaml: a configuração que vale sob $RAIZ aponta o registro para fora de $REGISTRO_ESPERADO — em .npmrc, em pnpm-workspace.yaml, em $CONFIG_DO_USUARIO ou nas variáveis npm_config_registry e NPM_CONFIG_REGISTRY —, e quem responde a auditoria passa a ser escolhido por essa declaração: a contagem de pacotes é local e continuaria dizendo o número certo sobre uma resposta que ninguém verificou"
 fi
 
 ISENCOES_VIGENTES=()
@@ -260,7 +266,7 @@ JSON="$JSON_DA_AUDITORIA"
 echo "medido: $TENTATIVAS_GASTAS tentativa(s) de auditoria, de no máximo $TENTATIVAS_DA_AUDITORIA"
 RAZAO_DA_FERRAMENTA="$(em_uma_linha "$(head -c 400 "$ARQUIVO_DE_ERRO" 2>/dev/null)")"
 limpar_arquivo_de_erro
-if [ -z "$JSON" ] || ! printf '%s' "$JSON" | jq -e 'type == "object"' >/dev/null 2>&1; then
+if [ -z "$JSON" ] || ! printf '%s' "$JSON" | jq -s -e 'length == 1 and (.[0] | type) == "object"' >/dev/null 2>&1; then
   _reprova "não consegui auditar o pnpm-lock.yaml: 'pnpm audit --audit-level=high --json' não devolveu JSON sob $RAIZ em $TENTATIVAS_GASTAS tentativa(s) — registro inalcançável e vulnerabilidade encontrada saem as duas com código 1, e só o conteúdo do JSON as separa. A ferramenta disse: ${RAZAO_DA_FERRAMENTA:-nada}"
 fi
 
@@ -274,8 +280,8 @@ fi
 # A presença da chave é o que decide, e não o texto dentro dela: um erro sem
 # `message` cairia adiante no ramo de `totalDependencies` e culparia `auditoria de
 # nenhum pacote`, mandando quem lê consertar lockfile quando o que houve foi rede.
-if printf '%s' "$JSON" | jq -e 'has("error")' >/dev/null 2>&1; then
-  ERRO_DA_FERRAMENTA="$(em_uma_linha "$(printf '%s' "$JSON" | jq -r '.error.message // (.error | tostring)')")"
+if printf '%s' "$JSON" | jq -s -e 'length == 1 and (.[0] | has("error"))' >/dev/null 2>&1; then
+  ERRO_DA_FERRAMENTA="$(em_uma_linha "$(printf '%s' "$JSON" | jq -s -r '.[0].error.message // (.[0].error | tostring)')")"
   _reprova "não consegui auditar o pnpm-lock.yaml: a ferramenta devolveu erro em vez de auditoria sob $RAIZ em $TENTATIVAS_GASTAS tentativa(s) — $ERRO_DA_FERRAMENTA"
 fi
 
@@ -288,8 +294,9 @@ fi
 # faria este portão imprimir `high: 0` sobre um formato que ele já não entende. É
 # a mesma frase `0 achados` que o arquivo inteiro existe para não dizer, só que
 # escrita pela ferramenta em vez de pelo lockfile.
-CONTAGENS="$(printf '%s' "$JSON" | jq -r '
-  if (.advisories | type) != "object" then error("advisories")
+CONTAGENS="$(printf '%s' "$JSON" | jq -s -r '
+  if length != 1 then error("mais de um valor") else .[0] end
+  | if (.advisories | type) != "object" then error("advisories")
   elif (.metadata | type) != "object" then error("metadata")
   elif (.metadata.vulnerabilities | type) != "object" then error("metadata.vulnerabilities")
   else [.metadata.vulnerabilities.critical, .metadata.vulnerabilities.high, .metadata.vulnerabilities.moderate, .metadata.vulnerabilities.low, .metadata.totalDependencies]
@@ -306,7 +313,7 @@ if [ "$TOTAL" -eq 0 ]; then
   _reprova "não consegui auditar o pnpm-lock.yaml: o JSON da auditoria traz metadata.totalDependencies = 0 sob $RAIZ — auditoria de nenhum pacote não é lockfile limpo"
 fi
 
-ACHADOS="$(printf '%s' "$JSON" | jq -r '.advisories | to_entries[] | .value as $a | ($a.github_advisory_id // .key) as $id | select($a.severity == "high" or $a.severity == "critical") | [$id, ($a.module_name // "?"), ((($a.findings // [])[0]).version // "?"), $a.severity, ($a.patched_versions // "?")] | @tsv')" \
+ACHADOS="$(printf '%s' "$JSON" | jq -s -r 'if length != 1 then error("mais de um valor") else .[0] end | .advisories | to_entries[] | .value as $a | ($a.github_advisory_id // .key) as $id | select($a.severity == "high" or $a.severity == "critical") | [$id, ($a.module_name // "?"), ((($a.findings // [])[0]).version // "?"), $a.severity, ($a.patched_versions // "?")] | @tsv')" \
   || _reprova "não consegui auditar o pnpm-lock.yaml: o JSON da auditoria sob $RAIZ não respondeu ao filtro de achados — sem a lista, vazio é indistinguível de lockfile limpo"
 
 LIDOS=0
