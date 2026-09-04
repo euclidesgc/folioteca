@@ -309,3 +309,37 @@ travaria igual.
 `057` empilha sobre o PR #44 normalmente, e assim que a pilha voltar a ter dois
 pull requests abertos o caminho do `gh stack merge` volta a funcionar. O que não
 funciona é esvaziar a pilha até o fim — o último sempre fica.
+
+### O CI parou de criar runs pela segunda vez, e a sessão para aqui
+
+Medido em 2026-09-04 às 18:05Z. O commit `b427b5c` está no remoto — `git ls-remote`
+confirma que ele é o head de `057-…/plano` e `gh pr view 44` confirma que ele é o
+head do pull request —, e nove minutos depois do push nenhum run nasceu para ele.
+O run mais recente do repositório **inteiro** é de 17:57:07Z, anterior ao push. Os
+únicos checks que o PR #44 carrega no head atual vêm do GitGuardian, que não é
+GitHub Actions.
+
+É a segunda parada desta corrida; a primeira está registrada acima, no estágio
+`discovery`, e passou sozinha. A causa provável continua sendo cota de minutos, e
+continua fora do alcance daqui: medi-la exige escopo que a sessão não tem, e
+obtê-lo é decisão do dono. **A rede que falta já tem dono no roadmap:**
+`047-o-veredicto-de-fase-mede-se-o-ci-chegou-a-rodar` — hoje, um head sem run
+nenhum não é vermelho nem pendente, e a ausência de medição lê como ausência de
+problema.
+
+**O que fica provado sem o CI remoto:** `bash scripts/gates/gates_runner.sh`
+rodou nesta máquina sobre a árvore desta branch e saiu `0`, com todos os portões
+imprimindo o que mediram. E o PR #44 chegou a ficar inteiramente verde no commit
+anterior, `75d6c6b` — `Bloqueio` e `Portões` `success` às 17:57:08Z, nos dois
+estágios. O que o commit `b427b5c` acrescentou desde então é só documento:
+`roadmap.md` e este arquivo.
+
+**Próxima ação do dono:** nenhuma, se o CI voltar sozinho como da primeira vez —
+a próxima sessão pega a fase 1 e o `decide-next-action.mjs` já a indica. Se não
+voltar, a corrida trava em toda fase seguinte, e aí a decisão é dele: liberar
+cota, ou seguir com a medição de casa como única evidência.
+
+**Estado da entrega deste estágio:** plano escrito, auditado pelas duas redes,
+aprovado como `A4`, estágio movido para `execute`, PR #44 aberto e fora de
+rascunho com as sete seções. O PR **não mergeou**, e a razão é `D18` — a tranca
+não mergeia o último pull request aberto de uma pilha —, não falta de verde.
