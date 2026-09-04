@@ -50,7 +50,7 @@ PR e commit já escritos.
       espera declarada, e imprime quantas tentativas gastou. Ela **não** resolve o
       limite de taxa do endpoint, que é a causa; isso é o `055`.
 
-- [-] `027-vulnerabilidade-conhecida-reprova-no-ci` — o CI reprova quando uma
+- [x] `027-vulnerabilidade-conhecida-reprova-no-ci` — o CI reprova quando uma
       dependência do lockfile tem aviso de severidade alta, em vez de a conta ser
       feita à mão numa auditoria de fase
       **Depende de:** `023-endurecimento-antes-da-sessao` — é o item que traz a
@@ -442,6 +442,31 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       medido de cada job, e enquanto runs concorrentes disputam o mesmo endpoint o
       tempo medido não serve de régua — o mesmo job saiu **13m34s** acompanhado e
       **1m23s** sozinho.
+
+- [ ] `058-a-tranca-nao-le-check-cancelado-como-verde` — um pull request cuja
+      verificação foi cancelada para de mergear como se ela tivesse passado
+      **Depende de:** nada. É uma medição a mais em `scripts/merge-se-liberado.sh`,
+      e não depende de item nenhum.
+      **Origem:** estágio `brief` de `057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto`,
+      decisão `D12` de `decisoes-autonomas.md`. A pergunta era se cancelar run
+      tiraria o verde de um PR; a medição respondeu o contrário, e revelou este
+      buraco. Em `gh 2.92.0`, `pkg/cmd/pr/checks/aggregate.go` põe `CANCELLED`
+      num balde próprio, `cancel` — não `fail`, não `pending` —, e
+      `checks.go` só devolve código não-zero quando `Failed > 0` ou
+      `Pending > 0`. A tranca filtra `$2=="fail"` na linha 129 e `$2=="pending"`
+      em `espera_checks`: nenhum dos dois enxerga `cancel`. Um check cancelado no
+      head, sem sucessor que o substitua, não é vermelho nem pendente, e o merge
+      sai. É a classe que o cabeçalho do próprio arquivo diz existir para acabar —
+      ausência de vermelho lida como verde —, e ela sobreviveu à reescrita que
+      fechou o caso de `pending`.
+      **Não é criado pelo `057`:** cancelamento por `cancel-in-progress` sempre
+      tem um sucessor mais novo da mesma referência, então ou o sucessor conclui
+      no mesmo head, ou o head já é outro. O que alcança este buraco é o
+      cancelamento sem sucessor — o clique de uma pessoa, ou o run que morre por
+      outra causa. O defeito é anterior aos dois.
+      Fechar é recusar o merge quando o head tem verificação em `cancel` sem
+      execução posterior do mesmo fluxo que a substitua, com o teste que prove a
+      recusa. Vale a régua da casa: portão que não conseguiu medir reprova.
 
 - [ ] `052-todo-job-do-ci-declara-teto-de-tempo` — um passo que pendura para de
       consumir a cota de minutos do repositório em silêncio, porque cada job diz

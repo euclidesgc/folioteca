@@ -21,6 +21,21 @@ qualquer trabalho deste item.
 | D7 | discovery | **A branch nasce empilhada sobre `027-…/encerramento`, na pilha #39** | Abrir uma pilha nova a partir de `develop` com `gh stack init` | A pilha #39 está viva: o PR #36 é o fundo e carrega `blocked-on-D-001`, que só sai com ratificação humana, e o #38 está verde em cima dele. Largar uma pilha viva é proibido, e abrir uma segunda pilha com o mesmo trunk faz `gh stack add` responder `branch "develop" belongs to multiple stacks` na próxima sessão — que não tem terminal interativo para escolher, e trava sem criar nada. Empilhar custa o PR deste item esperar a mesma ratificação; é o preço correto, e é o que a tranca já faz de propósito |
 | D8 | discovery | **`049`, `052`, `054`, `055`, `056` e o próprio `057` descem para dentro de `### A dívida de portão desce, e não sai`, com o texto de cada um preservado inteiro** | Deixá-los onde estavam, na frente de `050-linguagem-visual-e-sistema-de-design` | Pedido pela sessão de controle da corrida (`generic-harness-b0`), e o pedido restaura uma decisão que o dono já tinha tomado: ele desceu vinte e quatro itens de dívida de portão para depois do produto em 04/09/2026, e a execução da noite gerou seis itens novos de CI que, cada um inserido "na posição de precedência certa" pela régua local, reconstituíram a fila inteira na frente do `050`. Nenhum dos seis é dependência do `050` — são medições do processo, e o que falta medir é o que ainda não existe. Eles não saem do roadmap e não perdem a origem: só param de bloquear o produto. A ordem dentro da seção preserva a relação que já estava escrita — `057` antes de `052`, porque teto de tempo tirado de medição contaminada por concorrência é régua torta —, e `049` vai na frente dos seis por ser o único com vencimento de calendário |
 | D9 | discovery | **A seção da dívida de portão passa a dizer, no presente, que item de portão nasce dentro dela** | Mover os seis e parar por aí | Mover sem escrever a regra deixa a causa de pé: a próxima sessão que descobrir uma pendência de CI vai inseri-la no topo, corretamente pela régua local, e em três noites a fila está reconstituída de novo. É a segunda ocorrência do mesmo efeito — a primeira foram os seis desta noite —, e a regra da casa manda tratar a classe, não o caso. O parágrafo novo delimita o alcance da frase "na posição de precedência certa": ela ordena os itens **dentro** da seção, e não os promove contra o produto |
+| D10 | brief | **Só os cinco fluxos com gatilho de evento declaram `concurrency`; as quatro suítes de `workflow_call` não declaram** | Declarar o mesmo bloco nos nove arquivos de `.github/workflows/`, que é a leitura literal do `00-discovery.md` | O terreno mudou depois do discovery: a refatoração casa/nuvem dos PRs #41 e #42 partiu os cinco fluxos em cinco de gatilho — `bloqueio`, `ci-nestjs`, `ci-react`, `ci-site`, `portoes` — e quatro suítes `_suite-*.yml` chamadas por `workflow_call`. Suíte chamada não produz run próprio: os jobs dela correm dentro do run de quem a chamou, e o `cancel-in-progress` do pai já os cancela junto. Declarar no chamado é redundante e é a forma documentada de produzir impasse, com o job do pai esperando o filho que está enfileirado atrás do próprio pai. O `00-discovery.md` não é reescrito: ele não é documento canônico e nem tem aprovação registrada — é o registro do que se soube naquele estágio, e quem mede de novo é o brief |
+| D11 | brief | **O portão `concorrencia.sh` reprova nos dois sentidos: fluxo de gatilho sem `concurrency`, e suíte de `workflow_call` com `concurrency`** | Contar quantos arquivos declaram e reprovar quando a conta não fecha, que é o que o `E5.1` do discovery descreve | Contador que só soma aprova a declaração posta no arquivo errado — que é exatamente o defeito do impasse que a `D10` evita. Com as duas populações medidas em separado, o portão responde as duas perguntas que importam, e a linha `medido:` imprime as duas contagens em vez de uma só. O custo é uma classificação por gatilho dentro do script, e ela já é necessária para o portão saber de quem cobrar |
+| D12 | brief | **A pergunta aberta do `doc-writer` foi decidida medindo, e a medição descartou a hipótese: o brief fica como está, e o achado colateral vira o item `058`** | Aceitar a hipótese e seguir; ou tirar `bloqueio.yml` dos cinco fluxos; ou ensinar a tranca a ignorar `cancel` como carona deste item | O `doc-writer` levantou que dois eventos do mesmo fluxo sobre o mesmo head — `bloqueio.yml` escuta `labeled` e `unlabeled`, e o motor mexe em rótulo por script — deixariam um check `cancelled` no head, e que `scripts/merge-se-liberado.sh` poderia lê-lo como vermelho. Ele recomendou medir antes de planejar, e medir custou um comando. Não há PR no repositório com check cancelado no head — varridos #34 a #42 —, então a medição foi na fonte da versão instalada, `gh 2.92.0`: `pkg/cmd/pr/checks/aggregate.go` põe `CANCELLED` no balde `cancel`, separado de `fail`, `pending` e `pass`, e `checks.go` só devolve código não-zero por `Failed > 0` ou `Pending > 0`. A tranca filtra `$2=="fail"` e `$2=="pending"`, e não enxerga `cancel`: ela não recusa nem trava, e o travamento temido não existe. Tirar `bloqueio.yml` dos cinco foi descartado por contrariar a `D4` e a `D10` sem ter problema que resolvesse; mexer na tranca foi descartado por ela ser a última linha antes do merge e merecer item com teste próprio, não carona. O que a medição revelou de verdade é o inverso — a tranca não distingue `cancel`, e um check cancelado sem sucessor passa como não-vermelho —, e isso virou o item `058-a-tranca-nao-le-check-cancelado-como-verde`, registrado no roadmap logo depois do `057`. Não é defeito criado por este item: cancelamento por `cancel-in-progress` sempre tem sucessor |
+| A1 | brief | **Aprovação autônoma do `01-brief.md`** | Esperar o dono | Não há humano acordado, e o dono autorizou autonomia para o roadmap inteiro. Registrada com `state.sh approve --stage brief --file product/items/057-…/01-brief.md --por autonomo` em 2026-09-04T17:23:41Z, `sha 3b187bdc204dedf9e3646446e782c748e065f904`. O `--por autonomo` é o que separa, de manhã, o que gente decidiu do que a máquina decidiu sozinha |
+
+## Nota para o estágio `plan`, que nasce sem este contexto
+
+O `RF-06` é o requisito mais provável de virar critério não verificável, e o
+`criteria-auditor` o reprovaria. Ele afirma comportamento de uma versão nomeada
+do `gh` — 2.92.0 —, e não há como observá-lo num pull request real hoje: o
+repositório não tem check `cancelled` no head, medido nos PRs #34 a #42. Ou o
+critério fabrica a condição, ou ele é `estrutural` sobre os dois filtros `awk` de
+`scripts/merge-se-liberado.sh` — que é o que este item de fato garante, já que a
+tranca não é tocada. A escolha é do `plan-writer`; o que não serve é um
+`comportamental` que ninguém consegue executar.
 
 ## Achados fora do escopo deste item
 
@@ -83,6 +98,16 @@ mão sobre commits já substituídos é a forma do desperdício que a concorrên
 declarada corta. O `057` reduz o consumo; ele não devolve cota gasta, e não é
 contorno para esta parada.
 
+### O CI voltou, e a parada acima está superada
+
+Medido em 2026-09-04 às 17:03Z, no início da sessão do `brief`: `gh run list`
+devolve quatro runs de `develop` `in_progress` e os quatro runs da branch
+`057-…/planejamento` `success`. O PR #40 mergeou. A causa da parada não foi
+diagnosticada daqui — a medição de cota continua exigindo escopo que a sessão
+não tem —, então o que se registra é o efeito: a execução voltou por conta
+própria, e a corrida seguiu. O `047-o-veredicto-de-fase-mede-se-o-ci-chegou-a-rodar`
+segue no roadmap como a rede que faltou.
+
 ## Reempilhar antes de 05/09 00:00Z
 
 A sessão de controle mediu que `origin/develop` já traz `ISENCOES_ESPERADAS=("qs:2026-09-06")`,
@@ -94,3 +119,9 @@ arquivo do par foi tocado aqui, então o merge preserva o `2026-09-06` de
 aberta. O conserto é reempilhar sobre `origin/develop`, e ele é de quem retomar
 a pilha — reempilhar daqui reescreveria os commits dos PRs #36 e #38, que são de
 outro item, dentro de uma sessão cujo escopo é o `discovery` do `057`.
+
+**Resolvido pelo merge.** O PR #40 entrou em `develop`, e a árvore de hoje já
+traz `ISENCOES_ESPERADAS=("qs:2026-09-06")` em `scripts/gates/quarentena.sh:43`,
+medido em 2026-09-04. Não há mais o que reempilhar: a branch do `brief` nasce de
+`develop` e herda o vencimento correto. O `049` segue no roadmap pelo que lhe
+cabe — a isenção vence em 06/09, e alguém precisa fechá-la antes disso.
