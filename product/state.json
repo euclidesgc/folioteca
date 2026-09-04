@@ -562,19 +562,21 @@
     "057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto": {
       "title": "O CI cancela o run que o push seguinte tornou obsoleto: cada fluxo declara concorrência por referência, e main e develop não cancelam",
       "track": "rapida",
-      "stage": "plan",
+      "stage": "execute",
       "stacks": [],
       "created_at": "2026-09-04T11:38:58Z",
       "approvals": {
         "brief": {
-          "at": "2026-09-04T17:23:41Z",
-          "sha": "3b187bdc204dedf9e3646446e782c748e065f904",
+          "at": "2026-09-04T17:50:00Z",
+          "sha": "6bb77ae20ce8d56f60b9038ce8b973aee9db2732",
           "file": "product/items/057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto/01-brief.md",
           "por": "autonomo"
         },
         "plan": {
-          "at": null,
-          "sha": null
+          "at": "2026-09-04T17:55:48Z",
+          "sha": "43f8670759517b368f1701370fbfff2d6579d722",
+          "file": "product/items/057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto/03-plan.md",
+          "por": "autonomo"
         }
       },
       "current_phase": null,
