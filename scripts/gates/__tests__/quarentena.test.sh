@@ -19,7 +19,19 @@ falhas=0
 # A lista de isenções entra em toda fixture: o portão a compara com uma constante
 # própria, e uma fixture sem ela mediria a ausência da lista em vez do que o caso
 # quer medir.
-ISENCOES='minimumReleaseAgeExclude:\n  - qs\n'
+#
+# Ela é DERIVADA da constante do portão, e não escrita à mão. A primeira versão
+# embutia `- qs`, que era a isenção em vigor no dia em que o teste foi escrito:
+# quando ela saiu — o desfecho normal de toda isenção com prazo —, toda fixture
+# passou a divergir da constante, e o caminho feliz reprovou. O caso media a
+# política daquele dia, não o portão.
+nomes_esperados="$(sed -n 's/^ISENCOES_ESPERADAS=(\(.*\))$/\1/p' "$portao" \
+  | tr ' ' '\n' | sed -E 's/^"?([^":]*):?[^"]*"?$/\1/' | grep -v '^$' || true)"
+if [ -z "$nomes_esperados" ]; then
+  ISENCOES='minimumReleaseAgeExclude: []\n'
+else
+  ISENCOES="minimumReleaseAgeExclude:\n$(printf '%s\n' "$nomes_esperados" | sed 's/^/  - /' | tr '\n' '@' | sed 's/@/\\n/g')"
+fi
 
 monta_fixture() { # monta_fixture <diretório> <corpo do pnpm-workspace.yaml>
   local casa="$1" corpo="$2"
@@ -85,38 +97,82 @@ caso "isenção curinga REPROVA mesmo com o número intacto" 1 \
 caso "isenção curinga diz onde a isenção nova deve ser escrita" 1 \
   "com o motivo e o vencimento escritos" "$tudo_isento"
 
-sem_isencao="$tmp/sem-a-lista"
-mkdir -p "$sem_isencao"
-printf 'packages:\n  - "apps/*"\nminimumReleaseAge: 10080\n' > "$sem_isencao/pnpm-workspace.yaml"
-caso "lista de isenções ausente REPROVA, porque a constante espera uma" 1 \
-  "minimumReleaseAgeExclude = []" "$sem_isencao"
+# O QUE ESTES CASOS MEDEM, E O QUE ELES DEIXARAM DE MEDIR
+#
+# A cobrança da lista e a cobrança do vencimento são comportamento do portão, e
+# não dependem de haver isenção em vigor hoje. A primeira versão destes dois
+# casos dependia: um exigia que a constante de produção tivesse pelo menos um
+# nome, e o outro recuava a data com um `sed` que só casava uma constante não
+# vazia. Quando a última isenção saiu — que é o desfecho normal e desejado de
+# toda isenção com prazo —, os dois pararam de morder em silêncio: o primeiro
+# passou a esperar reprovação de uma coisa correta, e o segundo rodou uma cópia
+# idêntica ao original.
+#
+# Um teste que só funciona enquanto a política tiver um valor específico mede a
+# política, não o portão. Os dois passam a INJETAR a constante de que precisam.
+portao_com_isencoes() { # portao_com_isencoes <destino> <conteúdo da constante>
+  local destino="$1" conteudo="$2" dir
+  dir="$(dirname "$destino")"
+  mkdir -p "$dir"
+  cp "$raiz/scripts/gates/medir.sh" "$dir/medir.sh"
+  # A cópia mora numa árvore com a mesma forma da de verdade: o portão resolve o
+  # `source` de medir.sh pelo próprio caminho, e uma cópia solta num diretório
+  # qualquer morreria antes da primeira asserção — aprovando o caso pelo motivo
+  # errado. E a substituição é sobre o ORIGINAL: se a lógica sumir dele, ela some
+  # da cópia, e o caso passa a falhar em vez de medir um portão fantasma.
+  sed -E "s/^ISENCOES_ESPERADAS=\\(.*\\)\$/ISENCOES_ESPERADAS=($conteudo)/" "$portao" > "$destino"
+  grep -qE "^ISENCOES_ESPERADAS=\\($(printf '%s' "$conteudo" | sed 's/[][\\.*^$/]/\\\\&/g')\\)\$" "$destino" || {
+    printf '  FALHA a injeção da constante não pegou — o caso mediria o portão de produção\n'
+    falhas=$((falhas + 1))
+    return 1
+  }
+}
 
-# O vencimento da isenção só vale se alguém o cobrar. O caso roda uma cópia do
-# portão com a data recuada — e não uma porta de ambiente no portão de produção,
-# que seria a forma de desligar a cobrança sem aparecer em revisão. Se a lógica
-# de vencimento sumir do original, ela some da cópia e este caso passa a falhar.
-# A cópia mora numa árvore com a mesma forma da de verdade: o portão resolve o
-# `source` de medir.sh pelo próprio caminho, e uma cópia solta num diretório
-# qualquer morreria antes da primeira asserção — aprovando este caso pelo motivo
-# errado.
-copia="$tmp/copia"
-mkdir -p "$copia/scripts/gates"
-cp "$raiz/scripts/gates/medir.sh" "$copia/scripts/gates/medir.sh"
-portao_vencido="$copia/scripts/gates/quarentena.sh"
-sed -E 's/\("[a-z-]+:[0-9]{4}-[0-9]{2}-[0-9]{2}"\)/("qs:2020-01-01")/' "$portao" > "$portao_vencido"
-vencida="$tmp/isencao-vencida"
-monta_fixture "$vencida" 'minimumReleaseAge: 10080
-'
-saida_vencida="$(env GITHUB_WORKSPACE="$vencida" "$bash_absoluto" "$portao_vencido" 2>&1)"
-codigo_vencida=$?
-if [ "$codigo_vencida" -eq 0 ]; then
-  printf '  FALHA isenção vencida REPROVA — o portão aprovou com a data no passado\n'
-  falhas=$((falhas + 1))
-elif ! printf '%s' "$saida_vencida" | grep -qF "isenção vencida da quarentena"; then
-  printf '  FALHA isenção vencida REPROVA — a saída não nomeia o vencimento\n'
-  falhas=$((falhas + 1))
-else
-  printf '  ok    isenção vencida REPROVA em vez de virar permanente\n'
+# A lista ausente reprova quando a constante espera alguma coisa. Sem a injeção,
+# este caso passava a exigir reprovação de um repositório correto assim que a
+# última isenção saísse.
+portao_espera_uma="$tmp/espera-uma/scripts/gates/quarentena.sh"
+if portao_com_isencoes "$portao_espera_uma" '"qs:2099-01-01"'; then
+  sem_isencao="$tmp/sem-a-lista"
+  mkdir -p "$sem_isencao"
+  printf 'packages:\n  - "apps/*"\nminimumReleaseAge: 10080\n' > "$sem_isencao/pnpm-workspace.yaml"
+  saida_sem="$(env GITHUB_WORKSPACE="$sem_isencao" "$bash_absoluto" "$portao_espera_uma" 2>&1)"
+  codigo_sem=$?
+  if [ "$codigo_sem" -eq 0 ]; then
+    printf '  FALHA lista ausente REPROVA quando a constante espera uma — o portão aprovou\n'
+    falhas=$((falhas + 1))
+  elif ! printf '%s' "$saida_sem" | grep -qF "a lista de isenções da quarentena mudou"; then
+    printf '  FALHA lista ausente REPROVA — a saída não diz que a lista divergiu\n'
+    falhas=$((falhas + 1))
+  else
+    printf '  ok    lista de isenções ausente REPROVA quando a constante espera uma\n'
+  fi
+fi
+
+# O vencimento só vale se alguém o cobrar. A data recuada entra por injeção, e
+# não por porta de ambiente no portão de produção — que seria a forma de desligar
+# a cobrança sem aparecer em revisão.
+portao_vencido="$tmp/copia/scripts/gates/quarentena.sh"
+if portao_com_isencoes "$portao_vencido" '"qs:2020-01-01"'; then
+  # A fixture precisa casar a constante INJETADA, não a de produção: o portão
+  # compara a lista antes de olhar a data, e uma divergência de lista o faria
+  # reprovar pelo motivo errado — aprovando este caso sem nunca chegar ao
+  # vencimento.
+  vencida="$tmp/isencao-vencida"
+  mkdir -p "$vencida"
+  printf 'packages:\n  - "apps/*"\nminimumReleaseAgeExclude:\n  - qs\nminimumReleaseAge: 10080\n' \
+    > "$vencida/pnpm-workspace.yaml"
+  saida_vencida="$(env GITHUB_WORKSPACE="$vencida" "$bash_absoluto" "$portao_vencido" 2>&1)"
+  codigo_vencida=$?
+  if [ "$codigo_vencida" -eq 0 ]; then
+    printf '  FALHA isenção vencida REPROVA — o portão aprovou com a data no passado\n'
+    falhas=$((falhas + 1))
+  elif ! printf '%s' "$saida_vencida" | grep -qF "isenção vencida da quarentena"; then
+    printf '  FALHA isenção vencida REPROVA — a saída não nomeia o vencimento\n'
+    falhas=$((falhas + 1))
+  else
+    printf '  ok    isenção vencida REPROVA em vez de virar permanente\n'
+  fi
 fi
 
 # `pnpm config get` funde a configuração de quem executa com a do repositório: um
