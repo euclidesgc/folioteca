@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "harness_version": "0.6.1",
+  "harness_version": "0.7.0",
   "mode": "full",
   "route": "greenfield",
   "product": "Folioteca — a empresa escreve documentos e os distribui por canais; o acesso vem de onde a pessoa está, e é revogado quando ela sai de lá.",
