@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+// decisão: o nonce da política muda a cada requisição, e o HTML de uma rota prerenderizada é gerado uma vez no build — serviria o nonce de outra requisição, que é o mesmo que nonce ausente
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Folioteca — a biblioteca de fólios da empresa",
   description:

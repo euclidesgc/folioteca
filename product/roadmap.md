@@ -114,6 +114,12 @@ PR e commit já escritos.
       nenhum dos cinco arquivos novos daquela fase, que ainda estavam como `??`;
       o validador precisou alimentar os portões à mão para saber se estavam
       limpos. Commitar resolve por acidente, e é por isso que ninguém percebe.
+      A terceira forma é do mesmo tamanho e está no topo da cadeia, apontada pela
+      auditoria da fase 2 de `023`: `gates_runner.sh:30` faz `cd "$ROOT" || exit
+      0` e `:36` sai com `sem .harness/gates.json — nada a cobrar`, também zero.
+      O dispatcher aprova quando não consegue montar o universo, que é a causa
+      raiz que `medir.sh` existe para matar — e o mesmo vale para
+      `script ausente: … — gate não cobrado`, mais adiante.
 
 - [ ] `028-a-norma-carrega-a-tabela-que-os-portoes-citam` — quem lê um portão
       encontra no `CLAUDE.md` da raiz a tabela das três formas de portão que
@@ -129,6 +135,99 @@ PR e commit já escritos.
       é corrigir as duas referências para onde a tabela realmente mora, mas uma
       delas está num plano aprovado que não se edita fora de janela de exceção,
       e apontar para fora do repositório deixa a norma dependente de um plugin.
+
+- [ ] `030-o-hotsite-emite-a-politica-pela-convencao-atual` — o nonce e a
+      política do hotsite saem do arquivo que o Next 16 prescreve, e o build
+      para de avisar que a convenção usada está a caminho da remoção
+      **Depende de:** `023-endurecimento-antes-da-sessao` — é a fase 2 dele que
+      cria o arquivo que este item renomeia.
+      **Origem:** fase 2 de `023-endurecimento-antes-da-sessao`. `pnpm --filter
+      site build` imprime `The "middleware" file convention is deprecated.
+      Please use "proxy" instead` e oferece um codemod. A fase manteve
+      `apps/site/src/middleware.ts` porque é o caminho que a spec fixa em
+      RF-08.1 e que o critério estrutural da fase mede; trocar o nome sem passar
+      pelo documento aprovado seria mudar por baixo o que o portão verifica. A
+      troca é mecânica — mesma função, mesmo cabeçalho de requisição, mesmo
+      `matcher` —, e o que ela custa é reconciliar RF-08.1 e o critério.
+
+- [ ] `031-o-dev-do-hotsite-nao-afoga-o-console` — quem roda `next dev` no
+      hotsite encontra o console limpo e as devtools do Next com estilo, sem que
+      a política que vale em produção seja afrouxada
+      **Depende de:** `023-endurecimento-antes-da-sessao` — é a fase 2 dele que
+      passa a emitir a política nos dois modos.
+      **Origem:** fase 2 de `023-endurecimento-antes-da-sessao`, medido no
+      navegador contra `pnpm --filter site dev`: 35 erros de console, um do
+      `eval()` que o React usa **só em modo de desenvolvimento** para reconstruir
+      pilhas de chamada, e 34 de estilo embutido do overlay `next-devtools`,
+      barrados por `style-src 'self'`. O mesmo build de produção responde com
+      zero erro, então a política entregue está correta e a página hidrata. O
+      custo é de quem desenvolve: console afogado esconde o próximo defeito de
+      verdade. A saída conhecida é emitir em desenvolvimento uma política
+      própria — relaxada nos dois pontos, ou em modo de só relatar —, o que
+      RF-24.2 e RF-24.3 hoje leem como proibido sem distinguir ambiente, e por
+      isso não cabia nesta fase.
+
+- [ ] `032-a-pagina-de-erro-global-do-hotsite-nasce-com-nonce` — quando um erro
+      derruba o hotsite inteiro, a página que aparece no lugar dele hidrata em
+      vez de chegar com os scripts bloqueados pela própria política
+      **Depende de:** `023-endurecimento-antes-da-sessao` — é a fase 2 dele que
+      passa a exigir nonce em todo `<script>` embutido.
+      **Origem:** auditoria de segurança da fase 2 de
+      `023-endurecimento-antes-da-sessao`, confirmada no artefato:
+      `apps/site/.next/prerender-manifest.json` marca `/_global-error` como
+      `"compute": "static"`, e `.next/server/app/_global-error.html` sai do build
+      com 8675 bytes, **dois `<script>` embutidos e zero `nonce=`**. O
+      `dynamic = "force-dynamic"` do layout raiz não a alcança, porque a página
+      de erro global substitui o layout em vez de herdá-lo. O defeito é latente
+      — hoje nada no hotsite lança —, mas ele morde exatamente quando algo já
+      deu errado, e o portão da política nunca o exercita porque só pede `GET /`.
+      A saída é declarar a página de erro global explicitamente, com a mesma
+      configuração de segmento, e estender o portão para pedi-la.
+
+- [ ] `033-o-comando-canonico-dos-portoes-alcanca-o-que-nao-e-por-arquivo` —
+      `bash scripts/gates/gates_runner.sh` cobra também os portões que medem uma
+      resposta, um artefato ou um processo, e não uma lista de arquivos
+      **Depende de:** `026-o-modo-de-diff-dos-portoes-mede-ou-reprova` — é lá que
+      o dispatcher aprende a reprovar quando não consegue montar o universo, e
+      esta ampliação herda esse contrato.
+      **Origem:** auditoria de segurança da fase 2 de
+      `023-endurecimento-antes-da-sessao`. `.harness/gates.json` só descreve
+      portão por arquivo — `script` mais `applies_to` de globs —, então
+      `apps/site/scripts/verificar-politica.sh`, que sobe o hotsite e mede a
+      resposta HTTP, roda apenas em `.github/workflows/ci-site.yml`. Quem
+      trabalha localmente altera `middleware.ts`, roda o comando que a regra 19
+      chama de canônico, lê `gates: limpos` e só descobre a quebra no CI. No
+      mesmo item cabe a segunda metade: `semgrep` não faz o parse de nenhum `.sh`
+      deste repositório — a camada dos portões é a única sem ferramenta que a
+      leia, e `shellcheck` é o complemento declarado que falta.
+
+- [ ] `034-o-hotsite-declara-o-isolamento-entre-origens` — o hotsite responde com
+      o par de cabeçalhos de isolamento que a API já tem, fechando a assimetria
+      entre as duas frentes que servem no servidor
+      **Depende de:** `023-endurecimento-antes-da-sessao` — é ele que estabelece
+      o conjunto de cabeçalhos de cada frente, e este item o amplia.
+      **Origem:** auditoria de segurança da fase 2 de
+      `023-endurecimento-antes-da-sessao`. A fase 1 deixou a API com
+      `Cross-Origin-Resource-Policy: same-origin`, pelo padrão do `helmet`
+      (registro `D35`); o hotsite não emite esse cabeçalho nem
+      `Cross-Origin-Opener-Policy`, e a spec não escreveu a frase equivalente
+      para ele — a ausência é lacuna, não decisão. Não entrou na fase 2 porque
+      acrescentar cabeçalho ao conjunto constante muda o que o PRD e a spec
+      declaram, e isso é reconciliação de documento aprovado, não implementação.
+
+- [ ] `035-a-cegueira-do-validador-nao-vaza-pela-lista-de-processos` — o agente
+      que valida uma fase às cegas não alcança o prompt do orquestrador que o
+      despachou, nem por caminho lateral
+      **Depende de:** nada — o motor de sessões já existe em `scripts/loop/`.
+      **Origem:** validação da fase 2 de `023-endurecimento-antes-da-sessao`. O
+      próprio validador registrou: ao rodar `ps aux` para confirmar que não tinha
+      sobrado servidor, a saída trouxe a linha de comando completa do processo
+      orquestrador — `claude -p …` com as normas de processo da sessão dentro.
+      Ele disse que não a usou como régua, e a validação se sustenta; mas a
+      cegueira é o mecanismo inteiro do portão, e mecanismo que depende da boa
+      vontade de quem ele mede não é mecanismo. O prompt deve chegar ao processo
+      por arquivo ou por entrada padrão, não por argumento de linha de comando,
+      que é público para todo processo da máquina.
 
 - [ ] `002-conta-e-organizacao` — quem se cadastra cria a organização e vira o
       seu primeiro administrador; o endereço é confirmado por e-mail, a senha se
@@ -260,6 +359,12 @@ PR e commit já escritos.
       raiz do repositório, onde o Next não o lê: ou o arquivo passa a existir em
       `apps/site/`, ou a variável chega `undefined` e o sintoma aparece na prévia
       do link, longe da causa.
+      **Carrega, da Fase 2 de `023`:** a diretiva `style-src 'self'` da política
+      de conteúdo, que hoje passa porque o hotsite não tem folha de estilo
+      nenhuma — zero `<style>` e zero atributo `style=` no HTML servido. A
+      política não reserva nonce para estilo, então a fase que trouxer a primeira
+      folha reverifica a diretiva junto, em vez de descobrir o bloqueio no
+      navegador.
 
 - [ ] `016-comentarios-ancorados` — quem tem acesso de comentário comenta
       ancorado no trecho, resolve um comentário e menciona alguém que já tenha

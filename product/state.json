@@ -305,7 +305,7 @@
           "por": "humano"
         }
       },
-      "current_phase": 1,
+      "current_phase": 2,
       "phases": {
         "1": {
           "status": "aprovada",
@@ -319,6 +319,21 @@
           "validated_trees": {
             "apps/api": "94d817949b25e9e6f2c28fb9d817a444f2e4bb32",
             "apps/site": "89ed1a14167c883397d83f4f9641908ccfaab434",
+            "apps/web": "94c9cfdbf62e6d1baa64d43614230676fe4d7b3d"
+          }
+        },
+        "2": {
+          "status": "aprovada",
+          "reproved_count": 0,
+          "verdict": "APROVADO",
+          "verdict_file": "product/items/023-endurecimento-antes-da-sessao/05-veredictos/fase-2.md",
+          "validated_sha": "22665795749ef909b0ccf48602b8a3447f7521ab",
+          "pr": null,
+          "blocked_on": [],
+          "verdict_at": "2026-09-03T12:57:14Z",
+          "validated_trees": {
+            "apps/api": "94d817949b25e9e6f2c28fb9d817a444f2e4bb32",
+            "apps/site": "c40cb4778ae97ac94831f01ef68f76e34d956ab8",
             "apps/web": "94c9cfdbf62e6d1baa64d43614230676fe4d7b3d"
           }
         }
