@@ -15,8 +15,13 @@ name: Portões (suíte)
 # de quem trabalha, com `scripts/gates/gates_runner.sh`, e o runner remoto só é
 # chamado quando o trabalho está pronto para revisão — uma vez, em vez de uma por
 # push. Medido antes da mudança: ~6 execuções de `Portões` por PR e 189 num dia
-# de corrida autônoma, porque cada push redisparava tudo e o run anterior seguia
-# até o fim medindo um commit que ninguém ia mergear.
+# de corrida autônoma, porque cada push redisparava tudo.
+#
+# O run que o push seguinte torna obsoleto morre no instante desse push, e quem
+# declara a concorrência é o fluxo chamador — `portoes.yml` —, nunca esta suíte:
+# suíte chamada por `workflow_call` não produz run próprio, e chamador e chamado
+# no mesmo grupo é a forma documentada de produzir impasse, com o job do pai
+# esperando o filho que está enfileirado atrás do pai.
 #
 # `ready_for_review` no `types` é o que fecha o ciclo, e é a metade que se
 # esquece: sem ele, sair do rascunho não dispara evento nenhum, e o PR fica
