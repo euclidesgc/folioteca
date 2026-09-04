@@ -89,8 +89,20 @@ gh stack view                                        # confere a corrente
 Se a pilha ainda não existe: `gh stack init --base develop <branch-de-baixo> …`,
 que adota branches já existentes de baixo para cima.
 
-**Nunca mergeie e nunca empurre com `--force`.** Merge é irreversível para quem
-está dormindo; a pilha existe para o merge ser decisão do dono, acordado.
+**Nunca empurre com `--force`.**
+
+**Mergeie apenas por `bash scripts/merge-se-liberado.sh <pr>`**, e apenas o PR
+do **fundo** da pilha. Nunca por `gh pr merge`, nunca pelo botão. O script é a
+tranca: ele mede rótulo de bloqueio, verificação vermelha e a situação da pilha
+com teto de tempo em toda chamada de rede, e **recusa o que não conseguiu
+medir** — que é a única razão de ele existir, porque verificação obrigatória
+exige plano pago e sem ela o botão continua clicável com o CI vermelho.
+
+Mergeie quando o fundo da pilha estiver verde e sem bloqueio, e não antes: uma
+pilha que só cresce vira, de manhã, trinta PRs que ninguém revisa, e cada item
+novo parte de uma base cada vez mais distante do que já foi aprovado. O que
+**não** se faz é tirar rótulo de bloqueio para destravar, nem mergear o que está
+no meio da pilha.
 
 Commits em inglês, terminando com
 `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`.
