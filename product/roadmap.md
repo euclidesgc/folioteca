@@ -1168,28 +1168,38 @@ não bloqueia trabalho que não dependa dela.
   **Origem:** estágio `spec` de `023-endurecimento-antes-da-sessao`, ao ratificar
   `D-001` — ver `product/items/023-endurecimento-antes-da-sessao/04-divergencias/D-001.md`.
 
-- **O GitHub Actions parou de executar neste repositório, e a corrida seguiu no
-  escuro.** Medido: o último run de qualquer fluxo é `NestJS`/`React` em
-  `develop`, às 16:54Z de 03/09/2026. Os commits de cabeça das fases 4 e 5 —
-  `0489eb1` e `d0ecaae` — têm suíte de `gitguardian`, `railway-app`, `cursor` e
-  `claude`, e **nenhuma de `github-actions`**; a fase 3 tem quatro. Não é
-  configuração deste repositório: `actions/permissions` responde
-  `{"enabled": true}`, os cinco fluxos estão `active`, o YAML dos cinco carrega
-  sem erro, e `portoes.yml` e `bloqueio.yml` não têm filtro de caminho que
-  pudesse pular. A causa provável é cota — repositório privado em plano de
-  usuário, cujos minutos incluídos acabam sem aviso no PR — e ela não se lê
-  daqui: `settings/billing/actions` exige o escopo `user`, que este token não
-  tem, e conceder escopo de conta não é decisão de quem roda a corrida.
-  **A decisão é sua:** abrir a aba Actions do repositório, ver o motivo que só
-  ela mostra, e resolver — pagar o excedente, elevar o teto de gasto, ou tornar
-  o repositório público, que zera o custo de minuto. Enquanto isso não acontece,
-  **os PRs #23 e #24 não têm CI**, e a regra 10 do `CLAUDE.md` — "pronto é build
-  verde" — não pode ser satisfeita por nenhuma sessão, autônoma ou não. Os
-  portões locais equivalentes rodaram e passaram nas duas fases, o que é a
-  melhor evidência que esta máquina produz e não substitui o runner.
-  **Origem:** encerramento de `023-endurecimento-antes-da-sessao`. O conserto do
-  processo — perguntar ao GitHub se rodou, em vez de supor — é o item
-  `047-o-veredicto-de-fase-mede-se-o-ci-chegou-a-rodar`.
+- **O faturamento da conta está bloqueado, e por isso o estágio de nuvem não
+  nasce — nenhum PR mergeia.** Medido em 04/09/2026 às 20:11:11Z pela anotação do
+  check run, que é a medição que diz a causa:
+  `gh api repos/euclidesgc/folioteca/check-runs/101159863375/annotations`
+  responde `The job was not started because recent account payments have failed
+  or your spending limit needs to be increased. Please check the 'Billing &
+  plans' section in your settings`. Não é configuração deste repositório:
+  `actions/permissions` responde `{"enabled": true}`, os cinco fluxos estão
+  `active`, e o estágio `Nesta máquina` — que roda em `self-hosted` e não gasta
+  minuto — passa nos mesmos runs em que o de nuvem falha em três segundos sem
+  executar passo nenhum. O bloqueio atinge só o runner hospedado pelo GitHub,
+  `ubuntu-latest`, que é onde vive `Confirmação em máquina limpa`. E como é esse
+  estágio que fecha a verificação obrigatória, `scripts/merge-se-liberado.sh` não
+  consegue medir verde e recusa: **os PRs #46 e #48 estão prontos, aprovados e
+  sem merge**, e a regra 10 do `CLAUDE.md` — "pronto é build verde" — não pode
+  ser satisfeita por nenhuma sessão, autônoma ou não. A cota não se lê daqui:
+  `settings/billing/actions` exige o escopo `user`, que este token não tem, e
+  conceder escopo de conta não é decisão de quem roda a corrida.
+  **A decisão é sua**, entre três caminhos. *Resolver o pagamento ou elevar o
+  teto em Billing & plans* — o único que não mexe em nada aqui, e o que eu
+  recomendo. *Tornar o repositório público* — zera o custo de minuto e expõe o
+  código, o que é decisão de produto, não de CI. *Rodar a confirmação em
+  contêiner no runner desta casa* — devolve o sistema de arquivos limpo a cada
+  job sem gastar minuto, mas troca "funciona na imagem do GitHub" por "funciona
+  na nossa imagem", e é justamente a primeira metade que o estágio existe para
+  medir. Enquanto nenhum dos três acontecer, os portões locais são a melhor
+  evidência que esta máquina produz, e não substituem o runner limpo.
+  **Origem:** encerramento de `023-endurecimento-antes-da-sessao`; remedido no
+  encerramento de `057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto`.
+  O conserto do processo — perguntar ao GitHub se rodou, em vez de supor — é o
+  item `047-o-veredicto-de-fase-mede-se-o-ci-chegou-a-rodar`; separar "a
+  plataforma parou" de "a conta acabou" é o `061`.
 
 - **Três ativos deste repositório são mais novos que o gabarito do plugin, e o
   próximo `--update` os apaga.** A atualização do harness para 0.7.0 copiou os
@@ -1282,6 +1292,39 @@ verificação**.
   em quatorze dias e houver ação desatualizada, o arquivo está sendo ignorado e a
   rotina que destrava os SHAs não existe.
 
-As quatro linhas acima esperam o **runner**, e o runner está parado desde 16:54Z
-de 03/09/2026 — ver a pendência de produto aberta sobre o GitHub Actions. Nenhuma
-delas se verifica sozinha enquanto o Actions não voltar a executar.
+- **`057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto`, Fase 1 — `main`
+  e `develop` não cancelam, sobre um push de verdade.** A expressão está provada:
+  a mesma cadeia literal nos cinco fluxos, avaliada com a semântica de `!=` e
+  `&&` num avaliador determinístico, dá `false` para `refs/heads/main`, `false`
+  para `refs/heads/develop` e `true` para referência de trabalho. O que falta é o
+  GitHub avaliando-a num push real nessas duas, e empurrar dois commits em
+  `develop` com trinta segundos de intervalo só para medir é o oposto do que o
+  item defende — ainda mais quando o defeito procurado é uma medição perdida.
+  Verifica-se na primeira ocorrência natural: no próximo merge que puser dois
+  commits em `develop` em menos de três minutos, conferir com
+  `gh run list --branch develop --workflow "Portões" --json headSha,conclusion`
+  que nenhuma das duas entradas traz `cancelled`.
+
+- **`057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto`, Fase 1 — o
+  cancelado diante da tranca de merge.** Está provado que
+  `scripts/merge-se-liberado.sh` filtra `$2=="fail"` e `$2=="pending"` e não
+  contém `cancel` em caixa nenhuma. Não está provado um pull request com
+  verificação `cancelled` no próprio head atravessando a tranca: o cancelamento
+  por `cancel-in-progress` sempre tem run sucessor, e o sucessor substitui a
+  entrada em `gh pr checks` — medido no PR #48, cujos runs de 20:08:52Z de
+  04/09/2026 foram cancelados pelos de 20:09:55Z e não aparecem em nenhuma das
+  vinte e seis linhas do `gh pr checks 48`. A condição não é fabricável sem
+  cancelar à mão, e a classe vizinha tem dono —
+  `059-a-tranca-nao-le-check-cancelado-como-verde`.
+
+Nenhuma dessas linhas se verifica nesta máquina, e elas esperam coisas
+diferentes. As duas do `023` sobre o `gitleaks` e sobre o cache esperam o
+**runner hospedado pelo GitHub**, que não inicia job nenhum enquanto o
+faturamento da conta estiver bloqueado — ver a pendência de produto aberta sobre
+isso; o runner desta casa executa normalmente, e é por isso que `Nesta máquina`
+está verde nos mesmos PRs em que a confirmação de nuvem falha. A do teto de
+permissão espera uma configuração de conta que nenhum comando daqui lê. A do
+Dependabot e a primeira do `057` esperam a plataforma agir sozinha — o agendador
+semanal, e o primeiro merge que puser dois commits seguidos em `develop`. A
+segunda do `057` não espera nada: ela só se verifica se alguém cancelar um run à
+mão, e por isso a classe virou o item `059`.

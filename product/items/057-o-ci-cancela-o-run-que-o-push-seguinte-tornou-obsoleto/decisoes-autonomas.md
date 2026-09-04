@@ -1115,3 +1115,107 @@ migrando as duas validações de campo pendentes da fase 1 para a seção homôn
 check run** — nunca pela sonda do rerun, que responde pelo passado imediato e pode
 ser satisfeita por um job desta casa — e pare de novo: o reparo não está nesta
 máquina, e insistir gasta token contra uma conta bloqueada.
+
+## Sessão de 04/09/2026, 20:10Z — o encerramento espera o faturamento
+
+O `decide-next-action` respondeu `close`: as duas fases estão aprovadas e não há
+implementação sobrando. Encerrar exige mergear, mergear exige a tranca, e a
+tranca exige verificação verde — que continua fora do alcance desta máquina.
+
+### Medição da cota — feita pela anotação, não pela sonda do rerun
+
+Cinco runs nasceram às 20:09:55Z sobre o head `0233bc0` do PR #48. O estágio
+`Nesta máquina`, em `self-hosted`, executou e passou; o de nuvem falhou em três
+segundos sem executar passo nenhum, e a anotação diz por quê:
+
+```
+$ gh api repos/euclidesgc/folioteca/check-runs/101159863375/annotations --jq '.[].message'
+The job was not started because recent account payments have failed or your
+spending limit needs to be increased. Please check the 'Billing & plans' section
+in your settings
+```
+
+A tranca confirmou o efeito, e é a medição autorizada para merge:
+
+```
+$ bash scripts/merge-se-liberado.sh 46
+RECUSADO: o PR #46 tem verificação vermelha:
+  Confirmação em máquina limpa / As asserções de medição mordem
+  Confirmação em máquina limpa / Há código de API?
+  Confirmação em máquina limpa / Há código de web?
+  Confirmação em máquina limpa / O D-nnn.md e o state.json dizem o mesmo status
+  Confirmação em máquina limpa / Tipos, build e portões
+```
+
+O que esta medição acrescenta à da sessão anterior é a **separação**: o bloqueio
+não é do Actions inteiro, é só do runner hospedado pelo GitHub. O runner desta
+casa roda, e é por isso que metade de cada fluxo está verde. Nenhum rótulo foi
+tirado, nenhuma verificação foi contornada, e nada mergeou.
+
+### Observação de campo — o próprio item funcionando, sem ninguém pedir
+
+Os runs de 20:08:52Z (`Portões` 33914763288, `NestJS` 33914763268, `React`
+33914763223) aparecem como `cancelled`, mortos pelos de 20:09:55Z sobre a mesma
+referência de trabalho. É o `cancel-in-progress` do `057` operando em produção
+pela primeira vez, observado e não simulado. A metade que continua sem prova de
+campo é a inversa — `main` e `develop` **não** cancelando —, e ela é uma das duas
+linhas migradas abaixo.
+
+### D33 — As duas validações de campo pendentes migram agora, antes do merge
+
+A seção *Validações de campo pendentes* do `product/roadmap.md` diz que registrar
+é obrigação de quem fecha o item, e o item não fecha enquanto o faturamento não
+voltar. Migrei mesmo assim. **A alternativa descartada** era esperar o
+encerramento, que é o que a regra literalmente manda. **Por quê:** o encerramento
+depende de uma conta bloqueada, que pode levar dias, e uma pendência que vive só
+no corpo de um PR é exatamente o esquecimento que a seção existe para impedir.
+Registrar cedo não custa nada e não impede nada; registrar tarde depende de a
+próxima sessão lembrar. Reversível: são duas entradas de prosa.
+
+### D34 — A pendência de produto sobre o Actions é reconciliada, não anotada ao lado
+
+O texto que estava lá dizia que o Actions parou por inteiro em 16:54Z de
+03/09/2026 e que os PRs sem CI eram o #23 e o #24. Nada disso descreve hoje: o
+runner desta casa executa, o bloqueio é do hospedado, a causa está literal na
+anotação, e os PRs parados são o #46 e o #48. Reescrevi a entrada no presente,
+sem cicatriz, como manda a regra 7. **A alternativa descartada** era acrescentar
+um parágrafo novo abaixo do antigo. **Por quê:** duas descrições contraditórias
+do mesmo fato numa página que o dono lê para decidir é pior que nenhuma.
+
+Acrescentei também um **terceiro caminho** à decisão dele, que não estava lá:
+rodar a confirmação em contêiner no runner desta casa. Ele devolve o sistema de
+arquivos limpo a cada job sem gastar minuto, e é honesto sobre o que perde —
+troca "funciona na imagem do GitHub" por "funciona na nossa imagem", que é
+justamente a primeira metade do que o estágio existe para medir. **Recomendo o
+primeiro caminho**, resolver o faturamento: é o único que não mexe em nada aqui,
+e mexer no portão para contornar a conta é a classe de contorno que este
+repositório inteiro foi construído para não fazer.
+
+## Parada desta sessão
+
+**O que fica pronto.** O `product/roadmap.md` está reconciliado: as duas
+validações de campo do `057` estão registradas na seção própria, a pendência de
+produto sobre o Actions descreve o bloqueio de hoje com a evidência literal, e o
+fecho da seção diz o que cada linha espera — runner hospedado, configuração de
+conta, ou a plataforma agir sozinha. Não há implementação pendente no item.
+
+**O que trava, e é do dono.** O merge dos PRs #46 e #48. A causa é o faturamento
+da conta do GitHub, fora da máquina de desenvolvimento e do CI — a condição de
+parada que o prompt da corrida nomeia.
+
+**Próxima ação do dono, uma decisão só:** abrir *Billing & plans* nas
+configurações da conta e resolver o pagamento ou elevar o teto de gastos. Depois
+disso a retomada custa dois comandos, na ordem do fundo da pilha para o topo:
+
+```bash
+bash scripts/merge-se-liberado.sh 46   # fase 1
+bash scripts/merge-se-liberado.sh 48   # fase 2, depois que o 46 entrar
+```
+
+**Para a sessão que retomar:** se o estágio `Confirmação em máquina limpa`
+executar passos, a cota voltou — mergeie os dois na ordem acima e encerre o item;
+a migração das validações de campo já está feita, e não precisa ser repetida. Se
+os jobs de nuvem continuarem falhando em segundos, meça pela anotação do check
+run do run mais recente, confirme com `scripts/merge-se-liberado.sh`, e pare de
+novo: o reparo não está nesta máquina, e insistir gasta token contra uma conta
+bloqueada.
