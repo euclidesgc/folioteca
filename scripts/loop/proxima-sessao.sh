@@ -8,6 +8,8 @@
 #   proxima-sessao.sh --dry-run  imprime a decisão e sai, sem invocar nada
 #   proxima-sessao.sh --ate N    no máximo N rodadas encadeadas (padrão: 1)
 #
+# MOTOR_TETO_SESSAO=<segundos>  teto por sessão (padrão: 5400, noventa minutos)
+#
 # O QUE ELE NUNCA FAZ: mergear PR, e empurrar com --force. A pilha existe para
 # o merge ser uma decisão do dev, tomada de uma vez, acordado — e é
 # scripts/merge-se-liberado.sh quem mergeia, quando o dev mandar.
@@ -31,6 +33,12 @@
 #   2. trabalho a meio caminho vira commit `wip` na branch da própria fase, em
 #      vez de bloquear tudo. Não é validado nem mergeado: só deixa de ser refém
 #      da árvore suja, e a rodada seguinte retoma a fase de onde parou.
+#   3. toda sessão tem teto de tempo. Uma que trava — esperando um comando que
+#      não retorna, um servidor que não sobe, uma pergunta que ninguém responde —
+#      não sai com erro nem termina: fica. E o motor, que espera por ela, fica
+#      junto. Sem teto, a noite inteira cabe dentro de uma rodada, e o batimento
+#      continua dizendo "sessão viva" enquanto nada acontece. Espera sem teto não
+#      é espera, é travamento.
 set -uo pipefail
 
 raiz="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -38,6 +46,9 @@ cd "$raiz" || exit 2
 
 seco=0
 ate=1
+# Teto por sessão. Generoso porque uma fase grande leva tempo, e finito porque
+# uma sessão travada é indistinguível de uma sessão lenta pelo lado de fora.
+teto_sessao="${MOTOR_TETO_SESSAO:-5400}"
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) seco=1 ;;
@@ -71,12 +82,22 @@ export CLAUDE_ENV_FILE="${CLAUDE_ENV_FILE:-$raiz/.harness/runtime/sessao-env.sh}
 # casa com o próprio comando que o executa, e enganou três verificações.
 marca() { printf '%s %s\n' "$(date -Iseconds)" "$1" > "$batimento"; }
 
+# O `wip` é uma rede para rodada que morreu, e só para isso. A sujeira que ele
+# encontra na PARTIDA pode ser outra coisa: alguém editando, agora, na branch em
+# que parou. Comitá-la com mensagem de "rodada interrompida" apaga a autoria do
+# trabalho e enterra a mudança sob um commit que ninguém vai procurar — foi o que
+# aconteceu na primeira vez que o motor rodou com a árvore de um humano aberta.
+# Por isso a rede só é armada em branch de trabalho do harness: `<nnn-slug>/fase-N-…`
+# ou `<nnn-slug>/planejamento`. Em qualquer outra, a árvore suja é de gente, e o
+# motor recusa em voz alta em vez de decidir por ela.
 salva_meio_caminho() {
   [ -n "$(git status --porcelain)" ] || return 0
   local branch; branch="$(git branch --show-current)"
   case "$branch" in
-    main|develop|"")
-      printf 'motor: árvore suja em %s. Não comito wip fora de branch de fase.\n' "${branch:-detached}" >&2
+    [0-9][0-9][0-9]-*/fase-[0-9]*|[0-9][0-9][0-9]-*/planejamento) ;;
+    *)
+      printf 'motor: árvore suja em %s, que não é branch de fase nem de planejamento.\n' "${branch:-detached}" >&2
+      printf 'motor: não comito wip aqui — a sujeira pode ser trabalho de gente. Comite ou guarde à mão.\n' >&2
       return 1 ;;
   esac
   git add -A
@@ -128,11 +149,23 @@ while [ "$rodada" -lt "$ate" ]; do
     tentativa=$((tentativa + 1))
     marca "rodada $rodada: sessão viva (tentativa $tentativa)"
     : > "$CLAUDE_ENV_FILE"
-    if claude -p "$(cat "$prompt")" --dangerously-skip-permissions; then
+    # --signal=INT antes do -9: o Ctrl-C dá à sessão a chance de fechar o que
+    # abriu; o --kill-after garante que "a chance" também tenha fim.
+    timeout --signal=INT --kill-after=120 "$teto_sessao" \
+      claude -p "$(cat "$prompt")" --dangerously-skip-permissions
+    saida=$?
+    if [ "$saida" -eq 0 ]; then
       ok=1
       break
     fi
-    printf '\nmotor: a sessão da rodada %s saiu com erro (tentativa %s de 2).\n' "$rodada" "$tentativa" >&2
+    if [ "$saida" -eq 124 ] || [ "$saida" -eq 137 ]; then
+      marca "rodada $rodada: sessão estourou o teto de ${teto_sessao}s (tentativa $tentativa)"
+      printf '\nmotor: a sessão da rodada %s passou de %ss e foi interrompida (tentativa %s de 2).\n' \
+        "$rodada" "$teto_sessao" "$tentativa" >&2
+    else
+      printf '\nmotor: a sessão da rodada %s saiu com erro %s (tentativa %s de 2).\n' \
+        "$rodada" "$saida" "$tentativa" >&2
+    fi
     salva_meio_caminho || true
   done
 
