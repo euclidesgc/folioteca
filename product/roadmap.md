@@ -102,15 +102,20 @@ PR e commit já escritos.
       iguais espaçadas por 45 segundos responderam em 74 s, em 90 s e em nenhum
       tempo. A repetição do `053` reduz a chance, não a remove, e portão que
       reprova quem não errou é portão que se aprende a ignorar. Medido de novo no
-      encerramento do `027`, já com a repetição em vigor: sobre `bae9b89` o fluxo
-      `Site` gastou as três tentativas em **13m34s** e reprovou por não ter
-      medido, enquanto os outros três mediram de primeira. Soma-se o desperdício
-      que multiplica a chance — **um commit dispara quatro auditorias do mesmo
-      lockfile**, porque cada fluxo por frente chama o `gates_runner.sh` e o fluxo
-      `Portões` ainda tem o passo dedicado: quatro chamadas para uma resposta,
-      numa cota de minutos que ninguém aqui consegue ler. Enquanto isto não
-      fechar, **o merge do `027` depende de sorte com o endpoint** — o PR #36 está
-      vermelho por isto, e não pelo que o portão mede. Fechar é trocar o
+      encerramento do `027`, já com a repetição em vigor, e desta vez com a
+      concorrência visível nos carimbos. Sobre `bae9b89`: três fluxos mediram às
+      11:02:41Z, o `Site` começou a auditar catorze segundos depois — ele audita
+      no fim, porque o build do Next vem antes —, gastou as três tentativas em
+      **13m34s** e reprovou por não ter medido. O mesmo job, re-executado sozinho
+      às 11:23Z sobre o mesmo commit, mediu **na primeira tentativa, em 1m23s**. A
+      causa não é o lockfile nem a máquina: é a janela do endpoint, e o
+      desperdício que a enche é nosso — **um commit dispara quatro auditorias do
+      mesmo lockfile**, porque cada fluxo por frente chama o `gates_runner.sh` e o
+      fluxo `Portões` ainda tem o passo dedicado. Quatro chamadas para uma
+      resposta, numa cota de minutos que ninguém aqui consegue ler. Enquanto isto
+      não fechar, **o merge do `027` depende de sorte com o endpoint** — e o que
+      destrava um pull request vermelho por isto é re-executar o job, nunca mexer
+      no que o portão mede. Fechar é trocar o
       motor por `osv-scanner` — a ferramenta que a skill `security-baseline`
       nomeia —, instalado por binário com par versão/`sha256` fixado, no padrão de
       `scripts/ci/instalar-gitleaks.sh`. A troca reabre a `D1` do
@@ -1120,10 +1125,10 @@ uma dúvida já respondida.
   repetição, o portão reprovou com `não consegui auditar o pnpm-lock.yaml: a
   ferramenta devolveu erro em vez de auditoria … The operation was aborted due to
   timeout`. Sobre `bae9b89`, com a repetição, três dos quatro fluxos que auditam
-  mediram na primeira tentativa e o quarto — `Site`, que audita depois do build
-  do Next e portanto sozinho no fim — **gastou as três tentativas em 13m34s e
-  reprovou por não ter medido**. O portão responde certo nos dois casos: ele diz
-  que não mediu, em vez de dizer `0 achados`. O que não está de pé é o motor, e o
-  vermelho cai sobre pull request que não mexeu em dependência nenhuma. É o
-  `055`, e a linha fica aqui porque a próxima medição não precisa ser refeita
-  para chegar à mesma conclusão.
+  mediram na primeira tentativa e o quarto — `Site`, que audita catorze segundos
+  depois deles — **gastou as três tentativas em 13m34s e reprovou por não ter
+  medido**; re-executado sozinho, mediu de primeira em 1m23s. O portão responde
+  certo nos três casos: ele diz que não mediu, em vez de dizer `0 achados`. O que
+  não está de pé é o motor, e o vermelho cai sobre pull request que não mexeu em
+  dependência nenhuma. É o `055`, e a linha fica aqui porque a próxima medição
+  não precisa ser refeita para chegar à mesma conclusão.
