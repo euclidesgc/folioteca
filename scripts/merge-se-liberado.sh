@@ -189,21 +189,37 @@ printf 'PR #%s liberado: sem bloqueio, nenhuma verificação vermelha nem penden
 # branch. A pilha do GitHub, que é quem o `gh stack merge` procura pelo número,
 # só nasce com dois PRs: o primeiro item de um roadmap, ou qualquer estágio de
 # documento sozinho, produz um PR único que o `gh stack merge` recusa dizendo
-# que ele "is not a stack number or a stacked pull request". A tranca então
-# media a coisa errada — perguntava "esta branch está numa pilha aqui?" quando
-# a decisão depende de "essa pilha existe lá?" — e o merge liberado não saía.
-# A contagem abaixo é a pergunta certa, e ela é impressa.
+# que ele "is not a stack number or a stacked pull request".
+#
+# DUAS CONTAGENS, PORQUE SÃO DUAS PERGUNTAS
+# A via do merge depende de a pilha **existir no GitHub**, e isso se mede pelo
+# total de PRs dela, em qualquer situação: uma pilha não deixa de ser pilha
+# porque os de baixo já mergearam. Contar só os abertos responde igual para
+# "não existe pilha lá" — o PR solto, que `gh stack merge` recusa — e para "a
+# pilha existe e só resta um aberto nela", que é toda pilha no seu último PR;
+# nesse segundo caso o `gh pr merge` é que recusa, com `must be merged using
+# the asynchronous merge REST API`, e a pilha nunca esvazia. É a mesma classe
+# que `medir.sh` existe para matar: um predicado que responde igual a duas
+# situações que exigem respostas opostas.
+#
+# Já a verificação da pilha abaixo — rótulo de bloqueio e check vermelho — só
+# faz sentido sobre os que ainda estão **abertos**: o que mergeou já passou por
+# ela. Por isso as duas contagens convivem, e as duas são impressas.
 if timeout "$TETO" gh stack view --json >/dev/null 2>&1; then
-  command -v jq >/dev/null 2>&1 || nao_mediu "a pilha respondeu, mas sem jq não há como contar os PRs abertos dela."
+  command -v jq >/dev/null 2>&1 || nao_mediu "a pilha respondeu, mas sem jq não há como contar os PRs dela."
   mede "a pilha da branch atual" gh stack view --json
+  total="$(printf '%s' "$MEDIDO" | jq '[.branches[] | select(.pr != null)] | length' 2>/dev/null)"
   abertos="$(printf '%s' "$MEDIDO" | jq '[.branches[] | select(.pr != null and .pr.state == "OPEN")] | length' 2>/dev/null)"
+  case "$total" in
+    ''|*[!0-9]*) nao_mediu "a pilha da branch atual: o \`gh stack view --json\` respondeu, mas sem contagem de PR." ;;
+  esac
   case "$abertos" in
     ''|*[!0-9]*) nao_mediu "a pilha da branch atual: o \`gh stack view --json\` respondeu, mas sem contagem de PR aberto." ;;
   esac
-  printf 'medido: a pilha da branch atual tem %s PR(s) aberto(s).\n' "$abertos"
+  printf 'medido: a pilha da branch atual tem %s PR(s), %s aberto(s).\n' "$total" "$abertos"
 fi
 
-if [ "${abertos:-0}" -ge 2 ]; then
+if [ "${total:-0}" -ge 2 ]; then
   mede "a lista de PRs abertos" gh pr list --state open --json number --jq '.[].number'
   abaixo_de_todos="$MEDIDO"
   for abaixo in $(printf '%s\n' "$abaixo_de_todos" | sort -n); do
