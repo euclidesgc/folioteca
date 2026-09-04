@@ -9,11 +9,11 @@
 # um motivo que parece outro.
 set -uo pipefail
 raiz="$(cd "$(dirname "$0")/../../.." && pwd)"
-alvo="$raiz/scripts/gates/rascunho.sh"
+alvo="$raiz/scripts/gates/fluxos.sh"
 falhas=0
 
 [ -f "$alvo" ] || {
-  printf '✗ rascunho: o alvo %s não existe — não há o que medir.\n' "$alvo" >&2
+  printf '✗ fluxos: o alvo %s não existe — não há o que medir.\n' "$alvo" >&2
   exit 2
 }
 
@@ -22,9 +22,9 @@ caso() { # caso <nome> <esperado 0|1> <trecho na saída> <conteúdo do fluxo>
   casa="$(mktemp -d)"
   mkdir -p "$casa/.github/workflows" "$casa/scripts/gates"
   cp "$raiz/scripts/gates/medir.sh" "$casa/scripts/gates/medir.sh"
-  cp "$alvo" "$casa/scripts/gates/rascunho.sh"
+  cp "$alvo" "$casa/scripts/gates/fluxos.sh"
   printf '%s' "$corpo" > "$casa/.github/workflows/ci.yml"
-  saida="$(env GITHUB_WORKSPACE="$casa" bash "$casa/scripts/gates/rascunho.sh" 2>&1)"
+  saida="$(env GITHUB_WORKSPACE="$casa" bash "$casa/scripts/gates/fluxos.sh" 2>&1)"
   obtido=$?
   [ "$obtido" -ne 0 ] && obtido=1
   if [ "$obtido" != "$esperado" ]; then
@@ -102,8 +102,8 @@ QUEBRADO='name: X
 on: [: isto não é YAML
 '
 
-printf 'portão do rascunho\n'
-caso 'fluxo completo passa'                      0 'nenhum job roda em PR rascunho' "$COMPLETO"
+printf 'portão dos fluxos\n'
+caso 'fluxo completo passa'                      0 'nada roda em rascunho' "$COMPLETO"
 caso 'job sem a guarda REPROVA'                  1 'sem a guarda de rascunho'       "$SEM_GUARDA"
 caso 'job sem a guarda ensina a linha que falta' 1 'draft != true'                  "$SEM_GUARDA"
 caso 'types sem ready_for_review REPROVA'        1 'ready_for_review'               "$SEM_READY"
@@ -112,6 +112,56 @@ caso 'UM job sem a guarda entre dois REPROVA'    1 'ci.yml:b'                   
 caso 'fluxo só de push não é cobrado'            0 '0 fluxo(s) com gatilho'         "$SO_PUSH"
 caso 'YAML ilegível REPROVA por não ter medido'  1 'não consegui medir'             "$QUEBRADO"
 
-[ "$falhas" -eq 0 ] && { printf '✓ rascunho: as duas asserções mordem\n'; exit 0; }
-printf '✗ rascunho: %s caso(s) falharam\n' "$falhas" >&2
+
+DOIS_ESTAGIOS='name: X
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+jobs:
+  casa:
+    if: github.event.pull_request.draft != true
+    uses: ./.github/workflows/_suite.yml
+    with:
+      runner: self-hosted
+  nuvem:
+    needs: casa
+    if: github.event.pull_request.draft != true
+    uses: ./.github/workflows/_suite.yml
+    with:
+      runner: ubuntu-latest
+'
+SEM_NEEDS='name: X
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+jobs:
+  casa:
+    if: github.event.pull_request.draft != true
+    uses: ./.github/workflows/_suite.yml
+    with:
+      runner: self-hosted
+  nuvem:
+    if: github.event.pull_request.draft != true
+    uses: ./.github/workflows/_suite.yml
+    with:
+      runner: ubuntu-latest
+'
+SO_NUVEM='name: X
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+jobs:
+  nuvem:
+    if: github.event.pull_request.draft != true
+    uses: ./.github/workflows/_suite.yml
+    with:
+      runner: ubuntu-latest
+'
+caso 'dois estágios na ordem passam'             0 '1 em dois estágios'   "$DOIS_ESTAGIOS"
+caso 'nuvem SEM needs na casa REPROVA'           1 'não espera esta máquina' "$SEM_NEEDS"
+caso 'nuvem sem needs explica o custo'           1 'virar cópia paga'     "$SEM_NEEDS"
+caso 'só nuvem, sem esta máquina antes, REPROVA' 1 'sem chamar esta máquina antes' "$SO_NUVEM"
+
+[ "$falhas" -eq 0 ] && { printf '✓ fluxos: as três asserções mordem\n'; exit 0; }
+printf '✗ fluxos: %s caso(s) falharam\n' "$falhas" >&2
 exit 1

@@ -1,0 +1,256 @@
+name: NestJS (suíte)
+
+# O PR NASCE RASCUNHO, E O CI LOCAL É QUEM O PROMOVE
+#
+# Nenhum job roda enquanto o PR está em rascunho. A iteração acontece na máquina
+# de quem trabalha, com `scripts/gates/gates_runner.sh`, e o runner remoto só é
+# chamado quando o trabalho está pronto para revisão — uma vez, em vez de uma por
+# push. Medido antes da mudança: ~6 execuções de `Portões` por PR e 189 num dia
+# de corrida autônoma, porque cada push redisparava tudo e o run anterior seguia
+# até o fim medindo um commit que ninguém ia mergear.
+#
+# `ready_for_review` no `types` é o que fecha o ciclo, e é a metade que se
+# esquece: sem ele, sair do rascunho não dispara evento nenhum, e o PR fica
+# pronto e sem CI para sempre — trocar "roda demais" por "não roda nunca".
+#
+# `!= true` e não `== false`: em evento de `push` não existe `pull_request`, o
+# campo vem nulo, e nulo não é rascunho.
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: "Onde os jobs rodam: self-hosted (esta casa) ou ubuntu-latest (nuvem)."
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  # Simétrica à guarda do fluxo da web, e pela mesma razão: `apps/api` nasce
+  # declarado no workspace e vazio, e o esqueleto do monorepo cria o pacote
+  # antes de a fase da API escrever a primeira linha. Os jobs aparecem como
+  # PULADOS, nunca verdes — portão que não mediu não aprova nada.
+  guarda:
+    name: Há código de API?
+    runs-on: ${{ inputs.runner }}
+    outputs:
+      pronto: ${{ steps.olha.outputs.pronto }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - id: olha
+        run: |
+          source scripts/gates/medir.sh
+          # exige_caminho reprova se apps/api sumir: aí não é "não há código", é
+          # medição impossível, e portão que não mediu não aprova nada. Foi
+          # exatamente este caso que passou despercebido quando um
+          # working-directory herdado fazia a busca olhar para apps/api/apps/api.
+          exige_caminho apps/api "o pacote da API"
+          fontes=0
+          if [ -d "$(medir_raiz)/apps/api/src" ]; then
+            fontes="$(conta_sob apps/api/src -name '*.ts' -o -name '*.tsx')"
+          fi
+          echo "medido: $fontes fonte(s) sob apps/api/src"
+          if [ "$fontes" -gt 0 ]; then
+            echo "pronto=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "pronto=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::apps/api não tem código-fonte ainda (medido: 0). Os portões dele passam a valer na fase que o construir."
+          fi
+
+  # Contrato divergente reprova antes de qualquer teste rodar: um cliente gerado
+  # de um contrato que o código não produz mais quebra em runtime, no consumidor
+  # que ninguém testou, e gastar minutos de teste sobre essa premissa só atrasa a
+  # notícia. `qualidade` e `integracao` dependem deste job e de mais nada: um
+  # `needs` pulado ou reprovado pula quem depende dele, e é essa aresta — não uma
+  # condição repetida em cada job — que faz o veredicto da guarda chegar lá.
+  contrato:
+    needs: guarda
+    if: needs.guarda.outputs.pronto == 'true'
+    name: Contrato OpenAPI
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: "pnpm-lock.yaml"
+
+      - name: Dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: Os pacotes deste fluxo estão no workspace
+        run: |
+          source scripts/gates/medir.sh
+          exige_pacote_pnpm api "o pacote da API"
+          exige_pacote_pnpm web "o pacote da web, cujo cliente o contrato gera"
+
+      # São dois pares versionados, não um: código→contrato e contrato→cliente.
+      # `git diff --exit-code` sai 0 tanto quando gerou igual quanto quando o
+      # gerador não escreveu nada, então cada par exige antes a prova de que o
+      # gerador rodou.
+      - name: Os dois pares versionados são o que o código gera
+        run: |
+          source scripts/gates/medir.sh
+          antes="$(date +%s)"
+          sleep 1
+          pnpm contract
+          exige_escrita apps/api/openapi.json "$antes"
+          exige_escrita apps/web/src/shared/api/generated/types.gen.ts "$antes"
+          git diff --exit-code apps/api/openapi.json || {
+            echo "::error::O contrato apps/api/openapi.json não é o que o código da API gera. Rode 'pnpm contract' e comite o par inteiro."
+            exit 1
+          }
+          git diff --exit-code apps/web/src/shared/api/generated || {
+            echo "::error::O cliente apps/web/src/shared/api/generated não é o que o contrato gera. Rode 'pnpm contract' e comite o par inteiro."
+            exit 1
+          }
+          # `git diff` só enxerga arquivo rastreado. Um gerador que passe a
+          # emitir um arquivo novo deixaria os dois pares batendo e o cliente
+          # commitado incompleto.
+          if git status --porcelain --untracked-files=all -- apps/api/openapi.json apps/web/src/shared/api/generated | grep -q '^??'; then
+            git status --porcelain --untracked-files=all -- apps/api/openapi.json apps/web/src/shared/api/generated
+            echo "::error::A geração produziu arquivo que não está versionado. Comite-o junto do par."
+            exit 1
+          fi
+
+  qualidade:
+    needs: contrato
+    name: Lint, tipos e testes
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: "pnpm-lock.yaml"
+
+      - name: Dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: Os pacotes deste fluxo estão no workspace
+        run: |
+          source scripts/gates/medir.sh
+          exige_pacote_pnpm api "o pacote da API"
+
+      - name: Lint
+        run: pnpm --filter api run lint
+
+      - name: Tipos
+        run: pnpm --filter api run typecheck
+
+      - name: Testes de unidade
+        run: pnpm --filter api run test
+
+  integracao:
+    needs: contrato
+    name: Integração
+    runs-on: ${{ inputs.runner }}
+    # O banco é real, com a extensão de vetores, porque é o que a plataforma
+    # usa: o índice de busca vive na mesma base das permissões. Rodar
+    # integração contra dublê provaria menos do que o critério exige.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: folioteca
+          # Credencial descartável de um banco que só este runner efêmero
+          # alcança — não é segredo, e não pode virar um. O identificador da
+          # corrida é público (está na URL da execução) e viaja inteiro na
+          # DATABASE_URL abaixo, então o que protege este banco é o isolamento
+          # de rede do runner, não o valor. No dia em que o job mudar para
+          # runner próprio, o `ports:` publicado é o que precisa sair.
+          POSTGRES_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}
+          POSTGRES_DB: folioteca
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U folioteca -d folioteca"
+          --health-interval 2s --health-timeout 5s --health-retries 30
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://folioteca:${{ github.run_id }}-${{ github.run_attempt }}@localhost:5432/folioteca
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: "pnpm-lock.yaml"
+
+      - name: Dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: Os pacotes deste fluxo estão no workspace
+        run: |
+          source scripts/gates/medir.sh
+          exige_pacote_pnpm api "o pacote da API"
+
+      # Os testes de integração sobem o banco em contêiner: rodar contra um
+      # dublê provaria menos do que o critério comportamental exige.
+      - name: Testes de integração
+        run: |
+          if [ ! -d apps/api/test ] || [ -z "$(find apps/api/test -name '*.e2e-spec.ts' -print -quit)" ]; then
+            echo "::notice::Nenhum teste de integração neste app ainda — nada a medir."
+            exit 0
+          fi
+          pnpm --filter api run test:integration
+
+      # Migration pendente é o defeito que só aparece no deploy. Aqui ele
+      # aparece no PR.
+      # A guarda é barulhenta de propósito. Um portão que sai 0 por não ter
+      # conseguido medir é pior que portão nenhum: some com o sinal e ninguém
+      # percebe. Aqui ele diz, no log e em aviso do GitHub, que não mediu.
+      - name: Migrations aplicáveis
+        run: |
+          if [ ! -f apps/api/prisma/schema.prisma ]; then
+            echo "::notice::Prisma ainda não existe neste repositório — nada a medir. Este portão passa a valer no item que introduzir o esquema."
+            exit 0
+          fi
+          codigo=0
+          pnpm --filter api exec prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel ./prisma/schema.prisma --exit-code || codigo=$?
+          case "$codigo" in
+            0) echo "medido: o esquema e as migrations dizem a mesma coisa." ;;
+            2)
+              echo "::error::O esquema tem mudanças sem migration correspondente."
+              exit 1
+              ;;
+            *)
+              echo "::error::prisma migrate diff não conseguiu medir (código $codigo) — não é drift, é medição impossível."
+              exit 1
+              ;;
+          esac
+
+  gates:
+    needs: guarda
+    if: needs.guarda.outputs.pronto == 'true'
+    name: Gates arquiteturais
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      # O portão da quarentena pergunta ao pnpm qual `minimumReleaseAge` está
+      # valendo, e a imagem do runner traz npm e Yarn, nunca pnpm. Este job não
+      # precisa do Node do `setup-node` nem do cache de dependência: precisa só
+      # do binário que responde à pergunta. Trazer `pnpm/action-setup` para isso
+      # acrescentaria código de terceiro rodando no runner por causa de uma
+      # leitura — mais superfície de cadeia de suprimentos do que a pergunta
+      # justifica, num item cuja tese é reduzi-la. O script peneira a forma do
+      # `packageManager` antes de ele virar comando e instala sem scripts de
+      # ciclo de vida: o valor vem do pull request que este job vai julgar.
+      - name: pnpm, que o portão da quarentena interroga
+        run: bash scripts/ci/instalar-pnpm.sh
+
+      - name: Gates
+        env:
+          HARNESS_DIFF_BASE: origin/${{ github.base_ref || 'develop' }}...HEAD
+        run: bash scripts/gates/gates_runner.sh --sem-artefatos

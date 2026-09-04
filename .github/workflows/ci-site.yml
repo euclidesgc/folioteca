@@ -1,20 +1,29 @@
 name: Site
 
-# O PR NASCE RASCUNHO, E O CI LOCAL É QUEM O PROMOVE
+# DOIS ESTÁGIOS: A MÁQUINA PRIMEIRO, A NUVEM COMO CONFIRMAÇÃO
 #
-# Nenhum job roda enquanto o PR está em rascunho. A iteração acontece na máquina
-# de quem trabalha, com `scripts/gates/gates_runner.sh`, e o runner remoto só é
-# chamado quando o trabalho está pronto para revisão — uma vez, em vez de uma por
-# push. Medido antes da mudança: ~6 execuções de `Portões` por PR e 189 num dia
-# de corrida autônoma, porque cada push redisparava tudo e o run anterior seguia
-# até o fim medindo um commit que ninguém ia mergear.
+# A suíte inteira vive em `_suite-site.yml` e é chamada duas vezes: primeiro no
+# runner desta casa, que é rápido e não conta minuto; depois no da nuvem, e só se
+# o primeiro passar.
 #
-# `ready_for_review` no `types` é o que fecha o ciclo, e é a metade que se
-# esquece: sem ele, sair do rascunho não dispara evento nenhum, e o PR fica
-# pronto e sem CI para sempre — trocar "roda demais" por "não roda nunca".
+# Por que os dois, e não só o de casa: o runner da nuvem nasce limpo a cada job,
+# e é ele quem pega a classe de erro que a máquina de quem trabalha esconde —
+# "passa aqui porque eu já tenho a ferramenta instalada". Um CI que roda só em
+# casa deixa de medir exatamente isso.
 #
-# `!= true` e não `== false`: em evento de `push` não existe `pull_request`, o
-# campo vem nulo, e nulo não é rascunho.
+# Por que nesta ordem, e não em paralelo: o de casa é o filtro barato. Ele reprova
+# o que estiver errado sem gastar minuto nenhum, e a nuvem só é chamada para
+# confirmar o que já passou.
+#
+# E nenhum dos dois roda em PR rascunho. A iteração acontece com
+# `scripts/gates/gates_runner.sh` na máquina, o motor promove o PR quando os
+# portões locais passam, e é a promoção que dispara isto — uma vez, em vez de uma
+# por push. Medido antes: 189 execuções num dia de corrida, ~6 de `Portões` por
+# PR. `ready_for_review` no `types` é a metade que se esquece: sem ele, sair do
+# rascunho não dispara nada e o PR fica pronto e sem CI para sempre.
+#
+# `!= true` e não `== false`: em `push` não existe `pull_request`, o campo vem
+# nulo, e nulo não é rascunho.
 
 on:
   push:
@@ -23,6 +32,7 @@ on:
       - "apps/site/**"
       - "scripts/gates/**"
       - ".github/workflows/ci-site.yml"
+      - ".github/workflows/_suite-site.yml"
       - "pnpm-lock.yaml"
       - "package.json"
       - "pnpm-workspace.yaml"
@@ -32,6 +42,7 @@ on:
       - "apps/site/**"
       - "scripts/gates/**"
       - ".github/workflows/ci-site.yml"
+      - ".github/workflows/_suite-site.yml"
       - "pnpm-lock.yaml"
       - "package.json"
       - "pnpm-workspace.yaml"
@@ -40,48 +51,17 @@ permissions:
   contents: read
 
 jobs:
-  verificacao:
-    name: Tipos, build e portões
+  casa:
+    name: Nesta máquina
     if: github.event.pull_request.draft != true
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          fetch-depth: 0
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: "24"
-          cache: pnpm
-          cache-dependency-path: "pnpm-lock.yaml"
+    uses: ./.github/workflows/_suite-site.yml
+    with:
+      runner: self-hosted
 
-      - name: Dependências
-        run: pnpm install --frozen-lockfile
-
-      - name: O pacote deste fluxo está no workspace
-        run: |
-          source scripts/gates/medir.sh
-          exige_caminho apps/site/package.json "o manifesto do hotsite"
-          exige_pacote_pnpm site "o pacote do hotsite"
-
-      - name: Tipos
-        run: pnpm --filter site typecheck
-
-      - name: Build
-        run: pnpm --filter site build
-
-      # A política de conteúdo do hotsite só existe em resposta HTTP: nonce por
-      # requisição e atributo estampado no HTML não são observáveis em arquivo
-      # de configuração, e verificação que nunca roda de novo não reprova nada.
-      - name: Política de conteúdo e cabeçalhos do hotsite
-        run: bash apps/site/scripts/verificar-politica.sh producao
-
-      - name: A comparação de nonces morde
-        run: bash apps/site/scripts/__tests__/verificar-politica.test.sh
-
-      # `--all` em vez do diff: o hotsite não tem pack, e o que o governa aqui
-      # são G3 e G4 declarados sobre `apps/site/src/**`. Medir só o diff faria o
-      # portão depender de uma base que um push em branch recém-criada não tem,
-      # e base ausente é medição impossível, não árvore limpa.
-      - name: Portões arquiteturais
-        run: bash scripts/gates/gates_runner.sh --all --sem-artefatos
+  nuvem:
+    name: Confirmação em máquina limpa
+    needs: casa
+    if: github.event.pull_request.draft != true
+    uses: ./.github/workflows/_suite-site.yml
+    with:
+      runner: ubuntu-latest

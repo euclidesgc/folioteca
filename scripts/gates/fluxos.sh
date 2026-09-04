@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# O CI não roda em PR rascunho, e sai do rascunho é o que o dispara.
+# O desenho dos fluxos: nada roda em rascunho, e a nuvem confirma o que a casa
+# aprovou.
 #
 # POR QUE ESTE PORTÃO EXISTE
 # O desenho é: o PR nasce rascunho, a iteração acontece na máquina de quem
@@ -37,7 +38,7 @@ if not fluxos:
     print("::error::nenhum fluxo em .github/workflows — não há o que medir.", file=sys.stderr)
     raise SystemExit(1)
 
-sem_guarda, sem_ready, medidos = [], [], 0
+sem_guarda, sem_ready, sem_ordem, medidos, estagios = [], [], [], 0, 0
 for f in fluxos:
     try:
         doc = yaml.safe_load(f.read_text()) or {}
@@ -56,12 +57,33 @@ for f in fluxos:
     if "ready_for_review" not in tipos:
         sem_ready.append(f.name)
 
-    for nome, job in (doc.get("jobs") or {}).items():
+    jobs = doc.get("jobs") or {}
+    for nome, job in jobs.items():
         if "github.event.pull_request.draft" not in str((job or {}).get("if", "")):
             sem_guarda.append(f"{f.name}:{nome}")
 
+    # O DESENHO DE DOIS ESTÁGIOS
+    #
+    # O fluxo que delega para uma suíte reutilizável a chama duas vezes: em casa
+    # primeiro, na nuvem depois, e a segunda depende da primeira. Sem o `needs`,
+    # as duas rodam em paralelo e a nuvem deixa de ser confirmação para virar
+    # cópia — o dobro do custo pelo mesmo veredicto. Sem a ordem, o filtro barato
+    # deixa de filtrar.
+    casa = {n: j for n, j in jobs.items() if str((j or {}).get("with", {}).get("runner", "")) == "self-hosted"}
+    nuvem = {n: j for n, j in jobs.items() if str((j or {}).get("with", {}).get("runner", "")) == "ubuntu-latest"}
+    if casa and nuvem:
+        estagios += 1
+        for n, j in nuvem.items():
+            precisa = j.get("needs") or []
+            precisa = [precisa] if isinstance(precisa, str) else list(precisa)
+            if not any(d in casa for d in precisa):
+                sem_ordem.append(f"{f.name}:{n}")
+    elif nuvem and not casa:
+        sem_ordem.append(f"{f.name}: chama a nuvem sem chamar esta máquina antes")
+
 print(f"medido: {medidos} fluxo(s) com gatilho de pull_request, "
-      f"{len(sem_guarda)} job(s) sem a guarda de rascunho.")
+      f"{len(sem_guarda)} job(s) sem a guarda de rascunho, "
+      f"{estagios} em dois estágios.")
 
 if sem_guarda:
     print("::error::job sem a guarda de rascunho — ele roda em PR rascunho e "
@@ -72,8 +94,13 @@ if sem_ready:
           file=sys.stderr)
     print("Sem ele, sair do rascunho não dispara nada e o PR fica pronto e sem CI.",
           file=sys.stderr)
-raise SystemExit(1 if (sem_guarda or sem_ready) else 0)
+if sem_ordem:
+    print("::error::a nuvem não espera esta máquina: " + ", ".join(sem_ordem), file=sys.stderr)
+    print("O estágio de nuvem precisa de `needs:` no de casa. Sem isso os dois rodam"
+          " em paralelo, e a nuvem deixa de confirmar para virar cópia paga.",
+          file=sys.stderr)
+raise SystemExit(1 if (sem_guarda or sem_ready or sem_ordem) else 0)
 PY
 codigo=$?
-[ "$codigo" -eq 0 ] && echo "✓ rascunho: nenhum job roda em PR rascunho, e sair do rascunho dispara o CI."
+[ "$codigo" -eq 0 ] && echo "✓ fluxos: nada roda em rascunho, e a nuvem só confirma o que esta máquina aprovou."
 exit "$codigo"

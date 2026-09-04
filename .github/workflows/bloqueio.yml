@@ -26,11 +26,16 @@ on:
   pull_request:
     types: [opened, reopened, synchronize, labeled, unlabeled, ready_for_review]
 
+# Este roda SÓ nesta máquina, e de propósito: ele lê os rótulos do PR e roda as
+# asserções do próprio script de bloqueio. Não compila, não instala e não depende
+# de ambiente limpo — confirmá-lo na nuvem gastaria minuto para medir de novo o
+# que não tem como divergir entre as duas.
+
 jobs:
   bloqueio:
     name: Sem bloqueio pendente
     if: github.event.pull_request.draft != true
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       # A verificação passou a morar em `scripts/gates/`, testada, então o job
       # precisa da árvore. Enquanto ela era uma linha de shell no YAML, não

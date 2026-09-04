@@ -124,7 +124,7 @@ arquivo de rastreamento local, não histórico, e o retorno é gratuito.
 ## O PR nasce rascunho, e o portão local é quem o promove
 
 Nenhum job do CI roda em PR rascunho — os cinco fluxos têm a guarda, e
-`scripts/gates/rascunho.sh` a cobra. A iteração acontece aqui, na máquina, com
+`scripts/gates/fluxos.sh` a cobra. A iteração acontece aqui, na máquina, com
 `gates_runner.sh`; o runner remoto é chamado **uma vez**, quando o trabalho fica
 pronto para revisão.
 
