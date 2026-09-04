@@ -418,7 +418,7 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       política permanente, e adiar sem motivo novo é o antipadrão que o portão
       existe para impedir.
 
-- [ ] `057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto` — um push novo
+- [-] `057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto` — um push novo
       para de deixar atrás de si um run inteiro medindo um commit que ninguém vai
       mergear
       **Depende de:** nada — é configuração de fluxo, e não depende de código
