@@ -100,7 +100,7 @@ jobs:
     name: O D-nnn.md e o state.json dizem o mesmo status
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: G8 sobre todas as divergências
         run: |
           violacoes="$(bash scripts/gates/gate8_divergence_status.sh < /dev/null)"
