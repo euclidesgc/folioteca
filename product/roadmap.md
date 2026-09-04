@@ -41,47 +41,6 @@ PR e commit já escritos.
       de o `checkout` já ter gravado o token no disco — a correção é fixar cada
       uma em SHA de 40 caracteres com a versão em comentário.
 
-- [ ] `057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto` — um push novo
-      para de deixar atrás de si um run inteiro medindo um commit que ninguém vai
-      mergear
-      **Depende de:** nada — é configuração de fluxo, e não depende de código
-      nenhum deste repositório.
-      **Origem:** encerramento de `027-vulnerabilidade-conhecida-reprova-no-ci`.
-      Nenhum dos cinco fluxos de `.github/workflows` declara `concurrency` —
-      `grep -c concurrency` devolve `0` nos cinco —, então três commits empurrados
-      em três minutos para a mesma branch deixam três runs de `Portões` correndo
-      ao mesmo tempo: medido nesta branch em 04/09/2026, com `315250d`, `569c0e6`
-      e `b996a93`. Cada um audita o mesmo lockfile, e é assim que a janela do
-      endpoint enche — ver `055`. Custa minutos de uma cota que ninguém aqui
-      consegue ler, e ainda entrega vermelho de um commit já substituído. Fechar é
-      declarar `concurrency` com `group` por fluxo e referência e
-      `cancel-in-progress: true` nas branches de trabalho — e **não** em `main`
-      nem em `develop`, onde cancelar apaga a única medição que aquele commit vai
-      ter.
-      **Precede `052`:** aquele item declara `timeout-minutes` a partir do tempo
-      medido de cada job, e enquanto runs concorrentes disputam o mesmo endpoint o
-      tempo medido não serve de régua — o mesmo job saiu **13m34s** acompanhado e
-      **1m23s** sozinho.
-
-- [ ] `052-todo-job-do-ci-declara-teto-de-tempo` — um passo que pendura para de
-      consumir a cota de minutos do repositório em silêncio, porque cada job diz
-      em quanto tempo ele desiste
-      **Depende de:** `027-vulnerabilidade-conhecida-reprova-no-ci` — é a fase
-      dele que traz o primeiro passo de CI que fala com a rede em toda execução,
-      e portanto o primeiro que pode pendurar sem nada acusar.
-      **Origem:** fase 1 de `027-vulnerabilidade-conhecida-reprova-no-ci`. O
-      portão de vulnerabilidade ganhou teto próprio — `TETO_DA_AUDITORIA=600`,
-      decisão `D19` de `decisoes-autonomas.md` —, mas o teto está no portão e não
-      no job: nenhum dos jobs de `.github/workflows/portoes.yml` declara
-      `timeout-minutes`, e o limite que vale por omissão é o do GitHub, de seis
-      horas. Um passo que pendura por outro motivo — instalação de dependência,
-      build, um binário baixado — continua consumindo a cota até lá, e quem paga
-      só descobre no fim do mês. Fechar é declarar `timeout-minutes` em cada job
-      de cada fluxo, com o número saído do tempo medido de cada um, e um portão
-      que reprove o job novo que não o declare. O que **não** se faz é um número
-      redondo igual para todos: teto que não sai de medição é teto que reprova o
-      job legítimo no dia em que a rede está lenta.
-
 - [x] `053-o-portao-de-vulnerabilidade-insiste-antes-de-desistir` — uma
       indisponibilidade curta do registro npm deixa de reprovar o pull request de
       quem não mexeu em dependência nenhuma
@@ -90,99 +49,6 @@ PR e commit já escritos.
       mostrou que a falha não é curta nem rara — o portão tenta três vezes, com
       espera declarada, e imprime quantas tentativas gastou. Ela **não** resolve o
       limite de taxa do endpoint, que é a causa; isso é o `055`.
-
-- [ ] `056-o-portao-de-vulnerabilidade-fecha-os-residuos-que-a-validacao-cega-mediu` —
-      as três brechas que sobraram no portão deixam de existir, e a suíte passa a
-      morder o caso que hoje ela cobre por acidente
-      **Depende de:** `027-vulnerabilidade-conhecida-reprova-no-ci` — são resíduos
-      do portão dele, e nenhum deles é alcançado por critério de aceite.
-      **Origem:** validação cega da fase 1 de
-      `027-vulnerabilidade-conhecida-reprova-no-ci`, ver `05-veredictos/fase-1.md`,
-      apontamentos A1, A2 e A3. São três, e cada um foi medido com resposta
-      forjada, não deduzido: (a) o confronto compara a **soma** `critical + high`
-      com o número de avisos lidos, e soma se anula — um relatório com
-      `critical: 2` e `high: -2` casa com lista vazia e o portão imprime
-      `critical: 2` e `0 achados` na mesma tela; fecha com guarda de
-      não-negatividade; (b) a peneira de registro segue `npm_config_userconfig`
-      mas não `npm_config_globalconfig`, que é a quinta casa e redireciona a mesma
-      chamada; (c) quatro casos da suíte passam com o ramo do `.error` removido,
-      porque a checagem de forma reprova logo adiante com outra mensagem — o
-      comportamento continua coberto por dois casos, mas quatro afirmam provar o
-      que não provam. Nenhum dos três é aprovação que o portão declare falsamente
-      ter medido, e por isso a fase foi aprovada; são o que sobra depois dela.
-
-- [ ] `055-a-auditoria-de-dependencia-troca-de-motor` — o portão de
-      vulnerabilidade passa a medir por uma base que responde em toda execução, e
-      o vermelho volta a significar dependência vulnerável
-      **Depende de:** `027-vulnerabilidade-conhecida-reprova-no-ci` — é o portão
-      dele que troca de motor, e a troca só se sustenta depois de a falha fechada,
-      a isenção com prazo e os testes existirem para serem reapontados.
-      **Origem:** fase 1 de `027-vulnerabilidade-conhecida-reprova-no-ci`, ver
-      `04-divergencias/D-001.md`. O endpoint de auditoria do npm limita por
-      volume: no PR #36 os três jobs que auditam reprovaram juntos, no mesmo
-      minuto, com o lockfile limpo, e na máquina de desenvolvimento três chamadas
-      iguais espaçadas por 45 segundos responderam em 74 s, em 90 s e em nenhum
-      tempo. A repetição do `053` reduz a chance, não a remove, e portão que
-      reprova quem não errou é portão que se aprende a ignorar. Medido de novo no
-      encerramento do `027`, já com a repetição em vigor, e desta vez com a
-      concorrência visível nos carimbos. Sobre `bae9b89`: três fluxos mediram às
-      11:02:41Z, o `Site` começou a auditar catorze segundos depois — ele audita
-      no fim, porque o build do Next vem antes —, gastou as três tentativas em
-      **13m34s** e reprovou por não ter medido. O mesmo job, re-executado sozinho
-      às 11:23Z sobre o mesmo commit, mediu **na primeira tentativa, em 1m23s**. A
-      causa não é o lockfile nem a máquina: é a janela do endpoint, e o
-      desperdício que a enche é nosso — **um commit dispara quatro auditorias do
-      mesmo lockfile**, porque cada fluxo por frente chama o `gates_runner.sh` e o
-      fluxo `Portões` ainda tem o passo dedicado. Quatro chamadas para uma
-      resposta, numa cota de minutos que ninguém aqui consegue ler. Enquanto isto
-      não fechar, **o merge do `027` depende de sorte com o endpoint** — e o que
-      destrava um pull request vermelho por isto é re-executar o job, nunca mexer
-      no que o portão mede. Fechar é trocar o
-      motor por `osv-scanner` — a ferramenta que a skill `security-baseline`
-      nomeia —, instalado por binário com par versão/`sha256` fixado, no padrão de
-      `scripts/ci/instalar-gitleaks.sh`. A troca reabre a `D1` do
-      `decisoes-autonomas.md` e o `RF-01` do brief, que nomeiam a ferramenta, e
-      por isso ela espera ratificação humana.
-
-- [ ] `054-o-fluxo-de-portoes-instala-o-pnpm-pela-mesma-peneira-dos-outros` — a
-      versão de pnpm que julga vulnerabilidade deixa de sair do arquivo do pull
-      request sem passar por verificação
-      **Depende de:** `027-vulnerabilidade-conhecida-reprova-no-ci` — antes dele o
-      fluxo de portões não executava nada que dependesse de qual pnpm roda.
-      **Origem:** fase 1 de `027-vulnerabilidade-conhecida-reprova-no-ci`,
-      levantado pela auditoria de segurança como suspeita a confirmar. O job
-      `medir` de `.github/workflows/portoes.yml` usa `pnpm/action-setup` sem
-      `with: version`, então a versão instalada vem do campo `packageManager` do
-      `package.json` do próprio PR; os três fluxos por frente não fazem assim —
-      eles passam por `scripts/ci/instalar-pnpm.sh`, que peneira a forma do campo
-      e instala com `--ignore-scripts`. A ação está fixada em SHA, então o risco
-      não é a ação: é o job que julga vulnerabilidade rodar uma versão que o PR
-      escolheu sem a peneira que os outros fluxos exigem. Fechar é usar o mesmo
-      script nos dois jobs deste fluxo. Falta confirmar, antes de decidir a forma,
-      se `pnpm/action-setup@v4.3.0` valida o campo e instala sem scripts de ciclo
-      de vida — se validar, o item vira consistência e não correção.
-
-- [ ] `049-a-isencao-de-qs-vence-e-alguem-precisa-fecha-la` — o nome `qs` sai da
-      lista de isenções da quarentena, nos dois lugares que o portão compara,
-      antes que o vencimento deixe todo PR vermelho
-      **Depende de:** `023-endurecimento-antes-da-sessao` — é a fase 5 dele que
-      cria a isenção e o vencimento que a mata.
-      **Origem:** discovery de `027-vulnerabilidade-conhecida-reprova-no-ci`,
-      medição de datas. A isenção nominal de `qs` vence em **2026-09-05**, e a
-      partir desse dia `scripts/gates/quarentena.sh` reprova por vencimento —
-      todo PR do repositório, não só o que mexe em dependência. Fechar é tirar
-      `qs` de `pnpm-workspace.yaml:48-49` e da constante `ISENCOES_ESPERADAS`
-      em `scripts/gates/quarentena.sh:43`, que é o par que o portão compara.
-      Fechar já é seguro para o lockfile de hoje: ele resolve `qs@6.16.0`, a
-      versão corrigida, e nenhuma auditoria acusa nada. A nuance medida é de
-      horas — `6.16.0` foi publicada em `2026-08-29T23:50Z`, então ela só
-      completa os sete dias de quarentena em `2026-09-05T23:50Z`, e uma
-      reconstrução de lockfile feita naquele dia antes desse horário cairia de
-      volta em `6.15.3`, que é a vulnerável. Reconstruir o lockfile a partir de
-      `2026-09-06` não tem essa aresta. O que **não** se faz é esticar a data
-      para destravar o vermelho: a isenção tem prazo justamente para não virar
-      política permanente, e adiar sem motivo novo é o antipadrão que o portão
-      existe para impedir.
 
 - [x] `027-vulnerabilidade-conhecida-reprova-no-ci` — o CI reprova quando uma
       dependência do lockfile tem aviso de severidade alta, em vez de a conta ser
@@ -522,6 +388,147 @@ acima deles era longa o bastante para que nenhuma tela ficasse pronta.
 
 Eles **não saem**: cada um continua com a origem que o gerou, e o que sobe de
 volta é o item que uma sessão provar ser pré-requisito real do que está fazendo.
+
+**Item de portão nasce aqui**, inclusive o que uma fase acabou de descobrir. A
+regra de escrever a pendência na posição de precedência certa vale entre os
+itens desta seção, e não contra o produto: para o que mede o processo, a posição
+certa é aqui dentro. Sem esta frase a fila de infraestrutura se reconstitui
+sozinha na frente do produto — seis itens numa noite, cada um inserido
+corretamente pela régua local, e nenhuma tela pronta de manhã.
+
+- [ ] `049-a-isencao-de-qs-vence-e-alguem-precisa-fecha-la` — o nome `qs` sai da
+      lista de isenções da quarentena, nos dois lugares que o portão compara,
+      antes que o vencimento deixe todo PR vermelho
+      **Depende de:** `023-endurecimento-antes-da-sessao` — é a fase 5 dele que
+      cria a isenção e o vencimento que a mata.
+      **Origem:** discovery de `027-vulnerabilidade-conhecida-reprova-no-ci`,
+      medição de datas. A isenção nominal de `qs` vence em **2026-09-05**, e a
+      partir desse dia `scripts/gates/quarentena.sh` reprova por vencimento —
+      todo PR do repositório, não só o que mexe em dependência. Fechar é tirar
+      `qs` de `pnpm-workspace.yaml:48-49` e da constante `ISENCOES_ESPERADAS`
+      em `scripts/gates/quarentena.sh:43`, que é o par que o portão compara.
+      Fechar já é seguro para o lockfile de hoje: ele resolve `qs@6.16.0`, a
+      versão corrigida, e nenhuma auditoria acusa nada. A nuance medida é de
+      horas — `6.16.0` foi publicada em `2026-08-29T23:50Z`, então ela só
+      completa os sete dias de quarentena em `2026-09-05T23:50Z`, e uma
+      reconstrução de lockfile feita naquele dia antes desse horário cairia de
+      volta em `6.15.3`, que é a vulnerável. Reconstruir o lockfile a partir de
+      `2026-09-06` não tem essa aresta. O que **não** se faz é esticar a data
+      para destravar o vermelho: a isenção tem prazo justamente para não virar
+      política permanente, e adiar sem motivo novo é o antipadrão que o portão
+      existe para impedir.
+
+- [ ] `057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto` — um push novo
+      para de deixar atrás de si um run inteiro medindo um commit que ninguém vai
+      mergear
+      **Depende de:** nada — é configuração de fluxo, e não depende de código
+      nenhum deste repositório.
+      **Origem:** encerramento de `027-vulnerabilidade-conhecida-reprova-no-ci`.
+      Nenhum dos cinco fluxos de `.github/workflows` declara `concurrency` —
+      `grep -c concurrency` devolve `0` nos cinco —, então três commits empurrados
+      em três minutos para a mesma branch deixam três runs de `Portões` correndo
+      ao mesmo tempo: medido nesta branch em 04/09/2026, com `315250d`, `569c0e6`
+      e `b996a93`. Cada um audita o mesmo lockfile, e é assim que a janela do
+      endpoint enche — ver `055`. Custa minutos de uma cota que ninguém aqui
+      consegue ler, e ainda entrega vermelho de um commit já substituído. Fechar é
+      declarar `concurrency` com `group` por fluxo e referência e
+      `cancel-in-progress: true` nas branches de trabalho — e **não** em `main`
+      nem em `develop`, onde cancelar apaga a única medição que aquele commit vai
+      ter.
+      **Precede `052`:** aquele item declara `timeout-minutes` a partir do tempo
+      medido de cada job, e enquanto runs concorrentes disputam o mesmo endpoint o
+      tempo medido não serve de régua — o mesmo job saiu **13m34s** acompanhado e
+      **1m23s** sozinho.
+
+- [ ] `052-todo-job-do-ci-declara-teto-de-tempo` — um passo que pendura para de
+      consumir a cota de minutos do repositório em silêncio, porque cada job diz
+      em quanto tempo ele desiste
+      **Depende de:** `027-vulnerabilidade-conhecida-reprova-no-ci` — é a fase
+      dele que traz o primeiro passo de CI que fala com a rede em toda execução,
+      e portanto o primeiro que pode pendurar sem nada acusar.
+      **Origem:** fase 1 de `027-vulnerabilidade-conhecida-reprova-no-ci`. O
+      portão de vulnerabilidade ganhou teto próprio — `TETO_DA_AUDITORIA=600`,
+      decisão `D19` de `decisoes-autonomas.md` —, mas o teto está no portão e não
+      no job: nenhum dos jobs de `.github/workflows/portoes.yml` declara
+      `timeout-minutes`, e o limite que vale por omissão é o do GitHub, de seis
+      horas. Um passo que pendura por outro motivo — instalação de dependência,
+      build, um binário baixado — continua consumindo a cota até lá, e quem paga
+      só descobre no fim do mês. Fechar é declarar `timeout-minutes` em cada job
+      de cada fluxo, com o número saído do tempo medido de cada um, e um portão
+      que reprove o job novo que não o declare. O que **não** se faz é um número
+      redondo igual para todos: teto que não sai de medição é teto que reprova o
+      job legítimo no dia em que a rede está lenta.
+
+- [ ] `056-o-portao-de-vulnerabilidade-fecha-os-residuos-que-a-validacao-cega-mediu` —
+      as três brechas que sobraram no portão deixam de existir, e a suíte passa a
+      morder o caso que hoje ela cobre por acidente
+      **Depende de:** `027-vulnerabilidade-conhecida-reprova-no-ci` — são resíduos
+      do portão dele, e nenhum deles é alcançado por critério de aceite.
+      **Origem:** validação cega da fase 1 de
+      `027-vulnerabilidade-conhecida-reprova-no-ci`, ver `05-veredictos/fase-1.md`,
+      apontamentos A1, A2 e A3. São três, e cada um foi medido com resposta
+      forjada, não deduzido: (a) o confronto compara a **soma** `critical + high`
+      com o número de avisos lidos, e soma se anula — um relatório com
+      `critical: 2` e `high: -2` casa com lista vazia e o portão imprime
+      `critical: 2` e `0 achados` na mesma tela; fecha com guarda de
+      não-negatividade; (b) a peneira de registro segue `npm_config_userconfig`
+      mas não `npm_config_globalconfig`, que é a quinta casa e redireciona a mesma
+      chamada; (c) quatro casos da suíte passam com o ramo do `.error` removido,
+      porque a checagem de forma reprova logo adiante com outra mensagem — o
+      comportamento continua coberto por dois casos, mas quatro afirmam provar o
+      que não provam. Nenhum dos três é aprovação que o portão declare falsamente
+      ter medido, e por isso a fase foi aprovada; são o que sobra depois dela.
+
+- [ ] `055-a-auditoria-de-dependencia-troca-de-motor` — o portão de
+      vulnerabilidade passa a medir por uma base que responde em toda execução, e
+      o vermelho volta a significar dependência vulnerável
+      **Depende de:** `027-vulnerabilidade-conhecida-reprova-no-ci` — é o portão
+      dele que troca de motor, e a troca só se sustenta depois de a falha fechada,
+      a isenção com prazo e os testes existirem para serem reapontados.
+      **Origem:** fase 1 de `027-vulnerabilidade-conhecida-reprova-no-ci`, ver
+      `04-divergencias/D-001.md`. O endpoint de auditoria do npm limita por
+      volume: no PR #36 os três jobs que auditam reprovaram juntos, no mesmo
+      minuto, com o lockfile limpo, e na máquina de desenvolvimento três chamadas
+      iguais espaçadas por 45 segundos responderam em 74 s, em 90 s e em nenhum
+      tempo. A repetição do `053` reduz a chance, não a remove, e portão que
+      reprova quem não errou é portão que se aprende a ignorar. Medido de novo no
+      encerramento do `027`, já com a repetição em vigor, e desta vez com a
+      concorrência visível nos carimbos. Sobre `bae9b89`: três fluxos mediram às
+      11:02:41Z, o `Site` começou a auditar catorze segundos depois — ele audita
+      no fim, porque o build do Next vem antes —, gastou as três tentativas em
+      **13m34s** e reprovou por não ter medido. O mesmo job, re-executado sozinho
+      às 11:23Z sobre o mesmo commit, mediu **na primeira tentativa, em 1m23s**. A
+      causa não é o lockfile nem a máquina: é a janela do endpoint, e o
+      desperdício que a enche é nosso — **um commit dispara quatro auditorias do
+      mesmo lockfile**, porque cada fluxo por frente chama o `gates_runner.sh` e o
+      fluxo `Portões` ainda tem o passo dedicado. Quatro chamadas para uma
+      resposta, numa cota de minutos que ninguém aqui consegue ler. Enquanto isto
+      não fechar, **o merge do `027` depende de sorte com o endpoint** — e o que
+      destrava um pull request vermelho por isto é re-executar o job, nunca mexer
+      no que o portão mede. Fechar é trocar o
+      motor por `osv-scanner` — a ferramenta que a skill `security-baseline`
+      nomeia —, instalado por binário com par versão/`sha256` fixado, no padrão de
+      `scripts/ci/instalar-gitleaks.sh`. A troca reabre a `D1` do
+      `decisoes-autonomas.md` e o `RF-01` do brief, que nomeiam a ferramenta, e
+      por isso ela espera ratificação humana.
+
+- [ ] `054-o-fluxo-de-portoes-instala-o-pnpm-pela-mesma-peneira-dos-outros` — a
+      versão de pnpm que julga vulnerabilidade deixa de sair do arquivo do pull
+      request sem passar por verificação
+      **Depende de:** `027-vulnerabilidade-conhecida-reprova-no-ci` — antes dele o
+      fluxo de portões não executava nada que dependesse de qual pnpm roda.
+      **Origem:** fase 1 de `027-vulnerabilidade-conhecida-reprova-no-ci`,
+      levantado pela auditoria de segurança como suspeita a confirmar. O job
+      `medir` de `.github/workflows/portoes.yml` usa `pnpm/action-setup` sem
+      `with: version`, então a versão instalada vem do campo `packageManager` do
+      `package.json` do próprio PR; os três fluxos por frente não fazem assim —
+      eles passam por `scripts/ci/instalar-pnpm.sh`, que peneira a forma do campo
+      e instala com `--ignore-scripts`. A ação está fixada em SHA, então o risco
+      não é a ação: é o job que julga vulnerabilidade rodar uma versão que o PR
+      escolheu sem a peneira que os outros fluxos exigem. Fechar é usar o mesmo
+      script nos dois jobs deste fluxo. Falta confirmar, antes de decidir a forma,
+      se `pnpm/action-setup@v4.3.0` valida o campo e instala sem scripts de ciclo
+      de vida — se validar, o item vira consistência e não correção.
 
 - [ ] `042-o-sha-fixado-e-conferido-contra-a-versao-que-ele-diz-ser` — o portão
       das ações reprova o SHA que não corresponde à tag do comentário ao lado, em
