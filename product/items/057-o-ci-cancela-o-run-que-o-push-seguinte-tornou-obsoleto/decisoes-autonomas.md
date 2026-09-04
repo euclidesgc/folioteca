@@ -657,3 +657,47 @@ pergunta *consegui medir?* responde igual para ausência e para mudança. As dua
 medições foram refeitas em primeiro plano com a falha explícita, e é a versão
 refeita que sustenta `D25` e `D27`. Nenhum veredicto desta sessão se apoia na
 saída dos laços.
+
+## Parada desta sessão
+
+**Motivo:** a fase 1 está implementada e correta — quatro dos cinco critérios
+verificados com evidência executada, `gates_runner.sh` verde em duas execuções, e
+os cinco runs de `ca7b244` `success`. O critério `comportamental` reprovou pela
+segunda vez seguida, e `reproved_count` foi a `2` com `escalated: true`, que é o
+estado escalando sozinho como deve. A diferença desta sessão para as duas
+anteriores é que a causa deixou de ser suposição: **o GitHub parou de calcular o
+merge ref do pull request #46**, e workflow disparado por `pull_request` não
+nasce sem merge commit. A hipótese de cota de minutos, que sustentava as duas
+reprovações anteriores, está **refutada por medição** — o rerun executou o job da
+nuvem e terminou `success` às `18:41:16Z`.
+
+Insistir a partir daqui reproduz o erro com mais token: seis pushes já produziram
+zero runs, três deles com mudança real de arquivo, e a única manobra de
+destravamento disponível daqui — fechar e reabrir o PR — foi tentada, não
+funcionou e ainda apagou o merge ref antigo (`D26`).
+
+**Próxima ação do dono, uma decisão só:** o merge do PR #46 não é calculável pelo
+GitHub, e o reparo não está nesta máquina. As duas saídas, com o custo de cada
+uma:
+
+1. **Esperar.** A falha é da plataforma e costuma se resolver sozinha; as duas
+   paradas anteriores voltaram. Custo: a corrida fica parada no item `057`, e o
+   `decide-next-action.mjs` continua apontando para esta fase. Quando voltar,
+   basta uma sessão: os quatro critérios já estão medidos, e falta empurrar dois
+   commits com mudança real de arquivo em menos de 90 segundos e ler o
+   cancelamento. **É a recomendação** — é reversível, não custa nada e não pede
+   decisão de produto.
+2. **Abrir chamado no suporte do GitHub**, com o dado já reunido: PR `#46`,
+   `mergeable: null` e `mergeable_state: unknown` persistentes, `merge_commit_sha`
+   nulo, `merge-base` igual à base e `git merge-tree` sem conflito, nenhuma suíte
+   do app `github-actions` desde `18:13:56Z` contra suítes de quatro outros apps
+   a cada push. Custo: tempo do dono, e a corrida segue parada enquanto isso.
+
+O que **não** se recomenda é aceitar a medição local como evidência do critério 5.
+Ela prova que a declaração está na forma certa nos cinco fluxos — que é o que os
+critérios 1 a 4 já provam —, e não prova que o run obsoleto morre, que é a única
+coisa que o critério 5 existe para medir.
+
+**Para a sessão que retomar:** a rotina de diagnóstico que separa esta falha das
+outras está no item `061` do roadmap, e as três medições que a compõem custam uma
+chamada de API cada. Rode-as antes de atribuir qualquer parada do CI à cota.
