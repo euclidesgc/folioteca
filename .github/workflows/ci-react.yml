@@ -169,4 +169,4 @@ jobs:
       - name: Gates
         env:
           HARNESS_DIFF_BASE: origin/${{ github.base_ref || 'develop' }}...HEAD
-        run: bash scripts/gates/gates_runner.sh
+        run: bash scripts/gates/gates_runner.sh --sem-artefatos

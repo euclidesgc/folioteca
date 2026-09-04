@@ -416,9 +416,13 @@ ignorado, ele deve sair com código zero.
 
 **RF-15.2** — *comportamento indesejado*
 
-Se um arquivo rastreado carrega segredo — o `.env` depois de `git add -f .env`
-—, então o portão deve sair com código diferente de zero e a saída deve nomear
-`.env`.
+> Reconciliado em D-009.
+
+Se um arquivo rastreado carrega segredo, então o portão deve sair com código
+diferente de zero e a saída deve nomear o arquivo. Se um arquivo de ambiente —
+`.env` e as variantes de ambiente, exceto `.env.example` — está versionado,
+com ou sem valor de alta entropia dentro, então o portão deve sair com código
+diferente de zero e a saída deve nomear o arquivo.
 
 **RF-15.3** — *comportamento indesejado*
 

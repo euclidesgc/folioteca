@@ -3,9 +3,24 @@ name: Portões
 # As asserções de medição são o portão dos portões. Se elas pararem de morder,
 # todo portão que as usa passa a aprovar por não ter medido — que é o defeito
 # que elas existem para matar. Por isso rodam em todo PR.
+#
+# O gatilho `push` existe pelo portão de segredo: `main` e `develop` recebem
+# commit sem PR, e sem ele a árvore dessas duas só seria medida na próxima vez
+# que alguém abrisse um pull request. O que ele **não** cobre é o histórico: o
+# portão varre a árvore de trabalho, então um segredo commitado e removido no
+# commit seguinte passa. Fechar essa janela é o item `040` do roadmap.
 on:
+  push:
+    branches: [main, develop]
   pull_request:
     types: [opened, reopened, synchronize]
+
+# O teto fica escrito aqui, e não na configuração da organização, porque lá ele
+# muda por um clique que não aparece em diff nenhum. Este job passou a instalar
+# dependência e a baixar um binário da internet: é exatamente o job em que um
+# token com escrita vale mais para quem o comprometer.
+permissions:
+  contents: read
 
 jobs:
   medir:
@@ -13,16 +28,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # `exige_pacote_pnpm` conversa com o pnpm, então o teste dela precisa do
-      # binário — sem ele a asserção reprova por não achar a ferramenta, e o
-      # portão dos portões passa a acusar o ambiente em vez da asserção. Não há
-      # `pnpm install`: `pnpm --filter <p> exec` resolve o pacote pelo
-      # `pnpm-workspace.yaml`, e instalar dependência aqui só atrasaria o
-      # portão mais barato do repositório.
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
+          cache: pnpm
+          cache-dependency-path: "pnpm-lock.yaml"
+
+      # Os três testes abaixo não dependem de dependência instalada, e vêm antes
+      # da instalação de propósito: são os mais baratos do repositório, e quando
+      # uma asserção de medição quebra o resto do job não tem o que provar.
       - name: medir.sh reprova quando não consegue medir
         run: bash scripts/gates/__tests__/medir.test.sh
       - name: a fronteira de agent nomeia agents que existem
@@ -31,6 +46,39 @@ jobs:
         run: bash scripts/gates/__tests__/status-de-divergencia.test.sh
       - name: o estado ancora na raiz do repositório, não no diretório corrente
         run: bash scripts/harness/__tests__/state.test.sh
+
+      # A partir daqui o job constrói: o portão de segredo varre os três
+      # artefatos de build além das fontes rastreadas, e artefato que não existe
+      # é medição impossível, não árvore limpa.
+      - name: Dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: Build da API
+        run: pnpm --filter api build
+
+      - name: Build do hotsite
+        run: pnpm --filter site build
+
+      - name: Build do app
+        run: pnpm --filter web run build
+        env:
+          VITE_API_URL: http://localhost:3000
+
+      # O diretório é dedicado, e não `~/.local/bin`: o instalador prepende o
+      # destino ao PATH de todos os passos seguintes, e `~/.local/bin` é
+      # escrivível por qualquer coisa que tenha rodado antes — inclusive os três
+      # builds acima, que carregam plugins do `node_modules` do próprio PR. Um
+      # `git` plantado ali responderia pelo `git ls-files` do portão.
+      - name: gitleaks na versão e no sha256 que o repositório fixou
+        run: bash scripts/ci/instalar-gitleaks.sh
+        env:
+          GITLEAKS_BIN_DIR: ${{ runner.temp }}/gitleaks-bin
+
+      - name: o portão de segredo reprova o que acha e o que não mediu
+        run: bash scripts/gates/__tests__/segredo.test.sh
+
+      - name: Nenhum segredo nas fontes nem nos três artefatos
+        run: bash scripts/gates/segredo.sh
 
   divergencias:
     name: O D-nnn.md e o state.json dizem o mesmo status

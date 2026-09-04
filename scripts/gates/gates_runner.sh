@@ -16,12 +16,26 @@
 # Cada gate é um script independente que recebe a lista de arquivos por stdin
 # e imprime uma linha por violação, no formato `arquivo:linha:trecho`.
 #
+# Depois dos gates declarados vem o portão de segredo, que não cabe no molde
+# acima: `.harness/gates.json` fala de arquivos por stdin e violações por
+# stdout, com o código de saída ignorado, e metade do que o portão de segredo
+# precisa dizer é que **não conseguiu medir**. Declarado ali, a reprovação por
+# medição impossível viraria aprovação silenciosa; por isso ele é invocado
+# aqui, com o código de saída propagado.
+#
 # Modos:
-#   gates_runner.sh                roda os gates e reprova conforme o modo
-#   gates_runner.sh --diff-only    força avaliação apenas do diff
-#   gates_runner.sh --all          força avaliação da árvore inteira
-#   gates_runner.sh --count-json   imprime a contagem por gate/arquivo (baseline)
-#   gates_runner.sh --baseline     grava a contagem atual como nova baseline
+#   gates_runner.sh                  roda os gates e o portão de segredo
+#   gates_runner.sh --diff-only      força avaliação apenas do diff
+#   gates_runner.sh --all            força avaliação da árvore inteira
+#   gates_runner.sh --count-json     imprime a contagem por gate/arquivo (baseline)
+#   gates_runner.sh --baseline       grava a contagem atual como nova baseline
+#   gates_runner.sh --sem-artefatos  pula o portão de segredo
+#
+# `--sem-artefatos` existe para os jobs de CI de uma frente só: eles não
+# constroem as outras duas, e sem a flag reprovariam por artefato ausente em
+# todo PR — reprovação verdadeira sobre uma pergunta que aquele job não deveria
+# estar fazendo. Quem cobra o portão de segredo é a execução sem flag, que
+# `.github/workflows/portoes.yml` roda depois dos três builds.
 
 set -uo pipefail
 
@@ -34,12 +48,14 @@ CONFIG="$ROOT/.harness/config.json"
 [ -f "$GATES_CONFIG" ] || { echo "sem .harness/gates.json — nada a cobrar"; exit 0; }
 
 MODE="auto"
+SEM_ARTEFATOS=0
 for arg in "$@"; do
   case "$arg" in
     --diff-only) MODE="diff" ;;
     --all) MODE="all" ;;
     --count-json) MODE="count" ;;
     --baseline) MODE="baseline" ;;
+    --sem-artefatos) SEM_ARTEFATOS=1 ;;
   esac
 done
 
@@ -209,3 +225,16 @@ if linhas_saida:
 print(f"✓ gates: limpos ({escopo}, {len(universe)} arquivo(s) considerados).")
 sys.exit(0)
 PYTHON
+VEREDICTO=$?
+
+case "$MODE" in
+  count|baseline) exit "$VEREDICTO" ;;
+esac
+
+if [ "$SEM_ARTEFATOS" -eq 1 ]; then
+  echo "portão de segredo: não cobrado neste modo — quem o roda constrói antes o que ele varre."
+  exit "$VEREDICTO"
+fi
+
+bash "$ROOT/scripts/gates/segredo.sh" || VEREDICTO=1
+exit "$VEREDICTO"

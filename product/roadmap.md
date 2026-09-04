@@ -279,6 +279,36 @@ PR e commit já escritos.
       configuração de tipos que não cabia numa fase de endurecimento de
       cabeçalhos. O aviso é ruído em todo build até lá.
 
+- [ ] `039-o-fluxo-de-bloqueio-declara-o-teto-de-permissao` — `bloqueio.yml`
+      roda com o teto de permissão escrito no próprio arquivo, e não com o da
+      configuração da organização
+      **Depende de:** nada — é uma declaração de duas linhas no fluxo.
+      **Origem:** fase 4 de `023-endurecimento-antes-da-sessao`. Dos cinco
+      fluxos, `ci-nestjs.yml`, `ci-react.yml` e `ci-site.yml` já declaravam
+      `permissions:`, e `portoes.yml` passou a declarar nesta fase, porque foi
+      ela que o pôs a instalar dependência e a baixar binário da internet.
+      `bloqueio.yml` ficou de fora: ele lê rótulo de pull request, e o escopo
+      mínimo que o mantém funcionando precisa ser medido contra o que a API do
+      GitHub exige — uma pergunta que uma fase de portão de segredo não tem como
+      responder sem exercitar o fluxo.
+
+- [ ] `040-a-varredura-de-segredo-alcanca-o-historico` — um segredo commitado e
+      removido no commit seguinte é acusado, em vez de sumir da árvore e ficar
+      no `git log`
+      **Depende de:** `023-endurecimento-antes-da-sessao` — a fase 4 dele cria o
+      portão, a ferramenta fixada e o `.gitleaks.toml` que esta varredura usa.
+      **Origem:** fase 4 de `023-endurecimento-antes-da-sessao`, auditoria de
+      segurança. O portão roda `gitleaks dir`: ele varre a árvore de trabalho e
+      os três artefatos, nunca o histórico. Quem commita `.env` com a senha do
+      banco, percebe e commita a remoção passa pelos quatro universos — e o valor
+      fica em `git log -p` para qualquer um que clone. `gitleaks git` fecha a
+      janela, mas hoje sai vermelho com dois falso-positivos já medidos: a chave
+      RSA fictícia que o critério de RF-15.3 manda plantar, em `03-plan.md`
+      @9e8d928, e a senha de exemplo em
+      `.claude/skills/react-testing-behavioral/SKILL.md` @1f50033. O item nasce
+      junto de um `.gitleaksignore` com esses dois fingerprints — e a decisão de
+      qual dos dois some do histórico em vez de ser perdoado é do dono.
+
 - [ ] `002-conta-e-organizacao` — quem se cadastra cria a organização e vira o
       seu primeiro administrador; o endereço é confirmado por e-mail, a senha se
       recupera sozinha, e a tela responde a mesma coisa exista ou não a conta

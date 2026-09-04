@@ -699,6 +699,7 @@ raiz do repositório por `pnpm --filter api build`, `pnpm --filter site build` e
       `apps/api/dist`, com um número maior que zero em cada uma, e uma linha que
       contém a versão de `gitleaks` no formato `<major>.<minor>.<patch>`.
 - [ ] `comportamental` — RF-15.2
+      > Reconciliado em D-009.
       *Dado* `gitleaks` no `PATH`, os diretórios `apps/api/dist`,
       `apps/site/.next` e `apps/web/dist` construídos por
       `pnpm --filter api build`, `pnpm --filter site build` e
@@ -706,13 +707,16 @@ raiz do repositório por `pnpm --filter api build`, `pnpm --filter site build` e
       `git add -f .env` executado na raiz do repositório
       *Quando* `bash scripts/gates/segredo.sh` é executado
       *Então* o comando termina com código de saída diferente de zero e a saída
-      contém `.env` — desfeito em seguida por `git reset -- .env`
+      contém `.env` — a reprovação vem da regra de caminho do
+      `.gitleaks.toml`, e portanto vale com o `.env` de qualquer máquina,
+      inclusive um sem valor de alta entropia dentro — desfeito em seguida
+      por `git reset -- .env`
 - [ ] `comportamental` — RF-15.3
-      > Reconciliado em D-004.
+      > Reconciliado em D-004, D-010.
       *Dado* `gitleaks` no `PATH`, os diretórios `apps/api/dist` e
       `apps/site/.next` construídos, e a sequência
       `openssl genrsa -out /tmp/chave-fixture.pem 2048`, seguida de
-      `printf 'const CHAVE = "%s";\n' "$(awk '{printf "%s\\n", $0}' /tmp/chave-fixture.pem)" >> apps/web/src/shared/config/env.ts`,
+      `printf 'export const chaveDeTeste = "%s";\nconsole.log(chaveDeTeste);\n' "$(awk '{printf "%s\\n", $0}' /tmp/chave-fixture.pem)" >> apps/web/src/shared/config/env.ts`,
       executada na raiz do repositório — a chave nasce no instante do teste, e
       nenhum bloco PEM permanece escrito neste documento —, e
       `VITE_API_URL=http://localhost:3000 pnpm --filter web build`
@@ -807,20 +811,36 @@ raiz do repositório por `pnpm --filter api build`, `pnpm --filter site build` e
 
 ### Etapas
 
-- [ ] 4.1 Criar `.gitleaks.toml` na raiz, estendendo o conjunto de regras padrão
-      de `gitleaks` (`[extend] useDefault = true`) e declarando um `allowlist`
-      global com exatamente duas entradas, cada uma com o motivo escrito na linha
-      acima: o caminho `.env.example`, cujos valores são exemplo de máquina local
-      já publicados no repositório desde o primeiro commit; e a linha de
-      `POSTGRES_PASSWORD` de `.github/workflows/ci-nestjs.yml`, que é credencial
-      descartável de um banco que só o runner efêmero alcança, com a justificativa
-      já escrita no próprio fluxo.
-      Justificativa: RF-15.1 exige código zero sobre repositório limpo, e as duas
-      entradas são os únicos valores hoje rastreados que a varredura acusa sem
-      haver segredo. Toda entrada de `allowlist` é permissão concedida: escrevê-la
-      com o motivo ao lado é o que permite a quem revisa julgar se ela ainda vale
-      — permissão sem motivo é herdada sem revisão. Nenhuma entrada nova entra
-      sem o mesmo tratamento.
+- [ ] 4.1 Criar `.gitleaks.toml` na raiz, estendendo o conjunto de regras
+      padrão de `gitleaks` (`[extend] useDefault = true`).
+      > Reconciliado em D-008, D-009.
+      Declarar, em `allowlists`, uma entrada por valor que a ferramenta de
+      fato acusa, cada uma com o motivo escrito na linha acima e recortada
+      pela forma do valor, nunca pelo caminho: uma para o hash de árvore que
+      o veredicto de cada fase grava em `product/state.json` sob
+      `validated_trees`, com `regexTarget = "line"` — para que o prefixo
+      `apps/` sobreviva ao recorte —; e outra para as chaves que o build do
+      Next.js gera nos manifestos de `apps/site/.next`
+      (`previewModeSigningKey`, `previewModeEncryptionKey`, `encryptionKey`,
+      `encryption.key`, `__NEXT_PREVIEW_MODE_SIGNING_KEY`,
+      `__NEXT_PREVIEW_MODE_ENCRYPTION_KEY`,
+      `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`), com `regexTarget = "match"`.
+      Nenhuma entrada usa `allowlists.paths`, que faz o gitleaks pular o
+      arquivo inteiro antes de lê-lo, mesmo sob `condition = "AND"` — medido:
+      `apps/site/.next` caiu de 67 MB varridos para zero ao ganhar uma
+      entrada por caminho. `.env.example` e a linha de `POSTGRES_PASSWORD` de
+      `.github/workflows/ci-nestjs.yml` não entram na allowlist: nenhuma das
+      duas é acusada, e permissão que não perdoa nada envelhece em depósito.
+      Criar também uma `[[rules]]` de caminho, sem `regex`, que acusa `.env`
+      e as variantes de ambiente e deixa `.env.example` de fora.
+      Justificativa: RF-15.1 exige código zero sobre repositório limpo com os
+      três artefatos construídos, e a allowlist só existe com o motivo
+      escrito ao lado — permissão sem motivo é herdada sem revisão.
+      `allowlists.paths` desliga o universo inteiro em vez de perdoar um
+      valor, e por isso nenhuma entrada o usa. A regra de caminho para
+      `.env` existe porque um `.env` versionado é erro no dia em que entra,
+      não no dia em que alguém escreve um valor forte dentro dele: medir só
+      o conteúdo faria o veredicto depender do `.env` de cada máquina.
 - [ ] 4.2 Criar `scripts/gates/segredo.sh`, carregando
       `source scripts/gates/medir.sh`. Antes de varrer: `exige_comando gitleaks`
       (RF-16.1) e, para cada um dos três diretórios de artefato, `exige_caminho`
