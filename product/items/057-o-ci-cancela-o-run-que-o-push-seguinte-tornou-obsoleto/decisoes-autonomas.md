@@ -343,3 +343,73 @@ cota, ou seguir com a medição de casa como única evidência.
 aprovado como `A4`, estágio movido para `execute`, PR #44 aberto e fora de
 rascunho com as sete seções. O PR **não mergeou**, e a razão é `D18` — a tranca
 não mergeia o último pull request aberto de uma pilha —, não falta de verde.
+
+## Fase 1 — os cinco fluxos declaram a forma única
+
+### O CI voltou pela segunda vez, e a fase 1 pôde medir o cancelamento
+
+Medido em 2026-09-04 às 18:13Z. A parada registrada acima, às 18:05Z, passou
+sozinha como a primeira: o push da branch `057-…/fase-1-concurrency-nos-cinco-fluxos`
+criou os cinco runs — `Bloqueio`, `Portões`, `NestJS`, `React` e `Site` — em
+segundos, todos no commit `ca7b244`. A causa da interrupção segue sem
+diagnóstico daqui, e o `047-o-veredicto-de-fase-mede-se-o-ci-chegou-a-rodar`
+segue no roadmap como a rede que falta. O que muda é que o critério
+`comportamental` desta fase deixou de ser não mensurável.
+
+### D19 — A branch da fase 1 nasce empilhada sobre o PR #44, e não de `develop`
+
+O plano diz, na fase 1, que a branch nasce de `develop`. Ele foi escrito antes de
+`D18` — a tranca de merge não mergeia o último pull request aberto de uma pilha —,
+e por causa de `D18` o PR #44, que carrega o próprio plano, continua aberto. Uma
+branch nascida de `develop` agora produziria um pull request cujo diff não vê o
+plano que o autoriza, e sobretudo sairia da pilha gerenciada: o `gh stack add`
+cria no topo, e o topo é `057-…/plano`.
+
+**Decidido:** criar a branch com `gh stack add`, empilhada sobre o PR #44, como
+as próprias `decisoes-autonomas.md` já previam ao fechar `D18` ("a fase 1 do
+`057` empilha sobre o PR #44 normalmente").
+
+**Alternativa descartada:** nascer de `develop` como a letra do plano diz, e
+ligar o pull request com `gh pr create --base`. É exatamente a montagem à mão que
+a norma proíbe: parece uma corrente e não é gerenciada, e a primeira correção
+pedida na revisão deixaria os PRs de cima mostrando o diff errado.
+
+**Isto não é divergência de contrato.** A forma do bloco `concurrency` — que é o
+contrato desta fase — não mudou em nada; mudou de onde a branch nasce, que é
+mecânica de pilha e já estava decidida em `D18`.
+
+### D20 — O comentário dos cinco fluxos é o mesmo texto de quatro linhas
+
+O plano pede um comentário curto e idêntico nos cinco arquivos, de no máximo
+quatro linhas, com o porquê que a configuração não mostra, e proíbe repetir a
+forma esperada em prosa.
+
+**Decidido:** as quatro linhas dizem duas coisas e param — que `main` e `develop`
+recebem commit sem pull request e que a medição cancelada numa das duas não é
+refeita por push nenhum, e que `${{ github.workflow }}` está na chave de grupo
+para o fluxo longo do mesmo push não matar o curto. Vai idêntico nos cinco,
+inclusive em `bloqueio.yml`, onde a expressão avalia `true` de qualquer jeito:
+uma forma só é uma forma só, e é o que deixa o portão da fase 2 comparar com uma
+constante em vez de interpretar expressão.
+
+**Alternativa descartada:** um comentário por fluxo, adaptado ao gatilho de cada
+um. Cinco textos diferentes envelhecem em cinco velocidades, e o primeiro que
+alguém corrigir passa a contradizer os outros quatro.
+
+### D21 — `_suite-portoes.yml` mantém o número medido e perde só a oração falsa
+
+O parágrafo do rascunho trazia "Medido antes da mudança: ~6 execuções de
+`Portões` por PR e 189 num dia de corrida autônoma, porque cada push redisparava
+tudo e o run anterior seguia até o fim medindo um commit que ninguém ia mergear".
+A segunda metade descrevia o presente do repositório e deixou de ser verdade
+nesta fase; a primeira é a evidência que justifica o PR nascer rascunho, e
+continua exata.
+
+**Decidido:** manter a medição, cortar a oração falsa, e acrescentar em seguida o
+parágrafo que diz, no presente, que o run obsoleto morre no instante do push
+seguinte e que quem declara a concorrência é o fluxo chamador, nunca a suíte —
+com o porquê junto, que é o impasse entre chamador e chamado no mesmo grupo.
+
+**Alternativa descartada:** apagar o parágrafo inteiro. Levaria junto o número
+que sustenta a decisão do rascunho, e a próxima sessão que se perguntasse por que
+o PR nasce rascunho não acharia a resposta em lugar nenhum.
