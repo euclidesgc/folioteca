@@ -29,6 +29,9 @@
 set -uo pipefail
 
 TETO="${MERGE_TETO_SEGUNDOS:-30}"
+# Teto de espera por verificação pendente. Separado do teto de rede: aquele mede
+# se o GitHub responde, este mede quanto se espera por um CI que ainda roda.
+ESPERA="${MERGE_ESPERA_SEGUNDOS:-1200}"
 
 pr="${1:-}"
 metodo="${2:---squash}"
@@ -83,6 +86,36 @@ mede_checks() {
   MEDIDO="$saida"
 }
 
+# POR QUE PENDENTE NÃO É VERDE
+# A primeira versão recusava só o check `fail`. Um PR cujas verificações ainda
+# rodam não tem nenhuma `fail` — tem quatro `pending` —, então ele passava, e o
+# merge acontecia antes de o CI dizer qualquer coisa. É a mesma forma de falha
+# que o cabeçalho deste arquivo descreve: a ausência de vermelho lida como
+# verde, quando o certo era ler como *ainda não medido*. Numa noite de trinta
+# merges, isso é trinta merges sem CI.
+#
+# Espera até $ESPERA segundos e recusa o que continuar pendente. Recusar de
+# imediato travaria todo PR legítimo, porque o CI sempre começa pendente.
+espera_checks() {
+  local alvo="$1" inicio agora pendentes
+  inicio="$(date +%s)"
+  while :; do
+    mede_checks "$alvo"
+    pendentes="$(printf '%s\n' "$MEDIDO" | awk -F'\t' '$2=="pending"{print $1}')"
+    [ -n "$pendentes" ] || return 0
+    agora="$(date +%s)"
+    if [ "$((agora - inicio))" -ge "$ESPERA" ]; then
+      printf 'RECUSADO: o PR #%s ainda tem verificação pendente depois de %ss:\n' "$alvo" "$ESPERA" >&2
+      printf '%s\n' "$pendentes" | sed 's/^/  /' >&2
+      printf 'Pendente não é verde. Espere o CI terminar, ou aumente MERGE_ESPERA_SEGUNDOS\n' >&2
+      printf 'quando souber por que aquela suite demora.\n' >&2
+      exit 1
+    fi
+    printf 'aguardando %s verificação(ões) do PR #%s...\n' "$(printf '%s\n' "$pendentes" | wc -l | tr -d ' ')" "$alvo" >&2
+    sleep 20
+  done
+}
+
 mede "rótulos do PR #$pr" gh pr view "$pr" --json labels --jq '.labels[].name'
 rotulos="$MEDIDO"
 bloqueios="$(printf '%s\n' "$rotulos" | grep '^blocked-on-' || true)"
@@ -92,7 +125,7 @@ if [ -n "$bloqueios" ]; then
   exit 1
 fi
 
-mede_checks "$pr"
+espera_checks "$pr"
 vermelhos="$(printf '%s\n' "$MEDIDO" | awk -F'\t' '$2=="fail"{print $1}')"
 if [ -n "$vermelhos" ]; then
   printf 'RECUSADO: o PR #%s tem verificação vermelha:\n' "$pr" >&2
@@ -108,7 +141,7 @@ case "$estado" in
   *) printf 'RECUSADO: o PR #%s está em estado %s.\n' "$pr" "$estado" >&2; exit 1 ;;
 esac
 
-printf 'PR #%s liberado: sem bloqueio, sem check vermelho, estado %s.\n' "$pr" "$estado"
+printf 'PR #%s liberado: sem bloqueio, nenhuma verificação vermelha nem pendente, estado %s.\n' "$pr" "$estado"
 
 # PR que pertence a uma pilha não mergeia por `gh pr merge`: o GitHub exige a
 # via da pilha. `gh stack merge` é atômico — tudo até o PR escolhido entra
@@ -127,7 +160,7 @@ if timeout "$TETO" gh stack view >/dev/null 2>&1; then
     mede "rótulos do PR #$abaixo" gh pr view "$abaixo" --json labels --jq '.labels[].name'
     r="$(printf '%s\n' "$MEDIDO" | grep '^blocked-on-' || true)"
     [ -z "$r" ] || { printf 'RECUSADO: o PR #%s, abaixo na pilha, está travado por %s.\n' "$abaixo" "$r" >&2; exit 1; }
-    mede_checks "$abaixo"
+    espera_checks "$abaixo"
     v="$(printf '%s\n' "$MEDIDO" | awk -F'\t' '$2=="fail"{print $1}')"
     [ -z "$v" ] || { printf 'RECUSADO: o PR #%s, abaixo na pilha, tem check vermelho.\n' "$abaixo" >&2; exit 1; }
   done
