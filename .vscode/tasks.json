@@ -1,0 +1,79 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "banco (up)",
+      "type": "shell",
+      "command": "docker compose up -d --wait",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "// banco (down)": "O `down` remove o contêiner, não o volume: os dados do Postgres local sobrevivem.",
+      "label": "banco (down)",
+      "type": "shell",
+      "command": "docker compose down",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "// web local (bg)": "O endsPattern é o que segura o lançamento do navegador até o Vite estar servindo; sem ele o Chrome abre numa porta que ainda não responde.",
+      "label": "web local (bg)",
+      "type": "shell",
+      "isBackground": true,
+      "command": "bash \"${workspaceFolder}/.vscode/scripts/service-up.sh\" \"${workspaceFolder}/.vscode/web.pid\" apps/web pnpm run dev",
+      "problemMatcher": {
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*",
+          "endsPattern": "ready in \\d+"
+        }
+      }
+    },
+    {
+      "// web hml (bg)": "Mesmo Vite, apontando para a API de homologação. Falha em pé aqui é CORS: a API só devolve cabeçalho para as origens em WEB_ORIGIN, e http://localhost:5173 está na lista de hml.",
+      "label": "web hml (bg)",
+      "type": "shell",
+      "isBackground": true,
+      "options": {
+        "env": { "VITE_API_URL": "https://api-hml.folioteca.duckdns.org" }
+      },
+      "command": "bash \"${workspaceFolder}/.vscode/scripts/service-up.sh\" \"${workspaceFolder}/.vscode/web.pid\" apps/web pnpm run dev",
+      "problemMatcher": {
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*",
+          "endsPattern": "ready in \\d+"
+        }
+      }
+    },
+    {
+      "// espera a API": "A API sobe como sessão de depuração, em paralelo com esta task; a espera aqui é o que faz o navegador abrir depois de ela responder, e não antes.",
+      "label": "espera a API",
+      "type": "shell",
+      "command": "curl -sf -o /dev/null --retry 60 --retry-delay 1 --retry-all-errors --retry-connrefused http://localhost:3000/health",
+      "problemMatcher": []
+    },
+    {
+      "label": "local: Vite e espera a API",
+      "dependsOrder": "sequence",
+      "dependsOn": ["web local (bg)", "espera a API"],
+      "problemMatcher": []
+    },
+    {
+      "label": "para o web",
+      "type": "shell",
+      "command": "bash \"${workspaceFolder}/.vscode/scripts/service-down.sh\" \"${workspaceFolder}/.vscode/web.pid\"",
+      "problemMatcher": []
+    },
+    {
+      "label": "contrato: OpenAPI + cliente da web",
+      "type": "shell",
+      "command": "pnpm run contract",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    }
+  ]
+}

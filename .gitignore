@@ -15,6 +15,9 @@ test-results/
 *.tsbuildinfo
 next-env.d.ts
 
+# Pid dos serviços que o launch do VS Code sobe em segundo plano.
+.vscode/*.pid
+
 .harness/gate-baseline.json
 .harness/runtime/
 .code-review-graph/
