@@ -521,8 +521,10 @@
           "por": "autonomo"
         },
         "plan": {
-          "at": null,
-          "sha": null
+          "at": "2026-09-04T05:32:13Z",
+          "sha": "18813a2af24bd0d6747a08d2d47ce4e2751b19ba",
+          "file": "product/items/027-vulnerabilidade-conhecida-reprova-no-ci/03-plan.md",
+          "por": "autonomo"
         }
       },
       "current_phase": null,

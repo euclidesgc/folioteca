@@ -94,6 +94,31 @@ mergeia: o CI roda, fica verde, a tranca libera, e o `gh` responde
 Se a pilha ainda não existe: `gh stack init --base develop <branch-de-baixo> …`,
 que adota branches já existentes de baixo para cima.
 
+**Antes de criar a branch, largue as pilhas mortas.** `gh stack` guarda as pilhas
+em `.git/gh-stack`, e uma pilha encerrada continua lá com o mesmo trunk das
+outras. Quando duas ou mais têm `develop` por trunk, `gh stack add` responde
+`branch "develop" belongs to multiple stacks; use an interactive terminal to
+select one` e não cria nada — e o seu terminal não é interativo. O problema
+piora sozinho: cada estágio que fecha deixa uma pilha a mais, então adiar a
+faxina é garantir que a próxima sessão trava mais cedo.
+
+```bash
+python3 -c "
+import json,io
+d=json.load(io.open('.git/gh-stack'))
+for s in d.get('stacks',[]):
+    print(s.get('number','sem número'), '|', ', '.join(b['branch'] for b in s['branches']))
+"                                    # o que está registrado
+gh pr view <n> --json state          # cada PR da pilha: só largue MERGED ou CLOSED
+gh stack unstack --local <número>    # pilha que tem número
+gh stack checkout <branch> && gh stack unstack --local   # pilha sem número
+```
+
+**`--local` é obrigatório:** sem ele o `unstack` também desfaz a pilha no
+GitHub. E largue só a pilha cujos PRs estão todos fechados — medindo com
+`gh pr view`, nunca presumindo pelo nome. Copie `.git/gh-stack` antes; é
+arquivo de rastreamento local, não histórico, e o retorno é gratuito.
+
 **Nunca empurre com `--force`.**
 
 **Mergeie apenas por `bash scripts/merge-se-liberado.sh <pr>`**, e apenas o PR
