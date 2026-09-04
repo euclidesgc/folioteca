@@ -175,14 +175,37 @@ while [ "$rodada" -lt "$ate" ]; do
     exit 2
   fi
 
+  # O PR NASCE RASCUNHO, E O PORTÃO LOCAL É QUEM O PROMOVE
+  #
+  # `--auto` sem `--open` cria em rascunho, e é isso que se quer: nenhum job do
+  # CI roda em PR rascunho — os fluxos têm a guarda —, então a iteração da noite
+  # não consome runner nenhum. Medido antes: ~6 execuções de `Portões` por PR e
+  # 189 num dia, porque cada push redisparava tudo.
+  #
+  # Quem promove é este passo, e só depois de os portões locais passarem. A
+  # sessão já os rodou; rodar de novo aqui não é desconfiança dela: é a diferença
+  # entre o motor SABER que o que ele empilhou passa e ACREDITAR que passa. O
+  # rascunho que fica é a informação de que não passou, e ela fica visível no PR.
   marca "rodada $rodada: empilhando o PR"
   if gh stack view >/dev/null 2>&1; then
-    # `--open` não é enfeite: com `--auto` e sem ele, todo PR nasce RASCUNHO, e
-    # rascunho é `mergeStateStatus: DRAFT` — que a tranca recusa, com razão. A
-    # corrida abriria PR a noite inteira sem mergear nenhum, e o sintoma de manhã
-    # seria uma pilha alta e o develop parado, sem nada acusando por quê. Medido
-    # nesta noite: os PRs #31 e #32 nasceram em rascunho.
-    gh stack submit --auto --open || printf 'motor: gh stack submit falhou; os commits continuam locais.\n' >&2
+    if timeout "$TETO_REDE" gh stack submit --auto; then
+      marca "rodada $rodada: medindo os portões antes de promover"
+      if bash scripts/gates/gates_runner.sh --sem-artefatos >/dev/null 2>&1; then
+        promovidos=0
+        for numero in $(timeout "$TETO_REDE" gh pr list --state open --draft \
+              --json number --jq '.[].number' 2>/dev/null); do
+          timeout "$TETO_REDE" gh pr ready "$numero" >/dev/null 2>&1 \
+            && promovidos=$((promovidos + 1))
+        done
+        printf 'motor: portões locais limpos; %s PR(s) promovido(s) de rascunho a pronto.\n' "$promovidos"
+      else
+        printf 'motor: os portões locais reprovaram. O PR fica em RASCUNHO — que é o\n' >&2
+        printf '       estado certo para trabalho que não passa, e o CI remoto não é\n' >&2
+        printf '       gasto medindo o que já se sabe vermelho.\n' >&2
+      fi
+    else
+      printf 'motor: gh stack submit falhou; os commits continuam locais.\n' >&2
+    fi
   else
     printf 'motor: a branch corrente não está numa pilha; os commits continuam locais. `gh stack init --base develop <branch>` adota o que existe.\n' >&2
   fi

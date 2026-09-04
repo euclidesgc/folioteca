@@ -121,6 +121,23 @@ arquivo de rastreamento local, não histórico, e o retorno é gratuito.
 
 **Nunca empurre com `--force`.**
 
+## O PR nasce rascunho, e o portão local é quem o promove
+
+Nenhum job do CI roda em PR rascunho — os cinco fluxos têm a guarda, e
+`scripts/gates/rascunho.sh` a cobra. A iteração acontece aqui, na máquina, com
+`gates_runner.sh`; o runner remoto é chamado **uma vez**, quando o trabalho fica
+pronto para revisão.
+
+O motor faz isso sozinho: empilha com `gh stack submit --auto`, que cria em
+rascunho, roda os portões locais, e só então promove com `gh pr ready`. **Portão
+local que reprova deixa o PR em rascunho** — que é o estado certo para trabalho
+que não passa, e evita gastar o runner medindo o que já se sabe vermelho.
+
+O que isso muda para você: não marque PR como pronto à mão. Se um PR seu ficou
+em rascunho, é porque `gates_runner.sh` reprovou — leia a saída dele, corrija, e
+o passo seguinte do motor promove. Antes da mudança eram ~6 execuções de
+`Portões` por PR, e 189 num dia de corrida, porque cada push redisparava tudo.
+
 **Mergeie apenas por `bash scripts/merge-se-liberado.sh <pr>`**, e apenas o PR
 do **fundo** da pilha. Nunca por `gh pr merge`, nunca pelo botão. O script é a
 tranca: ele mede rótulo de bloqueio, verificação vermelha e a situação da pilha

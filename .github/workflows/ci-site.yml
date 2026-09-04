@@ -1,5 +1,21 @@
 name: Site
 
+# O PR NASCE RASCUNHO, E O CI LOCAL É QUEM O PROMOVE
+#
+# Nenhum job roda enquanto o PR está em rascunho. A iteração acontece na máquina
+# de quem trabalha, com `scripts/gates/gates_runner.sh`, e o runner remoto só é
+# chamado quando o trabalho está pronto para revisão — uma vez, em vez de uma por
+# push. Medido antes da mudança: ~6 execuções de `Portões` por PR e 189 num dia
+# de corrida autônoma, porque cada push redisparava tudo e o run anterior seguia
+# até o fim medindo um commit que ninguém ia mergear.
+#
+# `ready_for_review` no `types` é o que fecha o ciclo, e é a metade que se
+# esquece: sem ele, sair do rascunho não dispara evento nenhum, e o PR fica
+# pronto e sem CI para sempre — trocar "roda demais" por "não roda nunca".
+#
+# `!= true` e não `== false`: em evento de `push` não existe `pull_request`, o
+# campo vem nulo, e nulo não é rascunho.
+
 on:
   push:
     branches: [main, develop]
@@ -11,6 +27,7 @@ on:
       - "package.json"
       - "pnpm-workspace.yaml"
   pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
     paths:
       - "apps/site/**"
       - "scripts/gates/**"
@@ -25,6 +42,7 @@ permissions:
 jobs:
   verificacao:
     name: Tipos, build e portões
+    if: github.event.pull_request.draft != true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
