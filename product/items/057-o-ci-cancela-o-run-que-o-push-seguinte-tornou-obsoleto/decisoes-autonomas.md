@@ -270,3 +270,42 @@ critério satisfaz o requisito. Fica como está.
 
 **Estágio movido para `execute`.** A próxima sessão pega a fase 1, que é a
 declaração de `concurrency` nos cinco fluxos de gatilho.
+
+### D18 — A tranca não mergeia o último PR aberto de uma pilha, e isso vira item
+
+Medido em 2026-09-04, ao mergear o PR #44 deste estágio. `merge-se-liberado.sh`
+mediu tudo, imprimiu `PR #44 liberado: sem bloqueio, nenhuma verificação vermelha
+nem pendente, aberto, fora de rascunho, estado CLEAN` e falhou no merge com
+`GraphQL: This pull request is part of a stack and must be merged using the
+asynchronous merge REST API`.
+
+A causa raiz não é o PR #44. A tranca escolhe entre `gh stack merge` e
+`gh pr merge` contando os pull requests **abertos** da pilha e usando o segundo
+quando são menos de dois. Essa contagem responde igual para duas situações
+diferentes: "não existe pilha no GitHub" — o PR solto, que `gh stack merge`
+recusa, e que é o caso que a contagem foi escrita para resolver — e "a pilha
+existe, e só resta um aberto nela", que é **toda** pilha no seu último PR. É a
+mesma classe de defeito que `scripts/gates/medir.sh` existe para matar, agora na
+tranca: um predicado que não distingue duas situações que exigem respostas
+opostas. A pergunta certa não é quantos estão abertos, e sim se este pull request
+pertence a uma pilha no GitHub — o que `gh stack view --json` já responde, e a
+tranca já chama.
+
+**Decidido:** escrever o item `060-a-tranca-mergeia-o-ultimo-pr-aberto-de-uma-pilha`
+no roadmap, imediatamente antes do `057`, e deixar o PR #44 aberto.
+
+**Alternativa descartada:** corrigir o desvio agora, aqui. É um desvio de uma
+linha e eu saberia escrevê-lo — mas `scripts/merge-se-liberado.sh` está no
+**não-escopo** do `057`, escrito no brief aprovado com a razão junto: um item que
+corta runs não é o item que mexe em quem decide o merge. Mudar o não-escopo de um
+item é decisão do dono, não da sessão, e a correção não fica mais barata por
+esperar.
+
+**Segunda alternativa descartada:** desfazer a pilha no GitHub para o `gh pr
+merge` passar. Seria contornar a tranca em vez de consertá-la, e a próxima pilha
+travaria igual.
+
+**O que isso custa enquanto o `060` não fecha:** nada para a corrida. A fase 1 do
+`057` empilha sobre o PR #44 normalmente, e assim que a pilha voltar a ter dois
+pull requests abertos o caminho do `gh stack merge` volta a funcionar. O que não
+funciona é esvaziar a pilha até o fim — o último sempre fica.
