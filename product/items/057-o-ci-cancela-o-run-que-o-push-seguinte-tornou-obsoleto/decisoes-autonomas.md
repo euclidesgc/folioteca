@@ -413,3 +413,130 @@ com o porquê junto, que é o impasse entre chamador e chamado no mesmo grupo.
 **Alternativa descartada:** apagar o parágrafo inteiro. Levaria junto o número
 que sustenta a decisão do rascunho, e a próxima sessão que se perguntasse por que
 o PR nasce rascunho não acharia a resposta em lugar nenhum.
+
+### O Actions parou de criar runs pela terceira vez, no meio da medição da fase 1
+
+Medido em 2026-09-04, entre 18:13Z e 18:24Z. A fase 1 chegou a ter CI: o push do
+commit de código `ca7b244` criou os cinco runs às 18:13:55Z e 18:13:56Z, e os
+cinco terminaram `success` — `Bloqueio` em 12s, `Site` em 2m03s, `React` em
+3m08s, `NestJS` em 4m10s e `Portões` em 5m36s. A forma nova do bloco
+`concurrency` é válida e executa; isso ficou provado.
+
+O que não ficou é o cancelamento. O roteiro do critério `comportamental` foi
+executado na letra, com a janela aberta: `medicao 1` (`00ee340`) às 18:14:39Z,
+`medicao 2` (`91c1379`) às 18:15:26Z — 47 segundos depois, dentro dos 30 a 90 que
+o critério pede —, e o `Portões` de `ca7b244` ainda `in_progress`, conferido
+antes do segundo push, que só terminaria às 18:19:32Z. **Nenhum run nasceu para
+nenhum dos dois commits.**
+
+**A medição que separa as duas causas.** Commit vazio não muda arquivo, e quatro
+dos cinco fluxos têm filtro de `paths` — então "commit vazio não dispara" era uma
+explicação concorrente, e ela exigiria resposta oposta: mudar o roteiro do
+critério, não esperar plataforma. Às 18:20:01Z foi empurrado um terceiro commit,
+`1464782`, com mudança real de arquivo. Ele também não gerou run nenhum, e
+`portoes.yml` e `bloqueio.yml` não têm `paths` — a explicação do commit vazio
+está descartada. O que resta é a plataforma:
+
+- `gh api .../actions/runs?head_sha=<cada um dos três>` devolve `total_count` `0`;
+- `gh pr checks 46` traz só GitGuardian, nenhum check do GitHub Actions;
+- o run mais recente do repositório **inteiro** segue sendo o de 18:13:56Z, com
+  três pushes depois dele;
+- `gh api repos/{owner}/{repo}/actions/permissions` devolve `{"enabled":true,
+  "allowed_actions":"all"}` e os seis workflows estão `active` — não é
+  configuração.
+
+**É a terceira parada desta corrida**, e as duas anteriores estão registradas
+acima: uma no `discovery`, outra às 18:05Z no `plan`. As duas passaram sozinhas.
+A causa provável continua sendo cota de minutos, e continua fora do alcance
+daqui: medi-la exige escopo que a sessão não tem.
+
+**Por que isto não vira worktree de causa raiz.** A regra da reincidência manda
+atacar a classe na segunda ocorrência, e ela já foi atacada: a rede que falta tem
+dono no roadmap, `047-o-veredicto-de-fase-mede-se-o-ci-chegou-a-rodar`, escrito
+exatamente para que um head sem run nenhum deixe de ler como ausência de
+problema. O que não tem conserto daqui é a causa da parada, que é da plataforma e
+da cota. Escrever um remendo a mais dentro do `057` seria a terceira camada sobre
+o mesmo defeito, e o `057` tem `scripts/merge-se-liberado.sh` e o veredicto de
+fase no não-escopo.
+
+### D22 — O veredicto da fase 1 é `REPROVADO`, e não o `HANDOFF` que o validador devolveu
+
+O validador cego mediu os cinco critérios, aprovou quatro e devolveu `HANDOFF`
+pelo quinto, argumentando que o obstáculo é do mundo e que nenhuma escrita de
+código o resolveria.
+
+**Decidido:** gravar `REPROVADO`, preservando o corpo do validador e a linha
+`IMPOSSIVEL:` dentro do arquivo de veredicto, com a nota de rótulo explicando a
+troca. A régua do próprio validador separa os dois casos: `HANDOFF` é para
+critério **impossível** — o provedor não tem ambiente de teste, o dispositivo não
+existe no parque, a licença não foi comprada —, e diz, na letra, para não usá-lo
+"para o que você não conseguiu medir — este último é reprovação". Aqui não é
+impossibilidade: o GitHub Actions tem o ambiente e o exerceu neste mesmo commit
+às 18:13:56Z, e as duas paradas anteriores desta corrida voltaram sozinhas. É
+indisponibilidade temporária. E o plano aprovado já tinha nomeado o veredicto
+deste caso exato: "portão que não conseguiu medir reprova: o veredicto é aguardar
+o CI voltar, nunca dar por observado".
+
+**Alternativa descartada:** gravar `HANDOFF`. Ele marca a fase como entregue e o
+item como não fechável por cima dela — o que descreveria o sintoma errado. A fase
+está correta e o que falta é uma medição que volta a ser possível sozinha; o
+estado que serve é o que faz a próxima sessão **remedir**, e é `REPROVADO`,
+com `reproved_count = 1`. Na segunda reprovação seguida o estado escala sozinho,
+que é exatamente o comportamento desejado: se o CI não voltar, a decisão sobre a
+cota é do dono, e não de mais uma sessão insistindo.
+
+**Consequência aceita:** a fase 1 não é aprovada nesta sessão, e o PR #46 fica
+aberto sem merge. É o estado certo para trabalho cuja evidência não pôde ser
+lida.
+
+### D23 — Os dois commits de medição ficam na branch
+
+O validador apontou que `00ee340` e `91c1379` continuam na branch sem terem
+medido nada, e que quem refizer a medição vai empilhar mais dois.
+
+**Decidido:** eles ficam. Tirá-los exige reescrever a branch, e a norma da corrida
+proíbe `--force` sem exceção. Eles também não são ruído puro: são a evidência
+datada de que o roteiro do critério foi executado dentro da janela, com 47
+segundos entre os dois pushes e o `Portões` anterior ainda `in_progress` — sem
+eles, o veredicto afirmaria uma tentativa que o histórico não mostra.
+
+**Alternativa descartada:** `git rebase` e push forçado para limpar a branch.
+Troca um par de commits vazios por uma reescrita de história num PR já aberto e
+empilhado, e a pilha inteira acima dele passaria a mostrar diff errado.
+
+**Para a próxima medição:** use commits com mudança real de arquivo, não vazios.
+Quatro dos cinco fluxos filtram por `paths`, e um commit vazio nunca casa
+nenhum — mesmo com o Actions saudável, só `portoes.yml` e `bloqueio.yml`
+nasceriam, e o critério pede exatamente esses dois. Funciona, mas mede menos do
+que poderia.
+
+### Achado para a fase 2 — o portão lê a árvore, nunca a listagem da API
+
+`gh api repos/{owner}/{repo}/actions/workflows` lista um sexto fluxo, `Harness` /
+`.github/workflows/harness.yml`, em `state: active`. Esse caminho não existe nesta
+branch, nem em `main`, nem em `origin/develop`, nem em commit algum de
+`git log --all`: é registro obsoleto do lado do GitHub, e ninguém aqui o apaga.
+
+Não afeta critério nenhum desta fase — o universo na árvore é exatamente cinco
+fluxos de gatilho e quatro suítes. Mas o portão `scripts/gates/concorrencia.sh`,
+que a fase 2 escreve, classifica fluxos em duas populações: se ele lesse a
+listagem da API em vez de `.github/workflows/`, contaria um arquivo que não
+existe e reprovaria por não achar declaração num caminho inexistente. **A fase 2
+lê a árvore.** Isto não vira item de roadmap porque cabe no trabalho em
+andamento, que é a próxima fase deste mesmo item.
+
+## Parada desta sessão
+
+**Motivo:** a fase 1 está implementada, medida em quatro dos cinco critérios e
+publicada no PR #46, mas o critério `comportamental` não pôde ser lido porque o
+GitHub Actions parou de criar runs. O veredicto é `REPROVADO`, com
+`reproved_count = 1`, e o PR fica aberto sem merge.
+
+**Próxima ação do dono:** nenhuma, se o Actions voltar sozinho como nas duas
+paradas anteriores — a próxima sessão remede o critério 5 na branch
+`057-…/fase-1-concurrency-nos-cinco-fluxos`, empurrando dois commits com mudança
+real de arquivo em menos de 90 segundos, e o `decide-next-action.mjs` já aponta
+para lá. Se não voltar, a segunda reprovação escala o estado sozinho, e aí a
+decisão é dele: liberar a cota de minutos, ou aceitar a medição de casa
+(`gates_runner.sh` verde e os cinco runs `success` em `ca7b244`) como evidência
+suficiente para esta fase.

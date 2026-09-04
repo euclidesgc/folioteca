@@ -579,8 +579,20 @@
           "por": "autonomo"
         }
       },
-      "current_phase": null,
-      "phases": {},
+      "current_phase": 1,
+      "phases": {
+        "1": {
+          "status": "reprovada",
+          "reproved_count": 1,
+          "verdict": "REPROVADO",
+          "verdict_file": "product/items/057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto/05-veredictos/fase-1.md",
+          "validated_sha": null,
+          "pr": null,
+          "blocked_on": [],
+          "verdict_at": "2026-09-04T18:30:58Z",
+          "validated_trees": {}
+        }
+      },
       "divergences": {},
       "criteria_exception": null
     }
