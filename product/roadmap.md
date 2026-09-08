@@ -648,6 +648,36 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       some do build e da suíte — a medição é a ausência da linha, não a leitura
       do arquivo.
 
+- [ ] `066-a-politica-do-artefato-para-de-declarar-o-que-o-meta-nao-impoe` — a
+      diretiva que o navegador ignora sai da política, e o portão para de cobrar
+      a presença dela
+      **Depende de:** nada. É uma diretiva em `apps/web/vite.config.ts`, a
+      constante espelhada em `apps/web/scripts/verificar-politica.sh` e os casos
+      de teste que a citam.
+      **Origem:** medido em 08/09/2026 no navegador, contra o artefato servido em
+      4173. O console traz, em **toda carga**, `The Content Security Policy
+      directive 'frame-ancestors' is ignored when delivered via a <meta>
+      element`. É a especificação: `frame-ancestors` só vale entregue por
+      cabeçalho HTTP, e a política deste artefato é entregue por `<meta>`.
+      **Não é buraco de segurança:** `apps/web/nginx.conf` entrega
+      `X-Frame-Options: DENY` por cabeçalho, e é ele que protege contra
+      enquadramento em produção. O defeito é de outra natureza, e tem dois lados.
+      O primeiro é que a política **declara o que não impõe** — quem a lê conclui
+      que o `<meta>` cobre enquadramento, e não cobre; o segundo é que
+      `verificar-politica.sh` conta nove diretivas e exige `frame-ancestors`
+      entre elas, ou seja, o portão gasta uma asserção cobrando a presença de
+      algo inerte.
+      Fechar é tirar `frame-ancestors` da política do `<meta>`, baixar a contagem
+      esperada de nove para oito nos dois lugares que ela é escrita, e
+      acrescentar ao portão a asserção que falta: que a proteção contra
+      enquadramento **existe por cabeçalho**, medida onde ela de fato vale. O que
+      não se faz é remover a diretiva sem pôr a asserção no lugar — seria trocar
+      uma declaração inócua por nenhuma declaração.
+      **Precede qualquer critério que exija console limpo.** Enquanto a linha
+      existir, "console sem erro nenhum" reprova por um erro que não é da fase; o
+      contorno, até este item fechar, é o critério nomear as linhas que importam
+      — `Refused to load` e `Applying inline style violates`.
+
 - [ ] `058-o-endereco-de-homologacao-diz-o-nome-do-produto` — os três FQDNs de
       homologação saem de `gbdocs.duckdns.org`, herdado do projeto anterior, para
       um domínio que nomeia esta aplicação
