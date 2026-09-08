@@ -1,6 +1,7 @@
 ---
 name: nest-contract-openapi
 description: "Contrato OpenAPI no NestJS: @nestjs/swagger, documento gerado e commitado, oasdiff para separar mudança aditiva de quebra e clientes regenerados no mesmo PR."
+user-invocable: false
 ---
 
 # Contrato OpenAPI

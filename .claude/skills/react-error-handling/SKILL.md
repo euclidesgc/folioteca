@@ -1,6 +1,7 @@
 ---
 name: react-error-handling
 description: "Tratamento de erro: fronteira de erro por rota e por feature, estado de erro acionável em vez de aviso genérico, telemetria com identificador de rastreio e console limpo nos testes."
+user-invocable: false
 ---
 
 # Tratamento de erro

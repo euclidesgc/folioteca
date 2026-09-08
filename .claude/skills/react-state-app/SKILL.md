@@ -1,6 +1,7 @@
 ---
 name: react-state-app
 description: "Estado de aplicação com Zustand: fatias por assunto, seletores para conter re-renderização, os poucos casos que justificam store global e a confusão com estado de servidor."
+user-invocable: false
 ---
 
 # Estado de aplicação com Zustand

@@ -18,7 +18,8 @@
 #
 # Depois dos gates declarados vêm os portões diretos — quarentena de
 # dependência, ações do CI em SHA, vulnerabilidade conhecida no lockfile,
-# desenho dos fluxos, isolamento do pnpm, concorrência declarada e segredo —,
+# desenho dos fluxos, isolamento do pnpm, concorrência declarada, atalho
+# deliberado, subida única da suíte comportamental e segredo —,
 # que não cabem no molde acima:
 # `.harness/gates.json` fala de arquivos por stdin e violações por stdout, com o
 # código de saída ignorado, e metade do que cada um deles precisa dizer é que
@@ -27,7 +28,7 @@
 # saída propagado.
 #
 # Modos:
-#   gates_runner.sh                  roda os gates e os sete portões diretos
+#   gates_runner.sh                  roda os gates e os nove portões diretos
 #   gates_runner.sh --diff-only      força avaliação apenas do diff
 #   gates_runner.sh --all            força avaliação da árvore inteira
 #   gates_runner.sh --count-json     imprime a contagem por gate/arquivo (baseline)
@@ -38,7 +39,7 @@
 # constroem as outras duas, e sem a flag reprovariam por artefato ausente em
 # todo PR — reprovação verdadeira sobre uma pergunta que aquele job não deveria
 # estar fazendo. Quem cobra o portão de segredo é a execução sem flag, que
-# `.github/workflows/portoes.yml` roda depois dos três builds. Os outros seis
+# `.github/workflows/portoes.yml` roda depois dos três builds. Os outros oito
 # continuam cobrados nos dois modos: nenhum deles lê artefato de build, e
 # tirá-los do modo sem artefatos deixaria os três fluxos por frente — por onde
 # quase todo PR passa — sem cobrança sobre os números que eles medem.
@@ -101,6 +102,12 @@ def fnmatch_any(path, patterns):
 
 def tracked_files():
     out = subprocess.run(["git", "ls-files"], cwd=root, capture_output=True, text=True)
+    # Fora de um repositório o comando sai diferente de zero e a lista vem
+    # vazia. O universo vazio percorria todo gate sem achar nada e imprimia
+    # "0 arquivo(s) considerados" com código 0: o portão não mediu e disse que
+    # estava limpo. Portão que não conseguiu medir reprova, nunca aprova.
+    if out.returncode != 0:
+        return None
     return [line for line in out.stdout.splitlines() if line]
 
 
@@ -141,10 +148,32 @@ def changed_files():
     return [line for line in out.stdout.splitlines() if line]
 
 
+def exige_medicao(arquivos, motivo):
+    if arquivos is None:
+        print(
+            f"✗ gates: não foi possível medir — {motivo}. "
+            "Portão que não conseguiu medir reprova, nunca aprova.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    return arquivos
+
+
 use_diff = mode == "diff" or (mode == "auto" and is_brownfield)
-universe = changed_files() if use_diff else tracked_files()
+universe = changed_files() if use_diff else exige_medicao(
+    tracked_files(), "`git ls-files` falhou: isto não é um repositório git"
+)
 if mode in ("count", "baseline"):
-    universe = tracked_files()
+    universe = exige_medicao(
+        tracked_files(), "`git ls-files` falhou: isto não é um repositório git"
+    )
+if not use_diff and not universe:
+    print(
+        "✗ gates: não foi possível medir — o repositório não tem arquivo rastreado. "
+        "Portão que não conseguiu medir reprova, nunca aprova.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 resultados = {}
 falhou = False
@@ -223,7 +252,8 @@ if falhou:
     print("")
     print(f"✗ gates: violação(ões) acima ({escopo}).")
     print("  Corrija, ou justifique na própria linha com o escape do gate")
-    print("  (`// gateN-ok: <motivo>`) — escape sem motivo real é achado de revisão.")
+    print("  (`gateN-ok: <motivo>` no comentário da linguagem) — escape sem motivo")
+    print("  real é achado de revisão.")
     sys.exit(1)
 
 if linhas_saida:
@@ -243,6 +273,8 @@ bash "$ROOT/scripts/gates/vulnerabilidade.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/fluxos.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/pnpm_isolado.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/concorrencia.sh" || VEREDICTO=1
+bash "$ROOT/scripts/gates/atalho.sh" || VEREDICTO=1
+bash "$ROOT/scripts/gates/e2e_uma_subida.sh" || VEREDICTO=1
 
 if [ "$SEM_ARTEFATOS" -eq 1 ]; then
   echo "portão de segredo: não cobrado neste modo — quem o roda constrói antes o que ele varre."

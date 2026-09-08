@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "harness_version": "0.7.0",
+  "harness_version": "0.9.3",
   "mode": "full",
   "route": "greenfield",
   "product": "Folioteca — a empresa escreve documentos e os distribui por canais; o acesso vem de onde a pessoa está, e é revogado quando ela sai de lá.",
@@ -32,9 +32,11 @@
         "fallback": "leitura de arquivo com Grep"
       },
       "comportamental": {
-        "runner": "playwright test",
+        "runner": "bash scripts/e2e/relatorio.sh rodar",
+        "consulta_por_criterio": "bash scripts/e2e/relatorio.sh criterio \"<título do caso>\"",
         "unit_runner": "vitest",
-        "formato": "Given-When-Then"
+        "formato": "Given-When-Then",
+        "regra": "A suíte sobe a aplicação UMA vez por execução e mede todos os casos nela. Rode `rodar` uma única vez na fase inteira; depois responda por cada critério com `criterio`, que lê o relatório JSON daquela execução. NUNCA invoque o Playwright uma vez por critério, nem com -g/--grep/--shard/--max-failures: cada invocação paga build do app, boot da API e banco de novo para medir o que a execução única já mediu, e desistir cedo apaga do relatório o que não rodou. Caso ausente do relatório é NAO_MEDIDO, e não passou."
       }
     },
     "nestjs": {
@@ -52,7 +54,14 @@
       }
     }
   },
-  "command_quirks": [],
+  "command_quirks": [
+    {
+      "cmd": "*",
+      "judge_by": "output",
+      "escape_saida_crua": "rtk proxy {comando}",
+      "motivo": "Um hook global PreToolUse/Bash reescreve TODA chamada de Bash como `rtk <comando>`, e os CLAUDE.md de ~ e ~/.claude impõem o mesmo proxy. Ele corta até 90% da saída, e o que ele corta é justamente o que reprovaria: o teste que quebrou dentro de um wrapper que ainda sai zero, e o aviso que o resumo descartou por repetitivo. Toda evidência de critério de aceite é colhida com `rtk proxy`, que executa sem filtro — julgue pela saída bruta, nunca pela resumida."
+    }
+  ],
   "language": {
     "code": "en",
     "docs": "pt-BR"

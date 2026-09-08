@@ -11,6 +11,7 @@ build/
 coverage/
 playwright-report/
 test-results/
+e2e-resultado.json
 .playwright-mcp/
 *.tsbuildinfo
 next-env.d.ts
@@ -25,3 +26,4 @@ next-env.d.ts
 
 .DS_Store
 *.log
+apps/web/.e2e-arvore

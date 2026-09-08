@@ -1,6 +1,7 @@
 ---
 name: react-testing-behavioral
 description: "Critérios comportamentais no Playwright: um caso por critério do plano em Given-When-Then, escopo de navegação real, sessão e upload, e o que fica com Vitest."
+user-invocable: false
 ---
 
 # Critérios comportamentais com Playwright

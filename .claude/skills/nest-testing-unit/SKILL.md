@@ -1,6 +1,7 @@
 ---
 name: nest-testing-unit
 description: "Teste unitário no NestJS: serviço isolado com repositório dublê, as três naturezas contrato/feliz/borda, mocks em arquivo dedicado e nomes em prosa."
+user-invocable: false
 ---
 
 # Teste unitário

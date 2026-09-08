@@ -1,6 +1,7 @@
 ---
 name: nest-observability
 description: "Observabilidade no NestJS: log estruturado em JSON com correlação, campos proibidos no log, endpoint de saúde com @nestjs/terminus e canal único de saída."
+user-invocable: false
 ---
 
 # Observabilidade

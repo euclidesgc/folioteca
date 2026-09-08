@@ -30,6 +30,15 @@ raiz="$(cd "$(dirname "$0")/../../.." && pwd)"
 alvo="$raiz/scripts/merge-se-liberado.sh"
 falhas=0
 
+# O teste falha FECHADO. Sem esta linha, um alvo ausente faz o `bash` sair 1 e
+# os casos que esperam recusa passam — todos eles —, e só o caminho feliz acusa.
+# Um teste que aprova a maior parte por não ter o que medir é o mesmo defeito
+# que o script sob teste existe para matar.
+[ -f "$alvo" ] || {
+  printf '✗ merge-se-liberado: o alvo %s não existe — não há o que medir.\n' "$alvo" >&2
+  exit 2
+}
+
 # caso <nome> <esperado> <checks-tsv> [rótulos] [pré-condições] [trecho da recusa]
 #
 # O trecho é o que separa recusar do recusar **pelo motivo certo**. Sem ele,
@@ -52,7 +61,7 @@ case "\$*" in
 esac
 GH
   chmod +x "$dublo/gh"
-  saida="$(PATH="$dublo:$PATH" MERGE_ESPERA_SEGUNDOS=1 bash "$alvo" 42 2>&1)"
+  saida="$(PATH="$dublo:$PATH" MERGE_ESPERA_SEGUNDOS=1 MERGE_INTERVALO_SEGUNDOS=0 bash "$alvo" 42 2>&1)"
   obtido=$?
   [ "$obtido" -ne 0 ] && obtido=1
   if [ "$obtido" = "$esperado" ] && { [ -z "$trecho" ] || printf '%s' "$saida" | grep -q "$trecho"; }; then
@@ -70,6 +79,13 @@ caso 'pendente recusa'              1 'ci\tpass\t1s\turl\nportoes\tpending\t0\tu
 caso 'vermelho recusa'              1 'ci\tfail\t1s\turl\n'
 caso 'rótulo de bloqueio recusa'    1 'ci\tpass\t1s\turl\n' 'blocked-on-D-007'
 caso 'pendente recusa mesmo com o resto verde' 1 'a\tpass\t1s\turl\nb\tpass\t1s\turl\nc\tpending\t0\turl\n'
+# Nenhuma verificação não é verificação verde: pode ser CI que não disparou,
+# cota esgotada, fluxo desabilitado ou filtro de caminho. Num projeto real o
+# Actions parou por cota e dois PRs foram ao encerramento sem nenhuma suíte.
+caso 'sem verificação nenhuma recusa'  1 ''
+# A lista vazia logo depois de um push ainda vai encher — o GitHub leva segundos
+# para registrar os checks. Quem recusa na primeira leitura vazia recusa todo PR
+# recém-empurrado. O caso acima só vale porque a espera esgotou antes.
 caso 'rascunho recusa, e diz que é rascunho'     1 'ci\tpass\t1s\turl\n' '' 'true\tOPEN\tCLEAN'  'está em rascunho'
 caso 'PR fechado recusa, e diz que não está aberto' 1 'ci\tpass\t1s\turl\n' '' 'false\tCLOSED\tCLEAN' 'não está aberto'
 caso 'estado de merge sujo recusa nomeando o estado' 1 'ci\tpass\t1s\turl\n' '' 'false\tOPEN\tDIRTY' 'estado DIRTY'
@@ -98,7 +114,7 @@ case "\$*" in
 esac
 GH
   chmod +x "$dublo/gh"
-  saida="$(PATH="$dublo:$PATH" MERGE_ESPERA_SEGUNDOS=1 bash "$alvo" 42 2>&1)"; rc=$?
+  saida="$(PATH="$dublo:$PATH" MERGE_ESPERA_SEGUNDOS=1 MERGE_INTERVALO_SEGUNDOS=0 bash "$alvo" 42 2>&1)"; rc=$?
   obtida="$(cat "$rastro" 2>/dev/null || printf 'nenhuma')"
   if [ "$rc" -eq 0 ] && [ "$obtida" = "$esperada" ]; then
     printf '  ok    %s\n' "$nome"
@@ -130,7 +146,7 @@ case "$*" in
 esac
 GH
   chmod +x "$dublo/gh"
-  saida="$(PATH="$dublo:$PATH" MERGE_ESPERA_SEGUNDOS=1 bash "$alvo" 42 2>&1)"; rc=$?
+  saida="$(PATH="$dublo:$PATH" MERGE_ESPERA_SEGUNDOS=1 MERGE_INTERVALO_SEGUNDOS=0 bash "$alvo" 42 2>&1)"; rc=$?
   if [ "$rc" -ne 0 ] && printf '%s' "$saida" | grep -q 'impossibilidade de medição'; then
     printf '  ok    %s\n' 'pilha ilegível recusa por não ter medido'
   else
@@ -145,6 +161,12 @@ if command -v jq >/dev/null 2>&1; then
     '{"branches":[{"name":"a","pr":{"number":42,"state":"OPEN"}}]}'
   caso_via 'pilha de dois PRs mergeia pela pilha'  stack-merge \
     '{"branches":[{"name":"a","pr":{"number":41,"state":"OPEN"}},{"name":"b","pr":{"number":42,"state":"OPEN"}}]}'
+  # `gh stack view` só responde pela branch em que se está. Quem fecha um PR de
+  # fora da própria pilha — o caso de quem acompanha uma corrida sem sair da
+  # branch onde estava — mediria uma corrente que não contém o alvo. Com dois
+  # PRs nela, a via atômica levaria junto PRs que ninguém mandou mergear.
+  caso_via 'PR fora da pilha medida vai pela via do PR'  pr-merge \
+    '{"branches":[{"name":"a","pr":{"number":90,"state":"OPEN"}},{"name":"b","pr":{"number":91,"state":"OPEN"}}]}'
   # O caso do último PR aberto de uma pilha, que é toda pilha no fim da vida.
   # Contando só os abertos, esta pilha responde `1` e vai para o `gh pr merge`,
   # que o GitHub recusa com `must be merged using the asynchronous merge REST

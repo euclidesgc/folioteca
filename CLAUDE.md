@@ -9,8 +9,8 @@ Frentes: web em `apps/web` (react), api em `apps/api` (nestjs).
 1. Sem plano aprovado (`03-plan.md`), o guard recusa escrita em código.
 2. Cada agent escreve só no escopo declarado.
 3. Mudança de API começa no OpenAPI.
-4. Divergência de contrato para a fase; a normal segue na recomendação e
-   trava o merge até um humano ratificar.
+4. Divergência de contrato para a fase. A normal segue na recomendação e se
+   registra; trava merge só se a escolha for do dono.
 5. Critério de aceite é tipado (`comando`, `estrutural`, `comportamental`).
    Adjetivo não é critério.
 6. A DoD global é do CI e não se repete no plano.
@@ -54,6 +54,8 @@ Vite com TypeScript, SPA: sem componente nem ação de servidor.
 - Variante é `cva`; valor mágico não entra; cor não é o único sinal.
 - Teste consulta por papel e texto acessível, nunca por classe CSS.
 - Violação de acessibilidade crítica ou séria reprova.
+- Suíte comportamental sobe a aplicação uma vez, contra o build (em `vite dev`
+  não há CSP), e mede tudo nela; critério lê o relatório dessa execução.
 - Fonte de tipografia é auto-hospedada e entra no build. A política de conteúdo
   do artefato é `style-src 'self'` sob `default-src 'self'`: folha de estilo e
   arquivo de fonte servidos por outra origem — Google Fonts entre eles — são

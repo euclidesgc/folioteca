@@ -28,6 +28,7 @@ RAIZ="$(medir_raiz)"
 exige_caminho ".github/workflows" "o diretório de fluxos do GitHub Actions"
 DIR="$RAIZ/.github/workflows"
 exige_comando python3 "sem ele não há como ler o YAML dos fluxos"
+exige_modulo_python yaml "sem PyYAML não há como ler o YAML dos fluxos"
 
 python3 - "$DIR" <<'PY'
 import pathlib, sys, yaml

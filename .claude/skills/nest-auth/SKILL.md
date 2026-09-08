@@ -1,6 +1,7 @@
 ---
 name: nest-auth
 description: "Autenticação e autorização no NestJS: guards, estratégias Passport, sujeito autenticado como fonte de identidade, papéis e escopos."
+user-invocable: false
 ---
 
 # Autenticação e autorização

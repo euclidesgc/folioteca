@@ -37,10 +37,14 @@ ESPERADO=10080
 # acontece — o comentário promete uma data, ninguém a mede, e um ano depois a
 # lista continua igual sem que ninguém tenha decidido nada.
 #
-# `qs` está aqui porque a espera fixou a versão vulnerável dele em vez da
-# corrigida; o porquê inteiro está em `pnpm-workspace.yaml`, ao lado da lista que
-# esta constante espelha.
-ISENCOES_ESPERADAS=("qs:2026-09-06")
+# A lista está vazia, e é o estado a que toda isenção deve voltar. Quem
+# acrescentar um nome escreve junto o vencimento, no formato `nome:AAAA-MM-DD`, e
+# a data é o dia SEGUINTE àquele em que a versão completa a espera — nunca o
+# mesmo dia. Vencimento igual ao dia da liberação abre uma janela de vinte e
+# quatro horas em que os dois lados reprovam: este portão desde a meia-noite,
+# porque a isenção venceu, e o `pnpm install` até o instante exato da liberação,
+# porque a política é verificada contra as entradas já existentes do lockfile.
+ISENCOES_ESPERADAS=()
 
 exige_comando pnpm
 exige_caminho pnpm-workspace.yaml "a declaração de minimumReleaseAge"

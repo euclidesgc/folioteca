@@ -1,6 +1,7 @@
 ---
 name: react-state-form
 description: "Estado de formulário com React Hook Form e Zod: schema como fonte única do tipo e da validação, erro por campo associado por aria-describedby, submissão e revalidação no servidor."
+user-invocable: false
 ---
 
 # Estado de formulário com React Hook Form e Zod
