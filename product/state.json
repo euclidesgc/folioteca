@@ -632,13 +632,15 @@
     "050-linguagem-visual-e-sistema-de-design": {
       "title": "Linguagem visual e sistema de design: tokens de cor, tipografia, espaço e movimento em tema claro e escuro, os primitivos que toda tela monta, o esqueleto de aplicação onde elas moram, e a página viva onde a acessibilidade é medida",
       "track": "completa",
-      "stage": "prd",
+      "stage": "spec",
       "stacks": [],
       "created_at": "2026-09-08T00:48:12Z",
       "approvals": {
         "prd": {
-          "at": null,
-          "sha": null
+          "at": "2026-09-08T15:13:59Z",
+          "sha": "cc70318920bfcf5560c803f90bd0525c36f466d8",
+          "file": "product/items/050-linguagem-visual-e-sistema-de-design/01-prd.md",
+          "por": "autonomo"
         },
         "spec": {
           "at": null,

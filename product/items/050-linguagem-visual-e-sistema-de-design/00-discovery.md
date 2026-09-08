@@ -124,8 +124,10 @@ construiu.
 ### R4 — A primeira folha de estilo é reverificada no navegador contra o artefato construído, que é o único lugar onde a política existe
 
 - **E4.1** — O servidor de desenvolvimento na porta 5173 serve HTML **sem** a tag
-  de política, e é para ele que o `baseURL` do Playwright aponta hoje. Um caso que
-  rode ali nunca observa um bloqueio de `style-src`, por melhor que seja escrito.
+  de política: um caso que rode ali nunca observa um bloqueio de `style-src`, por
+  melhor que seja escrito. É por isso que o `baseURL` do Playwright aponta para a
+  porta 4173, e a suíte sobe `vite build` seguido de `vite preview` — a medição
+  acontece contra o artefato, e não contra uma página parecida com ele.
 - **E4.2** — A reverificação acontece contra `vite preview` na porta 4173, que
   serve `dist/`, e observa duas coisas que só o navegador sabe: o
   `font-family` computado de um título de `/design` resolve para a face carregada
