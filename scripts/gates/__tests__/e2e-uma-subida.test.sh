@@ -49,7 +49,13 @@ caso() { # caso <nome> <esperado 0|1> <config> <invocação> [trecho da recusa]
   local dir="$tmp/$(printf '%s' "$nome" | tr -c 'a-zA-Z0-9' '-')"
   monta "$dir" "$config" "$invocacao"
   local saida obtido
-  saida="$(cd "$dir" && bash scripts/gates/e2e_uma_subida.sh 2>&1)"
+  # `GITHUB_WORKSPACE` é FIXADO na sandbox, e não herdado. `medir_raiz()` o
+  # prefere ao `git rev-parse`, então dentro do CI ele aponta para o checkout de
+  # verdade: sem esta linha, todo caso mede o repositório real — que está limpo —
+  # e os seis que esperam recusa passam a aprovar. O teste ficou verde nesta
+  # máquina, onde a variável não existe, e vermelho no runner, onde existe. É a
+  # convenção que os outros seis testes de portão desta pasta já seguem.
+  saida="$(cd "$dir" && env GITHUB_WORKSPACE="$dir" bash scripts/gates/e2e_uma_subida.sh 2>&1)"
   obtido=$?
   [ "$obtido" -ne 0 ] && obtido=1
   if [ "$obtido" = "$esperado" ] && { [ -z "$trecho" ] || printf '%s' "$saida" | grep -qF "$trecho"; }; then
@@ -64,7 +70,11 @@ caso() { # caso <nome> <esperado 0|1> <config> <invocação> [trecho da recusa]
 printf 'e2e uma subida: o portão\nsandbox em %s\n\n' "$tmp"
 
 caso 'sem configuração de Playwright PASSA'  0 '-' '-'
-caso 'configuração completa PASSA'           0 "$CONFIG_BOA" 'pnpm --filter web exec playwright test'
+# A contagem é a asserção que denuncia a âncora escorregando: a sandbox tem UMA
+# invocação e este repositório tem outra. Sem ela, o teste volta a ficar verde
+# medindo o lugar errado, que é pior que reprovar.
+caso 'configuração completa PASSA, medindo a sandbox e não este repositório' 0 \
+  "$CONFIG_BOA" 'pnpm --filter web exec playwright test' 'medido: 1 invocação(ões)'
 
 caso 'sem reporter json RECUSA' 1 \
   "${CONFIG_BOA/\[\[\"list\"\], \[\"json\", \{ outputFile: \"e2e-resultado.json\" \}\]\]/[[\"list\"]]}" \
