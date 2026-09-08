@@ -32,9 +32,11 @@
         "fallback": "leitura de arquivo com Grep"
       },
       "comportamental": {
-        "runner": "playwright test",
+        "runner": "bash scripts/e2e/relatorio.sh rodar",
+        "consulta_por_criterio": "bash scripts/e2e/relatorio.sh criterio \"<título do caso>\"",
         "unit_runner": "vitest",
-        "formato": "Given-When-Then"
+        "formato": "Given-When-Then",
+        "regra": "A suíte sobe a aplicação UMA vez por execução e mede todos os casos nela. Rode `rodar` uma única vez na fase inteira; depois responda por cada critério com `criterio`, que lê o relatório JSON daquela execução. NUNCA invoque o Playwright uma vez por critério, nem com -g/--grep/--shard/--max-failures: cada invocação paga build do app, boot da API e banco de novo para medir o que a execução única já mediu, e desistir cedo apaga do relatório o que não rodou. Caso ausente do relatório é NAO_MEDIDO, e não passou."
       }
     },
     "nestjs": {

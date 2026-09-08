@@ -188,8 +188,22 @@ jobs:
 
       # Cada critério comportamental do plano vira um caso aqui. Isto não é
       # suíte de regressão: é a prova do que unidade e integração não provam.
-      - name: Playwright
-        run: pnpm --filter web exec playwright test
+      #
+      # UMA SUBIDA, UMA ANÁLISE. O script roda a suíte inteira uma vez e guarda o
+      # relatório JSON daquela execução, amarrado à árvore que o produziu. É dele
+      # que cada critério comportamental é respondido — nenhum critério sobe a
+      # aplicação de novo para medir o que esta execução já mediu.
+      - name: Playwright, numa subida só
+        run: bash scripts/e2e/relatorio.sh rodar
+
+      # O relatório sobe SEMPRE, e não só na falha: ele é a evidência de que os
+      # critérios comportamentais foram medidos, e é consultado quando o PR passa.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: e2e-resultado-${{ inputs.runner }}
+          path: "apps/web/e2e-resultado.json"
+          retention-days: 7
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()

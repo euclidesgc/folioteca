@@ -19,7 +19,7 @@
 # Depois dos gates declarados vêm os portões diretos — quarentena de
 # dependência, ações do CI em SHA, vulnerabilidade conhecida no lockfile,
 # desenho dos fluxos, isolamento do pnpm, concorrência declarada, atalho
-# deliberado e segredo —,
+# deliberado, subida única da suíte comportamental e segredo —,
 # que não cabem no molde acima:
 # `.harness/gates.json` fala de arquivos por stdin e violações por stdout, com o
 # código de saída ignorado, e metade do que cada um deles precisa dizer é que
@@ -28,7 +28,7 @@
 # saída propagado.
 #
 # Modos:
-#   gates_runner.sh                  roda os gates e os oito portões diretos
+#   gates_runner.sh                  roda os gates e os nove portões diretos
 #   gates_runner.sh --diff-only      força avaliação apenas do diff
 #   gates_runner.sh --all            força avaliação da árvore inteira
 #   gates_runner.sh --count-json     imprime a contagem por gate/arquivo (baseline)
@@ -39,7 +39,7 @@
 # constroem as outras duas, e sem a flag reprovariam por artefato ausente em
 # todo PR — reprovação verdadeira sobre uma pergunta que aquele job não deveria
 # estar fazendo. Quem cobra o portão de segredo é a execução sem flag, que
-# `.github/workflows/portoes.yml` roda depois dos três builds. Os outros sete
+# `.github/workflows/portoes.yml` roda depois dos três builds. Os outros oito
 # continuam cobrados nos dois modos: nenhum deles lê artefato de build, e
 # tirá-los do modo sem artefatos deixaria os três fluxos por frente — por onde
 # quase todo PR passa — sem cobrança sobre os números que eles medem.
@@ -274,6 +274,7 @@ bash "$ROOT/scripts/gates/fluxos.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/pnpm_isolado.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/concorrencia.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/atalho.sh" || VEREDICTO=1
+bash "$ROOT/scripts/gates/e2e_uma_subida.sh" || VEREDICTO=1
 
 if [ "$SEM_ARTEFATOS" -eq 1 ]; then
   echo "portão de segredo: não cobrado neste modo — quem o roda constrói antes o que ele varre."
