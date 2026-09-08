@@ -156,10 +156,19 @@ caso "o wrapper grava na raiz com o cwd dentro de um clone temporário" 0 \
 # discordam, ela recusa dizendo as duas, e não grava em nenhuma das duas. Antes
 # ela gravava no clone com saída de sucesso — o clone também responde a
 # `git rev-parse`, e os critérios de aceite deste harness MANDAM medir em clone.
-# O caso mede as três coisas, porque recusar e mesmo assim ter escrito seria o
-# mesmo defeito com uma mensagem por cima.
+#
+# `HARNESS_PROJECT_ROOT` é DECLARADO aqui, e não herdado. Herdá-lo faz o caso
+# medir a máquina de quem o roda: na sessão de trabalho a variável existe e a
+# ambiguidade aparece sozinha; num runner limpo ela não existe, não há duas
+# respostas, e o caso passaria a medir outra coisa — foi assim que ele ficou
+# verde nesta máquina e vermelho no CI, na primeira execução. A ambiguidade é
+# construída pelo caso, para existir em qualquer máquina.
+#
+# Mede as três coisas, porque recusar e mesmo assim ter escrito seria o mesmo
+# defeito com uma mensagem por cima.
 caso "a chamada crua RECUSA a raiz ambígua, e não grava em nenhuma das duas" 0 \
-  "cd '$tmp/clone' && saida=\$(python3 '$alvo' item-new --item T-CRU --title Cinco 2>&1); rc=\$?;
+  "cd '$tmp/clone' &&
+   saida=\$(HARNESS_PROJECT_ROOT='$projeto' python3 '$alvo' item-new --item T-CRU --title Cinco 2>&1); rc=\$?;
    [ \"\$rc\" -ne 0 ] &&
    printf '%s' \"\$saida\" | grep -q 'raiz ambígua' &&
    ! grep -q T-CRU '$tmp/clone/product/state.json' &&
