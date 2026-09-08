@@ -63,7 +63,7 @@ PR e commit já escritos.
       a vulnerável que já está no lockfile — são portas diferentes, e só uma
       delas fecha em `023`.
 
-- [ ] `050-linguagem-visual-e-sistema-de-design` — o produto ganha linguagem
+- [-] `050-linguagem-visual-e-sistema-de-design` — o produto ganha linguagem
       visual própria: tokens de cor, tipografia, espaço e movimento em tema claro
       e escuro, os primitivos de interface que toda tela daqui em diante monta, e
       o esqueleto de aplicação onde elas moram — tudo exercitado numa página viva
@@ -457,7 +457,7 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       ver `decisoes-autonomas.md`, decisão `D18`; reincidiu no PR #46 da fase 1 do
       mesmo item, e a regra 20 do `CLAUDE.md` mandou a causa raiz para worktree.
 
-- [-] `057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto` — um push novo
+- [x] `057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto` — um push novo
       para de deixar atrás de si um run inteiro medindo um commit que ninguém vai
       mergear
       **Depende de:** nada — é configuração de fluxo, e não depende de código
@@ -631,6 +631,22 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       que dois jobs simultâneos não se enxergam.
       O teste tem de cobrir o caso de duas execuções concorrentes, senão o defeito
       volta na primeira vez que alguém fixar a porta de novo por conveniência.
+
+- [ ] `065-o-vite-config-do-app-carrega-pelo-caminho-que-vai-virar-padrao` — o
+      build de `apps/web` para de depender de um carregador de configuração que o
+      Vite está trocando
+      **Depende de:** nada. É uma linha de `apps/web/vite.config.ts`.
+      **Origem:** revalidação da fase 2 de `057`, em 08/09/2026, como apontamento
+      fora do escopo daquela fase. Todo build e toda execução da suíte
+      comportamental imprimem `Your Vite config uses features that are
+      unsupported by configLoader: 'native', which is planned to become the
+      default in a future major version` — a causa é
+      `import "./src/shared/config/build-api-url"` **sem a extensão do arquivo**,
+      na linha 4. Hoje é ruído repetido; no dia em que `native` virar o padrão, o
+      build de `apps/web` quebra, e quebra num lugar que não se parece com a
+      causa. Fechar é acrescentar a extensão ao import e conferir que o aviso
+      some do build e da suíte — a medição é a ausência da linha, não a leitura
+      do arquivo.
 
 - [ ] `058-o-endereco-de-homologacao-diz-o-nome-do-produto` — os três FQDNs de
       homologação saem de `gbdocs.duckdns.org`, herdado do projeto anterior, para
@@ -1319,6 +1335,33 @@ verificação**.
   real.** O HTML renderizado no servidor está verificado por comando, e a página
   não tem folha de estilo, então não há o que quebrar visualmente; ainda assim
   ninguém a abriu. Cai em `015-hotsite`, que é quem lhe dá aparência.
+
+- **`057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto`, Fase 1 —
+  `main` e `develop` não cancelam, observado no GitHub.** Provada está a
+  expressão: os cinco fluxos declaram a mesma cadeia literal, e ela, avaliada com
+  a semântica de `!=` e `&&` do Actions, dá `false` para `refs/heads/main`,
+  `false` para `refs/heads/develop` e `true` para uma referência de trabalho. Não
+  provado está o GitHub avaliando-a do mesmo jeito sobre um push real nessas duas
+  branches. **A condição da observação é mais estreita do que o plano escreveu:**
+  não bastam dois commits em menos de três minutos, é preciso que o segundo push
+  chegue enquanto o run do primeiro ainda está `in_progress`. Em 08/09/2026 a
+  ocorrência quase aconteceu — `1da628a` às 13:02:09Z e `5c09744` às 13:03:17Z, 68
+  segundos de intervalo — e não serviu: o primeiro run terminou às 13:02:57, vinte
+  segundos antes do segundo push, porque o bloqueio de faturamento fazia os jobs
+  morrerem em 48 segundos. Com o CI de pé de novo, os runs duram minutos, e a
+  próxima ocorrência natural passa a ser teste de verdade. Conferir então, em
+  `gh run list --branch develop --workflow "Portões" --json headSha,conclusion`,
+  que nenhuma das duas entradas traz `cancelled`.
+
+- **`057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto`, Fase 1 — o
+  cancelado diante da tranca de merge.** Provado está que
+  `scripts/merge-se-liberado.sh` filtra `$2=="fail"` e `$2=="pending"` e não
+  contém a cadeia `cancel` em caixa nenhuma. Não provado está um pull request com
+  verificação `cancelled` no próprio head passando por ela: a condição não é
+  fabricável sem cancelar à mão, porque cancelamento por `cancel-in-progress`
+  sempre tem run sucessor. A classe de falha vizinha — check cancelado no head
+  **sem** sucessor lido como não-vermelho — é anterior a este item e tem dono:
+  `059-a-tranca-nao-le-check-cancelado-como-verde`.
 
 - **`023-endurecimento-antes-da-sessao`, Fase 3 — o primeiro estilo do app sob a
   política.** A política do `apps/web` foi carregada num Chromium real, servida
