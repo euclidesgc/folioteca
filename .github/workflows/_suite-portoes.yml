@@ -15,8 +15,13 @@ name: Portões (suíte)
 # de quem trabalha, com `scripts/gates/gates_runner.sh`, e o runner remoto só é
 # chamado quando o trabalho está pronto para revisão — uma vez, em vez de uma por
 # push. Medido antes da mudança: ~6 execuções de `Portões` por PR e 189 num dia
-# de corrida autônoma, porque cada push redisparava tudo e o run anterior seguia
-# até o fim medindo um commit que ninguém ia mergear.
+# de corrida autônoma, porque cada push redisparava tudo.
+#
+# O run que o push seguinte torna obsoleto morre no instante desse push, e quem
+# declara a concorrência é o fluxo chamador — `portoes.yml` —, nunca esta suíte:
+# suíte chamada por `workflow_call` não produz run próprio, e chamador e chamado
+# no mesmo grupo é a forma documentada de produzir impasse, com o job do pai
+# esperando o filho que está enfileirado atrás do pai.
 #
 # `ready_for_review` no `types` é o que fecha o ciclo, e é a metade que se
 # esquece: sem ele, sair do rascunho não dispara evento nenhum, e o PR fica
@@ -77,6 +82,8 @@ jobs:
         run: bash scripts/gates/__tests__/fluxos.test.sh
       - name: o portão do pnpm isolado separa o vazio do ilegível
         run: bash scripts/gates/__tests__/pnpm-isolado.test.sh
+      - name: o portão da concorrência reprova o fluxo sem declaração e a suíte que declara
+        run: bash scripts/gates/__tests__/concorrencia.test.sh
       - name: a peneira do packageManager recusa o que não é pnpm@X.Y.Z
         run: bash scripts/ci/__tests__/instalar-pnpm.test.sh
       - name: a tranca de merge trata verificação pendente como não medida
@@ -92,14 +99,17 @@ jobs:
       - name: Toda ação do CI está fixada em SHA
         run: bash scripts/gates/acoes_em_sha.sh
 
-      # Estes dois medem o PRÓPRIO `.github/workflows`, e por isso pertencem a
+      # Estes três medem o PRÓPRIO `.github/workflows`, e por isso pertencem a
       # este fluxo e não aos de cada frente: um PR que mexa só num workflow não
       # casa com nenhum filtro de `paths` deles, que é justamente o PR em que um
-      # job sem guarda ou uma instalação de pnpm no HOME compartilhado entra.
+      # job sem guarda, uma instalação de pnpm no HOME compartilhado ou um fluxo
+      # de gatilho sem `concurrency` entra.
       - name: Nada roda em rascunho, e a nuvem confirma o que a casa aprovou
         run: bash scripts/gates/fluxos.sh
       - name: Nenhuma instalação de pnpm escreve no HOME compartilhado
         run: bash scripts/gates/pnpm_isolado.sh
+      - name: Todo fluxo de gatilho declara concurrency, e nenhuma suíte declara
+        run: bash scripts/gates/concorrencia.sh
 
       # A partir daqui o job constrói: o portão de segredo varre os três
       # artefatos de build além das fontes rastreadas, e artefato que não existe

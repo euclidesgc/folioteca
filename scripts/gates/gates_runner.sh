@@ -17,8 +17,9 @@
 # e imprime uma linha por violação, no formato `arquivo:linha:trecho`.
 #
 # Depois dos gates declarados vêm os portões diretos — quarentena de
-# dependência, ações do CI em SHA, vulnerabilidade conhecida no lockfile e
-# segredo —, que não cabem no molde acima:
+# dependência, ações do CI em SHA, vulnerabilidade conhecida no lockfile,
+# desenho dos fluxos, isolamento do pnpm, concorrência declarada e segredo —,
+# que não cabem no molde acima:
 # `.harness/gates.json` fala de arquivos por stdin e violações por stdout, com o
 # código de saída ignorado, e metade do que cada um deles precisa dizer é que
 # **não conseguiu medir**. Declarados ali, a reprovação por medição impossível
@@ -26,7 +27,7 @@
 # saída propagado.
 #
 # Modos:
-#   gates_runner.sh                  roda os gates e os quatro portões diretos
+#   gates_runner.sh                  roda os gates e os sete portões diretos
 #   gates_runner.sh --diff-only      força avaliação apenas do diff
 #   gates_runner.sh --all            força avaliação da árvore inteira
 #   gates_runner.sh --count-json     imprime a contagem por gate/arquivo (baseline)
@@ -37,11 +38,10 @@
 # constroem as outras duas, e sem a flag reprovariam por artefato ausente em
 # todo PR — reprovação verdadeira sobre uma pergunta que aquele job não deveria
 # estar fazendo. Quem cobra o portão de segredo é a execução sem flag, que
-# `.github/workflows/portoes.yml` roda depois dos três builds. A quarentena, as
-# ações em SHA e a vulnerabilidade continuam cobradas nos dois modos: nenhuma das
-# três lê artefato de build, e tirá-las do modo sem artefatos deixaria os três
-# fluxos por frente — por onde quase todo PR passa — sem cobrança sobre os
-# números que elas medem.
+# `.github/workflows/portoes.yml` roda depois dos três builds. Os outros seis
+# continuam cobrados nos dois modos: nenhum deles lê artefato de build, e
+# tirá-los do modo sem artefatos deixaria os três fluxos por frente — por onde
+# quase todo PR passa — sem cobrança sobre os números que eles medem.
 
 set -uo pipefail
 
@@ -242,6 +242,7 @@ bash "$ROOT/scripts/gates/acoes_em_sha.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/vulnerabilidade.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/fluxos.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/pnpm_isolado.sh" || VEREDICTO=1
+bash "$ROOT/scripts/gates/concorrencia.sh" || VEREDICTO=1
 
 if [ "$SEM_ARTEFATOS" -eq 1 ]; then
   echo "portão de segredo: não cobrado neste modo — quem o roda constrói antes o que ele varre."

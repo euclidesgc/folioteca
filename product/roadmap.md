@@ -901,6 +901,97 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       retrospectiva junto com `037` — o que cabe aqui é a asserção que o
       encerramento de item passa a executar antes de marcar `[x]`.
 
+- [ ] `061-a-sessao-reconhece-o-pull-request-cujo-merge-o-github-parou-de-calcular`
+      — quando o CI para de criar runs, a sessão separa "a plataforma parou" de
+      "a conta acabou" por medição, e não por suposição
+      **Depende de:** `047-o-veredicto-de-fase-mede-se-o-ci-chegou-a-rodar` — o
+      `047` faz a pergunta "alguma suíte do `github-actions` rodou neste PR?";
+      este responde o que fazer quando a resposta é nenhuma, e sem ele não há
+      onde pendurar a resposta.
+      **Origem:** fase 1 de
+      `057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto`, terceira
+      parada do CI no mesmo dia, ver `decisoes-autonomas.md` (`D24` a `D27`).
+      Duas sessões seguidas atribuíram a parada a esgotamento da cota de minutos
+      e reprovaram o mesmo critério comportamental, e a terceira mediu: o
+      sintoma é o **merge ref do pull request parar de ser recalculado**.
+      `refs/pull/46/merge` ficou congelado no commit de `18:13:38Z` enquanto
+      cinco pushes posteriores chegavam, e `mergeable` responde `null` com
+      `mergeable_state: unknown` em consultas repetidas. Workflow disparado por
+      `pull_request` roda sobre o merge commit: sem merge commit novo, o app
+      `github-actions` não cria suíte — enquanto `gitguardian`, `railway-app`,
+      `cursor` e `claude`, que reagem ao head ref, seguem criando as suas a cada
+      push. Essa assimetria é a assinatura, e é o que distingue esta falha de
+      todas as outras. O que o item escreve é a rotina de diagnóstico, com três
+      medições que custam uma chamada de API cada. **A primeira é a anotação do
+      check run**, e ela vem antes de todas porque é a única que diz a causa por
+      escrito: `gh api repos/:owner/:repo/check-runs/<id>/annotations --jq
+      '.[].message'` num job que falhou sem executar passo nenhum devolve, quando
+      é faturamento, `The job was not started because recent account payments have
+      failed or your spending limit needs to be increased`. Medido em 04/09/2026
+      às 19:50Z no PR #46, depois de sete jobs hospedados terem passado no mesmo
+      commit minutos antes.
+      Depois dela vêm a **comparação do merge ref com o head**
+      (`git ls-remote origin refs/pull/<n>/merge` contra
+      `gh pr view <n> --json headRefOid`, com a saída vazia reprovando como *não
+      medido* e nunca como *igual*) e a **prova de que não é conflito**
+      (`git merge-tree --write-tree <base> <head>`).
+      **A sonda do rerun sai da rotina como oráculo de cota.** Ela responde pelo
+      passado imediato, pode ser satisfeita por um job que rodou em runner desta
+      casa, e foi ela que sustentou a refutação de `D24` — correta às 18:41Z e
+      falsa às 19:50Z, sem que nada no método avisasse da virada. Serve para
+      reexecutar um job, não para decidir se a conta tem saldo.
+      Fechar e reabrir o PR já está medido como ineficaz e some com o merge ref
+      antigo, então a rotina o desaconselha em vez de sugeri-lo. O destravamento
+      em si não é daqui: é o dono resolvendo o faturamento em *Billing & plans*,
+      chamado no suporte do GitHub, ou esperar. O que cabe ao repositório é nomear
+      o sintoma na primeira ocorrência, para que a segunda não gaste uma sessão
+      inteira redescobrindo-o.
+
+- [ ] `062-o-criterio-comportamental-monta-a-arvore-de-mentira-com-o-que-o-ambiente-aceita`
+      — quem escreve critério de aceite monta o diretório temporário com
+      `mktemp -d`, e quem o executa não precisa reescrever o comando
+      **Depende de:** nada — é norma escrita numa skill, e vale para o próximo
+      plano que nascer.
+      **Origem:** fase 2 de
+      `057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto`, ver
+      `decisoes-autonomas.md` (`D23`). Os seis critérios `comportamental` da fase
+      montam a árvore de mentira em caminho fixo sob `/tmp`, precedido de uma
+      remoção recursiva que existe só para tornar a montagem idempotente. O
+      ambiente da sessão autônoma recusa essa remoção por hook de segurança, e
+      recusa até quando a cadeia aparece dentro de um `grep` que não apaga nada —
+      o hook casa o texto do comando, não o que ele faz. O efeito é que **cada**
+      sessão que valida esses critérios reescreve o comando à mão, e reescrever o
+      comando de um critério é exatamente o que o critério existe para impedir:
+      duas sessões podem reescrevê-lo diferente e medir coisas diferentes com o
+      mesmo texto por trás. A correção é do lado de cá e é barata: `mktemp -d`
+      devolve um diretório novo a cada chamada, então não há o que limpar antes, o
+      caminho não colide entre execuções simultâneas, e o critério deixa de
+      depender de um `/tmp` que outra sessão pode ter sujado. `harness:acceptance-criteria`
+      passa a dizer isso, e os planos novos nascem assim; os seis critérios do
+      `057` ficam como estão, porque reescrevê-los depois de medidos trocaria o
+      texto que o veredicto cego executou.
+
+- [ ] `063-o-motor-para-a-corrida-quando-o-bloqueio-e-da-conta` — quando o que
+      trava é o faturamento, o motor para com o motivo escrito em vez de gastar
+      uma sessão por rodada redescobrindo-o
+      **Depende de:** `061-a-sessao-reconhece-o-pull-request-cujo-merge-o-github-parou-de-calcular`
+      — o `061` escreve a rotina que separa "a plataforma parou" de "a conta
+      acabou"; este a executa uma vez por rodada, antes de invocar a sessão, e
+      sem ela o motor não tem como perguntar.
+      **Origem:** encerramento de
+      `057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto`, ver
+      `decisoes-autonomas.md` (`D35`). Três sessões seguidas — 19:5xZ, 20:0xZ e
+      20:1xZ de 04/09/2026 — chegaram à mesma parede, mediram a mesma anotação de
+      check run e pararam pelo mesmo motivo. O `decide-next-action.mjs` é função
+      pura sobre `product/state.json` e não tem como saber disso: o estado diz que
+      as duas fases do `057` estão aprovadas, então a decisão é `close`, e ela é
+      correta em cima do que ele enxerga. O que falta é uma pergunta antes da
+      rodada — o estágio hospedado consegue nascer? — cuja resposta negativa vale
+      `exit 1` no motor, que é o código que ele já obedece. A pergunta custa uma
+      chamada de API e cabe no `proxima-sessao.sh`, que é onde a rede já tem teto
+      de tempo; não cabe no `decide-next-action.mjs`, que é puro de propósito e
+      não fala com a rede.
+
 - [ ] `037-a-fronteira-de-agent-mede-quem-escreve` — o guard de escopo recusa a
       escrita pelo agent que a fez, e não pelo último agent despachado
       **Depende de:** nada — o guard já existe nos hooks do harness.
@@ -1098,28 +1189,38 @@ não bloqueia trabalho que não dependa dela.
   **Origem:** estágio `spec` de `023-endurecimento-antes-da-sessao`, ao ratificar
   `D-001` — ver `product/items/023-endurecimento-antes-da-sessao/04-divergencias/D-001.md`.
 
-- **O GitHub Actions parou de executar neste repositório, e a corrida seguiu no
-  escuro.** Medido: o último run de qualquer fluxo é `NestJS`/`React` em
-  `develop`, às 16:54Z de 03/09/2026. Os commits de cabeça das fases 4 e 5 —
-  `0489eb1` e `d0ecaae` — têm suíte de `gitguardian`, `railway-app`, `cursor` e
-  `claude`, e **nenhuma de `github-actions`**; a fase 3 tem quatro. Não é
-  configuração deste repositório: `actions/permissions` responde
-  `{"enabled": true}`, os cinco fluxos estão `active`, o YAML dos cinco carrega
-  sem erro, e `portoes.yml` e `bloqueio.yml` não têm filtro de caminho que
-  pudesse pular. A causa provável é cota — repositório privado em plano de
-  usuário, cujos minutos incluídos acabam sem aviso no PR — e ela não se lê
-  daqui: `settings/billing/actions` exige o escopo `user`, que este token não
-  tem, e conceder escopo de conta não é decisão de quem roda a corrida.
-  **A decisão é sua:** abrir a aba Actions do repositório, ver o motivo que só
-  ela mostra, e resolver — pagar o excedente, elevar o teto de gasto, ou tornar
-  o repositório público, que zera o custo de minuto. Enquanto isso não acontece,
-  **os PRs #23 e #24 não têm CI**, e a regra 10 do `CLAUDE.md` — "pronto é build
-  verde" — não pode ser satisfeita por nenhuma sessão, autônoma ou não. Os
-  portões locais equivalentes rodaram e passaram nas duas fases, o que é a
-  melhor evidência que esta máquina produz e não substitui o runner.
-  **Origem:** encerramento de `023-endurecimento-antes-da-sessao`. O conserto do
-  processo — perguntar ao GitHub se rodou, em vez de supor — é o item
-  `047-o-veredicto-de-fase-mede-se-o-ci-chegou-a-rodar`.
+- **O faturamento da conta está bloqueado, e por isso o estágio de nuvem não
+  nasce — nenhum PR mergeia.** Medido em 04/09/2026 às 20:11:11Z pela anotação do
+  check run, que é a medição que diz a causa:
+  `gh api repos/euclidesgc/folioteca/check-runs/101159863375/annotations`
+  responde `The job was not started because recent account payments have failed
+  or your spending limit needs to be increased. Please check the 'Billing &
+  plans' section in your settings`. Não é configuração deste repositório:
+  `actions/permissions` responde `{"enabled": true}`, os cinco fluxos estão
+  `active`, e o estágio `Nesta máquina` — que roda em `self-hosted` e não gasta
+  minuto — passa nos mesmos runs em que o de nuvem falha em três segundos sem
+  executar passo nenhum. O bloqueio atinge só o runner hospedado pelo GitHub,
+  `ubuntu-latest`, que é onde vive `Confirmação em máquina limpa`. E como é esse
+  estágio que fecha a verificação obrigatória, `scripts/merge-se-liberado.sh` não
+  consegue medir verde e recusa: **os PRs #46 e #48 estão prontos, aprovados e
+  sem merge**, e a regra 10 do `CLAUDE.md` — "pronto é build verde" — não pode
+  ser satisfeita por nenhuma sessão, autônoma ou não. A cota não se lê daqui:
+  `settings/billing/actions` exige o escopo `user`, que este token não tem, e
+  conceder escopo de conta não é decisão de quem roda a corrida.
+  **A decisão é sua**, entre três caminhos. *Resolver o pagamento ou elevar o
+  teto em Billing & plans* — o único que não mexe em nada aqui, e o que eu
+  recomendo. *Tornar o repositório público* — zera o custo de minuto e expõe o
+  código, o que é decisão de produto, não de CI. *Rodar a confirmação em
+  contêiner no runner desta casa* — devolve o sistema de arquivos limpo a cada
+  job sem gastar minuto, mas troca "funciona na imagem do GitHub" por "funciona
+  na nossa imagem", e é justamente a primeira metade que o estágio existe para
+  medir. Enquanto nenhum dos três acontecer, os portões locais são a melhor
+  evidência que esta máquina produz, e não substituem o runner limpo.
+  **Origem:** encerramento de `023-endurecimento-antes-da-sessao`; remedido no
+  encerramento de `057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto`.
+  O conserto do processo — perguntar ao GitHub se rodou, em vez de supor — é o
+  item `047-o-veredicto-de-fase-mede-se-o-ci-chegou-a-rodar`; separar "a
+  plataforma parou" de "a conta acabou" é o `061`.
 
 - **Três ativos deste repositório são mais novos que o gabarito do plugin, e o
   próximo `--update` os apaga.** A atualização do harness para 0.7.0 copiou os
@@ -1212,6 +1313,39 @@ verificação**.
   em quatorze dias e houver ação desatualizada, o arquivo está sendo ignorado e a
   rotina que destrava os SHAs não existe.
 
-As quatro linhas acima esperam o **runner**, e o runner está parado desde 16:54Z
-de 03/09/2026 — ver a pendência de produto aberta sobre o GitHub Actions. Nenhuma
-delas se verifica sozinha enquanto o Actions não voltar a executar.
+- **`057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto`, Fase 1 — `main`
+  e `develop` não cancelam, sobre um push de verdade.** A expressão está provada:
+  a mesma cadeia literal nos cinco fluxos, avaliada com a semântica de `!=` e
+  `&&` num avaliador determinístico, dá `false` para `refs/heads/main`, `false`
+  para `refs/heads/develop` e `true` para referência de trabalho. O que falta é o
+  GitHub avaliando-a num push real nessas duas, e empurrar dois commits em
+  `develop` com trinta segundos de intervalo só para medir é o oposto do que o
+  item defende — ainda mais quando o defeito procurado é uma medição perdida.
+  Verifica-se na primeira ocorrência natural: no próximo merge que puser dois
+  commits em `develop` em menos de três minutos, conferir com
+  `gh run list --branch develop --workflow "Portões" --json headSha,conclusion`
+  que nenhuma das duas entradas traz `cancelled`.
+
+- **`057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto`, Fase 1 — o
+  cancelado diante da tranca de merge.** Está provado que
+  `scripts/merge-se-liberado.sh` filtra `$2=="fail"` e `$2=="pending"` e não
+  contém `cancel` em caixa nenhuma. Não está provado um pull request com
+  verificação `cancelled` no próprio head atravessando a tranca: o cancelamento
+  por `cancel-in-progress` sempre tem run sucessor, e o sucessor substitui a
+  entrada em `gh pr checks` — medido no PR #48, cujos runs de 20:08:52Z de
+  04/09/2026 foram cancelados pelos de 20:09:55Z e não aparecem em nenhuma das
+  vinte e seis linhas do `gh pr checks 48`. A condição não é fabricável sem
+  cancelar à mão, e a classe vizinha tem dono —
+  `059-a-tranca-nao-le-check-cancelado-como-verde`.
+
+Nenhuma dessas linhas se verifica nesta máquina, e elas esperam coisas
+diferentes. As duas do `023` sobre o `gitleaks` e sobre o cache esperam o
+**runner hospedado pelo GitHub**, que não inicia job nenhum enquanto o
+faturamento da conta estiver bloqueado — ver a pendência de produto aberta sobre
+isso; o runner desta casa executa normalmente, e é por isso que `Nesta máquina`
+está verde nos mesmos PRs em que a confirmação de nuvem falha. A do teto de
+permissão espera uma configuração de conta que nenhum comando daqui lê. A do
+Dependabot e a primeira do `057` esperam a plataforma agir sozinha — o agendador
+semanal, e o primeiro merge que puser dois commits seguidos em `develop`. A
+segunda do `057` não espera nada: ela só se verifica se alguém cancelar um run à
+mão, e por isso a classe virou o item `059`.

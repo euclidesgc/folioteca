@@ -26,6 +26,14 @@ on:
   pull_request:
     types: [opened, reopened, synchronize, labeled, unlabeled, ready_for_review]
 
+# `main` e `develop` recebem commit sem pull request, e a medição cancelada
+# numa das duas não é refeita por push nenhum — por isso só referência de
+# trabalho cancela. `${{ github.workflow }}` entra na chave de grupo para que o
+# fluxo longo do mesmo push não mate o curto.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop' }}
+
 # Este roda SÓ nesta máquina, e de propósito: ele lê os rótulos do PR e roda as
 # asserções do próprio script de bloqueio. Não compila, não instala e não depende
 # de ambiente limpo — confirmá-lo na nuvem gastaria minuto para medir de novo o

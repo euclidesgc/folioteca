@@ -47,6 +47,14 @@ on:
       - "package.json"
       - "pnpm-workspace.yaml"
 
+# `main` e `develop` recebem commit sem pull request, e a medição cancelada
+# numa das duas não é refeita por push nenhum — por isso só referência de
+# trabalho cancela. `${{ github.workflow }}` entra na chave de grupo para que o
+# fluxo longo do mesmo push não mate o curto.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop' }}
+
 permissions:
   contents: read
 

@@ -579,8 +579,52 @@
           "por": "autonomo"
         }
       },
-      "current_phase": null,
-      "phases": {},
+      "current_phase": 2,
+      "phases": {
+        "1": {
+          "status": "aprovada",
+          "reproved_count": 0,
+          "verdict": "APROVADO",
+          "verdict_file": "product/items/057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto/05-veredictos/fase-1.md",
+          "validated_sha": "cdfaedf0b4d9877f55414a02c4c4593fed8508f5",
+          "pr": null,
+          "blocked_on": [],
+          "verdict_at": "2026-09-04T19:24:35Z",
+          "validated_trees": {
+            "apps/api": "f614cd78e3d0df6ba3647394bc0c8d0c6d02d4b4",
+            "apps/web": "63e60e115b3ff4379226f83a8df3b7e3307c5de3"
+          },
+          "escalation_history": [
+            {
+              "at": "2026-09-04T18:46:26Z",
+              "reproved_count": 2,
+              "diagnostico": "criterio 5 comportamental inexequivel: o GitHub parou de calcular o merge ref do PR 46 desde 18:13:56Z, e workflow de pull_request nao nasce sem merge commit; cota refutada pela sonda do rerun",
+              "opcoes": [
+                "criterio: o critério está errado ou mal escrito",
+                "decomposicao: a fase foi mal quebrada",
+                "abordagem: a implementação escolheu o caminho errado"
+              ],
+              "reaberta_em": "2026-09-04T19:16:53Z"
+            }
+          ],
+          "criteria_sha": "62c0e1480e28d713c2f60e76caf40a391a9fdc37d0b084c9554da520d056e414"
+        },
+        "2": {
+          "status": "aprovada",
+          "reproved_count": 0,
+          "verdict": "APROVADO",
+          "verdict_file": "product/items/057-o-ci-cancela-o-run-que-o-push-seguinte-tornou-obsoleto/05-veredictos/fase-2.md",
+          "validated_sha": "1f5777c283810db641cbbfbac34de64a82a574df",
+          "pr": null,
+          "blocked_on": [],
+          "verdict_at": "2026-09-04T20:08:18Z",
+          "validated_trees": {
+            "apps/api": "f614cd78e3d0df6ba3647394bc0c8d0c6d02d4b4",
+            "apps/web": "63e60e115b3ff4379226f83a8df3b7e3307c5de3"
+          },
+          "criteria_sha": "dcb06e3f6efee455dec88abc0e3323877b7bd9b0dac77ac2953815cdadba3000"
+        }
+      },
       "divergences": {},
       "criteria_exception": null
     }
