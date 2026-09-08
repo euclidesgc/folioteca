@@ -1,6 +1,7 @@
 ---
 name: react-auth-guards
 description: "Rota protegida e papéis no cliente: guarda de rota com destino de retorno, renderização condicional por papel, e o limite de que o cliente esconde mas não autoriza."
+user-invocable: false
 ---
 
 # Rota protegida e papéis no cliente

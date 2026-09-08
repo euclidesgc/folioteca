@@ -387,7 +387,7 @@ certa é aqui dentro. Sem esta frase a fila de infraestrutura se reconstitui
 sozinha na frente do produto — seis itens numa noite, cada um inserido
 corretamente pela régua local, e nenhuma tela pronta de manhã.
 
-- [ ] `049-a-isencao-de-qs-vence-e-alguem-precisa-fecha-la` — o nome `qs` sai da
+- [x] `049-a-isencao-de-qs-vence-e-alguem-precisa-fecha-la` — o nome `qs` sai da
       lista de isenções da quarentena, nos dois lugares que o portão compara, a
       partir de **2026-09-06**
       **Depende de:** `023-endurecimento-antes-da-sessao` — é a fase 5 dele que
@@ -420,6 +420,17 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       no fim do dia, os dois não coincidem, e a diferença é uma janela inteira de
       CI vermelho. A regra é datar o vencimento pelo dia seguinte ao instante
       medido — e medir o instante, em vez de arredondar para o dia da publicação.
+
+      **Fechado em 07/09/2026, com as duas metades medidas.** `qs@6.16.0` foi
+      publicada em 2026-08-29T23:50:15Z e completou os sete dias em
+      2026-09-05T23:50:15Z, então a janela em que os dois lados reprovavam já
+      passou: o nome saiu de `pnpm-workspace.yaml` e de `ISENCOES_ESPERADAS`, o
+      portão devolve `minimumReleaseAgeExclude = []`, e
+      `pnpm install --frozen-lockfile` responde `Lockfile passes supply-chain
+      policies (923 entries)` — que é exatamente a asserção que reprovou em cinco
+      jobs no dia 04. A constante volta a ser lista vazia, e o comentário dela
+      passa a ensinar a regra que este item produziu: o vencimento de uma isenção
+      é o dia SEGUINTE ao instante da liberação, nunca o mesmo dia.
 
 - [x] `060-a-tranca-mergeia-o-ultimo-pr-aberto-de-uma-pilha` — a pilha esvazia
       até o fim, em vez de travar no último pull request que sobrou nela
@@ -582,6 +593,44 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       script nos dois jobs deste fluxo. Falta confirmar, antes de decidir a forma,
       se `pnpm/action-setup@v4.3.0` valida o campo e instala sem scripts de ciclo
       de vida — se validar, o item vira consistência e não correção.
+
+- [ ] `064-nenhum-job-do-ci-prende-porta-fixa-na-maquina-compartilhada` — dois
+      pull requests medidos ao mesmo tempo deixam de reprovar um ao outro por
+      disputarem portas na máquina que os dois compartilham
+      **Depende de:** nada. São as portas fixas dos jobs: a do servidor que
+      `apps/web/scripts/verificar-politica.sh` sobe (e o irmão de `apps/site`), e
+      a do contêiner de serviço de Postgres do job de integração.
+      **Origem:** medido em 07/09/2026, com quatro pull requests da pilha `52` em
+      voo ao mesmo tempo. O portão sobe um servidor e mede o que ele responde, e
+      antes disso exige a porta livre — `_exige_porta_livre` recusa quando `curl`
+      sai diferente de `7`, porque um servidor de outra execução responderia todas
+      as perguntas e o veredicto seria sobre código que ninguém serviu. A guarda
+      está certa e é ela que salva o resultado. O que está errado é a porta ser
+      **fixa**: `5173` vem de `apps/web/vite.config.ts`, com `strictPort`, e os
+      runners desta casa são quatro processos na MESMA máquina. Dois jobs
+      simultâneos pedem a mesma porta, e o segundo reprova com
+      `portão não conseguiu medir: já há alguém atendendo em localhost:5173`.
+      É a mesma classe da colisão de `~/setup-pnpm` que `053` fechou — recurso de
+      máquina tratado como se o job fosse dono dela —, e o formato é o mesmo:
+      vermelho intermitente, sem relação com o diff, que some ao reexecutar
+      sozinho. Piora com a adoção de pilhas: quanto mais PRs em voo, mais provável
+      a disputa.
+      **Não é uma porta, são pelo menos duas.** Na mesma medição, o job
+      `Nesta máquina / Integração` do `#50` morreu com
+      `Bind for 0.0.0.0:5432 failed: port is already allocated`: o contêiner de
+      serviço `pgvector/pgvector:pg16` publica a porta do Postgres num endereço da
+      máquina, e dois jobs de integração simultâneos pedem a mesma. Este caso é
+      pior que o da `5173`, porque nem chega a haver portão — o Docker recusa
+      antes de qualquer passo, e o que se lê é `Docker start fail with exit code
+      1`, sem relação visível com concorrência.
+      Fechar é nenhum job prender porta escrita: o servidor do portão escolhe uma
+      porta livre — derivada de `runner.temp` ou sorteada e conferida —, mantendo
+      `_exige_porta_livre` intacta, que é quem prova que a resposta medida é a do
+      servidor que subiu; e o contêiner de serviço deixa de publicar porta no
+      hospedeiro, sendo alcançado pelo nome dentro da rede do job, que é o modo em
+      que dois jobs simultâneos não se enxergam.
+      O teste tem de cobrir o caso de duas execuções concorrentes, senão o defeito
+      volta na primeira vez que alguém fixar a porta de novo por conveniência.
 
 - [ ] `058-o-endereco-de-homologacao-diz-o-nome-do-produto` — os três FQDNs de
       homologação saem de `gbdocs.duckdns.org`, herdado do projeto anterior, para

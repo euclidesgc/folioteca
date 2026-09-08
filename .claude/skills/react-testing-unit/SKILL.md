@@ -1,6 +1,7 @@
 ---
 name: react-testing-unit
 description: "Teste com Vitest, Testing Library e MSW: consulta por papel e texto acessível, as três naturezas de teste, handlers de rede em arquivo dedicado e render com provedores."
+user-invocable: false
 ---
 
 # Teste de unidade e integração

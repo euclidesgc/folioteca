@@ -1,6 +1,7 @@
 ---
 name: nest-persistence-prisma
 description: "Persistência com Prisma no NestJS: schema, migration versionada, tipos gerados, transação, confinamento do PrismaClient no repositório e teste com e sem banco."
+user-invocable: false
 ---
 
 # Persistência com Prisma

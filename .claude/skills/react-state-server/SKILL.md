@@ -1,6 +1,7 @@
 ---
 name: react-state-server
 description: "Estado de servidor com TanStack Query: fábrica de chaves de query, invalidação após mutação, estados de carregamento e erro, atualização otimista com rollback."
+user-invocable: false
 ---
 
 # Estado de servidor com TanStack Query

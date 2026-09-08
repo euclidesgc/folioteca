@@ -1,6 +1,7 @@
 ---
 name: nest-validation
 description: "Validação de entrada no NestJS: DTO com class-validator, ValidationPipe global com whitelist e forbidNonWhitelisted, transformação de tipo com class-transformer."
+user-invocable: false
 ---
 
 # Validação na fronteira

@@ -1,6 +1,7 @@
 ---
 name: nest-testing-integration
 description: "Teste de integração no NestJS: Supertest contra a aplicação montada, Postgres real por Testcontainers, critérios comportamentais em Given-When-Then e setup caro reutilizado."
+user-invocable: false
 ---
 
 # Teste de integração

@@ -1,6 +1,7 @@
 ---
 name: react-styling
 description: "Estilo com Tailwind e CVA: variante como dado em vez de concatenação condicional, primitivos de interface em `shared/components`, tokens no tema e ausência de valor mágico."
+user-invocable: false
 ---
 
 # Estilo com Tailwind e CVA

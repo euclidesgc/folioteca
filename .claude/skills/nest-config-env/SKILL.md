@@ -1,6 +1,7 @@
 ---
 name: nest-config-env
 description: "Configuração no NestJS: @nestjs/config com schema validado no boot, ConfigService tipado, .env.example completo e segredo fora do repositório."
+user-invocable: false
 ---
 
 # Configuração e variáveis de ambiente
