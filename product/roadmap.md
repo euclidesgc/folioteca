@@ -594,11 +594,12 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       se `pnpm/action-setup@v4.3.0` valida o campo e instala sem scripts de ciclo
       de vida — se validar, o item vira consistência e não correção.
 
-- [ ] `064-o-portao-de-politica-nao-disputa-porta-com-o-job-vizinho` — dois pull
-      requests medidos ao mesmo tempo deixam de reprovar um ao outro por
-      disputarem a mesma porta na máquina que os dois compartilham
-      **Depende de:** nada. É a escolha da porta em
-      `apps/web/scripts/verificar-politica.sh` e no irmão de `apps/site`.
+- [ ] `064-nenhum-job-do-ci-prende-porta-fixa-na-maquina-compartilhada` — dois
+      pull requests medidos ao mesmo tempo deixam de reprovar um ao outro por
+      disputarem portas na máquina que os dois compartilham
+      **Depende de:** nada. São as portas fixas dos jobs: a do servidor que
+      `apps/web/scripts/verificar-politica.sh` sobe (e o irmão de `apps/site`), e
+      a do contêiner de serviço de Postgres do job de integração.
       **Origem:** medido em 07/09/2026, com quatro pull requests da pilha `52` em
       voo ao mesmo tempo. O portão sobe um servidor e mede o que ele responde, e
       antes disso exige a porta livre — `_exige_porta_livre` recusa quando `curl`
@@ -614,9 +615,20 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       vermelho intermitente, sem relação com o diff, que some ao reexecutar
       sozinho. Piora com a adoção de pilhas: quanto mais PRs em voo, mais provável
       a disputa.
-      Fechar é o job escolher uma porta livre em vez de uma escrita — derivada de
-      `runner.temp` ou sorteada e conferida —, mantendo `_exige_porta_livre`
-      intacta, que é quem prova que a resposta medida é a do servidor que subiu.
+      **Não é uma porta, são pelo menos duas.** Na mesma medição, o job
+      `Nesta máquina / Integração` do `#50` morreu com
+      `Bind for 0.0.0.0:5432 failed: port is already allocated`: o contêiner de
+      serviço `pgvector/pgvector:pg16` publica a porta do Postgres num endereço da
+      máquina, e dois jobs de integração simultâneos pedem a mesma. Este caso é
+      pior que o da `5173`, porque nem chega a haver portão — o Docker recusa
+      antes de qualquer passo, e o que se lê é `Docker start fail with exit code
+      1`, sem relação visível com concorrência.
+      Fechar é nenhum job prender porta escrita: o servidor do portão escolhe uma
+      porta livre — derivada de `runner.temp` ou sorteada e conferida —, mantendo
+      `_exige_porta_livre` intacta, que é quem prova que a resposta medida é a do
+      servidor que subiu; e o contêiner de serviço deixa de publicar porta no
+      hospedeiro, sendo alcançado pelo nome dentro da rede do job, que é o modo em
+      que dois jobs simultâneos não se enxergam.
       O teste tem de cobrir o caso de duas execuções concorrentes, senão o defeito
       volta na primeira vez que alguém fixar a porta de novo por conveniência.
 
