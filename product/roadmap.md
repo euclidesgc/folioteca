@@ -594,6 +594,32 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       se `pnpm/action-setup@v4.3.0` valida o campo e instala sem scripts de ciclo
       de vida — se validar, o item vira consistência e não correção.
 
+- [ ] `064-o-portao-de-politica-nao-disputa-porta-com-o-job-vizinho` — dois pull
+      requests medidos ao mesmo tempo deixam de reprovar um ao outro por
+      disputarem a mesma porta na máquina que os dois compartilham
+      **Depende de:** nada. É a escolha da porta em
+      `apps/web/scripts/verificar-politica.sh` e no irmão de `apps/site`.
+      **Origem:** medido em 07/09/2026, com quatro pull requests da pilha `52` em
+      voo ao mesmo tempo. O portão sobe um servidor e mede o que ele responde, e
+      antes disso exige a porta livre — `_exige_porta_livre` recusa quando `curl`
+      sai diferente de `7`, porque um servidor de outra execução responderia todas
+      as perguntas e o veredicto seria sobre código que ninguém serviu. A guarda
+      está certa e é ela que salva o resultado. O que está errado é a porta ser
+      **fixa**: `5173` vem de `apps/web/vite.config.ts`, com `strictPort`, e os
+      runners desta casa são quatro processos na MESMA máquina. Dois jobs
+      simultâneos pedem a mesma porta, e o segundo reprova com
+      `portão não conseguiu medir: já há alguém atendendo em localhost:5173`.
+      É a mesma classe da colisão de `~/setup-pnpm` que `053` fechou — recurso de
+      máquina tratado como se o job fosse dono dela —, e o formato é o mesmo:
+      vermelho intermitente, sem relação com o diff, que some ao reexecutar
+      sozinho. Piora com a adoção de pilhas: quanto mais PRs em voo, mais provável
+      a disputa.
+      Fechar é o job escolher uma porta livre em vez de uma escrita — derivada de
+      `runner.temp` ou sorteada e conferida —, mantendo `_exige_porta_livre`
+      intacta, que é quem prova que a resposta medida é a do servidor que subiu.
+      O teste tem de cobrir o caso de duas execuções concorrentes, senão o defeito
+      volta na primeira vez que alguém fixar a porta de novo por conveniência.
+
 - [ ] `058-o-endereco-de-homologacao-diz-o-nome-do-produto` — os três FQDNs de
       homologação saem de `gbdocs.duckdns.org`, herdado do projeto anterior, para
       um domínio que nomeia esta aplicação
