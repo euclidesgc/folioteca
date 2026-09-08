@@ -387,7 +387,7 @@ certa é aqui dentro. Sem esta frase a fila de infraestrutura se reconstitui
 sozinha na frente do produto — seis itens numa noite, cada um inserido
 corretamente pela régua local, e nenhuma tela pronta de manhã.
 
-- [ ] `049-a-isencao-de-qs-vence-e-alguem-precisa-fecha-la` — o nome `qs` sai da
+- [x] `049-a-isencao-de-qs-vence-e-alguem-precisa-fecha-la` — o nome `qs` sai da
       lista de isenções da quarentena, nos dois lugares que o portão compara, a
       partir de **2026-09-06**
       **Depende de:** `023-endurecimento-antes-da-sessao` — é a fase 5 dele que
@@ -420,6 +420,17 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       no fim do dia, os dois não coincidem, e a diferença é uma janela inteira de
       CI vermelho. A regra é datar o vencimento pelo dia seguinte ao instante
       medido — e medir o instante, em vez de arredondar para o dia da publicação.
+
+      **Fechado em 07/09/2026, com as duas metades medidas.** `qs@6.16.0` foi
+      publicada em 2026-08-29T23:50:15Z e completou os sete dias em
+      2026-09-05T23:50:15Z, então a janela em que os dois lados reprovavam já
+      passou: o nome saiu de `pnpm-workspace.yaml` e de `ISENCOES_ESPERADAS`, o
+      portão devolve `minimumReleaseAgeExclude = []`, e
+      `pnpm install --frozen-lockfile` responde `Lockfile passes supply-chain
+      policies (923 entries)` — que é exatamente a asserção que reprovou em cinco
+      jobs no dia 04. A constante volta a ser lista vazia, e o comentário dela
+      passa a ensinar a regra que este item produziu: o vencimento de uma isenção
+      é o dia SEGUINTE ao instante da liberação, nunca o mesmo dia.
 
 - [x] `060-a-tranca-mergeia-o-ultimo-pr-aberto-de-uma-pilha` — a pilha esvazia
       até o fim, em vez de travar no último pull request que sobrou nela
