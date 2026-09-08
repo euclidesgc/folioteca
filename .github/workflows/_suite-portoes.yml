@@ -88,6 +88,8 @@ jobs:
         run: bash scripts/ci/__tests__/instalar-pnpm.test.sh
       - name: a tranca de merge trata verificação pendente como não medida
         run: bash scripts/gates/__tests__/merge-se-liberado.test.sh
+      - name: o portão do atalho cobra teto, troca e item, e recusa o item que não existe
+        run: bash scripts/gates/__tests__/atalho.test.sh
 
       # Os dois portões da cadeia de suprimentos são cobrados aqui, e não só
       # pelo `gates_runner.sh` dos três fluxos por frente: aqueles têm filtro de
@@ -110,6 +112,12 @@ jobs:
         run: bash scripts/gates/pnpm_isolado.sh
       - name: Todo fluxo de gatilho declara concurrency, e nenhuma suíte declara
         run: bash scripts/gates/concorrencia.sh
+
+      # O marcador de atalho deliberado fecha o sentido código → fila no sentido
+      # de volta: quem abre o arquivo meses depois lê ali que aquela função tem
+      # teto, sem precisar do corpo do PR nem do roadmap.
+      - name: Todo marcador de atalho declara teto, troca e item que existe na fila
+        run: bash scripts/gates/atalho.sh
 
       # A partir daqui o job constrói: o portão de segredo varre os três
       # artefatos de build além das fontes rastreadas, e artefato que não existe

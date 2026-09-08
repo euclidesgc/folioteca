@@ -94,6 +94,44 @@ caso 'uma boa e uma ruim no mesmo job REPROVA' 1 'sem `dest`' "${CABECA}      - 
       - uses: pnpm/action-setup@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 "
 
+# SEM PyYAML O PORTÃO RECUSA, E NÃO EXPLODE
+#
+# Ter `python3` no PATH não é ter o módulo que o portão importa. Um `import` que
+# falta estoura traceback antes de qualquer recusa, e o que chega a quem lê é um
+# rastro de pilha. Pior: num runner com o Python do sistema o módulo costuma
+# existir, e num com `setup-python` limpo não — o mesmo portão passa numa
+# máquina e explode noutra, por um motivo que a mensagem não diz. Medido: foi
+# exatamente assim que este portão nasceu vermelho no CI e verde na máquina de
+# quem o escreveu.
+sem_pyyaml() {
+  local casa saida obtido
+  casa="$(mktemp -d)"
+  mkdir -p "$casa/.github/workflows" "$casa/scripts/gates" "$casa/bin"
+  cp "$raiz/scripts/gates/medir.sh" "$casa/scripts/gates/medir.sh"
+  cp "$alvo" "$casa/scripts/gates/pnpm_isolado.sh"
+  printf 'name: X\non: [push]\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - run: "true"\n' \
+    > "$casa/.github/workflows/ci.yml"
+  printf '#!/usr/bin/env bash\nif [ "${1:-}" = "-c" ] && [ "${2:-}" = "import yaml" ]; then exit 1; fi\nexec %s "$@"\n' \
+    "$(command -v python3)" > "$casa/bin/python3"
+  chmod +x "$casa/bin/python3"
+  saida="$(env GITHUB_WORKSPACE="$casa" PATH="$casa/bin:$PATH" bash "$casa/scripts/gates/pnpm_isolado.sh" 2>&1)"
+  obtido=$?
+  rm -rf "$casa"
+  if [ "$obtido" -eq 0 ]; then
+    printf '  FALHA sem PyYAML o portão PASSOU — medição impossível virou aprovação\n'
+    falhas=$((falhas + 1))
+    return
+  fi
+  if ! printf '%s' "$saida" | grep -qF "não conseguiu medir"; then
+    printf '  FALHA sem PyYAML o portão morreu sem dizer que não conseguiu medir\n'
+    printf '%s\n' "$saida" | sed 's/^/        /'
+    falhas=$((falhas + 1))
+    return
+  fi
+  printf '  ok    sem PyYAML o portão RECUSA por impossibilidade de medição\n'
+}
+sem_pyyaml
+
 [ "$falhas" -eq 0 ] && { printf '✓ pnpm isolado: as asserções mordem, e o vazio não é o ilegível\n'; exit 0; }
 printf '✗ pnpm isolado: %s caso(s) falharam\n' "$falhas" >&2
 exit 1

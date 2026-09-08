@@ -1,6 +1,7 @@
 ---
 name: react-testing-a11y
 description: "Acessibilidade verificada: axe no navegador com reprovação em violação crítica ou séria, regras de lint jsx-a11y, e os defeitos que nenhum scanner detecta — ordem de foco, texto alternativo errado e cor como único sinal."
+user-invocable: false
 ---
 
 # Acessibilidade verificada

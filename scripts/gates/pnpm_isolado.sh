@@ -29,6 +29,7 @@ aqui="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 RAIZ="$(medir_raiz)"
 exige_caminho ".github/workflows" "o diretório de fluxos do GitHub Actions"
 exige_comando python3 "sem ele não há como ler o YAML dos fluxos"
+exige_modulo_python yaml "sem PyYAML não há como ler o YAML dos fluxos"
 
 python3 - "$RAIZ/.github/workflows" <<'PY'
 import pathlib, sys, yaml

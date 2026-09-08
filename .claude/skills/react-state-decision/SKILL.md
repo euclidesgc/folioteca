@@ -1,6 +1,7 @@
 ---
 name: react-state-decision
 description: "Classificação dos cinco tipos de estado do bulletproof-react: componente, aplicação, servidor, formulário e URL; árvore de decisão, useState versus useReducer e search params."
+user-invocable: false
 ---
 
 # Qual dos cinco tipos de estado é este

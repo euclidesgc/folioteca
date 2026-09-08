@@ -52,6 +52,18 @@ exige_comando() {
   command -v "$1" >/dev/null 2>&1 || _reprova "o comando '$1' não está no PATH"
 }
 
+# exige_modulo_python <módulo> <por que ele é necessário>
+# Ter `python3` no PATH não é ter o módulo que o portão importa. Um `import` que
+# falta estoura traceback ANTES de qualquer `_reprova` rodar, e a saída que
+# chega a quem lê é um rastro de pilha — não "não consegui medir". Pior: num
+# runner com o Python do sistema o módulo costuma existir, e num com
+# `setup-python` limpo não; o mesmo portão passa numa máquina e explode noutra
+# por um motivo que a mensagem não diz.
+exige_modulo_python() {
+  python3 -c "import $1" >/dev/null 2>&1 ||
+    _reprova "o módulo python '$1' não está disponível — $2"
+}
+
 # exige_escrita <arquivo> <instante em epoch antes da geração>
 # Prova que a ferramenta escreveu, em vez de aceitar silêncio como acerto.
 exige_escrita() {

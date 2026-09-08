@@ -1,6 +1,7 @@
 ---
 name: nest-module-structure
 description: "Módulo por feature no NestJS: quarteto module/controller/service/repository, responsabilidade de cada camada, barril de exportação e fronteira entre módulos."
+user-invocable: false
 ---
 
 # Módulo por feature

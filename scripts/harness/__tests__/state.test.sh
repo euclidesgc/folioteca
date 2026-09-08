@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Prova que `scripts/harness/state.sh` ancora na raiz do repositório mesmo com o
 # diretório corrente em outro lugar — e, no mesmo cenário, que a chamada crua ao
-# `state.py` grava no lugar errado. Sem esse segundo caso o teste passaria com o
-# defeito presente, e um teste que passa dos dois lados não mede nada.
+# `state.py` RECUSA em vez de escolher uma raiz sozinha. As duas metades são
+# necessárias: sem a primeira o wrapper poderia não ancorar em nada, e sem a
+# segunda o teste passaria mesmo que a chamada crua voltasse a gravar em
+# silêncio no repositório errado.
 #
 # O sandbox fica num caminho previsível e nada é apagado por trap — faxina
 # destrutiva em trap é a linha que limpa a árvore errada no dia em que a
@@ -48,7 +50,7 @@ import os
 import subprocess
 
 
-def repo_root():
+def git_toplevel():
     try:
         out = subprocess.run(
             ["git", "rev-parse", "--show-toplevel"],
@@ -60,7 +62,26 @@ def repo_root():
             return out.stdout.strip()
     except (OSError, subprocess.SubprocessError):
         pass
-    return os.getcwd()
+    return None
+
+
+def resolve_root(explicit=None):
+    """Recusa quando há duas respostas, em vez de escolher uma."""
+    if explicit:
+        return explicit
+    corrente = git_toplevel()
+    sessao = os.environ.get("HARNESS_PROJECT_ROOT")
+    if sessao and corrente and os.path.realpath(sessao) != os.path.realpath(corrente):
+        raise SystemExit(
+            json.dumps(
+                {
+                    "erro": f"raiz ambígua: a sessão abriu em {sessao} e o diretório "
+                    f"corrente pertence a {corrente}."
+                },
+                ensure_ascii=False,
+            )
+        )
+    return corrente or sessao or os.getcwd()
 
 
 def state_path(root):
@@ -75,7 +96,7 @@ novo.add_argument("--item", required=True)
 novo.add_argument("--title", required=True)
 args = parser.parse_args()
 
-path = state_path(args.root or repo_root())
+path = state_path(resolve_root(args.root))
 os.makedirs(os.path.dirname(path), exist_ok=True)
 if os.path.isfile(path):
     with open(path, encoding="utf-8") as handle:
@@ -131,9 +152,18 @@ caso "o wrapper grava na raiz com o cwd dentro de um clone temporário" 0 \
   "cd '$tmp/clone' && CLAUDE_PLUGIN_ROOT='$plugin' bash '$wrapper' item-new --item T-CLONE --title Quatro &&
    grep -q T-CLONE '$estado' && ! grep -q T-CLONE '$tmp/clone/product/state.json'"
 
-caso "a chamada crua ao state.py grava no clone e não na raiz — é o defeito" 0 \
-  "cd '$tmp/clone' && python3 '$alvo' item-new --item T-CRU --title Cinco &&
-   grep -q T-CRU '$tmp/clone/product/state.json' && ! grep -q T-CRU '$estado'"
+# A chamada crua não escolhe: quando a raiz da sessão e a do diretório corrente
+# discordam, ela recusa dizendo as duas, e não grava em nenhuma das duas. Antes
+# ela gravava no clone com saída de sucesso — o clone também responde a
+# `git rev-parse`, e os critérios de aceite deste harness MANDAM medir em clone.
+# O caso mede as três coisas, porque recusar e mesmo assim ter escrito seria o
+# mesmo defeito com uma mensagem por cima.
+caso "a chamada crua RECUSA a raiz ambígua, e não grava em nenhuma das duas" 0 \
+  "cd '$tmp/clone' && saida=\$(python3 '$alvo' item-new --item T-CRU --title Cinco 2>&1); rc=\$?;
+   [ \"\$rc\" -ne 0 ] &&
+   printf '%s' \"\$saida\" | grep -q 'raiz ambígua' &&
+   ! grep -q T-CRU '$tmp/clone/product/state.json' &&
+   ! grep -q T-CRU '$estado'"
 
 caso "o wrapper anuncia em stderr a raiz que ancorou" 0 \
   "cd '$tmp/comum' && CLAUDE_PLUGIN_ROOT='$plugin' bash '$wrapper' item-new --item T-ECO --title Seis 2>&1 >/dev/null |
@@ -145,7 +175,7 @@ caso "o wrapper aceita plugin-root.json como reserva" 0 \
    grep -q T-RESERVA '$estado'"
 
 if [ "$falhas" -eq 0 ]; then
-  printf '\n✓ state.sh: a âncora morde, e a chamada crua erra onde ela acerta.\n'
+  printf '\n✓ state.sh: a âncora morde, e a chamada crua recusa a raiz que não é dela.\n'
 else
   printf '\n✗ %s caso(s) não se comportaram como deveriam.\n' "$falhas" >&2
   exit 1

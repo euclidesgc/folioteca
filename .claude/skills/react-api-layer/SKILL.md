@@ -1,6 +1,7 @@
 ---
 name: react-api-layer
 description: "Camada de API: cliente HTTP único em `src/shared/api`, tipos gerados do OpenAPI, interceptação de erro e de token num lugar só, funções de requisição por feature."
+user-invocable: false
 ---
 
 # Camada de API

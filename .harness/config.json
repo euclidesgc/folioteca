@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "harness_version": "0.7.0",
+  "harness_version": "0.9.3",
   "mode": "full",
   "route": "greenfield",
   "product": "Folioteca — a empresa escreve documentos e os distribui por canais; o acesso vem de onde a pessoa está, e é revogado quando ela sai de lá.",
@@ -52,7 +52,14 @@
       }
     }
   },
-  "command_quirks": [],
+  "command_quirks": [
+    {
+      "cmd": "*",
+      "judge_by": "output",
+      "escape_saida_crua": "rtk proxy {comando}",
+      "motivo": "Um hook global PreToolUse/Bash reescreve TODA chamada de Bash como `rtk <comando>`, e os CLAUDE.md de ~ e ~/.claude impõem o mesmo proxy. Ele corta até 90% da saída, e o que ele corta é justamente o que reprovaria: o teste que quebrou dentro de um wrapper que ainda sai zero, e o aviso que o resumo descartou por repetitivo. Toda evidência de critério de aceite é colhida com `rtk proxy`, que executa sem filtro — julgue pela saída bruta, nunca pela resumida."
+    }
+  ],
   "language": {
     "code": "en",
     "docs": "pt-BR"

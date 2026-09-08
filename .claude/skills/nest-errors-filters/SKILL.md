@@ -1,6 +1,7 @@
 ---
 name: nest-errors-filters
 description: "Erros no NestJS: taxonomia de domínio mapeada para HTTP em exception filter, corpo de resposta sem mensagem interna, log estruturado com correlação, fronteira entre 4xx e 5xx."
+user-invocable: false
 ---
 
 # Erros e exception filters

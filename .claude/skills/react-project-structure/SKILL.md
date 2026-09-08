@@ -1,6 +1,7 @@
 ---
 name: react-project-structure
 description: "Estrutura bulletproof-react: pastas `src/features/<feature>/{api,components,hooks,types}`, `src/shared/` e `src/app/`, fluxo unidirecional de import, barril público de feature e o portão G5."
+user-invocable: false
 ---
 
 # Estrutura de pastas e fronteira de import
