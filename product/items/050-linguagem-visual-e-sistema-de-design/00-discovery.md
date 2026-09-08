@@ -235,14 +235,20 @@ construiu.
 - **E10.4** — O código é em inglês e o que a pessoa lê é em pt-BR, no mesmo
   arquivo: `<Button variant="destructive">Excluir documento</Button>`.
 
-## Perguntas em aberto
+## Decisões
 
-Oito. As três primeiras travam a fase inicial — não há folha de estilo a escrever
-antes delas.
+As oito estão fechadas, e é isto que tira o item do estágio de discovery. As
+quatro que fixam produto — direção, tipografia, vocabulário de navegação e
+alcance de largura — são do dono, respondidas em 08/09/2026. As quatro técnicas
+são decisão autônoma registrada, e cada uma diz por que a alternativa não venceu.
 
-### P1. Qual é a direção visual e a paleta base?
+A ordem abaixo é a das perguntas que as originaram, porque é ela que mostra o que
+dependia de quê: as três primeiras travavam a fase inicial, e não havia folha de
+estilo a escrever antes delas.
 
-Decisão do dono. As três candidatas cabem na entrada de direção do roadmap —
+### D1 — A direção é "Lombada", e a ousadia é estrutural
+
+**Decidido pelo dono em 08/09/2026: a opção A.** As três candidatas cabiam na entrada de direção do roadmap —
 confiança antes de modernidade, material do arquivo sem nostalgia, e longe de
 Notion, Confluence, Linear e Slack — e diferem em **onde mora a ousadia**.
 
@@ -277,7 +283,7 @@ Notion, Confluence, Linear e Slack — e diferem em **onde mora a ousadia**.
   mesmo item entrega, e em largura de telefone as duas não cabem — a calha vira
   outro componente, e o esqueleto passa a ter dois desenhos em vez de um.
 
-**Recomendação: A.** Das três coisas que a marca precisa comunicar, a segunda —
+**Por que A, e não as outras.** Das três coisas que a marca precisa comunicar, a segunda —
 "o acesso é legível de relance" — é a única que nenhum concorrente resolve, e A é
 a única direção cuja assinatura *é* essa comunicação, em vez de decorá-la. A
 lombada também sobrevive à redução: vira uma etiqueta de doze pixels numa lista
@@ -285,9 +291,11 @@ densa sem perder a informação, que é exatamente onde `004` a `007` vivem. B g
 a personalidade numa face de display que quase não aparece; C entrega um desenho
 que se contradiz na largura pequena.
 
-### P2. Quais são as duas faces e qual licença permite auto-hospedá-las?
+### D2 — As três faces são abertas, sob OFL
 
-Decisão do dono, com uma trava técnica: o arquivo entra no repositório e é servido
+**Decidido pelo dono em 08/09/2026: a opção (a).** Fraunces, Atkinson
+Hyperlegible Next e IBM Plex Mono, todas sob OFL, com os arquivos versionados.
+A trava técnica que enquadrou a escolha: o arquivo entra no repositório e é servido
 pelo artefato, então a licença precisa permitir redistribuição.
 
 - **(a) Só licença aberta** — as três famílias da direção escolhida sob OFL.
@@ -302,13 +310,14 @@ pelo artefato, então a licença precisa permitir redistribuição.
   proporcional: a face de corpo é a que menos se nota e a que mais precisa
   aguentar parágrafo longo, e aí o catálogo aberto é forte.
 
-**Recomendação: (a) para a primeira versão.** A face de display é lida por token,
+**Por que (a), e não pagar por display.** A face de display é lida por token,
 então trocá-la depois custa os arquivos e uma linha do tema, nunca as telas. Pagar
 licença antes de haver tela é fixar custo contra uma decisão que ainda vai ser
 revista quando o hotsite existir.
 
-### P3. Qual é a camada de estilo?
+### D3 — A camada de estilo é Tailwind v4 com `cva`
 
+**Decisão autônoma: a opção (a)**, com `clsx` e `tailwind-merge`.
 O roadmap diz que a escolha cabe a este discovery. Duas famílias já saem
 eliminadas pela medição, não por gosto: qualquer camada que injete estilo em tempo
 de execução ou dependa de atributo `style=` no HTML servido esbarra em
@@ -331,11 +340,13 @@ não a página (E4.4).
   atraente e caro: é a camada que menos gente conhece, e a skill precisaria ser
   reescrita do zero, não reconciliada.
 
-**Recomendação: (a).** É a única opção em que a norma escrita e o repositório
+**Por que (a).** É a única opção em que a norma escrita e o repositório
 continuam dizendo a mesma coisa depois da fase, ao custo de um trecho reescrito na
 skill. A reconciliação é barata agora e cara depois de quinze primitivos.
 
-### P4. Diálogo, menu, seleção e alternador vêm de uma base headless ou são escritos aqui?
+### D4 — Base headless de terceiro, e a medição pode derrubá-la
+
+**Decisão autônoma: a opção (a), condicionada.**
 
 É onde o foco preso, a devolução do foco e a fiação de `aria-*` moram, e é onde a
 violação séria do axe aparece quando se escreve à mão.
@@ -352,12 +363,14 @@ violação séria do axe aparece quando se escreve à mão.
   sendo trabalho próprio, e são justamente os dois em que errar é fácil.
 - **(c) Misto:** nativo para diálogo e dica, terceiro para menu e seleção.
 
-**Recomendação: (a), condicionada.** A primeira coisa que a fase faz é medir o
+**A condição, que é o que torna isto decidível agora.** A primeira coisa que a fase faz é medir o
 posicionamento da biblioteca candidata contra o artefato construído em 4173. Se a
 medição reprovar, o caminho é (c), com diálogo e dica nativos — e a medição vira
 divergência registrada, porque ela muda o que o item entrega.
 
-### P5. A página `/design` vai para o artefato publicado?
+### D5 — A página `/design` vai para o artefato publicado, sempre
+
+**Decisão autônoma: a opção (a).**
 
 - **(a) Vai, sempre.** É a evidência do critério estrutural, é o alvo do axe e é a
   única página que exercita a política no navegador. Custa uma rota sem
@@ -367,10 +380,12 @@ divergência registrada, porque ela muda o que o item entrega.
   da Definition of Done passa a medir um artefato diferente do que se publica, e a
   reverificação de `style-src` perde o alvo no artefato real.
 
-**Recomendação: (a).** Um portão que mede um artefato que ninguém publica não
+**Por que (a).** Um portão que mede um artefato que ninguém publica não
 mediu nada.
 
-### P6. Quem passa a medir "valor mágico"?
+### D6 — Quem mede "valor mágico" é uma regra de ESLint
+
+**Decisão autônoma: a opção (a).**
 
 A entrada do roadmap fala do "portão que já mede valor mágico". Medido: ele não
 existe — nada em `scripts/gates/` procura sintaxe arbitrária de classe, e o único
@@ -385,12 +400,13 @@ mecanismo relacionado é o G3 aceitar a marca de justificativa.
 - **(c) Nada neste item.** A revisão humana cobra, e a regra fica escrita sem
   quem a meça.
 
-**Recomendação: (a).** É a medição que custa menos para existir, e existe no lugar
+**Por que (a).** É a medição que custa menos para existir, e existe no lugar
 onde quem escreve o componente já olha — o editor, não o relatório do CI.
 
-### P7. Quais destinos a barra lateral mostra antes de `002` a `007` existirem?
+### D7 — A barra mostra os quatro destinos futuros, navegáveis
 
-Isto fixa o vocabulário do produto, e por isso é do dono.
+**Decidido pelo dono em 08/09/2026: a opção (a).** Isto fixa o vocabulário do
+produto, e por isso era do dono.
 
 - **(a) Os destinos futuros, presentes e navegáveis** — Documentos, Canais,
   Pesquisa, Organização —, cada um levando a um estado vazio acionável. O estado
@@ -403,11 +419,13 @@ Isto fixa o vocabulário do produto, e por isso é do dono.
   nunca é exercitado contra um segundo, e `002` volta a decidir a nomenclatura
   sozinho.
 
-**Recomendação: (a).** É a única em que o esqueleto entregue prova o que ele
+**Por que (a).** É a única em que o esqueleto entregue prova o que ele
 promete — navegação entre destinos, com marcação do atual — e a única que dá a
 `002` um lugar onde encaixar em vez de um lugar para inventar.
 
-### P8. O esqueleto entrega a largura de telefone agora?
+### D8 — O esqueleto entrega a largura de telefone nesta fase
+
+**Decidido pelo dono em 08/09/2026: a opção (a).**
 
 - **(a) Sim.** A barra lateral vira gaveta abaixo do ponto de quebra, com foco
   preso enquanto aberta e devolvido ao botão que a abriu. Custa mais um estado
@@ -416,7 +434,7 @@ promete — navegação entre destinos, com marcação do atual — e a única q
   cada uma das telas de `002` a `007` o custo de inventar a própria largura
   pequena — que é a definição do problema que este item existe para resolver.
 
-**Recomendação: (a).** O não-escopo do PRD de produto — "aplicativo móvel nativo
+**Por que (a).** O não-escopo do PRD de produto — "aplicativo móvel nativo
 não entra" — tem como contrapartida escrita "a web responsiva atende leitura e
 comentário, que é o que se faz no celular". Entregar o esqueleto sem largura
 pequena esvazia essa contrapartida na primeira tela.
@@ -427,17 +445,20 @@ pequena esvazia essa contrapartida na primeira tela.
 
 | Gatilho | Verdadeiro | Evidência |
 |---|---|---|
-| Zero perguntas em aberto | **não** | Oito, das quais quatro são decisão do dono: a direção e a paleta (P1), as faces e a licença (P2), o vocabulário da barra lateral (P7) e o alcance responsivo (P8) |
+| Zero perguntas em aberto | sim | As oito estão decididas, e cada uma diz por que a alternativa não venceu — ver a seção **Decisões**. As quatro que fixam produto foram respondidas pelo dono em 08/09/2026 |
 | Uma stack só | sim | Só `apps/web`. `apps/api`, `apps/site` e `packages/editor` ficam intactos — a camada escolhida aqui só chega ao hotsite em `014-norma-do-hotsite`, que é quem a aplica lá |
 | Sem mudança de contrato | sim | Nenhuma rota, nenhum schema. `apps/api/openapi.json` não é tocado, e o cliente gerado em `shared/api/generated/` continua como está |
 | Sem dependência nova | **não** | Hoje `apps/web` tem 4 dependências de produção e 16 de desenvolvimento, e o lockfile inteiro tem zero ocorrências de `tailwind`, `class-variance-authority`, `clsx`, `tailwind-merge`, `radix`, `react-router`, `axe-core`, `jsx-a11y` e `fontsource`. O item traz a camada de estilo, o roteador, a base dos primitivos, o axe, as regras de acessibilidade do lint e os arquivos de fonte |
 
-Dois gatilhos falsos, e cada um bastaria sozinho. O primeiro é o que decide: as
-quatro perguntas de dono não têm resposta que engenharia possa dar sem inventar a
-marca do produto — e uma direção visual escolhida dentro da implementação é o tipo
-de decisão que ninguém revisa e que três telas depois custa três telas.
+Um gatilho falso, e ele basta sozinho: a dependência nova.
 
-O segundo tem consequência de calendário, não de escopo: cada pacote novo passa
+O gatilho das perguntas em aberto era o outro, e ele fechou pelo caminho certo —
+as quatro decisões de produto foram tomadas por quem podia tomá-las, antes de
+existir implementação. Uma direção visual escolhida dentro da implementação é o
+tipo de decisão que ninguém revisa e que três telas depois custa três telas; foi
+para impedir isso que este estágio existiu.
+
+O gatilho que resta tem consequência de calendário, não de escopo: cada pacote novo passa
 pela quarentena de sete dias de `pnpm-workspace.yaml` e pela auditoria de
 severidade do lockfile. Versão publicada nesta semana não resolve, e a fase que
 adota a base dos primitivos precisa escolher uma versão que já tenha idade.
