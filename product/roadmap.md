@@ -69,7 +69,7 @@ PR e commit já escritos.
       a vulnerável que já está no lockfile — são portas diferentes, e só uma
       delas fecha em `023`.
 
-- [-] `050-linguagem-visual-e-sistema-de-design` — o produto ganha linguagem
+- [x] `050-linguagem-visual-e-sistema-de-design` — o produto ganha linguagem
       visual própria: tokens de cor, tipografia, espaço e movimento em tema claro
       e escuro, os primitivos de interface que toda tela daqui em diante monta, e
       o esqueleto de aplicação onde elas moram — tudo exercitado numa página viva
@@ -1831,6 +1831,79 @@ verificação**.
   cancelar à mão, e a classe vizinha tem dono —
   `059-a-tranca-nao-le-check-cancelado-como-verde`.
 
+- **`050-linguagem-visual-e-sistema-de-design`, Fase 1 — as faces
+  auto-hospedadas num motor que não seja Chromium.** Provado está que, no
+  navegador da suíte, o `font-family` computado do título resolve para Fraunces e
+  `document.fonts.check` responde `true` contra o artefato servido em 4173; e que
+  a política `style-src 'self'` não bloqueia nada, porque nada vem de fora. O que
+  não fica provado é como Safari e Firefox renderizam o mesmo `@font-face` — peso
+  aparente, altura de linha, quebra —, e nenhuma dessas diferenças é observável em
+  Chromium headless. Cai no primeiro item que puser interface diante de gente,
+  `002-conta-e-organizacao`.
+
+- **`050-linguagem-visual-e-sistema-de-design`, Fase 1 — a face em conexão
+  lenta.** O artefato serve as três faces da própria origem, e o portão mede que
+  nenhuma vem de fora. O intervalo em que o texto aparece na face de reserva antes
+  de a face própria carregar depende da rede e do motor, e nenhuma medição desta
+  máquina o produz. Confere-se abrindo o artefato com a rede estrangulada no
+  navegador.
+
+- **`050-linguagem-visual-e-sistema-de-design`, Fases 1 a 5 — a direção
+  "Lombada", julgada por quem é dono do produto.** As trinta capturas em
+  `product/items/050-linguagem-visual-e-sistema-de-design/06-capturas/` mostram os
+  quinze primitivos, o esqueleto e a página viva nos dois temas e em 375, 768 e
+  1440. A régua automática mediu contraste, foco, ausência de valor mágico e
+  violação do axe; nenhuma delas responde se a direção está de pé. É a única linha
+  desta seção que não espera hardware nem plataforma: espera um olho com
+  autoridade para dizer que sim ou que não.
+
+- **`050-linguagem-visual-e-sistema-de-design`, Fase 3 — a assinatura de acesso
+  ouvida num leitor de tela real.** Provado está que as três etiquetas expõem
+  texto acessível `Canal`, `Pessoa` e `Privado`, marca gráfica `aria-hidden` e
+  filete com cor de token, e que o campo em erro anuncia dica e mensagem por
+  `aria-describedby`. O que não fica provado é a cadência: como NVDA, JAWS ou
+  VoiceOver emendam rótulo e origem dentro de uma linha de lista densa, e se vinte
+  linhas seguidas ficam utilizáveis. É a primeira das três confirmações que
+  `06-verificacao-humana.md` deixa nomeadas para o dono. Cai no primeiro item que
+  trouxer uma lista de verdade, `004-canais`.
+
+- **`050-linguagem-visual-e-sistema-de-design`, Fase 3 — as marcas de acesso no
+  tamanho de uso e sob deficiência de visão de cor.** As três marcas foram
+  julgadas ampliadas a 180px, e a separação entre a cor de ação e a de destaque
+  foi medida por razão de contraste e por sinal redundante em cada amostra. Falta
+  olhar as capturas num simulador de deuteranopia e de protanopia, e olhar as
+  marcas a 16px numa tela de baixa densidade — que é o tamanho em que elas de fato
+  aparecem.
+
+- **`050-linguagem-visual-e-sistema-de-design`, Fase 4 — a gaveta num telefone
+  real.** Provado está que, com a janela em 360x740 e em 767x740, a barra vira
+  gaveta, o foco fica preso dentro dela, o `Esc` a fecha devolvendo o foco e o
+  `scrollWidth` do documento não passa da largura da janela. O que não fica
+  provado é o toque: alvo pequeno demais para o dedo, gesto de arrastar competindo
+  com a rolagem, teclado virtual que sobe e reduz a altura útil, e barra de
+  endereço que encolhe a viewport. Redimensionar a janela de um navegador de mesa
+  não produz nenhuma dessas condições. Cai no primeiro item que puser a ferramenta
+  na mão de alguém, `002-conta-e-organizacao`.
+
+- **`050-linguagem-visual-e-sistema-de-design`, Fase 5 — o quadro de conteúdo do
+  tema, percebido por gente.** Provado está que o `background-color` computado do
+  elemento raiz, na primeira leitura após o carregamento, é o de `papel` quando a
+  escolha guardada é `claro` num sistema em escuro. Não provado está que ninguém
+  **vê** um lampejo: a leitura acontece depois do evento de carregamento, e um
+  quadro de um único fotograma antes da primeira pintura não aparece nela. A
+  observação exige olho humano sobre a máquina que recarrega, com a rede lenta. A
+  correção da causa tem dono —
+  `078-o-quadro-nativo-nasce-no-tema-certo-antes-de-o-modulo-rodar`.
+
+- **`050-linguagem-visual-e-sistema-de-design`, Fase 5 — a leitura de `RF-30.b`,
+  aceita e não herdada.** O registro de verificação humana afirma, com evidência,
+  que 13 das 16 marcas gráficas não têm texto alternativo porque são
+  `aria-hidden="true"` ao lado do rótulo em texto que já diz a mesma coisa — dar
+  nome a elas faria o leitor de tela anunciar tudo duas vezes. O validador cego
+  anotou que essa justificativa precisa ser aceita explicitamente por quem é dono
+  do requisito, não herdada de quem a escreveu. É a terceira confirmação nomeada
+  em `06-verificacao-humana.md`.
+
 Nenhuma dessas linhas se verifica nesta máquina, e elas esperam coisas
 diferentes. As duas do `023` sobre o `gitleaks` e sobre o cache esperam o
 **runner hospedado pelo GitHub**, que não inicia job nenhum enquanto o
@@ -1841,4 +1914,8 @@ permissão espera uma configuração de conta que nenhum comando daqui lê. A do
 Dependabot e a primeira do `057` esperam a plataforma agir sozinha — o agendador
 semanal, e o primeiro merge que puser dois commits seguidos em `develop`. A
 segunda do `057` não espera nada: ela só se verifica se alguém cancelar um run à
-mão, e por isso a classe virou o item `059`.
+mão, e por isso a classe virou o item `059`. As oito do `050` esperam olho e
+aparelho humanos — outro motor de navegador, uma rede lenta, um telefone de
+verdade, um leitor de tela, um simulador de visão de cor e o julgamento de quem
+é dono do produto —, e a maioria delas cai no primeiro item que puser interface
+diante de gente, `002-conta-e-organizacao`.
