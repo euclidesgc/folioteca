@@ -1,5 +1,6 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 import type { Plugin } from "vite";
 import { validateApiUrlForBuild } from "./src/shared/config/build-api-url";
 
@@ -96,6 +97,7 @@ export default defineConfig({
   // VITE_API_URL precisa morrer antes de haver política para injetar.
   plugins: [
     react(),
+    tailwindcss(),
     requireApiUrlOnBuild(),
     injectContentSecurityPolicyOnBuild(),
   ],

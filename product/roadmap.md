@@ -717,6 +717,59 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       `007`, quando escrever componente acessível deixa de ser exercício de
       catálogo e vira produto.
 
+- [ ] `068-o-portao-declara-quando-o-comando-que-ele-manda-rodar-nao-roda` — um
+      critério de aceite deixa de nascer com um comando que o ambiente da corrida
+      recusa, e o dispatcher de portões para de morrer quando o universo tem
+      binário
+      **Depende de:** nada. São dois arquivos: `scripts/gates/gates_runner.sh` e
+      o portão que valida a forma dos critérios.
+      **Origem:** fase 1 de `050`, ver `04-divergencias/D-003.md`. Duas
+      medições, no mesmo dia, da mesma classe — o portão que não consegue medir e
+      não diz isso.
+      A primeira: dois critérios `comando` do plano do `050` mandavam apagar o
+      `dist` com remoção recursiva, e o hook de proteção da máquina da corrida
+      recusa o comando **inteiro** — inclusive quando ele aparece só como
+      argumento de um `grep`, e inclusive na escrita do documento que descreve o
+      problema. O mesmo padrão está nos planos aprovados de `023`, `027` e `057`
+      e em seis scripts sob `scripts/`. O critério não reprova: ele não chega a
+      rodar, e o validador cego encontra ausência de medição no lugar do
+      veredicto.
+      A segunda: os arquivos de fonte da fase 1 são o primeiro binário versionado
+      deste repositório, e caíram no universo de `apps/web/src/**` dos gates G3,
+      G4 e G5. O dispatcher lê a saída de cada gate com `text=True`, que decodifica
+      em UTF-8 com erro estrito, e morreu com `UnicodeDecodeError: invalid start
+      byte` — traceback de Python no lugar da frase que a norma exige, *portão que
+      não conseguiu medir reprova*. A fase contornou isentando a pasta de fontes
+      em `.harness/gates.json`, que é a correção certa para aquele universo e não
+      para a classe: o próximo binário derruba o runner igual.
+      Fechar é (a) o portão de forma de critério reprovar comando que o ambiente
+      declaradamente recusa, com a lista escrita num lugar só; (b) o dispatcher
+      decodificar a saída de gate tolerando byte inválido e **nomear** o gate e o
+      arquivo em que isso aconteceu, em vez de estourar; e (c) o teste que prova
+      que as duas asserções mordem — um critério com o comando proibido, e um
+      universo com um arquivo binário.
+
+- [ ] `069-a-marca-de-justificativa-que-o-portao-documenta-e-a-que-ele-aceita` —
+      quem escreve `// decisão:` num arquivo de `apps/web/src` para de ser
+      reprovado por uma marca que o próprio portão anuncia como válida
+      **Depende de:** nada. É uma linha de `scripts/gates/gate3_no_comments.sh`.
+      **Origem:** fase 1 de `050`, medido em 09/09/2026. O cabeçalho do G3 lista
+      `decisão:` e `limitação:` entre as marcas que fazem um comentário passar, e
+      o regex as escreve com classe de caractere acentuada — `decis[ãa]o`,
+      `restri[çc][ãa]o`. O `awk` desta máquina é `mawk 1.3.4`, que não é
+      UTF-8-aware: a classe casa **byte**, não caractere, e `ç` ocupa dois bytes.
+      Medido com controle positivo, num arquivo de teste com uma marca por linha:
+      `motivo:`, `invariante:` e `contorno:` passam; `decisão:` e `restrição:`
+      reprovam. O defeito não aparece na árvore de hoje porque os arquivos que
+      usam `// decisão:` — `apps/web/vite.config.ts` entre eles — estão **fora**
+      do universo `apps/web/src/**` do gate; ele morde na primeira vez que
+      alguém escreve a marca documentada dentro do universo, e o sintoma é uma
+      recusa que a documentação do gate diz que não existe.
+      Fechar é fazer o regex casar as marcas acentuadas independentemente do
+      `awk` — a forma mais barata é aceitar o prefixo sem acento (`decis`,
+      `restri`, `limita`) — e acrescentar ao teste do gate uma linha por marca
+      documentada, que é o controle positivo que faltava.
+
 - [ ] `058-o-endereco-de-homologacao-diz-o-nome-do-produto` — os três FQDNs de
       homologação saem de `gbdocs.duckdns.org`, herdado do projeto anterior, para
       um domínio que nomeia esta aplicação

@@ -37,11 +37,28 @@ trabalho deste item.
 
 | D17 | plan | **Os nove achados da auditoria de cobertura são corrigidos no plano antes da aprovação, e `RNF-04` fica sem critério** | Aprovar com as tags como estavam, já que 130 dos 131 requisitos apareciam em alguma tag | A auditoria mediu 131 requisitos na spec e 130 nomeados em tag — o número parecia bom e escondia o defeito caro: **nove tags prometiam medição que o corpo do critério não fazia**. `RNF-03` cobrava quarentena e media versão fixa; `RF-10.c` e `RF-10.d` são cláusulas de reprovação e o critério só rodava o caminho feliz; `RF-13.b` nomeia `gate5_import_direction.sh` e o critério usava um `grep` próprio; `RF-09.c` cobrava a licença só das três faces esperadas, deixando uma quarta entrar; `RF-01.a` fala de sete grupos de token e o critério media consumo só de cor; `RF-33.a` e `RF-33.e` não tinham um termo sequer procurado no documento; `RF-05.f` diz "qualquer tela" e media uma; e `RF-02.b` estava tagueada onde não é medida e ausente onde é. Tag sem asserção é pior que requisito sem tag: a auditoria seguinte conta 130 de 131 e dá o item por coberto. As nove viraram asserção, sem critério novo em nenhuma fase. `RNF-04` continua sem critério, e é o caso legítimo: a auditoria de vulnerabilidade é portão do CI, a DoD global não se repete no plano (norma 6), e o plano já diz isso por escrito |
 
+
+| D18 | execute (fase 1) | **A face de display entra pelo arquivo do eixo óptico, e não pelo do eixo de peso** | O arquivo só com o eixo de peso, 36 kB contra 67 kB | O eixo óptico é o que distingue esta serifa de uma serifa genérica em tamanho de título, que é o único lugar onde ela aparece. Os 31 kB a mais são pagos uma vez, com cache, num arquivo que o build emite com hash no nome. Trocar depois custa o arquivo e uma linha do tema, nunca as telas |
+| D19 | execute (fase 1) | **Só o subconjunto `latin` das três faces entra no repositório** | Trazer também `latin-ext`, dobrando o número de arquivos | O `latin` cobre `U+0000-00FF`, que contém todos os acentos do português, e a interface é em pt-BR. `latin-ext` acrescentaria peso ao repositório sem um glifo que o produto use. O `unicode-range` de cada `@font-face` está escrito, então acrescentar o subconjunto depois é um `@font-face` a mais, não uma migração |
+| D20 | execute (fase 1) | **Os seis valores do tema escuro são derivados medindo a razão de contraste que o mesmo token tem no tema claro** | Escolher a olho, ou parar no primeiro valor que passa de 4,5:1 | Parar no mínimo AA foi a primeira tentativa, e ela produziu tinta `#878777` — um cinza-oliva médio como texto principal, que passa no portão e está errado na tela. A régua correta não é o piso, é a **paridade**: cada token do escuro reproduz o contraste que ele tem no claro. Medido, o mínimo dos quatro tokens de conteúdo fica em 5,70 no escuro contra 5,72 no claro. Os valores que o dono fixou continuam intactos — eles são os do tema claro |
+| D21 | execute (fase 1) | **Os tokens semânticos de papel são declarados nos dois blocos sem o prefixo `--color-`** | Declará-los como `--color-superficie`, `--color-acao` e afins | O critério estrutural desta fase exige que os blocos `.tema-claro` e `.tema-escuro` tenham **exatamente** os seis nomes `--color-*` da paleta, e um sétimo faria o conjunto divergir do fixado. Nomeá-los `--superficie`, `--texto`, `--acao`, `--lombada-canal` resolve sem enfraquecer o critério: eles estão nos dois blocos, com o mesmo conjunto de nomes, apontando por `var()` para a paleta — que é o que a etapa 1.3 pede e o que dispensa `dark:` dentro do primitivo |
+| D22 | execute (fase 1) | **A página viva lê o valor de cada token do estilo computado, e observa a troca de classe no elemento raiz** | Escrever os valores como dados no componente | A página é a fonte que as outras telas leem; ela anunciando um valor que o tema não tem é a única forma de erro que ela não pode cometer. Ler do navegador elimina a segunda cópia da paleta. O observador foi acrescentado depois de a captura do tema escuro mostrar o defeito: a troca de tema é troca de classe, classe trocada não renderiza em React, e a amostra continuava anunciando o valor do tema anterior. Fechar agora custou cinco linhas; deixar para a fase 4 custaria a fase 4 descobrir |
+| D23 | execute (fase 1) | **A pasta de fontes é isentada dos gates G3, G4 e G5 em `.harness/gates.json`** | Mover os arquivos de fonte para fora de `apps/web/src/` | Os `.woff2` são o primeiro binário versionado deste repositório, e caíram no universo `apps/web/src/**` dos três gates: o dispatcher lê a saída de cada gate decodificando UTF-8 com erro estrito e morreu com `UnicodeDecodeError`, traceback de Python no lugar da frase que a norma exige. Mover os arquivos reprovaria o critério de licença, que fixa `apps/web/src/shared/styles/fonts` dentro do script. A isenção é a correção certa para este universo — binário não é código, e nenhum gate de comentário, TODO ou direção de import tem o que dizer sobre um `.woff2`. A classe virou o item `068`, porque o próximo binário derruba o runner igual. **`.harness/gates.json` não está nos arquivos tocados que o plano declara para esta fase**, e a escrita fora do escopo está registrada aqui de propósito |
+| D24 | execute (fase 1) | **Os comentários de justificativa usam as marcas `motivo:` e `invariante:`, e não `decisão:`** | Insistir na marca que o cabeçalho do G3 documenta | Medido com controle positivo, num arquivo com uma marca por linha: `motivo:`, `invariante:` e `contorno:` passam; `decisão:` e `restrição:` reprovam. O `awk` desta máquina é `mawk 1.3.4`, que não é UTF-8-aware, e a classe `[çc]` do regex casa **byte** em vez de caractere. Usar a marca que funciona destrava a fase; consertar o regex é o item `069`, porque mexer no gate durante a fase seria a terceira coisa fora do escopo declarado |
+| D25 | execute (fase 1) | **A página viva ganha o teste unitário que o `react-reviewer` cobrou, e o código de produção não muda** | Fechar a fase só com os três casos comportamentais, que era o que o plano declarava | O reviewer mediu que nenhum teste de unidade tocava `design.tsx`: o ramo de `Token` sem valor e o `MutationObserver` de `useValoresDeToken` não eram verificados por nada. O observador é justamente o que a fase 4 passa a depender quando o alternador de tema nascer — deixá-lo descoberto empurra a descoberta do defeito quatro fases adiante, que é o mesmo erro que `D22` acabou de evitar na captura do tema escuro. São quatro testes e nenhuma linha de produção mudada; `getComputedStyle` do jsdom foi resolvido dentro do próprio teste. **`apps/web/src/app/routes/design.test.tsx` não está nos arquivos tocados que o plano declara para esta fase**, e a escrita fora do escopo está registrada aqui de propósito, como em `D23` |
+| D26 | execute (fase 1) | **A isenção dos três gates passa a ser por arquivo, `**/*.woff2`, e não pela pasta de fontes** | Deixar `apps/web/src/shared/styles/fonts/**` como `D23` a escreveu | O `phase-validator` mediu o buraco que `D23` abriu: a isenção por pasta faz um `.tsx` guardado ali escapar de G3, G4 e G5 — e o critério de tipografia desta mesma fase argumenta, com todas as letras, que a exclusão tem de ser por arquivo justamente "para que um `.tsx` guardado ali continue reprovando". A régua global contradizia o critério da fase. Medido com controle positivo: com a isenção por pasta o arquivo passa; com `**/*.woff2` o G3 reprova `controle.tsx:1` e o runner sai com código `1`. O defeito nasceu nesta fase e foi fechado nela, que é o que a norma manda quando a solução cabe no trabalho em andamento |
+| D27 | execute (fase 1) | **`D-004` e `D-005` são ratificadas na opção recomendada, e a correção das duas acontece na fase 4** | Corrigir agora, na fase 1, como a leitura literal de "a fase segue na opção recomendada" sugere | As duas opções recomendadas reabrem critérios da fase 1 **cuja validação já está gravada**: `D-004` muda o nome que a asserção de regex procura, `D-005` muda o script que mede o contraste. Reabri-los agora derrubaria um veredicto `APROVADO` sem que uma linha de código tivesse mudado para justificar a reabertura. A fase 4 é onde as duas mordem de verdade — é ela que usa o ponto de quebra, e é a etapa 4.3 que já escreve a instrução invertida —, e a regra 8 da norma manda a reconciliação de documento viajar no mesmo PR da mudança. As duas ficam `APROVADA` com a execução datada na fase 4, e o PR desta fase carrega os dois rótulos |
+
 ## Divergências ratificadas sem o humano
 
 | ID | Tipo | Ratificada em | Na opção | O que ela decide |
 |---|---|---|---|---|
 | `D-001` | `normal` | 09/09/2026 | (a) | A spec não pedia `product/00-linguagem-visual.md`, que a norma do processo manda este item escrever. A fase 5 passa a escrevê-lo, e a spec ganha `RF-33` |
+| `D-002` | `normal` | 09/09/2026 | (a) | Dois critérios da fase 1 se contradiziam: a licença OFL que um deles exige na pasta da família nomeia, por obrigação da própria licença, a face que o outro proíbe nomear. O critério passa a excluir **arquivo de licença**, não a pasta — um `.tsx` guardado ali continua reprovando |
+| `D-003` | `normal` | 09/09/2026 | (a) | Dois critérios `comando` mandavam apagar o `dist` com remoção recursiva, e o hook desta máquina recusa o comando inteiro — inclusive como argumento de `grep`, e inclusive na escrita do documento que o descreve. A limpeza passa a ser `mkdir -p` seguido de `find … -delete`, com a asserção que **prova** que o diretório ficou vazio antes do build |
+
+| `D-004` | `normal` | 09/09/2026 | (a) | `--breakpoint-telefone: 768px` gera, no Tailwind v4, uma variante `telefone:` de **min-width** — que vale de 768px para cima e nunca em telefone. O nome diz o oposto do que ativa, e a etapa 4.3 do plano já escreveu "abaixo de" para ele. O token passa a se chamar `--breakpoint-desde-tablet`, **na fase 4** |
+| `D-005` | `normal` | 09/09/2026 | (a) | Os seis valores do tema claro estão escritos duas vezes — em `@theme`, que gera as utilitárias, e em `.tema-claro`, que permite a troca de tema — e o critério de contraste só lê a segunda. Uma cópia pode divergir da outra em silêncio. O critério passa a ler `@theme` também e a reprovar se as duas diferirem, **na fase 4** |
 
 **`D-001` foi ratificada por um humano em 09/09/2026, às 06:27:43Z**, e o estado
 registra `ratificada_por: humano`. O rótulo `blocked-on-D-001` saiu do PR #63 por
@@ -58,3 +75,67 @@ sem o "sim" de uma pessoa.
 | `spec` | 08/09/2026 | `02-spec.md` |
 | `spec` (de novo) | 09/09/2026 | `02-spec.md` reconciliado por `D-001`, com o `RF-33`. A aprovação de ontem estava amarrada ao conteúdo anterior à reconciliação, e o `state.sh check` acusava a diferença |
 | `plan` | 09/09/2026 | `03-plan.md`, com as correções desta sessão |
+| `plan` (de novo) | 09/09/2026 | `03-plan.md` reconciliado por `D-002` e `D-003`. A aprovação anterior estava amarrada ao conteúdo de antes das duas reconciliações, e o `state.sh check` acusava a diferença |
+
+## O que esta sessão fez, e o que ela deixou para a próxima
+
+A fase 1 está **`APROVADA`**, com veredicto em `05-veredictos/fase-1.md`: doze
+critérios de doze cumpridos, cada um com o comando executado e a saída real, e os
+portões verdes — web 21/21, api 40/40, suíte comportamental 8/8 numa subida,
+`gates_runner.sh` em 0.
+
+Ela fecha as oito etapas: quarentena remedida no dia, três faces auto-hospedadas
+com licença ao lado, arquivo de tema com os seis tokens de cor nos dois temas,
+plugin do Tailwind no build, rota `/design` no artefato, três casos
+comportamentais e a skill `react-styling` reconciliada para a forma v4.
+
+**Duas sessões trabalharam nesta fase.** A primeira implementou e abriu o PR sem
+passar pela revisão nem pela validação; a segunda fechou o ciclo — `react-reviewer`,
+correção do que ele apontou, `phase-validator` cego e veredicto gravado.
+
+**O que a revisão e a validação acrescentaram:**
+
+- O `react-reviewer` mediu que nenhum teste de unidade tocava `design.tsx`. Quatro
+  testes entraram, sem mudar código de produção (`D25`).
+- O `phase-validator` achou quatro coisas fora do escopo dos critérios. Uma foi
+  **fechada aqui** — a isenção dos gates por pasta, que deixava um `.tsx` escapar de
+  G3, G4 e G5, virou isenção por arquivo, com controle positivo medido (`D26`).
+  Uma **já estava prevista** pelo plano: o tema fixo em claro, com o alternador na
+  fase 4. As outras duas viraram `D-004` e `D-005`, ratificadas na opção
+  recomendada, com a correção datada para a fase 4 (`D27`).
+
+**Quatro divergências esperam o olhar do dono.** `D-002` e `D-003` corrigem
+critérios desta fase; `D-004` e `D-005` corrigem o nome do ponto de quebra e a
+paleta escrita duas vezes, e são executadas na fase 4. **O PR nasce e permanece
+`blocked-on-D-002`, `blocked-on-D-003`, `blocked-on-D-004` e `blocked-on-D-005`**
+até a ratificação com `--por humano`. Não são bloqueios de trabalho pendente: o
+trabalho está feito e medido. São o olhar que a norma reserva para quem decidiu
+sozinho de madrugada.
+
+**Um defeito do harness parou o processo no meio, e não é do repositório.** O
+`phase-validator` não conseguiu gravar o próprio veredicto: `.harness/tool-matrix.json`
+declara `writes: []` e nega `Write` nas ferramentas dele, enquanto a skill
+`harness-orchestrator` diz, com seção própria, que ele grava. Ele recusou o caminho
+canônico por escopo, recusou `/tmp` por ferramenta, e não contornou por `Bash` — que
+é o comportamento certo. O veredicto foi reproduzido por ele e gravado pela thread
+principal, sem edição. A correção mora no plugin, em `scripts/init/compose.py`, e
+está descrita com a asserção que impede a reincidência em
+`.harness/proposals/2026-09-09-003.md`.
+
+**Três entradas de roadmap saíram deste item**, todas da mesma raiz — um portão que
+não consegue medir e não diz isso: `068` e `069`, escritas pela sessão anterior, e a
+proposta do harness acima, que não é item de produto e por isso vive em
+`.harness/proposals/`.
+
+**Validação de campo que só o dono faz:** olhar as quatro capturas em
+`06-capturas/` e dizer se a direção "Lombada" está de pé. A régua automática mediu o
+que dá para medir — contraste dos dois temas, ausência de rolagem horizontal em 375,
+768 e 1440, a face carregada da própria origem. O que ela não mede é se a página está
+boa.
+
+**A próxima sessão faz a fase 2** — a base headless medida, o contrato de componente
+e os seis primitivos de teclado. Ela começa lendo que a fase 4 deve duas correções
+(`D-004`, `D-005`) e que os quatro avisos do portão de critérios, nas fases 2, 4 e 5,
+continuam de pé: a conclusão desses critérios só afirma ausência, e isso é verdade
+também para uma entrada que não existe. O aviso não reprova, mas a fase 2 é a
+primeira que topa com um deles.

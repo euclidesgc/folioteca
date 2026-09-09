@@ -1,10 +1,11 @@
-import { HealthStatus } from "@/features/health";
+import { RouterProvider } from "react-router";
 import { QueryProvider } from "./providers/query-provider";
+import { router } from "./routes";
 
 export function App() {
   return (
     <QueryProvider>
-      <HealthStatus />
+      <RouterProvider router={router} />
     </QueryProvider>
   );
 }

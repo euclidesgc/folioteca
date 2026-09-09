@@ -97,28 +97,46 @@ export function Button({ variant, size, className, ...props }: ButtonProps) {
 
 ## Tokens no tema
 
-O token nasce no `tailwind.config.ts`, apontando para uma variável CSS. A
-variável permite tema claro e escuro sem duplicar a definição da variante.
+O token nasce num bloco `@theme`, dentro de `apps/web/src/shared/styles/theme.css`.
+É esse bloco que registra o nome no espaço de nomes do Tailwind: `--color-verdete`
+passa a gerar `bg-verdete`, `text-verdete` e `border-verdete`; `--radius-padrao`
+gera `rounded-padrao`; `--font-display` gera `font-display`. Não há arquivo de
+configuração de tema em JavaScript — o tema é o CSS.
 
-```ts
-export default {
-  theme: {
-    extend: {
-      colors: {
-        primary: {
-          DEFAULT: 'hsl(var(--primary))',
-          foreground: 'hsl(var(--primary-foreground))',
-        },
-        destructive: {
-          DEFAULT: 'hsl(var(--destructive))',
-          foreground: 'hsl(var(--destructive-foreground))',
-        },
-      },
-      borderRadius: { md: 'var(--radius)' },
-    },
-  },
-} satisfies Config;
+```css
+@import "tailwindcss";
+
+@theme {
+  --color-papel: #f4f4f1;
+  --color-tinta: #15191b;
+  --color-verdete: #1e4b43;
+
+  --font-display: "Fraunces", Georgia, serif;
+  --radius-padrao: 0.375rem;
+}
 ```
+
+O mesmo nome existe em cada tema, e o valor é que muda. Os blocos ficam depois
+do `@theme`, e são eles que a cascata resolve quando a classe do tema está no
+elemento raiz — é isso que dispensa `dark:` dentro do primitivo:
+
+```css
+.tema-claro {
+  --color-papel: #f4f4f1;
+  --color-tinta: #15191b;
+}
+
+.tema-escuro {
+  --color-papel: #14181a;
+  --color-tinta: #ebebe7;
+}
+```
+
+**O valor do tema escuro não se herda do claro.** A régua da casa é contraste AA
+nos dois temas, e o único lugar onde o escuro pode acertá-lo é o valor do token:
+um texto que passa a 5,7:1 sobre papel claro pode cair a 2,8:1 sobre papel
+escuro. Cada valor do bloco escuro é escolhido **medindo** a razão contra a
+superfície do próprio bloco, e o axe cobra de novo na página viva.
 
 Um valor novo só entra como token depois de aparecer duas vezes. Uma ocorrência
 única e justificada usa a sintaxe arbitrária **com a marca de justificativa**,
