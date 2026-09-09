@@ -36,32 +36,19 @@ export default {
       context.report({ node, messageId: "valorMagico", data: { trecho } });
     }
 
+    // motivo: os seletores alcançam o literal em qualquer profundidade dentro do
+    // atributo, e não só quando ele é o valor direto. A classe desta casa chega
+    // por `className={cn("…", variante({…}), className)}` — os quinze primitivos
+    // e toda tela que os componha escrevem assim —, e uma regra que só lesse o
+    // valor direto ficaria verde exatamente onde a classe de verdade é escrita:
+    // falsa segurança é pior que regra nenhuma, porque ninguém procura de novo.
     return {
-      JSXAttribute(node) {
-        if (
-          node.name.type !== "JSXIdentifier" ||
-          node.name.name !== "className"
-        ) {
-          return;
-        }
-        const valor = node.value;
-        if (!valor) return;
-        if (valor.type === "Literal" && typeof valor.value === "string") {
-          verificar(valor, valor.value);
-          return;
-        }
-        if (valor.type === "JSXExpressionContainer") {
-          const expressao = valor.expression;
-          if (
-            expressao.type === "Literal" &&
-            typeof expressao.value === "string"
-          ) {
-            verificar(expressao, expressao.value);
-          } else if (expressao.type === "TemplateLiteral") {
-            for (const quasi of expressao.quasis) {
-              verificar(quasi, quasi.value.raw);
-            }
-          }
+      'JSXAttribute[name.name="className"] Literal'(node) {
+        verificar(node, node.value);
+      },
+      'JSXAttribute[name.name="className"] TemplateLiteral'(node) {
+        for (const quasi of node.quasis) {
+          verificar(quasi, quasi.value.raw);
         }
       },
     };
