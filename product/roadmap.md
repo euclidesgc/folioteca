@@ -980,6 +980,28 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       Aí os cinco estados passam a exercitar cinco caminhos, e o critério mede o
       que a frase dele diz.
 
+- [ ] `080-o-corte-por-severidade-do-axe-mora-onde-quem-o-consome-mora` — o
+      código que só a suíte comportamental usa deixa de morar na árvore que o
+      artefato de produção declara
+      **Depende de:** `050` — é a fase 5 dele que cria o arquivo, e é o critério
+      dela que fixa o caminho de hoje.
+      **Origem:** validação cega da fase 5 de `050`, em 09/09/2026, como achado
+      fora do escopo dos critérios. `apps/web/src/shared/lib/axe-severidade.ts`
+      declara o corte entre severidade que reprova e severidade que só se
+      registra, e seus únicos consumidores são `apps/web/e2e/apoio/axe.ts` e o
+      próprio teste unitário ao lado. Nada sob `src` o importa, então ele não
+      entra no artefato — mas entra em toda régua estática que varre
+      `apps/web/src`, inclusive a medição de identificador em inglês e a de
+      valor mágico da própria fase 5.
+      **Não é defeito, e não foi corrigido onde nasceu:** o critério `estrutural`
+      da fase 5 mede o arquivo naquele caminho, e movê-lo enquanto a fase era
+      medida seria mudar a régua durante a medição — o antipadrão que a norma
+      nomeia em três lugares. Fechar é decidir onde mora código que só o teste de
+      ponta a ponta consome: junto de quem o usa, em `apps/web/e2e/`, ou numa
+      camada de apoio declarada, com a régua estática sabendo distingui-la. A
+      decisão fica melhor com mais de um caso na mão, e o segundo caso aparece na
+      primeira fase que precisar de outro instrumento assim.
+
 - [ ] `058-o-endereco-de-homologacao-diz-o-nome-do-produto` — os três FQDNs de
       homologação saem de `gbdocs.duckdns.org`, herdado do projeto anterior, para
       um domínio que nomeia esta aplicação
