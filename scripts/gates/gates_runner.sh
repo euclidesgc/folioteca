@@ -273,6 +273,7 @@ bash "$ROOT/scripts/gates/vulnerabilidade.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/fluxos.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/pnpm_isolado.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/concorrencia.sh" || VEREDICTO=1
+bash "$ROOT/scripts/gates/portas_de_servico.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/atalho.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/e2e_uma_subida.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/plano.sh" || VEREDICTO=1

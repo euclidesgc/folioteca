@@ -96,6 +96,8 @@ jobs:
         run: bash scripts/gates/__tests__/plano.test.sh
       - name: o G3 aceita a marca de justificativa acentuada que o cabeçalho promete
         run: bash scripts/gates/__tests__/marca-acentuada.test.sh
+      - name: o portão das portas de serviço morde a porta fixa nas quatro formas
+        run: bash scripts/gates/__tests__/portas-de-servico.test.sh
 
       # Os dois portões da cadeia de suprimentos são cobrados aqui, e não só
       # pelo `gates_runner.sh` dos três fluxos por frente: aqueles têm filtro de
@@ -107,17 +109,20 @@ jobs:
       - name: Toda ação do CI está fixada em SHA
         run: bash scripts/gates/acoes_em_sha.sh
 
-      # Estes três medem o PRÓPRIO `.github/workflows`, e por isso pertencem a
+      # Estes quatro medem o PRÓPRIO `.github/workflows`, e por isso pertencem a
       # este fluxo e não aos de cada frente: um PR que mexa só num workflow não
       # casa com nenhum filtro de `paths` deles, que é justamente o PR em que um
-      # job sem guarda, uma instalação de pnpm no HOME compartilhado ou um fluxo
-      # de gatilho sem `concurrency` entra.
+      # job sem guarda, uma instalação de pnpm no HOME compartilhado, um fluxo
+      # de gatilho sem `concurrency` ou um contêiner de serviço prendendo porta
+      # do hospedeiro entra.
       - name: Nada roda em rascunho, e a nuvem confirma o que a casa aprovou
         run: bash scripts/gates/fluxos.sh
       - name: Nenhuma instalação de pnpm escreve no HOME compartilhado
         run: bash scripts/gates/pnpm_isolado.sh
       - name: Todo fluxo de gatilho declara concurrency, e nenhuma suíte declara
         run: bash scripts/gates/concorrencia.sh
+      - name: Nenhum contêiner de serviço prende porta escrita no hospedeiro
+        run: bash scripts/gates/portas_de_servico.sh
 
       # O marcador de atalho deliberado fecha o sentido código → fila no sentido
       # de volta: quem abre o arquivo meses depois lê ali que aquela função tem
