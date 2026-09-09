@@ -11,6 +11,12 @@
         ],
         "createdAt": "2026-09-09T08:51:50.669Z",
         "reason": "harness-orchestrator, fase 2 do item 050: o filete lateral e a direcao visual Lombada, decidida e validada na fase 1 (veredicto em product/items/050-linguagem-visual-e-sistema-de-design/05-veredictos/fase-1.md). Ele e motivado pelo dominio, nao ornamental: theme.css declara --lombada-canal, --lombada-pessoa e --lombada-privado, e a tese do produto e que o acesso vem da origem da pessoa. As duas linhas apontadas (101 e 374) sao codigo da fase 1, fora do escopo declarado da fase 2, que nao toca theme.css nem a direcao. Levantado para o dono em decisoes-autonomas.md; nao confirmado por ele"
+      },
+      {
+        "rule": "overused-font",
+        "value": "fraunces",
+        "createdAt": "2026-09-09T14:13:12.187Z",
+        "reason": "dono decidiu em 08/09/2026: 00-discovery.md D1 escolhe a direcao Lombada e D2 fixa as tres faces sob OFL, com Bricolage Grotesque (B) e Newsreader (C) descartadas com justificativa escrita"
       }
     ]
   }
