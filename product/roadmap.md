@@ -677,6 +677,32 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       existir, "console sem erro nenhum" reprova por um erro que não é da fase; o
       contorno, até este item fechar, é o critério nomear as linhas que importam
       — `Refused to load` e `Applying inline style violates`.
+- [ ] `067-a-violacao-de-acessibilidade-e-pega-na-escrita-e-nao-so-depois-de-renderizar` —
+      quem escreve um componente descobre a violação no editor, e não no relatório
+      do axe de uma fase inteira depois
+      **Depende de:** `050-linguagem-visual-e-sistema-de-design` — antes dele não
+      há componente sobre o que a regra morda, e `apps/web/src/shared/components/`
+      contém só um `.gitkeep`.
+      **Origem:** escrita do plano do `050`, em 08/09/2026. A tabela de trilha do
+      discovery daquele item lista `eslint-plugin-jsx-a11y` entre as dependências
+      novas, e a skill `react-testing-a11y` o prescreve em modo estrito — mas
+      **nenhum `RF-nn` do PRD nem da spec o pede**. A omissão nasceu na tradução
+      do discovery para o PRD e só apareceu quando o plano foi cortar critérios.
+      Ela não entrou no `050` porque as cinco fases estão exatamente no teto de
+      doze critérios, e furar o teto para acomodar um requisito que os documentos
+      aprovados não pedem troca um defeito por outro pior.
+      **O que a ausência custa:** o `050` entrega o sistema de design com o axe da
+      fase 5, que mede depois de renderizar, e as três verificações humanas.
+      Rótulo que falta, `alt` vazio em imagem informativa, controle sem nome
+      acessível e ordem de foco quebrada por `tabindex` positivo são pegos tarde,
+      quando já há componente construído em cima.
+      Fechar é instalar `eslint-plugin-jsx-a11y`, ligar o conjunto estrito na
+      configuração de `apps/web`, e — pela regra das três peças — acrescentar o
+      caso que prova que a regra reprova quando deve, no fluxo que já roda
+      `pnpm --filter web run lint`. Sem passo de CI novo: o comando já é chamado.
+      **O lugar natural é junto do primeiro consumidor**, as telas de `002` a
+      `007`, quando escrever componente acessível deixa de ser exercício de
+      catálogo e vira produto.
 
 - [ ] `058-o-endereco-de-homologacao-diz-o-nome-do-produto` — os três FQDNs de
       homologação saem de `gbdocs.duckdns.org`, herdado do projeto anterior, para
