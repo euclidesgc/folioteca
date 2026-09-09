@@ -954,6 +954,32 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       documento e um módulo de bloqueio com `src` próprio, e as duas mudam o
       artefato, não uma regra de CSS.
 
+- [ ] `079-o-campo-em-erro-e-o-estado-vazio-da-pagina-viva-nascem-de-interacao` —
+      os cinco estados que o axe analisa depois de interagir são cinco estados
+      que a interação de fato produziu, e não três mais dois que já estavam no
+      documento
+      **Depende de:** `050` — é a página viva que ele corrige, e a régua que ele
+      fortalece é a da fase 5.
+      **Origem:** revisão do diff da fase 5 de `050`, em 09/09/2026. O critério
+      manda alcançar cinco estados "navegando na mesma página" e analisar cada
+      um: diálogo aberto, menu aberto, campo com erro, gaveta aberta e estado
+      vazio. Três nascem de interação de verdade. Os outros dois — a amostra de
+      campo em erro (`design.tsx:355`, `Field.Root` com `invalid` fixo) e a de
+      estado vazio (`design.tsx:646`) — são markup estático: estão no documento
+      desde a primeira pintura, e nem o clique nem a rolagem que o caso executa
+      mudam nó que o axe enxergue. As duas análises medem o mesmo DOM que a
+      análise da página em repouso já mediu, e a guarda "o elemento
+      caracterizador está visível" passa trivialmente sobre markup que sempre
+      esteve lá.
+      **Não é defeito de código:** o caso faz o que o critério escreveu, e a
+      amostra estática é uma escolha legítima para uma página que existe para
+      exibir primitivos. É a **medição** que fica mais fraca do que promete —
+      cinco análises com a cobertura de três. Fechar é dar às duas amostras um
+      controle que produza o estado: um campo que só fica inválido depois de
+      submeter vazio, e uma lista que só fica vazia depois de limpar o filtro.
+      Aí os cinco estados passam a exercitar cinco caminhos, e o critério mede o
+      que a frase dele diz.
+
 - [ ] `058-o-endereco-de-homologacao-diz-o-nome-do-produto` — os três FQDNs de
       homologação saem de `gbdocs.duckdns.org`, herdado do projeto anterior, para
       um domínio que nomeia esta aplicação

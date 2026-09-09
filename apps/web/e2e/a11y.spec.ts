@@ -5,7 +5,7 @@ import { expect, test, type Page } from "@playwright/test";
 // etiquetas e o corte por severidade divergirem entre os quatro sem ninguém
 // notar; um instrumento só é o que torna comparável o que os quatro medem, e o
 // corte que ele usa é provado em `src/shared/lib/axe-severidade.test.ts`.
-import { analisar } from "./apoio/axe";
+import { analisar, comecarRegistro } from "./apoio/axe";
 
 const JANELA_DE_TELEFONE = { width: 360, height: 740 };
 
@@ -15,19 +15,18 @@ const CANAL_SEM_COR = "rgba(0, 0, 0, 0)";
 
 type Medida = { cor: string; superficie: string };
 
-async function contarCargas(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    (window as unknown as { __cargas: number }).__cargas = 0;
-    window.addEventListener("load", () => {
-      (window as unknown as { __cargas: number }).__cargas += 1;
-    });
+// motivo: o contador vive no processo de teste, e não na página. Um contador
+// instalado por `addInitScript` é reexecutado a cada novo documento e zera
+// junto com a recarga que ele existe para denunciar — instrumento que só sabe
+// responder que sim. O ouvinte de `load` da página é do lado do Node,
+// sobrevive à navegação, e é registrado antes do primeiro `goto` para que a
+// carga inicial conte como a primeira.
+function contarCargas(page: Page): () => number {
+  let cargas = 0;
+  page.on("load", () => {
+    cargas += 1;
   });
-}
-
-async function cargas(page: Page): Promise<number> {
-  return page.evaluate(
-    () => (window as unknown as { __cargas: number }).__cargas,
-  );
+  return () => cargas;
 }
 
 async function classeDaRaiz(page: Page): Promise<string> {
@@ -80,9 +79,13 @@ function razaoDeContraste(frente: string, fundo: string): number {
   return (clara + 0.05) / (escura + 0.05);
 }
 
+test.beforeAll(() => {
+  comecarRegistro();
+});
+
 test("o axe não acha violação séria nos dois temas", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "light" });
-  await contarCargas(page);
+  const cargas = contarCargas(page);
   await page.goto("/design");
   await expect(
     page.getByRole("heading", { level: 1, name: "Página viva" }),
@@ -94,13 +97,13 @@ test("o axe não acha violação séria nos dois temas", async ({ page }) => {
   await trocarParaTemaEscuro(page);
   await analisar(page, "página viva no tema escuro");
 
-  expect(await cargas(page)).toBe(1);
+  expect(cargas()).toBe(1);
 });
 
 test("o axe não acha violação séria nos cinco estados pós-interação", async ({
   page,
 }) => {
-  await contarCargas(page);
+  const cargas = contarCargas(page);
   await page.goto("/design");
   await expect(
     page.getByRole("heading", { level: 1, name: "Página viva" }),
@@ -143,7 +146,7 @@ test("o axe não acha violação séria nos cinco estados pós-interação", asy
   await expect(navegacaoDaGaveta).toBeVisible();
   await analisar(page, "gaveta de navegação aberta em 360x740");
 
-  expect(await cargas(page)).toBe(1);
+  expect(cargas()).toBe(1);
 });
 
 test("o carimbo do tema escuro tem contraste de corpo", async ({ page }) => {
