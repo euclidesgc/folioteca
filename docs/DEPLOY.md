@@ -120,14 +120,17 @@ saudável a cada `health_check_retries`.
   o que publicar quando `002-conta-e-organizacao` entregar o cadastro — antes
   disso, um endereço de produção só decepciona quem o abrir.
 - **O hotsite de produção** não existe como aplicação.
-- **O deploy ainda é disparado à mão.** A regra que o dono declarou em
-  09/09/2026 é `merge na develop → publica em homologação`,
-  `merge na main → publica em produção`, e ela ainda não está automatizada. O
-  ambiente já provou que sobe: as três aplicações de `hml` foram publicadas em
-  sequência no commit `30f18b5`, em 09/09/2026, sem intervenção. Faltam as duas
-  metades: ligar `Auto Deploy` nas três de `hml` — chave `is_auto_deploy_enabled`,
-  que a API do Coolify não expõe e o painel liga em dois cliques —, e criar as
-  aplicações de produção, que não existem.
+- **Metade da regra de deploy está automatizada.** A regra que o dono declarou
+  em 09/09/2026 é `merge na develop → publica em homologação`,
+  `merge na main → publica em produção`. A primeira metade vale desde
+  09/09/2026: `is_auto_deploy_enabled` está `true` nas três aplicações de `hml`,
+  todas na branch `develop`, e as três usam GitHub App — o webhook já existe e
+  não precisa de configuração manual. A segunda metade não tem onde acontecer
+  enquanto produção não existir.
+
+  Isso é seguro aqui porque a `develop` só recebe código pela tranca
+  (`scripts/merge-se-liberado.sh`), que recusa pull request com verificação
+  vermelha ou pendente: o que dispara o deploy já passou pelo CI.
 - **A senha do banco apareceu em texto claro numa sessão de configuração.** Ela é
   de um Postgres privado (`is_public: false`), acessível só pela rede interna do
   Coolify, mas rotacioná-la é barato e a decisão é do dono.
