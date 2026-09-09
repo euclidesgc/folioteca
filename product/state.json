@@ -655,7 +655,16 @@
       },
       "current_phase": null,
       "phases": {},
-      "divergences": {},
+      "divergences": {
+        "D-001": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": null,
+          "detected_at": "2026-09-09T05:26:58Z",
+          "aprovada_at": "2026-09-09T05:27:36Z",
+          "ratificada_por": "autonomo"
+        }
+      },
       "criteria_exception": null
     }
   }
