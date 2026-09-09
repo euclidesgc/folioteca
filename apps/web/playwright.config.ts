@@ -1,7 +1,14 @@
 import { defineConfig } from "@playwright/test";
 
 const API_PORT = 3000;
-const WEB_PORT = 4173;
+// decisão: a porta é parâmetro, e não constante. Os runners desta casa são
+// processos da MESMA máquina, e dois jobs do mesmo fluxo — o que verifica a
+// política e o que roda esta suíte — subiam ambos `vite preview` na 4173. O
+// segundo a chegar morria com `http://localhost:4173 is already used`, e o
+// portão de política, com `já há alguém atendendo em localhost:4173`. Nenhum dos
+// dois é defeito de diff: é recurso da máquina tratado como se o job fosse dono
+// dela. O padrão continua 4173 para quem roda na mão.
+const WEB_PORT = Number(process.env.WEB_PREVIEW_PORT ?? 4173);
 const API_URL = `http://localhost:${API_PORT}`;
 const WEB_URL = `http://localhost:${WEB_PORT}`;
 
@@ -65,7 +72,7 @@ export default defineConfig({
       // desenvolvimento é medir uma página sem a política que a de produção
       // tem, e o defeito que escapa é justamente o da fonte servida por outra
       // origem: o texto cai na fonte de reserva e nada acusa.
-      command: "pnpm --filter web run build && pnpm --filter web run preview",
+      command: `pnpm --filter web run build && pnpm --filter web exec vite preview --port ${WEB_PORT}`,
       cwd: "../../",
       url: WEB_URL,
       reuseExistingServer: !process.env.CI,
