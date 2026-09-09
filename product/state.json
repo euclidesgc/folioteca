@@ -902,14 +902,16 @@
       "created_at": "2026-09-09T16:57:55Z",
       "approvals": {
         "prd": {
-          "at": "2026-09-09T17:25:55Z",
-          "sha": "43f954d428494a08a44296dd84524e1f94fdfab0",
+          "at": "2026-09-09T18:00:32Z",
+          "sha": "39e03e29a7e452d45cd9c00061438085708d9a89",
           "file": "product/items/002-conta-e-organizacao/01-prd.md",
           "por": "autonomo"
         },
         "spec": {
-          "at": null,
-          "sha": null
+          "at": "2026-09-09T18:00:35Z",
+          "sha": "087bd1d51d32ac4b3403d1209f8e0f7cdf103af6",
+          "file": "product/items/002-conta-e-organizacao/02-spec.md",
+          "por": "autonomo"
         },
         "plan": {
           "at": null,

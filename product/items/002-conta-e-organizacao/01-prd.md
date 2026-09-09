@@ -3,7 +3,7 @@
 - **Data:** 09/09/2026
 - **Trilha:** completa
 - **Discovery:** `00-discovery.md`
-- **Decisões fechadas em modo autônomo:** `decisoes-autonomas.md` (D1 a D14).
+- **Decisões fechadas em modo autônomo:** `decisoes-autonomas.md` (D1 a D23).
   Este documento as trata como dado, não como pergunta.
 
 ## Problema
@@ -98,7 +98,7 @@ da seção, liga cada um à regra do discovery que o origina e à raiz na visão
 - **RF-06** — O link reaberto, ou aberto fora do prazo, recusa, e a tela oferece o
   caminho de saída: usar o que já foi confirmado, ou pedir um link novo.
 - **RF-07** — Quem tenta entrar com a senha correta e o endereço ainda não
-  confirmado recebe uma recusa que diz exatamente isso — `endereco_nao_confirmado`
+  confirmado recebe uma recusa que diz exatamente isso — `email_not_verified`
   — e a tela mostra "Seu endereço ainda não foi confirmado." com o botão
   "Reenviar confirmação". Quem já provou conhecer a senha não tem o que enumerar, e
   mandá-la trocar uma senha que está certa é o pior conselho possível.
@@ -212,7 +212,7 @@ Nenhuma existe, e nada anda sem elas.
 | RF-04 | Uma organização por pessoa; e-mail único no produto, normalizado | R1 (D3, D4); visão, escopo — "é o convite que decide a que organização cada uma pertence" |
 | RF-05 | A conta não entra antes de o endereço ser confirmado; link de uso único, 24 horas | R2, R3; visão, escopo — "confirma o endereço por e-mail e entra" |
 | RF-06 | Link reusado ou vencido recusa com caminho de saída na tela | R3 (E3.2, E3.3) |
-| RF-07 | Senha correta e endereço não confirmado responde `endereco_nao_confirmado` | R2 (E2.1, D8) |
+| RF-07 | Senha correta e endereço não confirmado responde `email_not_verified` | R2 (E2.1, D8) |
 | RF-08 | O valor do link só existe no e-mail; guarda-se o resumo | R3 (E3.4) |
 | RF-09 | Cadastro, confirmação e recuperação respondem igual exista ou não a conta | R4; visão, riscos — "cadastro e recuperação de senha revelam quem tem conta" |
 | RF-10 | Endereço já cadastrado recebe aviso de tentativa, não um segundo link | R4 (E4.1) |
@@ -319,7 +319,7 @@ controle exercido.
 - **O e-mail de confirmação não chega, e a conta fica presa sem caminho de saída.**
   Filtro de spam, endereço digitado errado, entrega demorada: a pessoa se cadastrou,
   não confirma, e a tela de entrada recusa. Resposta: a recusa nomeia a causa —
-  `endereco_nao_confirmado` — em vez de mandar a pessoa trocar uma senha que está
+  `email_not_verified` — em vez de mandar a pessoa trocar uma senha que está
   certa (RF-07), e a mesma tela oferece "Reenviar confirmação". O pedido de reenvio
   é indistinguível para endereço que não existe, e um link novo invalida o
   anterior. Endereço digitado errado não tem saída dentro deste item: cadastrar de
