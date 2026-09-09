@@ -632,7 +632,7 @@
     "050-linguagem-visual-e-sistema-de-design": {
       "title": "Linguagem visual e sistema de design: tokens de cor, tipografia, espaço e movimento em tema claro e escuro, os primitivos que toda tela monta, o esqueleto de aplicação onde elas moram, e a página viva onde a acessibilidade é medida",
       "track": "completa",
-      "stage": "execute",
+      "stage": "done",
       "stacks": [],
       "created_at": "2026-09-08T00:48:12Z",
       "approvals": {
@@ -768,7 +768,8 @@
           "phase": 1,
           "detected_at": "2026-09-09T07:04:01Z",
           "aprovada_at": "2026-09-09T07:04:03Z",
-          "ratificada_por": "autonomo"
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:23Z"
         },
         "D-003": {
           "status": "APROVADA",
@@ -776,7 +777,8 @@
           "phase": 1,
           "detected_at": "2026-09-09T07:12:54Z",
           "aprovada_at": "2026-09-09T07:12:54Z",
-          "ratificada_por": "autonomo"
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:23Z"
         },
         "D-004": {
           "status": "APROVADA",
@@ -784,7 +786,8 @@
           "phase": 1,
           "detected_at": "2026-09-09T07:51:20Z",
           "aprovada_at": "2026-09-09T07:51:23Z",
-          "ratificada_por": "autonomo"
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:23Z"
         },
         "D-005": {
           "status": "APROVADA",
@@ -792,7 +795,8 @@
           "phase": 1,
           "detected_at": "2026-09-09T07:51:20Z",
           "aprovada_at": "2026-09-09T07:51:23Z",
-          "ratificada_por": "autonomo"
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:23Z"
         },
         "D-006": {
           "status": "APROVADA",
@@ -800,7 +804,8 @@
           "phase": 2,
           "detected_at": "2026-09-09T11:16:30Z",
           "aprovada_at": "2026-09-09T11:16:30Z",
-          "ratificada_por": "autonomo"
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:23Z"
         },
         "D-007": {
           "status": "APROVADA",
@@ -808,7 +813,8 @@
           "phase": 3,
           "detected_at": "2026-09-09T12:00:13Z",
           "aprovada_at": "2026-09-09T12:00:13Z",
-          "ratificada_por": "autonomo"
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:23Z"
         },
         "D-008": {
           "status": "APROVADA",
@@ -816,7 +822,8 @@
           "phase": 3,
           "detected_at": "2026-09-09T12:00:13Z",
           "aprovada_at": "2026-09-09T12:00:13Z",
-          "ratificada_por": "autonomo"
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:23Z"
         },
         "D-009": {
           "status": "APROVADA",
@@ -824,7 +831,8 @@
           "phase": 3,
           "detected_at": "2026-09-09T12:00:13Z",
           "aprovada_at": "2026-09-09T12:00:14Z",
-          "ratificada_por": "autonomo"
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:23Z"
         },
         "D-010": {
           "status": "APROVADA",
@@ -832,7 +840,8 @@
           "phase": 3,
           "detected_at": "2026-09-09T13:25:27Z",
           "aprovada_at": "2026-09-09T13:25:27Z",
-          "ratificada_por": "autonomo"
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:23Z"
         },
         "D-011": {
           "status": "APROVADA",
@@ -840,7 +849,8 @@
           "phase": 3,
           "detected_at": "2026-09-09T13:25:27Z",
           "aprovada_at": "2026-09-09T13:25:27Z",
-          "ratificada_por": "autonomo"
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:23Z"
         },
         "D-012": {
           "status": "APROVADA",
@@ -848,7 +858,8 @@
           "phase": 4,
           "detected_at": "2026-09-09T14:07:28Z",
           "aprovada_at": "2026-09-09T14:07:28Z",
-          "ratificada_por": "autonomo"
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:23Z"
         },
         "D-013": {
           "status": "APROVADA",
@@ -856,7 +867,8 @@
           "phase": 4,
           "detected_at": "2026-09-09T14:38:48Z",
           "aprovada_at": "2026-09-09T14:38:48Z",
-          "ratificada_por": "autonomo"
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:23Z"
         },
         "D-014": {
           "status": "APROVADA",
@@ -864,7 +876,8 @@
           "phase": 5,
           "detected_at": "2026-09-09T15:18:02Z",
           "aprovada_at": "2026-09-09T15:18:11Z",
-          "ratificada_por": "autonomo"
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:24Z"
         },
         "D-015": {
           "status": "APROVADA",
@@ -872,7 +885,8 @@
           "phase": 5,
           "detected_at": "2026-09-09T15:30:34Z",
           "aprovada_at": "2026-09-09T15:30:34Z",
-          "ratificada_por": "autonomo"
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:24Z"
         }
       },
       "criteria_exception": null
