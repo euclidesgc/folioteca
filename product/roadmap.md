@@ -785,6 +785,12 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       do universo `apps/web/src/**` do gate; ele morde na primeira vez que
       alguém escreve a marca documentada dentro do universo, e o sintoma é uma
       recusa que a documentação do gate diz que não existe.
+      **Mordeu, em 09/09/2026, na fase 2 de `050`.** Um comentário aberto por
+      `// decisão:` em `apps/web/src/shared/components/ui/switch.tsx` reprovou o
+      G3, com o portão apontando as linhas do próprio bloco que a marca deveria
+      liberar. A fase seguiu trocando a marca por `motivo:`, que é ASCII e passa
+      — contorno, não correção: quem escrever a marca acentuada de novo reprova
+      de novo, e a documentação do gate continua prometendo que ela vale.
       Fechar é fazer o regex casar as marcas acentuadas independentemente do
       `awk` — a forma mais barata é aceitar o prefixo sem acento (`decis`,
       `restri`, `limita`) — e acrescentar ao teste do gate uma linha por marca
