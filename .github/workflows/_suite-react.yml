@@ -214,6 +214,17 @@ jobs:
           path: "apps/web/e2e-resultado.json"
           retention-days: 7
 
+      # `moderate` e `minor` não reprovam caso nenhum, e o que não reprova e não
+      # fica escrito desaparece. O registro é publicado sempre — inclusive
+      # vazio, que é a diferença entre "nenhum apontamento" e "a análise não
+      # rodou".
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: e2e-apontamentos
+          path: "apps/web/e2e-apontamentos.json"
+          retention-days: 7
+
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
         with:
