@@ -28,6 +28,11 @@ test("o menu e a dica flutuam sem estilo recusado", async ({ page }) => {
   expect(caixaMenu!.x).toBeLessThan(janela!.width);
   expect(caixaMenu!.y).toBeLessThan(janela!.height);
 
+  // o menu devolve o foco ao próprio gatilho ao fechar, então mede-se uma
+  // sobreposição de cada vez: com o menu aberto, a dica nunca recebe o foco.
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
+
   await page.getByRole("button", { name: "Campo com dica" }).focus();
   const dica = page.getByRole("tooltip");
   await expect(dica).toBeVisible();
@@ -138,10 +143,20 @@ test("a seleção e o alternador respondem ao teclado", async ({ page }) => {
   await page.keyboard.press("Enter");
   const listbox = page.getByRole("listbox");
   await expect(listbox).toBeVisible();
+  // a lista fica visível antes de receber o foco, e é ela — não o gatilho — que
+  // trata as setas. Digitar no intervalo entre as duas coisas manda a tecla para
+  // quem já não a trata, e o caso reprova por corrida em vez de por defeito.
+  await expect(listbox).toBeFocused();
   const opcoes = await listbox.getByRole("option").count();
   expect(opcoes).toBeGreaterThan(0);
 
+  const destaqueInicial = await listbox.getAttribute("aria-activedescendant");
+  expect(destaqueInicial).not.toBeNull();
   await page.keyboard.press("ArrowDown");
+  await expect
+    .poll(() => listbox.getAttribute("aria-activedescendant"))
+    .not.toBe(destaqueInicial);
+
   await page.keyboard.press("Enter");
 
   await expect(combobox).toHaveText("Pessoa");
