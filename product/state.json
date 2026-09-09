@@ -632,7 +632,7 @@
     "050-linguagem-visual-e-sistema-de-design": {
       "title": "Linguagem visual e sistema de design: tokens de cor, tipografia, espaço e movimento em tema claro e escuro, os primitivos que toda tela monta, o esqueleto de aplicação onde elas moram, e a página viva onde a acessibilidade é medida",
       "track": "completa",
-      "stage": "plan",
+      "stage": "execute",
       "stacks": [],
       "created_at": "2026-09-08T00:48:12Z",
       "approvals": {
@@ -649,14 +649,27 @@
           "por": "autonomo"
         },
         "plan": {
-          "at": "2026-09-09T06:51:42Z",
-          "sha": "81620169f54ffa37661ebcd702b91e98e082a62a",
+          "at": "2026-09-09T07:18:45Z",
+          "sha": "cc02bb3cc4733940934aea791138c28b870be687",
           "file": "product/items/050-linguagem-visual-e-sistema-de-design/03-plan.md",
           "por": "autonomo"
         }
       },
-      "current_phase": null,
-      "phases": {},
+      "current_phase": 1,
+      "phases": {
+        "1": {
+          "status": "em_execucao",
+          "reproved_count": 0,
+          "verdict": null,
+          "verdict_file": null,
+          "validated_sha": null,
+          "pr": null,
+          "blocked_on": [
+            "D-002",
+            "D-003"
+          ]
+        }
+      },
       "divergences": {
         "D-001": {
           "status": "APROVADA",
@@ -666,6 +679,22 @@
           "aprovada_at": "2026-09-09T05:27:36Z",
           "ratificada_por": "humano",
           "ratificacao_humana_at": "2026-09-09T06:27:43Z"
+        },
+        "D-002": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 1,
+          "detected_at": "2026-09-09T07:04:01Z",
+          "aprovada_at": "2026-09-09T07:04:03Z",
+          "ratificada_por": "autonomo"
+        },
+        "D-003": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 1,
+          "detected_at": "2026-09-09T07:12:54Z",
+          "aprovada_at": "2026-09-09T07:12:54Z",
+          "ratificada_por": "autonomo"
         }
       },
       "criteria_exception": null

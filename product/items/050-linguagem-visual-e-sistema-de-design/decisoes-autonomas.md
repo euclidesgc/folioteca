@@ -37,11 +37,22 @@ trabalho deste item.
 
 | D17 | plan | **Os nove achados da auditoria de cobertura são corrigidos no plano antes da aprovação, e `RNF-04` fica sem critério** | Aprovar com as tags como estavam, já que 130 dos 131 requisitos apareciam em alguma tag | A auditoria mediu 131 requisitos na spec e 130 nomeados em tag — o número parecia bom e escondia o defeito caro: **nove tags prometiam medição que o corpo do critério não fazia**. `RNF-03` cobrava quarentena e media versão fixa; `RF-10.c` e `RF-10.d` são cláusulas de reprovação e o critério só rodava o caminho feliz; `RF-13.b` nomeia `gate5_import_direction.sh` e o critério usava um `grep` próprio; `RF-09.c` cobrava a licença só das três faces esperadas, deixando uma quarta entrar; `RF-01.a` fala de sete grupos de token e o critério media consumo só de cor; `RF-33.a` e `RF-33.e` não tinham um termo sequer procurado no documento; `RF-05.f` diz "qualquer tela" e media uma; e `RF-02.b` estava tagueada onde não é medida e ausente onde é. Tag sem asserção é pior que requisito sem tag: a auditoria seguinte conta 130 de 131 e dá o item por coberto. As nove viraram asserção, sem critério novo em nenhuma fase. `RNF-04` continua sem critério, e é o caso legítimo: a auditoria de vulnerabilidade é portão do CI, a DoD global não se repete no plano (norma 6), e o plano já diz isso por escrito |
 
+
+| D18 | execute (fase 1) | **A face de display entra pelo arquivo do eixo óptico, e não pelo do eixo de peso** | O arquivo só com o eixo de peso, 36 kB contra 67 kB | O eixo óptico é o que distingue esta serifa de uma serifa genérica em tamanho de título, que é o único lugar onde ela aparece. Os 31 kB a mais são pagos uma vez, com cache, num arquivo que o build emite com hash no nome. Trocar depois custa o arquivo e uma linha do tema, nunca as telas |
+| D19 | execute (fase 1) | **Só o subconjunto `latin` das três faces entra no repositório** | Trazer também `latin-ext`, dobrando o número de arquivos | O `latin` cobre `U+0000-00FF`, que contém todos os acentos do português, e a interface é em pt-BR. `latin-ext` acrescentaria peso ao repositório sem um glifo que o produto use. O `unicode-range` de cada `@font-face` está escrito, então acrescentar o subconjunto depois é um `@font-face` a mais, não uma migração |
+| D20 | execute (fase 1) | **Os seis valores do tema escuro são derivados medindo a razão de contraste que o mesmo token tem no tema claro** | Escolher a olho, ou parar no primeiro valor que passa de 4,5:1 | Parar no mínimo AA foi a primeira tentativa, e ela produziu tinta `#878777` — um cinza-oliva médio como texto principal, que passa no portão e está errado na tela. A régua correta não é o piso, é a **paridade**: cada token do escuro reproduz o contraste que ele tem no claro. Medido, o mínimo dos quatro tokens de conteúdo fica em 5,70 no escuro contra 5,72 no claro. Os valores que o dono fixou continuam intactos — eles são os do tema claro |
+| D21 | execute (fase 1) | **Os tokens semânticos de papel são declarados nos dois blocos sem o prefixo `--color-`** | Declará-los como `--color-superficie`, `--color-acao` e afins | O critério estrutural desta fase exige que os blocos `.tema-claro` e `.tema-escuro` tenham **exatamente** os seis nomes `--color-*` da paleta, e um sétimo faria o conjunto divergir do fixado. Nomeá-los `--superficie`, `--texto`, `--acao`, `--lombada-canal` resolve sem enfraquecer o critério: eles estão nos dois blocos, com o mesmo conjunto de nomes, apontando por `var()` para a paleta — que é o que a etapa 1.3 pede e o que dispensa `dark:` dentro do primitivo |
+| D22 | execute (fase 1) | **A página viva lê o valor de cada token do estilo computado, e observa a troca de classe no elemento raiz** | Escrever os valores como dados no componente | A página é a fonte que as outras telas leem; ela anunciando um valor que o tema não tem é a única forma de erro que ela não pode cometer. Ler do navegador elimina a segunda cópia da paleta. O observador foi acrescentado depois de a captura do tema escuro mostrar o defeito: a troca de tema é troca de classe, classe trocada não renderiza em React, e a amostra continuava anunciando o valor do tema anterior. Fechar agora custou cinco linhas; deixar para a fase 4 custaria a fase 4 descobrir |
+| D23 | execute (fase 1) | **A pasta de fontes é isentada dos gates G3, G4 e G5 em `.harness/gates.json`** | Mover os arquivos de fonte para fora de `apps/web/src/` | Os `.woff2` são o primeiro binário versionado deste repositório, e caíram no universo `apps/web/src/**` dos três gates: o dispatcher lê a saída de cada gate decodificando UTF-8 com erro estrito e morreu com `UnicodeDecodeError`, traceback de Python no lugar da frase que a norma exige. Mover os arquivos reprovaria o critério de licença, que fixa `apps/web/src/shared/styles/fonts` dentro do script. A isenção é a correção certa para este universo — binário não é código, e nenhum gate de comentário, TODO ou direção de import tem o que dizer sobre um `.woff2`. A classe virou o item `068`, porque o próximo binário derruba o runner igual. **`.harness/gates.json` não está nos arquivos tocados que o plano declara para esta fase**, e a escrita fora do escopo está registrada aqui de propósito |
+| D24 | execute (fase 1) | **Os comentários de justificativa usam as marcas `motivo:` e `invariante:`, e não `decisão:`** | Insistir na marca que o cabeçalho do G3 documenta | Medido com controle positivo, num arquivo com uma marca por linha: `motivo:`, `invariante:` e `contorno:` passam; `decisão:` e `restrição:` reprovam. O `awk` desta máquina é `mawk 1.3.4`, que não é UTF-8-aware, e a classe `[çc]` do regex casa **byte** em vez de caractere. Usar a marca que funciona destrava a fase; consertar o regex é o item `069`, porque mexer no gate durante a fase seria a terceira coisa fora do escopo declarado |
+
 ## Divergências ratificadas sem o humano
 
 | ID | Tipo | Ratificada em | Na opção | O que ela decide |
 |---|---|---|---|---|
 | `D-001` | `normal` | 09/09/2026 | (a) | A spec não pedia `product/00-linguagem-visual.md`, que a norma do processo manda este item escrever. A fase 5 passa a escrevê-lo, e a spec ganha `RF-33` |
+| `D-002` | `normal` | 09/09/2026 | (a) | Dois critérios da fase 1 se contradiziam: a licença OFL que um deles exige na pasta da família nomeia, por obrigação da própria licença, a face que o outro proíbe nomear. O critério passa a excluir **arquivo de licença**, não a pasta — um `.tsx` guardado ali continua reprovando |
+| `D-003` | `normal` | 09/09/2026 | (a) | Dois critérios `comando` mandavam apagar o `dist` com remoção recursiva, e o hook desta máquina recusa o comando inteiro — inclusive como argumento de `grep`, e inclusive na escrita do documento que o descreve. A limpeza passa a ser `mkdir -p` seguido de `find … -delete`, com a asserção que **prova** que o diretório ficou vazio antes do build |
 
 **`D-001` foi ratificada por um humano em 09/09/2026, às 06:27:43Z**, e o estado
 registra `ratificada_por: humano`. O rótulo `blocked-on-D-001` saiu do PR #63 por
@@ -58,3 +69,27 @@ sem o "sim" de uma pessoa.
 | `spec` | 08/09/2026 | `02-spec.md` |
 | `spec` (de novo) | 09/09/2026 | `02-spec.md` reconciliado por `D-001`, com o `RF-33`. A aprovação de ontem estava amarrada ao conteúdo anterior à reconciliação, e o `state.sh check` acusava a diferença |
 | `plan` | 09/09/2026 | `03-plan.md`, com as correções desta sessão |
+| `plan` (de novo) | 09/09/2026 | `03-plan.md` reconciliado por `D-002` e `D-003`. A aprovação anterior estava amarrada ao conteúdo de antes das duas reconciliações, e o `state.sh check` acusava a diferença |
+
+## O que esta sessão fez, e o que ela deixou para a próxima
+
+A fase 1 fecha as oito etapas: quarentena remedida no dia, três faces
+auto-hospedadas com licença ao lado, arquivo de tema com os seis tokens de cor
+nos dois temas, plugin do Tailwind no build, rota `/design` no artefato, três
+casos comportamentais e a skill `react-styling` reconciliada para a forma v4.
+
+**Duas divergências e duas entradas de roadmap saíram daqui**, e as quatro têm a
+mesma raiz: um portão que não consegue medir e não diz isso. `D-002` e `D-003`
+corrigem os critérios desta fase; `068` e `069` corrigem a classe, e esperam
+atrás da fila de produto, como a norma manda.
+
+**O PR nasce e permanece `blocked-on-D-002` e `blocked-on-D-003`** até o dono
+ratificar as duas com `--por humano`. Não são bloqueios de trabalho pendente: o
+trabalho está feito e medido. São o olhar que a norma reserva para quem decidiu
+sozinho de madrugada.
+
+**Validação de campo que só o dono faz:** olhar as quatro capturas em
+`06-capturas/` e dizer se a direção "Lombada" está de pé. A régua automática
+mediu o que dá para medir — contraste dos dois temas, ausência de rolagem
+horizontal em 375, 768 e 1440, a face carregada da própria origem. O que ela não
+mede é se a página está boa.

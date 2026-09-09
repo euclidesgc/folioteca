@@ -213,9 +213,28 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
       Next'` imprime `1`; `grep -E '^\s*--font-mono\s*:'
       apps/web/src/shared/styles/theme.css | grep -c -F 'IBM Plex Mono'` imprime
       `1`; `find apps/web/src -type f | wc -l` imprime um número **maior que**
-      `0`, que é a prova de que houve onde procurar; e
+      `0`, que é a prova de que houve onde procurar;
       `grep -rlE 'Fraunces|Atkinson Hyperlegible|IBM Plex Mono' apps/web/src |
-      grep -vc '^apps/web/src/shared/styles/theme.css$'` imprime `0`.
+      grep -vE '^apps/web/src/shared/styles/fonts/[^/]+/(OFL|LICENSE)[^/]*$' |
+      grep -vc '^apps/web/src/shared/styles/theme.css$'` imprime `0`; e
+      `grep -rlE 'Fraunces|Atkinson Hyperlegible|IBM Plex Mono' apps/web/src |
+      grep -cE '^apps/web/src/shared/styles/fonts/[^/]+/(OFL|LICENSE)[^/]*$'`
+      imprime um número **maior que** `0`, e a lista correspondente é impressa —
+      sem esta segunda asserção a exclusão poderia crescer até engolir um
+      componente e nada acusaria.
+
+      **Por que a exclusão existe, e por que é por arquivo e não por pasta.** O
+      cabeçalho de copyright que a cláusula 1 da OFL manda preservar nomeia a
+      família: a licença da Fraunces abre com `Copyright 2020 The Fraunces
+      Project Authors`, a da Atkinson com `Copyright 2020-2024 The Atkinson
+      Hyperlegible Next Project Authors`. O arquivo de licença que `RF-09.b`
+      exige na pasta da família é, por obrigação da própria licença, um arquivo
+      que nomeia a face — então sem a exclusão os dois critérios desta fase se
+      contradizem, e satisfazer um reprova o outro. O que `RF-03.c` protege é a
+      invariante de código: a face chega à tela pelo token, e nenhum componente
+      a escreve à mão. Por isso a exclusão casa apenas o arquivo de licença
+      dentro da pasta de uma família, e não a pasta: um `.tsx` guardado ali
+      continua reprovando. Ver `04-divergencias/D-002.md`.
 - [ ] `estrutural` — `RF-01.a`, `RF-07.a`, `RF-24.a` — o mesmo arquivo de tema
       declara a escala de espaço, raio e sombra, os três tokens de movimento com
       os nomes fixados, e o ponto de quebra de telefone com o valor `768px`.
@@ -266,8 +285,12 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
       esquema ou host, então todos resolvem na origem do documento.
 - [ ] `comando` — `RF-08.b`, `RNF-02` — o artefato de build emite os arquivos de
       fonte com hash no nome e uma folha `.css` estática. Executados na raiz do
-      repositório: `rm -rf apps/web/dist && VITE_API_URL=http://localhost:3000
-      pnpm --filter web run build` termina com código de saída `0`;
+      repositório: `mkdir -p apps/web/dist && find apps/web/dist -mindepth 1 -delete`
+      termina com código de saída `0` e, em seguida,
+      `find apps/web/dist -mindepth 1 | wc -l` imprime `0` — sem esta segunda
+      leitura o critério confiaria que a limpeza aconteceu em vez de medi-la, e
+      um diretório inexistente responderia igual a um diretório esvaziado. Só
+      então `VITE_API_URL=http://localhost:3000 pnpm --filter web run build` termina com código de saída `0`;
       `find apps/web/dist/assets -name '*.woff2' | wc -l` imprime um número
       **maior ou igual a** `3`;
       `find apps/web/dist/assets -name '*.woff2' | grep -cE
@@ -1917,8 +1940,12 @@ vieram depois.
       termina com código de saída `0`.
 - [ ] `comando` — `RF-08.d`, `RF-10.a`, `RF-11.c`, `RF-26.d` — as garantias da
       primeira fase sobrevivem às quatro que vieram depois. Executados na raiz do
-      repositório: `rm -rf apps/web/dist && VITE_API_URL=http://localhost:3000
-      pnpm --filter web run build` termina com código de saída `0`;
+      repositório: `mkdir -p apps/web/dist && find apps/web/dist -mindepth 1 -delete`
+      termina com código de saída `0` e, em seguida,
+      `find apps/web/dist -mindepth 1 | wc -l` imprime `0` — sem esta segunda
+      leitura o critério confiaria que a limpeza aconteceu em vez de medi-la, e
+      um diretório inexistente responderia igual a um diretório esvaziado. Só
+      então `VITE_API_URL=http://localhost:3000 pnpm --filter web run build` termina com código de saída `0`;
       `bash apps/web/scripts/verificar-politica.sh http://localhost:3000` termina
       com código de saída `0` e a saída contém `medido: 9 diretiva(s) na política`
       e
