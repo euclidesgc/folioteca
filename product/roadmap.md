@@ -1610,6 +1610,36 @@ não bloqueia trabalho que não dependa dela.
   duas acontecer, todo `--update` exige revisar os `.bak` antes de commitar.
   **Origem:** atualização do harness de 0.6.1 para 0.7.0, em 04/09/2026.
 
+
+- **A definição do `phase-validator` e o guard `escada` discordam sobre quem
+  grava o veredicto, e a discordância já custou duas vezes.** A definição do
+  agent lhe dá `Write`; o guard responde
+  `Ferramentas negadas para phase-validator: Task, Write, Edit, MultiEdit,
+  WebFetch, WebSearch`. A skill `harness-orchestrator` descreve o desenho que a
+  definição implementa: o validador grava o próprio veredicto e devolve à thread
+  principal um resumo de cinco linhas. Com a escrita negada, ele devolve o
+  veredicto **inteiro** pelo canal de retorno — 181 linhas nesta rodada — e é a
+  thread principal que grava. O custo é exatamente o que o desenho existe para
+  evitar: o veredicto atravessa o contexto de quem orquestra, que é o contexto
+  que a validação cega existe para não contaminar.
+  **Não é o `037`.** Aquele item descreve o guard atribuindo o escopo ao agent
+  errado quando há outro agent vivo em segundo plano — sujeito trocado. Aqui o
+  sujeito está certo: o guard sabe que é o `phase-validator` e nega a ferramenta
+  que a definição dele concede. São duas causas distintas no mesmo guard, e
+  fechar uma não fecha a outra.
+  **A decisão é sua:** alinhar o guard à definição do agent, deixando o
+  `phase-validator` gravar apenas sob `product/items/*/05-veredictos/`, que é o
+  único caminho que o desenho lhe pede; ou aceitar que a thread principal grave
+  e corrigir a skill `harness-orchestrator`, que hoje descreve um fluxo que o
+  guard não permite. O que não se sustenta é a documentação e o guard dizerem
+  coisas opostas: a sessão descobre a discordância no meio da validação, e o
+  contorno é sempre pagar o contexto.
+  **Origem:** fases 3 e 4 de `050-linguagem-visual-e-sistema-de-design`, em
+  09/09/2026 — duas ocorrências, registradas em `D42` e no cabeçalho de
+  `05-veredictos/fase-4.md`. O plugin mora fora deste repositório, e a norma
+  daqui é que a retrospectiva proponha a mudança do harness, nunca a aplique de
+  dentro de um item.
+
 ## Validações de campo pendentes
 
 O que só o hardware, o aparelho real ou o navegador real provam. Não vira tipo
