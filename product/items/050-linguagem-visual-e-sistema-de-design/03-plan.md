@@ -999,19 +999,49 @@ mudança — a página inteira custa milhares de tokens para mostrar o que não 
       o indicador de foco leem o **mesmo** token de ação pelo nome, declarado uma
       vez por bloco de tema, e nenhum arquivo sob `apps/web/src/features/` carrega
       o valor literal. Executados na raiz do repositório:
-      `grep -c -E '^\s*--color-verdete\s*:' apps/web/src/shared/styles/theme.css`
-      imprime `2`, uma declaração por bloco;
+
+      ```
+      python3 - <<'PY'
+      import pathlib, re
+      texto = pathlib.Path('apps/web/src/shared/styles/theme.css').read_text(encoding='utf-8')
+
+      def bloco(seletor):
+          m = re.search(re.escape(seletor) + r'\s*\{(.*?)\n\}', texto, re.S)
+          assert m, f'bloco {seletor} não encontrado'
+          return m.group(1)
+
+      claro, escuro, foco = bloco('.tema-claro'), bloco('.tema-escuro'), bloco(':focus-visible')
+
+      for nome, corpo in (('.tema-claro', claro), ('.tema-escuro', escuro)):
+          n = len(re.findall(r'^\s*--color-verdete\s*:', corpo, re.M))
+          assert n == 1, f'--color-verdete aparece {n} vez(es) em {nome}, esperado 1'
+          print(f'--color-verdete em {nome}: {n}')
+
+      m_outline = re.search(r'outline\s*:\s*[^;]*var\(--acao\)[^;]*;', foco)
+      assert m_outline, ':focus-visible não declara outline com var(--acao)'
+      print(m_outline.group(0).strip())
+
+      for nome, corpo in (('.tema-claro', claro), ('.tema-escuro', escuro)):
+          m_acao = re.search(r'--acao\s*:\s*var\(--color-verdete\)\s*;', corpo)
+          assert m_acao, f'--acao não é var(--color-verdete) em {nome}'
+          print(f'{nome}: {m_acao.group(0).strip()}')
+      PY
+      ```
+
+      termina com código de saída `0` e imprime as cinco linhas que leu — a
+      contagem de `--color-verdete` em `.tema-claro` e em `.tema-escuro`, a
+      declaração de `outline` na regra `:focus-visible` e a declaração de
+      `--acao` em cada bloco de tema —, e termina com código diferente de `0`
+      quando qualquer uma delas falta: o oráculo mede a cadeia de tokens, não a
+      cadeia de caracteres. Além disso,
       `grep -c -F 'verdete' apps/web/src/shared/components/ui/button.tsx` imprime
       um número **maior ou igual a** `1`;
       `grep -c -F 'verdete' apps/web/src/shared/components/access/access-spine.tsx`
       imprime um número **maior ou igual a** `1`;
-      `python3 -c "import re,pathlib;t=pathlib.Path('apps/web/src/shared/styles/theme.css').read_text(encoding='utf-8');m=re.search(r':focus-visible\s*\{(.*?)\}',t,re.S);assert m,'sem regra :focus-visible';print([l.strip() for l in m.group(1).splitlines() if 'verdete' in l])"`
-      imprime uma lista com ao menos uma declaração, e a regra ausente faz o
-      comando terminar com código diferente de `0` — o oráculo imprime a linha
-      que leu, e não um booleano que responde igual para o arquivo que ele não
-      encontrou; `find apps/web/src/features -name '*.tsx' -o -name '*.ts' |
+      `find apps/web/src/features -name '*.tsx' -o -name '*.ts' |
       wc -l` imprime um número **maior que** `0`; e
       `grep -ric -F '#1E4B43' apps/web/src/features | grep -vc ':0$'` imprime `0`.
+      > Reconciliado em D-007.
 - [ ] `comportamental` — `RF-12.b`, `RF-16.a`, `RF-16.c`
       *Dado* o artefato servido na origem de pré-visualização, com `/design`
       aberta e a amostra de campo em estado de erro
@@ -1084,14 +1114,18 @@ mudança — a página inteira custa milhares de tokens para mostrar o que não 
       `Publicar`, e lê a amostra de esqueleto de carregamento
       *Então* o `transition-duration` e o `animation-duration` computados do
       elemento de papel `dialog`, do elemento de papel `status` do aviso
-      temporário e da amostra de esqueleto são todos `0s`; e, ao mesmo tempo, o
-      elemento de papel `dialog` está visível com o foco dentro dele, o aviso
-      temporário está visível, e a amostra de esqueleto continua ocupando o lugar
-      do conteúdo — a duração some, o estado final não.
+      temporário e da amostra de esqueleto, convertidos para segundos, são todos
+      **menores ou iguais a** `0.001` — a supressão da folha de estilo usa
+      `0.01ms`, que o navegador computa como `1e-05s`, e é esse valor, não `0s`,
+      que mantém os eventos `transitionend` e `animationend` disparando; e, ao
+      mesmo tempo, o elemento de papel `dialog` está visível com o foco dentro
+      dele, o aviso temporário está visível, e a amostra de esqueleto continua
+      ocupando o lugar do conteúdo — a duração some, o estado final não.
       O caso se chama `com movimento reduzido a duração some e o estado final permanece`,
       e
       `bash scripts/e2e/relatorio.sh criterio "com movimento reduzido a duração some e o estado final permanece"`
       termina com código de saída `0`.
+      > Reconciliado em D-009.
 - [ ] `comportamental` — `RF-25.a`, `RF-25.b`, `RF-25.c`, `RF-32.a`
       *Dado* o artefato servido na origem de pré-visualização e `/design`
       aberta
@@ -1099,16 +1133,19 @@ mudança — a página inteira custa milhares de tokens para mostrar o que não 
       `heading` de nível `2` da página, e conta os elementos que carregam o
       atributo `data-token`
       *Então* o conjunto dos textos coletados é exatamente
-      `Botão`, `Campo`, `Seleção`, `Caixa de marcação`, `Alternador`, `Cartão`,
+      `Cor`, `Tipografia`, `Espaço`, `Raio`, `Sombra`, `Movimento`, `Botão`,
+      `Campo`, `Seleção`, `Caixa de marcação`, `Alternador`, `Cartão`,
       `Etiqueta`, `Avatar`, `Diálogo`, `Menu`, `Aviso temporário`, `Dica`,
-      `Esqueleto de carregamento`, `Estado vazio` e `Paginação` — quinze seções,
-      em pt-BR —, a seção `Botão` traz sete amostras de botão (as quatro
+      `Esqueleto de carregamento`, `Estado vazio` e `Paginação` — vinte e uma
+      seções, em pt-BR: as seis de fundação que a fase 1 entregou e as quinze de
+      primitivo —, a seção `Botão` traz sete amostras de botão (as quatro
       variantes e os três tamanhos) e as amostras de repouso, foco, carregando,
       desabilitado e erro, e a contagem de elementos com `data-token` é **maior
       ou igual a** `15`, cada um trazendo o nome do token ao lado da amostra.
       O caso se chama `a página viva exercita os quinze primitivos`, e
       `bash scripts/e2e/relatorio.sh criterio "a página viva exercita os quinze primitivos"`
       termina com código de saída `0`.
+      > Reconciliado em D-008.
 - [ ] `comportamental` — `RF-32.c`, `RF-32.e`
       *Dado* o artefato servido na origem de pré-visualização e `/design`
       aberta
