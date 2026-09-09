@@ -21,4 +21,24 @@ describe("AccessSpine", () => {
     const { container } = render(<AccessSpine origin="canal" />);
     expect(container.firstElementChild).toHaveAttribute("aria-hidden", "true");
   });
+
+  it.each([
+    ["canal", "border-l-verdete"],
+    ["pessoa", "border-l-carimbo"],
+    ["privado", "border-l-grafite"],
+  ] as const)(
+    "carries the %s spine colour through to the rendered element",
+    (origin, classe) => {
+      const { container } = render(<AccessSpine origin={origin} />);
+      expect(container.firstElementChild).toHaveClass(classe);
+    },
+  );
+
+  it("gives each origin a different spine, so the three never collapse into one", () => {
+    const classes = (["canal", "pessoa", "privado"] as const).map((origin) => {
+      const { container } = render(<AccessSpine origin={origin} />);
+      return container.firstElementChild?.className ?? "";
+    });
+    expect(new Set(classes).size).toBe(3);
+  });
 });

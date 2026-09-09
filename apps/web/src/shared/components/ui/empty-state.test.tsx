@@ -38,4 +38,21 @@ describe("EmptyState", () => {
       screen.getByRole("button", { name: "Criar documento" }),
     ).toBeInTheDocument();
   });
+
+  it("gives the title a heading role, so it is reachable by heading navigation", () => {
+    render(<EmptyState title="Nenhum documento por aqui" />);
+    expect(
+      screen.getByRole("heading", { name: "Nenhum documento por aqui" }),
+    ).toBeInTheDocument();
+  });
+
+  it("takes the heading level from the caller, since the level depends on where it sits", () => {
+    render(<EmptyState title="Nenhum documento por aqui" titleAs="h2" />);
+    expect(
+      screen.getByRole("heading", {
+        name: "Nenhum documento por aqui",
+        level: 2,
+      }),
+    ).toBeInTheDocument();
+  });
 });

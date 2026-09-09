@@ -235,3 +235,105 @@ de acesso: mínimo 5,70:1, nos dois temas, acima de AA. Rolagem horizontal: limp
 em 768 e 1440. Os dois defeitos que a suíte não pegou estão anotados no bloco de
 correção que voltou ao implementer, e nenhum dos dois é de critério — são de
 régua da casa, que é o que a captura existe para alcançar.
+
+**A rodada que retomou a fase 3 encontrou a implementação inteira e não medida.**
+A rodada anterior morreu depois de escrever código, marcas e capturas, e antes de
+rodar um oráculo sequer; o commit `ebbf547` diz isso no corpo. A primeira coisa
+que esta rodada fez foi medir os doze critérios contra a árvore que herdou, e é
+dessa medição que sai tudo o que está escrito abaixo.
+
+**Cada marca de acesso volta a ser um `svg` autocontido, e `mark-frame.tsx`
+morre.** O critério estrutural das três marcas pede `grep -c '<svg'` maior ou
+igual a `1` em `channel.tsx`, `person.tsx` e `private.tsx`, e media `0` nos três:
+a rodada anterior extraiu o elemento `svg` e seus atributos para um quarto
+arquivo compartilhado, que nem consta dos arquivos tocados que o plano declara
+para esta fase. *Descartado:* registrar divergência e reescrever o oráculo para
+seguir a indireção, que é o caminho que a fase vinha tomando com D-007 a D-009 —
+aqui ele custaria uma divergência para defender um arquivo a mais. *Escolhido:*
+repetir os sete atributos de moldura nos três, que é como todo catálogo de ícones
+se escreve, devolve a pasta à lista de arquivos que o plano declara, e mantém o
+oráculo capaz de ver uma marca que passasse a vir de fora. O `svg` compartilhado
+escondia justamente isso: com a moldura num quarto arquivo, um `channel.tsx` que
+importasse de um catálogo de terceiro continuaria com zero `<svg>` e o critério
+não teria como distinguir os dois casos.
+
+**O portão reprovou por não conseguir medir, e a causa era minha.** Apagado o
+`mark-frame.tsx` sem encenar a remoção, `git ls-files` continuou listando o
+arquivo e `gates_runner.sh` parou na cópia do universo, com a frase exata que a
+norma manda — *portão que varre parte da árvore aprova o que não leu*. Encenada
+a remoção, os portões passam. Fica o registro porque o sintoma aparece longe da
+causa: quem apaga arquivo versionado e roda o portão em seguida vê um erro de
+`cp`, não um erro de índice.
+
+**O diálogo se chamava "Conceder acesso" e seu botão dizia "Publicar".** É a
+incoerência de verbo que `RF-32.c` proíbe, dentro da página que existe para
+ensinar a regra do verbo constante — e o critério que a mede passava, porque
+media o único par que havia. A seção **Aviso temporário**, por sua vez, trazia o
+aviso já aberto e nenhum botão: o efeito sem a causa, numa página cujo trabalho é
+mostrar a causa. As duas coisas eram a mesma: o par verbo→aviso estava montado na
+seção errada. *Descartado:* renomear só o título do diálogo, que calaria o sintoma
+e deixaria a seção do aviso sem gatilho. *Escolhido:* cada seção tem o seu par —
+o diálogo concede e avisa `Concedido`, o aviso temporário publica e avisa
+`Publicado` —, e a página passa a mostrar a regra duas vezes em vez de violá-la
+uma.
+
+**Por que o critério passava mesmo assim, e por que isso importa mais que o
+defeito.** `getByRole("status")` casava um elemento só porque o diálogo aberto
+torna inerte todo o resto da página, e o aviso permanente sumia da árvore de
+acessibilidade. Fechado o diálogo, a mesma consulta casaria dois e o caso
+quebraria em modo estrito. O caso passava por acidente de inércia, não por
+desenho — e um critério que depende de qual elemento a base escondeu não mede o
+que diz medir. Com o par em cada seção, os dois casos consultam dentro da região
+que os nomeia, e a leitura não depende mais de o que está inerte.
+
+**O título do estado vazio vira cabeçalho de verdade.** Era um `<p>` com corpo de
+título: quem navega por lista de cabeçalhos nunca alcançava "Nenhum documento por
+aqui", e o axe não acusa — não há hierarquia quebrada, só um texto que se parece
+com título. O nível vem de quem usa (`titleAs`, `h3` por padrão), porque o nível
+certo depende de onde o estado vazio senta, e um valor fixo dentro do primitivo
+seria adivinhação. `EmptyState` é primitivo que toda tela de `002` a `007` monta:
+fechar aqui custa três linhas, e fechar depois custa uma passagem por todas elas.
+
+**Quatro buracos de medição fechados com teste, sem mudar código de produção.**
+A revisão mediu que `AccessSpine` — o componente que dá nome à fase — não tinha
+teste que provasse a fiação de `origin`: fixar a cor de `canal` para as três
+origens passava em tudo. E que o ramo `hasHint={false}` do campo, o que descreve
+um erro sem dica, não era exercitado por nada — defeito que só aparece para quem
+usa leitor de tela. Somam-se as variantes de `cva` de `Avatar` e `Toast`, que
+ninguém provava serem diferentes entre si. Onze testes novos, `89` passando
+contra os `78` que a rodada anterior deixou.
+
+**A troca de `fireEvent` por `userEvent` não é desta fase, e virou o item `074`.**
+A revisão está certa no mérito — `fireEvent` despacha direto no nó e não vê um
+`pointer-events-none` —, mas `@testing-library/user-event` não está declarado em
+`apps/web/package.json`, e esse arquivo e o `pnpm-lock.yaml` estão entre os que o
+plano da fase 3 declara não tocar. *Descartado:* declarar a dependência aqui, que
+seria abrir escopo por um achado de estilo de teste. *Escolhido:* o item de
+roadmap, que converte os três arquivos de uma vez — inclusive o da fase 2, que
+esta fase não alcançaria de qualquer jeito.
+
+**Os nomes de teste ficam em inglês.** A revisão cobrou o formato
+`deve <resultado> quando <condição>` em pt-BR que a skill `react-testing-unit`
+demonstra. A regra 16 do `CLAUDE.md` diz o contrário para código, e nome de caso
+de teste é código; a fase 2 já fixou o padrão em inglês e foi aprovada assim.
+Entre a skill e a norma canônica, vale a norma.
+
+**O caso de foco fica, e a escrita fora do escopo está registrada.** O oitavo
+caso — `todo controle que recebe foco mostra onde o foco está` — não responde a
+critério nenhum da fase 3, e o plano autoriza sete. Ele percorre a página inteira
+por `Tab` e é a única coisa no repositório que mede a linha "foco visível em tudo
+que recebe foco" da régua da casa. *Descartado:* apagá-lo por escopo, perdendo a
+medição. *Escolhido:* mantê-lo, com o registro aqui, como `D23` e `D25` fizeram
+na fase 1.
+
+**Dois erros no console de toda carga, nenhum desta fase, os dois em roadmap.**
+Medidos no navegador contra o artefato de 4173: `frame-ancestors` ignorado no
+`<meta>` — que já é o item `066` — e `favicon.ico` respondendo `404`, que virou
+o `073`. Os dois moram em arquivos que o plano desta fase proíbe tocar, e juntos
+são a razão de nenhum critério conseguir exigir "console sem erro" sem nomear
+exceção.
+
+**As capturas do tema escuro da rodada anterior mediam o tema claro.** Pedir
+`colorScheme: "dark"` ao navegador não muda nada nesta aplicação: o tema é classe
+no elemento raiz, e o alternador só nasce na fase 4. As capturas foram refeitas
+trocando a classe, e é por isso que as novas mostram os dois temas de verdade.
