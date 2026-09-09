@@ -369,3 +369,27 @@ porque a marca é `aria-hidden`, mas a equivalência era acidental — tirar o
 `aria-hidden` mudaria o texto acessível sem que caso nenhum acusasse. Aqui o
 critério está certo e o teste é que media outra coisa: os dois casos passam a
 provar que a marca está fora da árvore de acessibilidade antes de ler o texto.
+
+**A revalidação aprovou os doze e achou mais dois, os dois na API dos primitivos
+novos.** `Pagination` renderiza um botão por página sem janela nem reticências —
+com total grande, quem usa teclado atravessa todos antes de chegar a "Próxima".
+E `Field.Root` tem `hasHint` com padrão `true`, então quem compuser um campo sem
+dica e esquecer `hasHint={false}` produz `aria-describedby` apontando para
+elemento inexistente, que some da descrição acessível sem erro nenhum. Nenhum dos
+dois quebra nada nesta árvore: a amostra da paginação usa total pequeno e os três
+usos do campo estão corretos. *Descartado:* corrigir agora, que reabriria critério
+já validado sem que uma linha de código estivesse errada — o mesmo argumento de
+`D27` na fase 1 — e, no caso do campo, decidiria a API de um primitivo sem mais de
+três usos para olhar. *Escolhido:* os itens `075` e `076`, ambos dependendo da
+primeira tela que consome cada coisa de verdade. O `076` traz escrita a forma que
+fecha — a parte se registra no contexto e o `Root` deriva a lista — e a que não
+fecha: inverter o padrão para `false` só troca um erro silencioso por outro.
+
+**O despacho da validação vazou envelope, e isso é meu.** Levei ao validador cego
+o ponteiro para a seção inteira da fase, a notícia da validação anterior com seus
+três achados, e a existência e ratificação de `D-007` a `D-011`. Ele diz ter
+ignorado o conteúdo e lido apenas o objetivo e o bloco de critérios, e o veredicto
+registra isso — mas a cegueira não deve depender da disciplina de quem julga. O
+conserto é do despacho: um validador recebe o caminho do plano, o número da fase e
+a ponta da branch, e nada mais. Fica anotado aqui porque a próxima sessão vai
+despachar igual se ninguém disser o contrário.
