@@ -649,13 +649,13 @@
           "por": "autonomo"
         },
         "plan": {
-          "at": "2026-09-09T11:33:34Z",
-          "sha": "9f409be6a717e9bd439d78f8227bdbf19765e091",
+          "at": "2026-09-09T12:31:44Z",
+          "sha": "75082dbbc819be1e911d22f6bb70d3daacc96341",
           "file": "product/items/050-linguagem-visual-e-sistema-de-design/03-plan.md",
           "por": "autonomo"
         }
       },
-      "current_phase": 2,
+      "current_phase": 3,
       "phases": {
         "1": {
           "status": "aprovada",
@@ -693,6 +693,19 @@
             "apps/web": "a7ce9077ec6be6f9b955eee36fafd929276040cd"
           },
           "criteria_sha": "20318c75674cef1c930cb08386ae7a8c1022e3a1bc7ecfbdfb333713c5c7ea8b"
+        },
+        "3": {
+          "status": "em_execucao",
+          "reproved_count": 0,
+          "verdict": null,
+          "verdict_file": null,
+          "validated_sha": null,
+          "pr": null,
+          "blocked_on": [
+            "D-007",
+            "D-008",
+            "D-009"
+          ]
         }
       },
       "divergences": {
@@ -743,6 +756,30 @@
           "phase": 2,
           "detected_at": "2026-09-09T11:16:30Z",
           "aprovada_at": "2026-09-09T11:16:30Z",
+          "ratificada_por": "autonomo"
+        },
+        "D-007": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 3,
+          "detected_at": "2026-09-09T12:00:13Z",
+          "aprovada_at": "2026-09-09T12:00:13Z",
+          "ratificada_por": "autonomo"
+        },
+        "D-008": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 3,
+          "detected_at": "2026-09-09T12:00:13Z",
+          "aprovada_at": "2026-09-09T12:00:13Z",
+          "ratificada_por": "autonomo"
+        },
+        "D-009": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 3,
+          "detected_at": "2026-09-09T12:00:13Z",
+          "aprovada_at": "2026-09-09T12:00:14Z",
           "ratificada_por": "autonomo"
         }
       },

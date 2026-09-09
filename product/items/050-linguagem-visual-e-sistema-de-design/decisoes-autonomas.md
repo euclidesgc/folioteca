@@ -163,3 +163,75 @@ de acesso. Ela começa lendo o `071` acima, e sabendo que a base headless já es
 medida, que o contrato de componente (`cn`, `cva`, `defaultVariants`,
 `VariantProps`) está fixado pelo `button.tsx`, e que a regra do valor mágico já
 vale para tudo que ela escrever fora de `src/shared/components/`.
+
+---
+
+## Fase 3 — os nove primitivos restantes e a assinatura de acesso
+
+**Aprovação autônoma:** `plan` reaprovado em 09/09/2026, `--por autonomo`, sobre
+o conteúdo reconciliado com D-007, D-008 e D-009 (sha `75082dbbc819`). O plano
+já estava aprovado; a reaprovação amarra o "sim" ao texto novo, sem o que o
+`check` acusaria documento mudado depois do aval.
+
+**As três divergências, todas `normal`, todas ratificadas em modo autônomo.** As
+três têm a mesma causa: o bloco de critérios da fase 3 foi escrito antes de as
+fases 1 e 2 existirem, e fixou a forma de uma implementação imaginada. Em nenhuma
+delas o código está errado — em todas o oráculo mede a letra e a entrega cumpre o
+espírito por outro caminho. Foram medidas **antes** de escrever código, e não
+depois de uma reprovação: rodar os oráculos do plano contra a árvore de hoje é a
+primeira coisa que a fase faz, e custa minutos contra a rodada de validação
+inteira que a descoberta tardia custaria.
+
+- **D-007** — o critério pedia `--color-verdete` declarado duas vezes em
+  `theme.css`, e há três: uma por bloco de tema mais a do `@theme` do Tailwind,
+  que é quem **gera** as utilidades `bg-verdete` e `border-l-verdete` que o botão
+  e o filete consomem. E pedia a cadeia `verdete` dentro da regra `:focus-visible`,
+  que lê `var(--acao)` — o token semântico que é `var(--color-verdete)` nos dois
+  blocos, e cuja existência é o que dispensa `dark:` dentro do primitivo.
+  *Descartado:* tocar `theme.css` para satisfazer a letra, que quebraria a fase 1
+  e regrediria a camada de tokens. *Escolhido:* o oráculo passa a medir a cadeia
+  de tokens por bloco, o que é mais forte — o anterior aprovaria um `/* verdete */`
+  em comentário.
+- **D-008** — o critério exigia que os cabeçalhos de nível 2 da página fossem
+  **exatamente** os quinze primitivos, e a página tem seis seções de fundação
+  (`Cor`, `Tipografia`, `Espaço`, `Raio`, `Sombra`, `Movimento`) que a fase 1
+  entregou e que o próprio plano prevê. *Descartado:* trocar `é exatamente` por
+  `contém`, que perderia a capacidade de acusar seção duplicada ou sobrando — o
+  defeito típico de uma página montada em três fases; e envolver os quinze numa
+  região só para o oráculo, deformação que a fase 4 herdaria. *Escolhido:*
+  enumerar as vinte e uma, mantendo o conjunto fechado.
+- **D-009** — o critério exigia duração computada igual a `0s` sob movimento
+  reduzido. Medido no Chromium, a supressão de `0.01ms` que a fase 1 entregou
+  computa `1e-05s`, e nunca será `0s`. E `0.01ms` não é acidente: `0s` **cancela**
+  `transitionend` e `animationend`, e código que os espera para revelar o estado
+  final trava — o defeito que a segunda metade do mesmo critério existe para
+  impedir. *Descartado:* trocar por `0s` em `theme.css`; e aceitar `1e-05s` como
+  cadeia, que amarra o critério à serialização de um motor. *Escolhido:* teto de
+  `0.001` segundo, que responde a pergunta em qualquer navegador e continua
+  reprovando os `120ms` do token.
+
+**A direção das três marcas de acesso, decidida aqui.** `canal`, `pessoa` e
+`privado` são o dispositivo que assina o produto, e assinatura não se toma
+emprestada: nenhum catálogo de ícones entrou. As três saem do mundo do próprio
+assunto — uma folioteca é uma estante, e a unidade é a **lombada**, a mesma que o
+filete vertical do cartão repete em outra escala. `canal` são três lombadas lado
+a lado, o acesso coletivo que existe sem você; `pessoa` é uma lombada só com o
+carimbo, a concessão nominal; `privado` é o volume virado, com o corte das
+páginas para fora, ilegível de fora. *Descartado:* cadeado para `privado`, que é
+o gabarito e diz "segurança" onde o produto diz "ninguém mais alcança". As três
+compartilham o módulo geométrico e se distinguem pela **forma**, não pela cor —
+verificado ampliando as três a 180px, em `06-capturas/fase-3-marcas-de-acesso-ampliadas.png`.
+
+**Os avisos do `criteria-lint` que ficam como estão.** Quatro, nas linhas 699
+(fase 2), 1317 e 1455 (fase 4) e 1689 (fase 5): conclusão que só afirma ausência.
+Nenhum é da fase 3, e o da fase 2 é de fase encerrada. As fases 4 e 5 respondem
+aos seus quando chegarem — corrigi-los agora seria editar critério de fase que
+ainda não começou, sem o código na frente para saber qual é o controle positivo
+certo.
+
+**O que a verificação de tela achou, e o código não contava.** A página foi
+aberta no navegador, em 375, 768 e 1440, nos dois temas. Contraste das etiquetas
+de acesso: mínimo 5,70:1, nos dois temas, acima de AA. Rolagem horizontal: limpa
+em 768 e 1440. Os dois defeitos que a suíte não pegou estão anotados no bloco de
+correção que voltou ao implementer, e nenhum dos dois é de critério — são de
+régua da casa, que é o que a captura existe para alcançar.
