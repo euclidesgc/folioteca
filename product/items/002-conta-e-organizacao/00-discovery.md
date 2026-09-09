@@ -77,11 +77,11 @@ resto do produto parte.
 ### R2 — A conta não entra antes de o endereço ser confirmado
 
 - **E2.1** — Ana, com `emailVerifiedAt` nulo, faz `POST /auth/session` com a
-  senha correta: resposta `403` com `{ "code": "endereco_nao_confirmado" }`,
+  senha correta: resposta `403` com `{ "code": "email_not_verified" }`,
   nenhum `Set-Cookie`, e nenhuma sessão gravada. A tela de entrada mostra "Seu
   endereço ainda não foi confirmado." com o botão "Reenviar confirmação".
 - **E2.2** — Ana erra a senha: resposta `401` com `{ "code":
-  "credenciais_invalidas" }` — byte a byte o mesmo corpo que
+  "invalid_credentials" }` — byte a byte o mesmo corpo que
   `naoexiste@acme.com` recebe. A tela diz "Não consegui entrar: e-mail ou senha
   incorretos."
 - **E2.3** — `POST /auth/email-verification` para um endereço que não existe
@@ -93,9 +93,12 @@ resto do produto parte.
   `emailVerifiedAt` preenchido, e `POST /auth/session` com a mesma senha passa a
   devolver o cookie de sessão.
 - **E3.2** — Ana abre o mesmo link de novo às 10h06: `410` com `{ "code":
-  "token_invalido" }`. A tela diz "Este link já foi usado." e oferece "Entrar".
+  "invalid_token" }`. A tela diz "Este link não vale mais: ele já foi usado ou
+  expirou." e oferece as duas saídas, "Entrar" e "Enviar novo link".
 - **E3.3** — Um link emitido às 10h00 do dia 09 é aberto às 10h01 do dia 10 —
-  24h01 depois: `410 token_invalido`, e a tela oferece "Enviar novo link".
+  24h01 depois: `410 invalid_token`, com o corpo e o texto de tela de E3.2. A
+  resposta não distingue link usado de link vencido, então a tela também não: as
+  duas saídas cobrem os dois casos.
 - **E3.4** — O token não é guardado em texto: a linha da tabela de tokens tem o
   resumo SHA-256, e o valor sorteado só existe dentro do e-mail.
 
@@ -121,7 +124,7 @@ resto do produto parte.
   `folio-de-margem-22` e recebe `200`. A sessão que ela tinha aberta em outro
   navegador recebe `401` na requisição seguinte, e a senha antiga não autentica
   mais.
-- **E5.2** — O mesmo link aberto às 15h01 responde `410 token_invalido`.
+- **E5.2** — O mesmo link aberto às 15h01 responde `410 invalid_token`.
 - **E5.3** — A nova senha com 11 caracteres responde `400`, com o erro no campo
   `password`. A tela associa a mensagem ao campo por `aria-describedby` e marca
   `aria-invalid`.
@@ -200,8 +203,10 @@ resto do produto parte.
   nos dois temas, em 375, 768 e 1440 — e o corpo não rola na horizontal em
   nenhuma das três larguras.
 - **E12.3** — A ação mantém o verbo: o botão "Entrar" fica "Entrando…" enquanto
-  espera; o botão "Criar conta" leva à tela que diz "Conta criada. Confirme seu
-  endereço para entrar."
+  espera, e o botão "Criar conta" fica "Criando conta…". O cadastro aceito leva à
+  mensagem neutra de R4 — "Se houver uma conta com esse endereço, enviamos um
+  e-mail com os próximos passos." —, porque dizer "Conta criada" na tela responde
+  o que o corpo da resposta esconde.
 - **E12.4** — Nenhuma mensagem de erro do item usa "algo deu errado", "Ops" ou
   "Desculpe". Toda mensagem diz o que aconteceu e qual é o próximo ato.
 

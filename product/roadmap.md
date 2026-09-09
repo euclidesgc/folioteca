@@ -1511,6 +1511,20 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       `registra-janela-contexto.mjs` guarde `modelUsage`, e escrever no prompt a
       instrução de medir e encerrar no commit corrente.
 
+- [ ] `083-o-motor-distingue-estagio-por-fazer-de-estagio-aprovado` — a sessão que
+      abre já sabe se o estágio corrente está por fazer, ou se ele foi aprovado e
+      o que falta é o seguinte
+      **Depende de:** nada. É uma condição em `scripts/loop/decide-next-action.mjs`.
+      **Origem:** estágio `spec` de `002-conta-e-organizacao`, em 09/09/2026. O
+      estágio só avança no PR que traz o produto do estágio: o portão de plano
+      recusa `stage: plan` sem `03-plan.md`, e recusa certo, porque deste estágio
+      em diante o plano é o que os critérios medem. Mas o motor lê só `item.stage`
+      e devolve `{ "action": "stage", "stage": "spec" }` mesmo com
+      `approvals.spec.at` preenchido, então a sessão seguinte recebe "escreva a
+      spec" para uma spec que já está aprovada — e só não a reescreve porque o
+      orquestrador relê o estado por conta própria antes de agir. Fechar é uma
+      condição: com o estágio corrente já aprovado, devolver o estágio seguinte.
+
 - [ ] `037-a-fronteira-de-agent-mede-quem-escreve` — o guard de escopo recusa a
       escrita pelo agent que a fez, e não pelo último agent despachado
       **Depende de:** nada — o guard já existe nos hooks do harness.
