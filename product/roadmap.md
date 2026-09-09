@@ -931,6 +931,29 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       quis dizer, em vez de contenção no landmark de navegação, que era o proxy
       que funcionava enquanto a gaveta não tinha mais nada dentro.
 
+- [ ] `078-o-quadro-nativo-nasce-no-tema-certo-antes-de-o-modulo-rodar` — quem
+      abre o produto num sistema escuro não vê o lampejo branco que antecede a
+      primeira pintura
+      **Depende de:** `050` — o esqueleto e o tema que este defeito habita. E
+      precede qualquer critério que meça a tela **antes** do evento de carga.
+      **Origem:** fase 4 de `050`, em 09/09/2026, como achado da correção que
+      fez o elemento raiz carregar a superfície do tema. Medido no artefato de
+      `apps/web/dist`: o documento servido é `<html lang="pt-BR">`, sem classe de
+      tema, e `color-scheme` só existe dentro de `.tema-claro` e `.tema-escuro`.
+      Entre a chegada do HTML e a execução do módulo de entrada, portanto, o
+      documento não tem tema nem `color-scheme`, e o navegador pinta o quadro
+      claro por padrão — num sistema escuro, um lampejo branco, que é o sintoma
+      que `RF-06` quer eliminar, na única janela que o CSS do app não alcança.
+      **Por que não foi corrigido na fase que o encontrou:** as duas saídas
+      baratas trocam de lado o defeito em vez de fechá-lo. `color-scheme:
+      light dark` no `:root` sem classe acerta quem não tem escolha guardada e
+      erra quem guardou o tema contrário ao do sistema; e um `<script>` embutido
+      antes da folha de estilo — a forma canônica — é bloqueado por
+      `script-src 'self'`, a política que `RF-06` mede pela contagem de `script`
+      sem `src` igual a `0`. Fechar exige escolher entre servir a classe já no
+      documento e um módulo de bloqueio com `src` próprio, e as duas mudam o
+      artefato, não uma regra de CSS.
+
 - [ ] `058-o-endereco-de-homologacao-diz-o-nome-do-produto` — os três FQDNs de
       homologação saem de `gbdocs.duckdns.org`, herdado do projeto anterior, para
       um domínio que nomeia esta aplicação
