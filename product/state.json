@@ -649,13 +649,13 @@
           "por": "autonomo"
         },
         "plan": {
-          "at": "2026-09-09T14:52:05Z",
-          "sha": "c182311c411a8fcb4075a840b74b75eb54ccce63",
+          "at": "2026-09-09T15:33:10Z",
+          "sha": "c39ebc804967bfe008b02508a13b7d9dd1f9f2e4",
           "file": "product/items/050-linguagem-visual-e-sistema-de-design/03-plan.md",
           "por": "autonomo"
         }
       },
-      "current_phase": 4,
+      "current_phase": 5,
       "phases": {
         "1": {
           "status": "aprovada",
@@ -732,6 +732,18 @@
             "apps/web": "70327b1a2bd5bb7a69afe6e282311f40822884f8"
           },
           "criteria_sha": "b5ad8e513d5f5f02d905a99976d6ebaffb9ebaeb9fdb5d453f300ee97af5a752"
+        },
+        "5": {
+          "status": "em_execucao",
+          "reproved_count": 0,
+          "verdict": null,
+          "verdict_file": null,
+          "validated_sha": null,
+          "pr": null,
+          "blocked_on": [
+            "D-014",
+            "D-015"
+          ]
         }
       },
       "divergences": {
@@ -838,6 +850,22 @@
           "phase": 4,
           "detected_at": "2026-09-09T14:38:48Z",
           "aprovada_at": "2026-09-09T14:38:48Z",
+          "ratificada_por": "autonomo"
+        },
+        "D-014": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 5,
+          "detected_at": "2026-09-09T15:18:02Z",
+          "aprovada_at": "2026-09-09T15:18:11Z",
+          "ratificada_por": "autonomo"
+        },
+        "D-015": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 5,
+          "detected_at": "2026-09-09T15:30:34Z",
+          "aprovada_at": "2026-09-09T15:30:34Z",
           "ratificada_por": "autonomo"
         }
       },
