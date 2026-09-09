@@ -876,6 +876,37 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       deixar o terceiro como está trocaria um desvio por uma inconsistência.
       Fechar é declarar a dependência e converter os três de uma vez.
 
+- [ ] `075-a-paginacao-mostra-uma-janela-de-paginas-e-nao-todas` — quem navega uma
+      lista longa alcança a próxima página sem passar por todos os números
+      **Depende de:** a primeira tela que lista documentos com paginação real —
+      hoje `002` a `007`. O tamanho da janela e a forma das reticências se decidem
+      com um total de verdade na frente, não com a amostra de cinco da página viva.
+      **Origem:** validação cega da fase 3 de `050`, em 09/09/2026, como
+      apontamento fora do escopo dos critérios. `Pagination` monta
+      `Array.from({ length: total })` e renderiza um botão por página. Com `total`
+      grande, o primitivo põe `total` botões no DOM e quem usa teclado atravessa
+      todos antes de chegar a "Próxima" — o custo é de navegação, não de pintura.
+      Nenhum critério da fase mede o comportamento com muitas páginas, e a amostra
+      usa total pequeno, então nada está quebrado hoje.
+
+- [ ] `076-a-dica-do-campo-e-derivada-da-parte-que-existe-e-nao-declarada-por-quem-usa` —
+      quem compõe um campo sem dica não precisa lembrar de dizer isso, e não
+      produz `aria-describedby` apontando para o nada
+      **Depende de:** a primeira tela que compõe campos fora da página viva —
+      `002` a `007`. É mudança de API de primitivo, e o desenho certo aparece
+      quando há mais de três usos para olhar.
+      **Origem:** validação cega da fase 3 de `050`, em 09/09/2026, como
+      apontamento fora do escopo dos critérios. `Field.Root` tem `hasHint` com
+      padrão `true`, então o `aria-describedby` do controle sempre inclui o id da
+      dica, exista ou não um `<Field.Hint>` renderizado. Quem esquecer
+      `hasHint={false}` num campo sem dica produz referência para elemento
+      inexistente — violação de `aria-valid-attr-value`, e a descrição acessível
+      some sem erro nenhum. Os três usos de hoje estão corretos.
+      **A forma que fecha:** a parte se registra no contexto quando monta, e o
+      `Root` deriva a lista de descrições do que existe, em vez de pedir a quem
+      usa que declare. O que não se faz é inverter o padrão para `false`: troca
+      um erro silencioso por outro, com o sintoma só mudando de lado.
+
 - [ ] `058-o-endereco-de-homologacao-diz-o-nome-do-produto` — os três FQDNs de
       homologação saem de `gbdocs.duckdns.org`, herdado do projeto anterior, para
       um domínio que nomeia esta aplicação
