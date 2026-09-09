@@ -681,14 +681,21 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       pior que o da `5173`, porque nem chega a haver portão — o Docker recusa
       antes de qualquer passo, e o que se lê é `Docker start fail with exit code
       1`, sem relação visível com concorrência.
-      Fechar é nenhum job prender porta escrita: o servidor do portão escolhe uma
-      porta livre — derivada de `runner.temp` ou sorteada e conferida —, mantendo
+      Fechar é nenhum job prender porta escrita, e são duas metades.
+      **A do contêiner de serviço está fechada**, em 09/09/2026: o Postgres do job
+      de integração publica em `5432/tcp` e o job lê a porta que o runner sorteou
+      em `job.services.postgres.ports['5432']`, num passo — o contexto `job` não
+      é resolvido no `env:` do job. O alcance pelo nome dentro da rede do Docker,
+      que esta entrada previa, não serve: ele exige que o job rode dentro de um
+      contêiner, e estes rodam no hospedeiro. `scripts/gates/portas_de_servico.sh`
+      recusa a porta fixa nas quatro formas de escrevê-la, e
+      `scripts/gates/__tests__/portas-de-servico.test.sh` prova que ele morde.
+      **A do servidor que o portão sobe continua aberta:** `5173` e `4173` vêm de
+      `apps/web/vite.config.ts` com `strictPort`, e o contorno de hoje é o job
+      comportamental declarar `4273` — duas constantes onde deveria haver escolha
+      de porta livre. Fechar é o servidor sortear e conferir, mantendo
       `_exige_porta_livre` intacta, que é quem prova que a resposta medida é a do
-      servidor que subiu; e o contêiner de serviço deixa de publicar porta no
-      hospedeiro, sendo alcançado pelo nome dentro da rede do job, que é o modo em
-      que dois jobs simultâneos não se enxergam.
-      O teste tem de cobrir o caso de duas execuções concorrentes, senão o defeito
-      volta na primeira vez que alguém fixar a porta de novo por conveniência.
+      servidor que subiu. O mesmo vale para o irmão de `apps/site`.
 
 - [ ] `065-o-vite-config-do-app-carrega-pelo-caminho-que-vai-virar-padrao` — o
       build de `apps/web` para de depender de um carregador de configuração que o

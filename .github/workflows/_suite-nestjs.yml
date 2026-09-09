@@ -183,19 +183,38 @@ jobs:
           # alcança — não é segredo, e não pode virar um. O identificador da
           # corrida é público (está na URL da execução) e viaja inteiro na
           # DATABASE_URL abaixo, então o que protege este banco é o isolamento
-          # de rede do runner, não o valor. No dia em que o job mudar para
-          # runner próprio, o `ports:` publicado é o que precisa sair.
+          # de rede do runner, não o valor.
           POSTGRES_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}
           POSTGRES_DB: folioteca
-        ports: ["5432:5432"]
+        # A porta do hospedeiro é sorteada pelo runner, e não escrita aqui. Os
+        # runners desta casa são quatro processos na MESMA máquina: com
+        # `5432:5432`, dois jobs de integração simultâneos pedem o mesmo
+        # endereço e o segundo morre em `Bind for 0.0.0.0:5432 failed: port is
+        # already allocated`, antes de qualquer passo — sem portão, sem relação
+        # visível com concorrência, e sem relação nenhuma com o diff. `5432/tcp`
+        # publica numa porta livre que o Actions escolhe e devolve em
+        # `job.services.postgres.ports['5432']`.
+        ports: ["5432/tcp"]
         options: >-
           --health-cmd "pg_isready -U folioteca -d folioteca"
           --health-interval 2s --health-timeout 5s --health-retries 30
     env:
       NODE_ENV: test
-      DATABASE_URL: postgresql://folioteca:${{ github.run_id }}-${{ github.run_attempt }}@localhost:5432/folioteca
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      # A DATABASE_URL nasce aqui, e não no `env:` do job, porque o contexto
+      # `job` — de onde sai a porta sorteada — não é resolvido naquele nível: o
+      # GitHub só o oferece a partir dos passos. Escrevê-la em `$GITHUB_ENV` a
+      # entrega aos passos seguintes com o mesmo alcance que ela tinha.
+      - name: A porta do banco é a que o runner sorteou
+        run: |
+          porta="${{ job.services.postgres.ports['5432'] }}"
+          if [ -z "$porta" ]; then
+            echo "::error::O runner não devolveu a porta publicada do serviço postgres — sem ela não há como alcançar o banco, e seguir mediria um endereço inventado."
+            exit 1
+          fi
+          echo "medido: o banco responde em localhost:$porta"
+          echo "DATABASE_URL=postgresql://folioteca:${{ github.run_id }}-${{ github.run_attempt }}@localhost:$porta/folioteca" >> "$GITHUB_ENV"
       # `dest` fora do HOME, e isto não é preferência: os runners desta casa são
       # quatro processos na MESMA máquina, com o MESMO `$HOME`. O padrão da ação é
       # `~/setup-pnpm`, então dois jobs simultâneos instalam e apagam o mesmo
