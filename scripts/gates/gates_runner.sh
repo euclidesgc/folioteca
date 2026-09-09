@@ -275,6 +275,7 @@ bash "$ROOT/scripts/gates/pnpm_isolado.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/concorrencia.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/atalho.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/e2e_uma_subida.sh" || VEREDICTO=1
+bash "$ROOT/scripts/gates/plano.sh" || VEREDICTO=1
 
 if [ "$SEM_ARTEFATOS" -eq 1 ]; then
   echo "portão de segredo: não cobrado neste modo — quem o roda constrói antes o que ele varre."

@@ -643,19 +643,31 @@
           "por": "autonomo"
         },
         "spec": {
-          "at": "2026-09-08T15:27:53Z",
-          "sha": "c38c2ba65783a423bee5375cd3a8a51137d2148a",
+          "at": "2026-09-09T06:51:42Z",
+          "sha": "ca6676ce6df07f7b29ecdda837229fb07458b574",
           "file": "product/items/050-linguagem-visual-e-sistema-de-design/02-spec.md",
           "por": "autonomo"
         },
         "plan": {
-          "at": null,
-          "sha": null
+          "at": "2026-09-09T06:51:42Z",
+          "sha": "81620169f54ffa37661ebcd702b91e98e082a62a",
+          "file": "product/items/050-linguagem-visual-e-sistema-de-design/03-plan.md",
+          "por": "autonomo"
         }
       },
       "current_phase": null,
       "phases": {},
-      "divergences": {},
+      "divergences": {
+        "D-001": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": null,
+          "detected_at": "2026-09-09T05:26:58Z",
+          "aprovada_at": "2026-09-09T05:27:36Z",
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T06:27:43Z"
+        }
+      },
       "criteria_exception": null
     }
   }
