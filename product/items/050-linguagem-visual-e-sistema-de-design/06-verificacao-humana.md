@@ -162,3 +162,23 @@ de destaque foi verificada aqui pela razão de contraste e pela existência de
 sinal redundante em cada amostra, que é o que a régua exige — mas se as duas
 colapsam no mesmo tom para quem tem deficiência de visão de cor é coisa que se
 vê, e nenhuma das duas medições responde.
+
+---
+
+## Confirmação do dono
+
+Em **09/09/2026** o dono percorreu `/design` no navegador, sobre o build da
+fase 4 servido em `http://127.0.0.1:8791`, e **aprovou a direção visual**,
+liberando o item para prosseguir.
+
+O que essa confirmação cobre, dito com precisão: ele olhou a página, aprovou o
+que viu e mandou seguir. As três verificações acima permanecem como o agente as
+executou e registrou — a conferência independente delas, tecla a tecla, não
+aconteceu, e a *Validação de campo pendente* declarada no PR continua de pé.
+
+Medições independentes feitas na sessão de painel, sobre a mesma página, que
+concordam com o registro do agente: contraste do texto sobre o fundo em
+**14,95:1** e pior contraste de texto da página em **5,7:1** (mínimo AA é
+4,5:1); **zero** `tabindex` positivo; e os seis campos de formulário todos com
+rótulo associado por `label for`, rótulo envolvente ou `aria-labelledby`, com
+dica e erro ligados por `aria-describedby`.
