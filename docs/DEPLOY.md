@@ -20,7 +20,7 @@ aqui foi a terceira aplicação — o hotsite —, o banco e as três imagens.
 | Banco de homologação | ✅ `folioteca-db-hml`, `pgvector/pgvector:pg16`, `running:healthy` |
 | Três aplicações de `hml` | ✅ criadas e configuradas |
 | Aplicações de `prod` | ⚠️ ainda apontam para o repositório antigo — ver "O que falta" |
-| DNS | ⚠️ `gbdocs.duckdns.org`, herdado — ver "A dívida do nome" |
+| DNS | ✅ `folioteca.duckdns.org`, wildcard |
 
 ## As aplicações
 
@@ -28,30 +28,31 @@ Repositório `euclidesgc/folioteca` nas três de homologação.
 
 | Aplicação | uuid | Ambiente | Branch | `dockerfile_location` | Porta | FQDN |
 |---|---|---|---|---|---|---|
-| `folioteca-api-hml` | `hvn6t37t7ul3xkhsg9h1etqo` | `hml` | `develop` | `/apps/api/Dockerfile` | `3000` | `https://api-hml.gbdocs.duckdns.org` |
-| `folioteca-web-hml` | `ux4birniuxj5x1tjimbtp4af` | `hml` | `develop` | `/apps/web/Dockerfile` | `80` | `https://hml.gbdocs.duckdns.org` |
-| `folioteca-site-hml` | `e6uflu8xu7vvbhfvlrlnvoou` | `hml` | `develop` | `/apps/site/Dockerfile` | `3001` | `https://site-hml.gbdocs.duckdns.org` |
+| `folioteca-api-hml` | `hvn6t37t7ul3xkhsg9h1etqo` | `hml` | `develop` | `/apps/api/Dockerfile` | `3000` | `https://api-hml.folioteca.duckdns.org` |
+| `folioteca-web-hml` | `ux4birniuxj5x1tjimbtp4af` | `hml` | `develop` | `/apps/web/Dockerfile` | `80` | `https://hml.folioteca.duckdns.org` |
+| `folioteca-site-hml` | `e6uflu8xu7vvbhfvlrlnvoou` | `hml` | `develop` | `/apps/site/Dockerfile` | `3001` | `https://site-hml.folioteca.duckdns.org` |
 
 ⚠️ **`dockerfile_location` não é `/Dockerfile`.** Esse é o default do Coolify e
 está errado para este monorepo: o arquivo está dentro do workspace, e o
 **contexto** continua sendo a raiz (`base_directory: /`), porque os três apps
 resolvem `@folioteca/editor` por `workspace:*`.
 
-## A dívida do nome
+## O nome
 
-O domínio é `gbdocs.duckdns.org`, herdado do projeto anterior. Ele é **wildcard** —
-`*.gbdocs.duckdns.org` resolve para `64.181.165.16` —, então os três subdomínios
-funcionam sem nenhum registro novo, e foi isso que permitiu subir o ambiente hoje.
+O domínio é `folioteca.duckdns.org`, e ele é **wildcard**:
+`*.folioteca.duckdns.org` resolve para `64.181.165.16`, então cada subdomínio
+novo funciona sem registro adicional.
 
-O nome está errado para este produto, e a troca depende de criar
-`folioteca.duckdns.org` na conta DuckDNS, o que exige o token que não está em
-lugar nenhum do repositório. Quando ele existir, a mudança é **uma linha por
-aplicação** — o campo `fqdn` — mais os valores de `VITE_API_URL`,
-`NEXT_PUBLIC_SITE_URL` e `WEB_ORIGIN`, que carregam o domínio.
+O domínio antigo, `gbdocs.duckdns.org`, pertence ao projeto descontinuado e as
+aplicações que respondiam nele estão paradas. Endereço daquele domínio **não
+abre**, e é o erro que quem procura a Folioteca por um link velho encontra.
 
-Isto está registrado como item de roadmap, e não como ajuste de painel: trocar o
-FQDN sem trocar as três variáveis produz um front que carrega e não fala com a
-API, sem erro que aponte para a causa.
+O FQDN nunca anda sozinho: ele viaja com `VITE_API_URL`,
+`NEXT_PUBLIC_SITE_URL` e `WEB_ORIGIN`, que carregam o domínio. Trocar um sem os
+outros produz um front que carrega e não fala com a API, sem erro que aponte
+para a causa. Nas três aplicações de `hml` os quatro estão coerentes; a única
+sobra é o `VITE_API_URL` de **preview**, que ainda cita o domínio antigo e não
+tem efeito porque os deploys de preview estão desligados.
 
 ## Variáveis: as do web e do site são de **build**, as da api são de **runtime**
 
@@ -68,7 +69,7 @@ nenhum.
 
 | Variável | `folioteca-web-hml` |
 |---|---|
-| `VITE_API_URL` | `https://api-hml.gbdocs.duckdns.org` |
+| `VITE_API_URL` | `https://api-hml.folioteca.duckdns.org` |
 
 ### Site — `is_buildtime` **e** `is_runtime`
 
@@ -79,7 +80,7 @@ log.
 
 | Variável | `folioteca-site-hml` |
 |---|---|
-| `NEXT_PUBLIC_SITE_URL` | `https://site-hml.gbdocs.duckdns.org` |
+| `NEXT_PUBLIC_SITE_URL` | `https://site-hml.folioteca.duckdns.org` |
 
 ### API — runtime, e duas derrubam o processo
 
@@ -92,7 +93,7 @@ log.
 | `NODE_ENV` | `production` |
 | `PORT` | `3000` |
 | `DATABASE_URL` | a URL interna de `folioteca-db-hml` — o host é o uuid do banco |
-| `WEB_ORIGIN` | `https://hml.gbdocs.duckdns.org,https://site-hml.gbdocs.duckdns.org` |
+| `WEB_ORIGIN` | `https://hml.folioteca.duckdns.org,https://site-hml.folioteca.duckdns.org` |
 
 `WEB_ORIGIN` é **lista**, e as duas origens estão nela porque tanto a SPA quanto
 o hotsite chamam a API. `apps/api/src/config/web-origins.ts` faz a leitura.
@@ -112,14 +113,21 @@ saudável a cada `health_check_retries`.
 
 ## O que falta
 
-- **As duas aplicações de `prod`** (`gb-docs-web-prod`, `gb-docs-api-prod`) ainda
-  apontam para `euclidesgc/gb-docs-hub`. Elas não foram tocadas porque produção não
-  tem o que publicar ainda: o roadmap está no item `050`, e subir uma casca vazia
-  em `prod` só produz um endereço que decepciona quem o abrir.
+- **A Folioteca não tem produção.** As duas aplicações de `prod` no servidor
+  (`gb-docs-web-prod`, `gb-docs-api-prod`) são do projeto descontinuado, apontam
+  para `euclidesgc/gb-docs-hub` e estão paradas. A `main` deste repositório está
+  no commit de bootstrap: tudo que existe vive na `develop`. Produção passa a ter
+  o que publicar quando `002-conta-e-organizacao` entregar o cadastro — antes
+  disso, um endereço de produção só decepciona quem o abrir.
 - **O hotsite de produção** não existe como aplicação.
-- **O CI ainda não dispara o deploy.** No projeto anterior isso era um passo do
-  fluxo depois da cancela verde, com o `COOLIFY_TOKEN` em secret. Aqui o deploy é
-  manual até o ambiente provar que sobe sozinho algumas vezes.
+- **O deploy ainda é disparado à mão.** A regra que o dono declarou em
+  09/09/2026 é `merge na develop → publica em homologação`,
+  `merge na main → publica em produção`, e ela ainda não está automatizada. O
+  ambiente já provou que sobe: as três aplicações de `hml` foram publicadas em
+  sequência no commit `30f18b5`, em 09/09/2026, sem intervenção. Faltam as duas
+  metades: ligar `Auto Deploy` nas três de `hml` — chave `is_auto_deploy_enabled`,
+  que a API do Coolify não expõe e o painel liga em dois cliques —, e criar as
+  aplicações de produção, que não existem.
 - **A senha do banco apareceu em texto claro numa sessão de configuração.** Ela é
   de um Postgres privado (`is_public: false`), acessível só pela rede interna do
   Coolify, mas rotacioná-la é barato e a decisão é do dono.
