@@ -109,11 +109,17 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
 
 **Critérios de aceite:**
 
-- [ ] `estrutural` — `RNF-02`, `RNF-03` — `apps/web/package.json` declara
-      `tailwindcss`, `@tailwindcss/vite` e `react-router` em versão fixa (sem
-      `^`, `~` ou `*`), e as três aparecem em `pnpm-lock.yaml`. Executados na
-      raiz do repositório: `grep -c '' apps/web/package.json` imprime um número
-      **maior que** `0`, que é a prova de que o arquivo existe e foi lido; e
+- [ ] `estrutural` — `RNF-03` — `apps/web/package.json` declara `tailwindcss`,
+      `@tailwindcss/vite` e `react-router` em versão fixa (sem `^`, `~` ou `*`),
+      as três aparecem em `pnpm-lock.yaml`, e a quarentena de sete dias que as
+      admitiu continua declarada. Executados na raiz do repositório:
+      `grep -c '' pnpm-workspace.yaml` imprime um número **maior que** `0`;
+      `grep -c -E '^minimumReleaseAge:\s*10080\s*$' pnpm-workspace.yaml` imprime
+      `1` — sem esta asserção o critério mediria só a forma da versão, e a
+      quarentena que a etapa 1.1 remede no dia poderia ter sido desligada no
+      mesmo PR sem que nada acusasse; `grep -c '' apps/web/package.json` imprime
+      um número **maior que** `0`, que é a prova de que o arquivo existe e foi
+      lido; e
 
       ```
       python3 - <<'PY'
@@ -131,7 +137,7 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
       termina com código de saída `0` e imprime três linhas, uma por pacote. Para
       cada uma das três, `grep -c -F "$nome" pnpm-lock.yaml` imprime um número
       **maior ou igual a** `1`.
-- [ ] `estrutural` — `RF-02.a`, `RF-02.b`, `RF-04.a`, `RF-04.b` — o arquivo de
+- [ ] `estrutural` — `RF-02.a`, `RF-04.a`, `RF-04.b` — o arquivo de
       tema `apps/web/src/shared/styles/theme.css` declara os seis tokens de cor
       da direção "Lombada" num bloco `.tema-claro` e num bloco `.tema-escuro`,
       com o mesmo conjunto de nomes nos dois; o bloco claro traz os valores que a
@@ -231,10 +237,14 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
       python3 - <<'PY'
       import re, pathlib
       base = pathlib.Path('apps/web/src/shared/styles/fonts')
-      familias = ['fraunces', 'atkinson-hyperlegible-next', 'ibm-plex-mono']
-      for f in familias:
+      esperadas = {'fraunces', 'atkinson-hyperlegible-next', 'ibm-plex-mono'}
+      presentes = {d.name for d in base.iterdir() if d.is_dir()}
+      assert esperadas <= presentes, f'faltam famílias: {esperadas - presentes}'
+      # a régua vale para TODA pasta presente, e não só para as três esperadas:
+      # uma quarta face sem OFL passaria por uma lista fechada, e é justamente
+      # ela que RF-09.c manda manter fora do repositório e do artefato
+      for f in sorted(presentes):
           d = base / f
-          assert d.is_dir(), f'pasta ausente: {d}'
           woff = list(d.glob('*.woff2'))
           assert woff, f'nenhum .woff2 em {d}'
           lic = [p for p in d.iterdir()
@@ -250,9 +260,9 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
       PY
       ```
 
-      termina com código de saída `0` e imprime quatro linhas: uma por família,
-      com o nome e a contagem de arquivos `.woff2` (cada contagem **maior ou
-      igual a** `1`), e a última exatamente `[]` — nenhum `src: url()` traz
+      termina com código de saída `0` e imprime uma linha por família presente —
+      ao menos as três, cada uma com o nome e a contagem de arquivos `.woff2`
+      **maior ou igual a** `1` —, e uma última linha exatamente `[]` — nenhum `src: url()` traz
       esquema ou host, então todos resolvem na origem do documento.
 - [ ] `comando` — `RF-08.b`, `RNF-02` — o artefato de build emite os arquivos de
       fonte com hash no nome e uma folha `.css` estática. Executados na raiz do
@@ -269,15 +279,25 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
       carregando a declaração da face.
 - [ ] `comando` — `RF-10.a`, `RF-10.b`, `RF-10.c`, `RF-10.d` — a política do
       artefato continua com as mesmas nove diretivas, sem `font-src` e sem termo
-      perigoso, e as asserções que a cobram mediram. Com `apps/web/dist`
-      construído pelo comando do critério anterior e as portas 4173 e 5173
-      livres, executado na raiz do repositório: `bash
+      perigoso, e as asserções que a cobram **mordem**. Com `apps/web/dist`
+      recém-construído por um build limpo — a pasta apagada antes, e
+      `VITE_API_URL=http://localhost:3000 pnpm --filter web run build` em
+      seguida — e as portas de pré-visualização livres, executado na raiz do
+      repositório: `bash
       apps/web/scripts/verificar-politica.sh http://localhost:3000` termina com
       código de saída `0`, e a saída contém as linhas
       `medido: 9 diretiva(s) na política`,
       `medido: a política é exatamente a declarada — nove diretivas, e nada além delas`,
       `medido: 'unsafe-inline' ausente da política` e
-      `medido: 'unsafe-eval' ausente da política`. Além disso,
+      `medido: 'unsafe-eval' ausente da política`. E, porque `RF-10.c` e
+      `RF-10.d` são cláusulas de reprovação que o caminho feliz não exercita,
+      `bash apps/web/scripts/__tests__/verificar-politica.test.sh` termina com
+      código de saída `0` e a saída contém
+      `ok    exige_politica_com_nove_diretivas REPROVA dez diretivas`,
+      `ok    exige_politica_sem_termo REPROVA 'unsafe-inline'` e
+      `ok    exige_politica_sem_termo REPROVA 'unsafe-eval'` — as três provam que
+      a asserção reprova quando deve, que é o que a tag promete e o que rodar o
+      script contra uma política já correta nunca mostraria. Além disso,
       `grep -c '' apps/web/dist/index.html` imprime um número **maior que** `0` e
       `grep -c -F 'font-src' apps/web/dist/index.html` imprime `0`.
 - [ ] `comportamental` — `RF-11.a`, `RF-11.b`, `RF-11.d`
@@ -917,7 +937,12 @@ mudança — a página inteira custa milhares de tokens para mostrar o que não 
       número **maior ou igual a** `20`, que é a prova de que houve onde procurar;
       e
       `grep -rcE "from ['\"][^'\"]*(@/features|@/app|@tanstack/react-query)"
-      apps/web/src/shared/components | grep -vc ':0$'` imprime `0`.
+      apps/web/src/shared/components | grep -vc ':0$'` imprime `0`; e
+      `bash scripts/gates/gate5_import_direction.sh` termina com código de saída
+      `0` — `RF-13.b` nomeia esse portão como quem reprova o import proibido, e
+      um `grep` próprio ao lado dele mediria outra coisa com o mesmo nome: o dia
+      em que o portão passasse a ler outro caminho, o critério continuaria
+      verde.
 - [ ] `estrutural` — `RF-04.c`, `RF-07.b` — dentro da camada de primitivos não
       há segunda definição por tema nem duração literal. Executados na raiz do
       repositório:
@@ -940,7 +965,8 @@ mudança — a página inteira custa milhares de tokens para mostrar o que não 
       e
       `grep -cE '"(lucide-react|@heroicons/react|@phosphor-icons/react|react-icons|feather-icons|@tabler/icons-react|material-symbols)"'
       apps/web/package.json` imprime `0`.
-- [ ] `comando` — `RF-01.c` — o botão primário, o filete da etiqueta de acesso e
+- [ ] `comando` — `RF-01.c`, `RF-02.b` — o botão primário, o filete da etiqueta
+      de acesso e
       o indicador de foco leem o **mesmo** token de ação pelo nome, declarado uma
       vez por bloco de tema, e nenhum arquivo sob `apps/web/src/features/` carrega
       o valor literal. Executados na raiz do repositório:
@@ -983,7 +1009,7 @@ mudança — a página inteira custa milhares de tokens para mostrar o que não 
       O caso se chama `a mensagem de erro tem marca e texto além da borda`, e
       `bash scripts/e2e/relatorio.sh criterio "a mensagem de erro tem marca e texto além da borda"`
       termina com código de saída `0`.
-- [ ] `comportamental` — `RF-17.a`, `RF-17.b`
+- [ ] `comportamental` — `RF-17.a`, `RF-17.b`, `RF-02.b`
       *Dado* o artefato servido na origem de pré-visualização, com `/design`
       aberta e as três amostras de cartão de documento, uma por origem de
       acesso
@@ -1298,9 +1324,12 @@ uma medição que já existia.
       *Quando* a suíte pressiona `Tab` repetidamente até o foco alcançar o
       controle de papel `button` e nome acessível `Menu de conta`, aciona-o com
       `Enter`, e aciona o item de papel `menuitem` e nome acessível
-      `Tema escuro`
+      `Tema escuro`; e depois repete só a contagem de `Tab` até o menu de conta
+      em `/canais`, `/pesquisa`, `/organizacao` e `/design`
       *Então* o número de `Tab` necessários para alcançar o menu de conta é
-      **menor ou igual a** `8`; a classe do elemento raiz passa de `tema-claro`
+      **menor ou igual a** `8` **nas cinco telas** — `RF-05.f` diz qualquer tela
+      do esqueleto, e uma tela só não distingue o alternador que mora no
+      cabeçalho de um que a rota de estreia tenha ganhado por acaso; a classe do elemento raiz passa de `tema-claro`
       para `tema-escuro` sem que a página seja recarregada — medido por um
       contador de eventos `load` que continua em `1` ao fim; e
       `localStorage.getItem("folioteca.tema")` avaliado na página devolve
@@ -1555,16 +1584,26 @@ que ninguém consegue provar que aconteceu não aconteceu.
       ```
       python3 - <<'PY'
       import json
+      import pathlib
+      import re
       d = json.load(open('apps/web/package.json'))
       todas = {**d.get('dependencies', {}), **d.get('devDependencies', {})}
       for nome in ('axe-core', '@axe-core/playwright'):
           v = todas.get(nome)
           assert v and v[0].isdigit(), f'{nome}: {v}'
           print(nome, v)
+      espaco = pathlib.Path('pnpm-workspace.yaml').read_text(encoding='utf-8')
+      assert re.search(r'^minimumReleaseAge:\s*10080\s*$', espaco, re.M), \
+          'a quarentena de sete dias não está declarada'
+      print('quarentena', 10080)
       PY
       ```
 
-      termina com código de saída `0` e imprime duas linhas.
+      termina com código de saída `0` e imprime três linhas: as duas
+      dependências com a versão fixa de cada uma, e a quarentena que as admitiu,
+      ainda declarada. A terceira linha é o que `RNF-03` promete e as duas
+      primeiras não medem: uma versão fixada por alguém que desligou o
+      `minimumReleaseAge` no mesmo PR passaria sem ela.
 - [ ] `comportamental` — `RF-27.a`, `RF-27.c`, `RF-28.a`
       *Dado* o artefato servido na origem de pré-visualização, com `/design`
       aberta no tema claro
@@ -1766,7 +1805,11 @@ que ninguém consegue provar que aconteceu não aconteceu.
       for termo in ('Fraunces', 'Atkinson Hyperlegible Next', 'IBM Plex Mono',
                     '--spacing', '--radius', '--shadow', '--duracao-rapida',
                     '--duracao-padrao', '--curva-padrao', '768px',
-                    'prefers-reduced-motion', 'pt-BR'):
+                    'prefers-reduced-motion', 'pt-BR',
+                    # RF-33.a: a direção e onde mora a ousadia
+                    'Lombada', 'ousadia', 'filete',
+                    # RF-33.e: a régua inteira, e não só a parte com número
+                    'foco visível', 'valor mágico', 'sinal único'):
           if termo not in d:
               faltando.append(termo)
       print(faltando)
@@ -1828,15 +1871,34 @@ vieram depois.
       corpo = '\n'.join(f.read_text(encoding='utf-8') for f in arquivos)
       sem_consumidor = [n for n in paleta
                         if not re.search(rf'-{n}\b', corpo)]
+      # RF-01.a não fala só de cor: tipografia, espaço, raio, sombra, duração e
+      # curva também nascem token e são lidas pelo nome. Medir só a paleta
+      # deixaria seis grupos livres para virar valor literal no componente
+      grupos = {'tipografia': r'\bfont-(display|body|mono)\b',
+                'espaço': r'\b(p|m|gap|space)[xytrbl]?-\d',
+                'raio': r'\brounded-[a-z0-9-]+',
+                'sombra': r'\bshadow-[a-z0-9-]+',
+                'movimento': r'duracao-(rapida|padrao)|curva-padrao'}
+      sem_uso = [g for g, padrao in grupos.items()
+                 if not re.search(padrao, corpo)]
+      for nome in ('--font-display', '--font-body', '--font-mono', '--spacing',
+                   '--radius', '--shadow', '--duracao-rapida', '--duracao-padrao',
+                   '--curva-padrao'):
+          assert nome in tema, f'{nome} não está declarado no tema'
       print(len(arquivos))
       print(sem_consumidor)
+      print(sem_uso)
       PY
       ```
 
-      termina com código de saída `0`, imprime na primeira linha a contagem de
-      componentes lidos (**maior ou igual a** `25`) e na segunda exatamente `[]`
-      — os seis tokens de cor da direção "Lombada" têm ao menos um consumidor nas
-      camadas que as fases 2, 3 e 4 escreveram.
+      termina com código de saída `0` e imprime três linhas: a contagem de
+      componentes lidos (**maior ou igual a** `25`), e depois `[]` e `[]` — os
+      seis tokens de cor e os cinco outros grupos que `RF-01.a` nomeia
+      (tipografia, espaço, raio, sombra e movimento) têm ao menos um consumidor
+      nas camadas que as fases 2, 3 e 4 escreveram, e todos estão declarados no
+      arquivo de tema. Token declarado e não consumido é desenho que ninguém usa;
+      classe de desenho consumida e não declarada é o valor mágico que a régua da
+      fase 2 reprova — as duas listas vazias são as duas metades.
 - [ ] `comportamental` — `RF-05.b`, `RF-19.b`, `RF-22.b`, `RF-23.a`, `RF-11.a`
       *Dado* o artefato servido na origem de pré-visualização, com
       `localStorage` vazio e `/documentos` aberta

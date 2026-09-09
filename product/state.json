@@ -643,14 +643,16 @@
           "por": "autonomo"
         },
         "spec": {
-          "at": "2026-09-09T06:40:27Z",
-          "sha": "7af620a672e429fe41f5197cc5f1f3bbd76f628f",
+          "at": "2026-09-09T06:51:42Z",
+          "sha": "ca6676ce6df07f7b29ecdda837229fb07458b574",
           "file": "product/items/050-linguagem-visual-e-sistema-de-design/02-spec.md",
           "por": "autonomo"
         },
         "plan": {
-          "at": null,
-          "sha": null
+          "at": "2026-09-09T06:51:42Z",
+          "sha": "81620169f54ffa37661ebcd702b91e98e082a62a",
+          "file": "product/items/050-linguagem-visual-e-sistema-de-design/03-plan.md",
+          "por": "autonomo"
         }
       },
       "current_phase": null,
