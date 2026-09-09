@@ -9,6 +9,12 @@ A lista é **ordenada por dependência**, não por prioridade nem por data: a
 posição de um item diz o que precisa existir antes dele. Um item só desce na
 lista quando algo que ele consome ainda não foi construído.
 
+Quando a dependência não decide a ordem, decide o que a fila entrega: **a
+primeira fatia que uma pessoa usa de ponta a ponta vem antes do que a
+apresenta**. É por isso que `014-norma-do-hotsite` e `051-identidade-e-hotsite`
+esperam atrás de `007-lista-e-busca-do-canal` — decisão do dono, 09/09/2026,
+depois de uma semana em que cinco itens fecharam e nenhum deles produziu tela.
+
 O ID é `nnn-slug` e é o nome da pasta em `product/items/`. Ele não se
 reaproveita: número de item removido continua vivo em veredicto, divergência,
 PR e commit já escritos.
@@ -143,67 +149,6 @@ PR e commit já escritos.
       de fechar. `verificar-politica.sh` já reprova o `dist/` que nomeia cabeçalho
       constante; é ele quem acusa se a escolha vazar.
 
-- [ ] `014-norma-do-hotsite` — `apps/site` ganha norma de código escrita:
-      estrutura de rotas, camada de estilo e fronteira de import, com os
-      portões que a cobrem
-      **Depende de:** `050-linguagem-visual-e-sistema-de-design` — a camada de
-      estilo do hotsite é a mesma que o produto escolhe ali, e norma escrita
-      antes dessa escolha descreve um estilo que o produto não usa. Precede
-      `051-identidade-e-hotsite` porque é ele quem faz o hotsite crescer, e norma
-      escrita depois vira a descrição do que o crescimento deixou.
-      **Origem:** decisão autônoma `D8` de `001` — o app não tem pack do
-      harness, e o harness proíbe inventar norma não exercitada de madrugada.
-      Também revisita a configuração de lint da frente: a fase 4 de `001`
-      montou `@next/eslint-plugin-next` sobre `typescript-eslint` porque o
-      `eslint-config-next` não roda no ESLint 10 do repositório, e volta a ser a
-      escolha natural quando `eslint-plugin-react` alcançar essa série — ver
-      `04-divergencias/D-013.md`.
-
-- [ ] `051-identidade-e-hotsite` — o hotsite deixa de ser a página do bootstrap e
-      passa a apresentar o produto a quem chega sem sessão: a tese na primeira
-      dobra, as três dores que ela resolve, o modelo de acesso explicado por
-      imagem em vez de por parágrafo, e a porta para o cadastro no canto superior
-      direito
-      **Depende de:** `050-linguagem-visual-e-sistema-de-design` e
-      `014-norma-do-hotsite` — a identidade do hotsite e a do produto saem dos
-      mesmos tokens, senão a empresa tem duas marcas e quem clica em "entrar"
-      troca de aplicação; e norma escrita depois que o hotsite cresceu é a
-      descrição do que o crescimento deixou.
-      **Origem:** decisão do dono, 04/09/2026. `apps/site` tem hoje um `page.tsx`
-      e um `layout.tsx` de bootstrap, sem folha de estilo nenhuma. O PRD de
-      produto declara um quarto público — "quem visita o hotsite, não está
-      autenticado, não conhece o produto, e decide em menos de um minuto" — e o
-      texto que convence esse público não é o texto que orienta os outros três.
-      **O que ele fecha:**
-      1. **A identidade** — logotipo, paleta aplicada, escala tipográfica de
-         display, tom de voz — derivada dos tokens de `050` e não paralela a eles.
-      2. **A dobra principal** carrega a tese em uma frase: *o acesso segue o
-         trabalho, não o organograma*. Sem jargão de permissão: o público-alvo
-         nunca configurou acesso além de "qualquer pessoa com o link".
-      3. **As três dores do PRD** — o acesso que não acompanha a organização, o
-         documento que perde o dono, achar que depende de conhecer — cada uma com
-         a resposta do produto ao lado.
-      4. **O modelo de acesso mostrado**, não descrito: canal, pessoa e
-         precedência num diagrama que o visitante entende sem ler a spec.
-      5. **A porta para o cadastro** no canto superior direito, como o PRD manda,
-         levando ao fluxo de `002` quando ele existir e a uma lista de espera
-         enquanto não existe.
-      6. **Responsivo de verdade** — do telefone ao monitor largo —, tema claro e
-         escuro, e o corpo da página nunca rolando na horizontal.
-      **Carrega, da Fase 4 de `001`:** os metadados de prévia de link —
-      `metadataBase`, `openGraph` e canonical —, que são a razão declarada de o
-      hotsite ser um app separado e ainda não têm dono. A origem vem de
-      `NEXT_PUBLIC_SITE_URL`, e o `.env` que o `pnpm dev` materializa fica na raiz
-      do repositório, onde o Next não o lê: ou o arquivo passa a existir em
-      `apps/site/`, ou a variável chega `undefined` e o sintoma aparece na prévia
-      do link, longe da causa.
-      **Carrega, da Fase 2 de `023`:** a diretiva `style-src 'self'` da política
-      de conteúdo, que hoje passa porque o hotsite não tem folha de estilo
-      nenhuma — zero `<style>` e zero atributo `style=` no HTML servido. A
-      política não reserva nonce para estilo, então a fase que trouxer a primeira
-      folha reverifica a diretiva no navegador junto, em vez de descobrir o
-      bloqueio depois de publicar.
-
 - [ ] `002-conta-e-organizacao` — quem se cadastra cria a organização e vira o
       seu primeiro administrador; o endereço é confirmado por e-mail, a senha se
       recupera sozinha, e a tela responde a mesma coisa exista ou não a conta
@@ -256,6 +201,74 @@ PR e commit já escritos.
       pessoa pode ver, sem revelar a existência do que ela não pode
       **Depende de:** `006-concessao-individual` — filtrar sem a precedência
       completa devolveria documento que a concessão individual já havia tirado.
+
+- [ ] `014-norma-do-hotsite` — `apps/site` ganha norma de código escrita:
+      estrutura de rotas, camada de estilo e fronteira de import, com os
+      portões que a cobrem
+      **Depende de:** `050-linguagem-visual-e-sistema-de-design` — a camada de
+      estilo do hotsite é a mesma que o produto escolhe ali, e norma escrita
+      antes dessa escolha descreve um estilo que o produto não usa. Precede
+      `051-identidade-e-hotsite` porque é ele quem faz o hotsite crescer, e norma
+      escrita depois vira a descrição do que o crescimento deixou — por isso ele
+      acompanha `051` na fila: norma de uma frente que ninguém está escrevendo é
+      a norma não exercitada que `D8` recusa.
+      **Origem:** decisão autônoma `D8` de `001` — o app não tem pack do
+      harness, e o harness proíbe inventar norma não exercitada de madrugada.
+      Também revisita a configuração de lint da frente: a fase 4 de `001`
+      montou `@next/eslint-plugin-next` sobre `typescript-eslint` porque o
+      `eslint-config-next` não roda no ESLint 10 do repositório, e volta a ser a
+      escolha natural quando `eslint-plugin-react` alcançar essa série — ver
+      `04-divergencias/D-013.md`.
+
+- [ ] `051-identidade-e-hotsite` — o hotsite deixa de ser a página do bootstrap e
+      passa a apresentar o produto a quem chega sem sessão: a tese na primeira
+      dobra, as três dores que ela resolve, o modelo de acesso explicado por
+      imagem em vez de por parágrafo, e a porta para o cadastro no canto superior
+      direito
+      **Depende de:** `050-linguagem-visual-e-sistema-de-design`,
+      `014-norma-do-hotsite` e a fatia de produto que vai de `002` a `007` —
+      o hotsite apresenta um produto que se usa: a porta do canto superior
+      direito leva ao cadastro de `002`, e o modelo de acesso é mostrado com
+      canal, publicação e precedência funcionando, não desenhado. Enquanto essa
+      fatia não existe, a porta leva a uma lista de espera e o diagrama ilustra
+      uma promessa — as duas coisas se jogam fora quando o produto chega. E a identidade do hotsite e a do produto saem dos
+      mesmos tokens, senão a empresa tem duas marcas e quem clica em "entrar"
+      troca de aplicação; e norma escrita depois que o hotsite cresceu é a
+      descrição do que o crescimento deixou.
+      **Origem:** decisão do dono, 04/09/2026. `apps/site` tem hoje um `page.tsx`
+      e um `layout.tsx` de bootstrap, sem folha de estilo nenhuma. O PRD de
+      produto declara um quarto público — "quem visita o hotsite, não está
+      autenticado, não conhece o produto, e decide em menos de um minuto" — e o
+      texto que convence esse público não é o texto que orienta os outros três.
+      **O que ele fecha:**
+      1. **A identidade** — logotipo, paleta aplicada, escala tipográfica de
+         display, tom de voz — derivada dos tokens de `050` e não paralela a eles.
+      2. **A dobra principal** carrega a tese em uma frase: *o acesso segue o
+         trabalho, não o organograma*. Sem jargão de permissão: o público-alvo
+         nunca configurou acesso além de "qualquer pessoa com o link".
+      3. **As três dores do PRD** — o acesso que não acompanha a organização, o
+         documento que perde o dono, achar que depende de conhecer — cada uma com
+         a resposta do produto ao lado.
+      4. **O modelo de acesso mostrado**, não descrito: canal, pessoa e
+         precedência num diagrama que o visitante entende sem ler a spec.
+      5. **A porta para o cadastro** no canto superior direito, como o PRD manda,
+         levando ao fluxo de `002` quando ele existir e a uma lista de espera
+         enquanto não existe.
+      6. **Responsivo de verdade** — do telefone ao monitor largo —, tema claro e
+         escuro, e o corpo da página nunca rolando na horizontal.
+      **Carrega, da Fase 4 de `001`:** os metadados de prévia de link —
+      `metadataBase`, `openGraph` e canonical —, que são a razão declarada de o
+      hotsite ser um app separado e ainda não têm dono. A origem vem de
+      `NEXT_PUBLIC_SITE_URL`, e o `.env` que o `pnpm dev` materializa fica na raiz
+      do repositório, onde o Next não o lê: ou o arquivo passa a existir em
+      `apps/site/`, ou a variável chega `undefined` e o sintoma aparece na prévia
+      do link, longe da causa.
+      **Carrega, da Fase 2 de `023`:** a diretiva `style-src 'self'` da política
+      de conteúdo, que hoje passa porque o hotsite não tem folha de estilo
+      nenhuma — zero `<style>` e zero atributo `style=` no HTML servido. A
+      política não reserva nonce para estilo, então a fase que trouxer a primeira
+      folha reverifica a diretiva no navegador junto, em vez de descobrir o
+      bloqueio depois de publicar.
 
 - [ ] `008-registro-de-auditoria` — todo ato sensível sobre acesso vira uma linha
       consultável, com quem fez, o quê, quando e por quê: proposta, aceite,
