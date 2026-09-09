@@ -91,6 +91,8 @@ sem o "sim" de uma pessoa.
 | `plan` | 09/09/2026 | `03-plan.md`, com as correções desta sessão |
 | `plan` (de novo) | 09/09/2026 | `03-plan.md` reconciliado por `D-002` e `D-003`. A aprovação anterior estava amarrada ao conteúdo de antes das duas reconciliações, e o `state.sh check` acusava a diferença |
 
+| `plan` (mais uma vez) | 09/09/2026 | `03-plan.md` reconciliado por `D-006`. A aprovação anterior estava amarrada ao conteúdo de antes da reconciliação, e o `state.sh check` acusava a diferença |
+
 ## O que esta sessão fez, e o que ela deixou para a próxima
 
 A fase 1 está **`APROVADA`**, com veredicto em `05-veredictos/fase-1.md`: doze
