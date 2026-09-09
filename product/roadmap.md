@@ -1084,6 +1084,25 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       decisão fica melhor com mais de um caso na mão, e o segundo caso aparece na
       primeira fase que precisar de outro instrumento assim.
 
+- [ ] `085-a-regra-de-valor-magico-mede-toda-a-sintaxe-arbitraria-que-promete` — a
+      régua reprova a medida escrita à mão em qualquer propriedade, e não em
+      quatro prefixos escolhidos
+      **Depende de:** `050` — é dele que vêm os primitivos de interface que a
+      ampliação passa a cobrar.
+      **Origem:** revisão do plano de `002-conta-e-organizacao`, em 09/09/2026,
+      como achado fora do escopo. `apps/web/eslint-rules/valor-magico.js` declara
+      `PADROES_PROIBIDOS = ["bg-[", "text-[", "p-[", "h-["]`, então
+      `className="w-[327px]"` passa limpo, e com ele `gap-[`, `min-h-`, `top-`,
+      `grid-cols-[` e o resto da sintaxe arbitrária do Tailwind. A norma da casa
+      diz que valor mágico não entra e que o portão mede; hoje ele mede um quarto
+      da promessa.
+      **Por que não foi fechado onde nasceu:** ampliar a lista reprova `15`
+      ocorrências já escritas, medidas em `apps/web/src` — quase todas
+      `duration-[` nos primitivos de interface de `050`, onde a duração pode ter
+      razão de existir. Fechar é decidir, para cada família de propriedade, o que
+      vira token e o que segue justificado na linha acima, e isso é um raio maior
+      que o de qualquer fase de `002`.
+
 - [ ] `058-o-endereco-de-homologacao-diz-o-nome-do-produto` — os três FQDNs de
       homologação saem de `gbdocs.duckdns.org`, herdado do projeto anterior, para
       um domínio que nomeia esta aplicação
@@ -1524,6 +1543,40 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       spec" para uma spec que já está aprovada — e só não a reescreve porque o
       orquestrador relê o estado por conta própria antes de agir. Fechar é uma
       condição: com o estágio corrente já aprovado, devolver o estágio seguinte.
+
+- [ ] `084-o-oraculo-de-criterios-separa-artefato-de-vocabulario` — o portão de
+      plano reprova o critério que cobra artefato de fase futura, e não a palavra
+      comum entre crases
+      **Depende de:** nada. É `scripts/lints/criteria_lint.py`, no plugin
+      `generic-harness`.
+      **Origem:** estágio `plan` de `002-conta-e-organizacao`, em 09/09/2026, e
+      antes dele o de `050-linguagem-visual-e-sistema-de-design`, no mesmo dia —
+      segunda ocorrência da mesma classe, já diagnosticada em
+      `.harness/proposals/2026-09-09-001.md`. A regra de costura é boa e pega
+      defeito real, mas chama de artefato qualquer palavra entre crases com
+      quatro caracteres, e de etapa toda linha indentada: uma etapa que diz
+      "Criar `x.ts`" e cita na mesma frase o que ela apenas consome faz esse
+      consumo "nascer" ali. Neste plano foram nove acusações, todas falsas —
+      `critical` é severidade do analisador de acessibilidade,
+      `aria-describedby` é atributo de ARIA, `code` é o campo do corpo de erro
+      que a fase 2 cria, e `GET /auth/me` nasce na fase 3, que é uma das fases
+      acusadas. Cada ocorrência custa a uma sessão reabrir um plano de mil e
+      seiscentas linhas para provar o falso positivo, e a saída barata —
+      reescrever a prosa que dispara — não escala. Fechar é o que a proposta
+      descreve: parar a colagem de continuação na primeira linha em branco,
+      exigir forma de artefato em `_e_artefato` — caminho, extensão ou rota —, e
+      rebaixar a costura a aviso quando o alvo não é caminho nem rota. A regra de
+      controle positivo tem o mesmo defeito de vocabulário: ela casa `contém`,
+      `existe`, `diferente de` e código HTTP `2xx`, `4xx` ou `5xx`, e acusou
+      quatro conclusões que traziam o controle positivo com outro verbo — numa
+      delas o gatilho foi a largura `375` da janela do telefone, lida como
+      redirecionamento `3xx`. A colagem
+      é o pior dos três, porque esconde o próprio sintoma: `parse_plano` cola
+      toda linha indentada na última etapa da fase corrente e nunca para, então
+      as seções que vêm depois das fases — execução sugerida, validações
+      pendentes, rastreabilidade — são absorvidas na última etapa da última
+      fase, e tudo que elas citam entre crases passa a "nascer" ali. Quem lê a
+      acusação procura o artefato numa etapa que não o menciona.
 
 - [ ] `037-a-fronteira-de-agent-mede-quem-escreve` — o guard de escopo recusa a
       escrita pelo agent que a fez, e não pelo último agent despachado

@@ -894,7 +894,7 @@
     "002-conta-e-organizacao": {
       "title": "Conta e organização: quem se cadastra cria a organização e vira o seu primeiro administrador; o endereço é confirmado por e-mail, a senha se recupera sozinha, e a tela responde a mesma coisa exista ou não a conta",
       "track": "completa",
-      "stage": "spec",
+      "stage": "plan",
       "stacks": [
         "web",
         "api"
