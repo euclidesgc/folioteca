@@ -337,3 +337,35 @@ exceção.
 `colorScheme: "dark"` ao navegador não muda nada nesta aplicação: o tema é classe
 no elemento raiz, e o alternador só nasce na fase 4. As capturas foram refeitas
 trocando a classe, e é por isso que as novas mostram os dois temas de verdade.
+
+**A validação cega aprovou os doze e achou um portão que não podia reprovar.**
+`scripts/gates/gate5_import_direction.sh` é detector, não juiz: lê a lista de
+arquivos por entrada padrão, imprime `arquivo:linha:trecho` por violação e termina
+sempre com `exit 0` — quem julga é o dispatcher, que trata saída não vazia como
+reprovação. O critério da fase o invocava **sem entrada padrão** e media o código
+de saída: o laço não recebia arquivo nenhum, não examinava nada, e saía `0`. O
+validador provou com controle positivo que o portão imprime a violação e ainda
+assim sai zero. Um critério verde por construção, dentro do item que escreve a
+linguagem visual, e prestes a ser copiado pelas fases 4 e 5. Virou **D-010**, e o
+critério passa a alimentar `git ls-files 'apps/web/src/**'` e exigir saída vazia,
+com a contagem do universo impressa ao lado. Medido depois: universo de `71`
+arquivos, `0` linhas de violação, e o controle positivo produz `1` — as duas
+perguntas, *consegui medir?* e *o que medi?*, agora têm resposta separada.
+*Descartado:* fazer o portão sair diferente de zero, que consertaria o
+instrumento certo pelo motivo errado e mudaria o contrato de todos os detectores
+do harness com o dispatcher, num arquivo que esta fase declara não tocar.
+
+**D-011 fecha o rótulo que a correção do verbo deixou para trás.** O critério de
+movimento reduzido mandava acionar `Publicar` com o diálogo aberto, e o botão do
+diálogo passou a ser `Conceder`. O que o critério mede — duração desprezível com
+diálogo, aviso e esqueleto visíveis ao mesmo tempo — não depende de qual botão
+dispara o aviso, então trocar o nome do controle preserva a medição inteira.
+*Descartado:* devolver o nome `Publicar` ao botão do diálogo, que reintroduziria
+a incoerência de verbo dentro da página que existe para proibi-la.
+
+**O terceiro achado virou asserção, não divergência.** O critério fala em *texto
+acessível* das etiquetas, e os dois casos liam texto renderizado; hoje coincidem
+porque a marca é `aria-hidden`, mas a equivalência era acidental — tirar o
+`aria-hidden` mudaria o texto acessível sem que caso nenhum acusasse. Aqui o
+critério está certo e o teste é que media outra coisa: os dois casos passam a
+provar que a marca está fora da árvore de acessibilidade antes de ler o texto.

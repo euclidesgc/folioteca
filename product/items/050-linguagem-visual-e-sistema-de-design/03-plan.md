@@ -966,12 +966,18 @@ mudança — a página inteira custa milhares de tokens para mostrar o que não 
       número **maior ou igual a** `20`, que é a prova de que houve onde procurar;
       e
       `grep -rcE "from ['\"][^'\"]*(@/features|@/app|@tanstack/react-query)"
-      apps/web/src/shared/components | grep -vc ':0$'` imprime `0`; e
-      `bash scripts/gates/gate5_import_direction.sh` termina com código de saída
-      `0` — `RF-13.b` nomeia esse portão como quem reprova o import proibido, e
-      um `grep` próprio ao lado dele mediria outra coisa com o mesmo nome: o dia
-      em que o portão passasse a ler outro caminho, o critério continuaria
-      verde.
+      apps/web/src/shared/components | grep -vc ':0$'` imprime `0`. E a fronteira
+      inteira se mede pelo portão que `RF-13.b` nomeia, alimentado como o
+      dispatcher o alimenta:
+      `git ls-files 'apps/web/src/**' | wc -l` imprime um número **maior que**
+      `0`, que é a prova de que houve o que examinar; e
+      `git ls-files 'apps/web/src/**' | bash scripts/gates/gate5_import_direction.sh
+      | wc -l` imprime `0` — o portão é detector e imprime `arquivo:linha:trecho`
+      por violação, então é a saída vazia que o aprova, nunca o código de saída,
+      que ele devolve `0` inclusive quando não examinou arquivo nenhum. Um `grep`
+      próprio no lugar dele mediria outra coisa com o mesmo nome: o dia em que o
+      portão passasse a ler outro caminho, o critério continuaria verde.
+      > Reconciliado em D-010.
 - [ ] `estrutural` — `RF-04.c`, `RF-07.b` — dentro da camada de primitivos não
       há segunda definição por tema nem duração literal. Executados na raiz do
       repositório:
@@ -1111,7 +1117,8 @@ mudança — a página inteira custa milhares de tokens para mostrar o que não 
       emulando `prefers-reduced-motion: reduce` e `/design` aberta
       *Quando* a suíte aciona o controle de papel `button` e nome acessível
       `Abrir diálogo de exemplo`, depois o de nome acessível
-      `Publicar`, e lê a amostra de esqueleto de carregamento
+      `Conceder` — o botão do diálogo, cujo aviso diz `Concedido` —, e lê a
+      amostra de esqueleto de carregamento
       *Então* o `transition-duration` e o `animation-duration` computados do
       elemento de papel `dialog`, do elemento de papel `status` do aviso
       temporário e da amostra de esqueleto, convertidos para segundos, são todos
@@ -1125,7 +1132,7 @@ mudança — a página inteira custa milhares de tokens para mostrar o que não 
       e
       `bash scripts/e2e/relatorio.sh criterio "com movimento reduzido a duração some e o estado final permanece"`
       termina com código de saída `0`.
-      > Reconciliado em D-009.
+      > Reconciliado em D-009 e em D-011.
 - [ ] `comportamental` — `RF-25.a`, `RF-25.b`, `RF-25.c`, `RF-32.a`
       *Dado* o artefato servido na origem de pré-visualização e `/design`
       aberta

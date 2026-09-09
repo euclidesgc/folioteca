@@ -307,6 +307,11 @@ test("o filete e a etiqueta dizem de onde vem o acesso", async ({ page }) => {
     const etiqueta = cartoes[origem].getByText(nome, { exact: true });
     await expect(etiqueta).toBeVisible();
     await expect(etiqueta.locator("svg")).toHaveCount(1);
+    await expect(etiqueta.locator("svg")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
+    expect(await etiqueta.textContent()).toBe(nome);
   }
 });
 
@@ -323,6 +328,8 @@ test("a etiqueta densa mantém rótulo e marca a doze pixels", async ({
   const etiqueta = primeiraLinha.getByText("Canal", { exact: true });
   await expect(etiqueta).toBeVisible();
   await expect(etiqueta.locator("svg")).toHaveCount(1);
+  await expect(etiqueta.locator("svg")).toHaveAttribute("aria-hidden", "true");
+  expect(await etiqueta.textContent()).toBe("Canal");
 
   const tamanhoFonte = await etiqueta.evaluate(
     (elemento) => getComputedStyle(elemento).fontSize,
