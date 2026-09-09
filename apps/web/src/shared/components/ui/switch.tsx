@@ -53,7 +53,7 @@ function Label({
   );
 }
 
-// decisão: o papel de alternador e o estado marcado moram aqui, não em quem
+// motivo: o papel de alternador e o estado marcado moram aqui, não em quem
 // compõe. A base entrega um `input` de caixa de seleção, e é essa a semântica
 // que chega ao leitor de tela se ninguém a corrigir — quem vê um alternador
 // ouviria "caixa de seleção". Fiado aqui, toda tela herda o acerto; exigido de
