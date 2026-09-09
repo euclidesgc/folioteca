@@ -193,7 +193,13 @@ jobs:
       # relatório JSON daquela execução, amarrado à árvore que o produziu. É dele
       # que cada critério comportamental é respondido — nenhum critério sobe a
       # aplicação de novo para medir o que esta execução já mediu.
+      # A porta é declarada e diferente da que `verificar-politica.sh` usa no job
+      # vizinho: os dois rodam em paralelo, na mesma máquina, e o padrão 4173
+      # fazia o segundo a chegar morrer com `is already used`. Vermelho
+      # intermitente, sem relação com o diff, que some ao reexecutar sozinho.
       - name: Playwright, numa subida só
+        env:
+          WEB_PREVIEW_PORT: "4273"
         run: bash scripts/e2e/relatorio.sh rodar
 
       # O relatório sobe SEMPRE, e não só na falha: ele é a evidência de que os
