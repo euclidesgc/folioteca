@@ -15,6 +15,7 @@ import { Skeleton } from "@/shared/components/ui/skeleton";
 import { EmptyState } from "@/shared/components/ui/empty-state";
 import { Pagination } from "@/shared/components/ui/pagination";
 import { AccessBadge } from "@/shared/components/access/access-badge";
+import { Badge } from "@/shared/components/ui/badge";
 import {
   AccessSpine,
   accessSpineVariants,
@@ -514,6 +515,14 @@ function EtiquetaDeExemplo() {
           <AccessBadge origin="canal" reduced />
           <Token nome="AccessBadge origin=canal (reduzida)" />
         </li>
+        <li className="flex flex-col items-start gap-2">
+          <Badge tone="neutro">Rascunho</Badge>
+          <Token nome="tone=neutro" />
+        </li>
+        <li className="flex flex-col items-start gap-2">
+          <Badge tone="acao">Publicado</Badge>
+          <Token nome="tone=acao" />
+        </li>
       </ul>
       <ListaDensaDeAcesso />
     </div>
@@ -564,11 +573,11 @@ function MenuDeExemplo() {
 }
 
 function DialogoDeExemplo() {
-  const [publicado, setPublicado] = useState(false);
+  const [concedido, setConcedido] = useState(false);
 
   return (
     <div className="flex flex-col items-start gap-2">
-      <Dialog.Root onOpenChange={() => setPublicado(false)}>
+      <Dialog.Root onOpenChange={() => setConcedido(false)}>
         <Dialog.Trigger>Abrir diálogo de exemplo</Dialog.Trigger>
         <Dialog.Backdrop />
         <Dialog.Positioner>
@@ -583,9 +592,9 @@ function DialogoDeExemplo() {
             </label>
             <div className="flex justify-end gap-2">
               <Dialog.CloseTrigger>Cancelar</Dialog.CloseTrigger>
-              <Button onClick={() => setPublicado(true)}>Publicar</Button>
+              <Button onClick={() => setConcedido(true)}>Conceder</Button>
             </div>
-            {publicado ? <Toast tone="sucesso">Publicado</Toast> : null}
+            {concedido ? <Toast tone="sucesso">Concedido</Toast> : null}
           </Dialog.Content>
         </Dialog.Positioner>
       </Dialog.Root>
@@ -595,9 +604,12 @@ function DialogoDeExemplo() {
 }
 
 function AvisoTemporarioDeExemplo() {
+  const [publicado, setPublicado] = useState(false);
+
   return (
     <div className="flex flex-col items-start gap-2">
-      <Toast tone="sucesso">Publicado</Toast>
+      <Button onClick={() => setPublicado(true)}>Publicar</Button>
+      {publicado ? <Toast tone="sucesso">Publicado</Toast> : null}
       <Token nome="role=status" />
     </div>
   );

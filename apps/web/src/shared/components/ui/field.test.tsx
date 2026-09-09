@@ -43,6 +43,32 @@ describe("Field", () => {
     expect(erro.textContent?.length).toBeGreaterThan(0);
   });
 
+  it("describes an errored field by its error alone when it carries no hint", () => {
+    render(
+      <Field.Root invalid hasHint={false}>
+        <Field.Label>Nome do documento</Field.Label>
+        <Field.Control type="text" />
+        <Field.Error>Não consegui salvar: a conexão caiu.</Field.Error>
+      </Field.Root>,
+    );
+    const controle = screen.getByRole("textbox", { name: "Nome do documento" });
+    expect(controle).toHaveAttribute("aria-invalid", "true");
+    expect(controle).toHaveAccessibleDescription(
+      "Não consegui salvar: a conexão caiu.",
+    );
+  });
+
+  it("leaves a resting field with no hint undescribed, rather than pointing at an absent element", () => {
+    render(
+      <Field.Root hasHint={false}>
+        <Field.Label>Nome do documento</Field.Label>
+        <Field.Control type="text" />
+      </Field.Root>,
+    );
+    const controle = screen.getByRole("textbox", { name: "Nome do documento" });
+    expect(controle).not.toHaveAttribute("aria-describedby");
+  });
+
   it("throws when a part renders outside of Field.Root, instead of silently losing its wiring", () => {
     expect(() => render(<Field.Label>Solto</Field.Label>)).toThrow();
   });

@@ -348,10 +348,10 @@ test("com movimento reduzido a duração some e o estado final permanece", async
   const dialogo = page.getByRole("dialog");
   await expect(dialogo).toBeVisible();
 
-  await page.getByRole("button", { name: "Publicar" }).click();
+  await page.getByRole("button", { name: "Conceder" }).click();
   const aviso = page.getByRole("status");
   await expect(aviso).toBeVisible();
-  await expect(aviso).toHaveText("Publicado");
+  await expect(aviso).toHaveText("Concedido");
 
   const focoDentroDoDialogo = await dialogo.evaluate((elemento) =>
     elemento.contains(document.activeElement),
@@ -422,10 +422,10 @@ test("o verbo é o mesmo do botão ao aviso, e o erro diz o que fazer", async ({
 }) => {
   await page.goto("/design");
 
-  await page.getByRole("button", { name: "Abrir diálogo de exemplo" }).click();
-  await page.getByRole("button", { name: "Publicar" }).click();
+  const regiaoDoAviso = page.getByRole("region", { name: "Aviso temporário" });
+  await regiaoDoAviso.getByRole("button", { name: "Publicar" }).click();
 
-  const aviso = page.getByRole("status");
+  const aviso = regiaoDoAviso.getByRole("status");
   await expect(aviso).toHaveText("Publicado");
 
   const erroDeConexao = page.getByText(

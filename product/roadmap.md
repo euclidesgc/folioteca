@@ -843,6 +843,39 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       preciso na primeira pintura. O teto vem antes da divisão: sem ele, a divisão
       não tem como provar que resolveu.
 
+- [ ] `073-o-artefato-da-web-responde-pelo-icone-que-o-navegador-pede` — quem abre
+      a aplicação vê o ícone dela na aba, e o console não traz um 404 a cada carga
+      **Depende de:** nada. É um arquivo em `apps/web/public/` e a linha que o
+      declara em `apps/web/index.html`.
+      **Origem:** fase 3 de `050`, medido em 09/09/2026 no navegador contra o
+      artefato servido em 4173. Toda carga de `/design` traz
+      `Failed to load resource: the server responded with a status of 404
+      (Not Found) @ /favicon.ico`. Não há favicon no repositório, e o navegador
+      pede um sempre.
+      **Anda junto de `066`.** Os dois são erro de console em toda carga, os dois
+      moram em arquivos que nenhuma fase de `050` pode tocar, e enquanto os dois
+      existirem nenhum critério consegue exigir "console sem erro" sem nomear
+      exceção. Fechá-los na mesma passagem é o que devolve o console como
+      instrumento de medida.
+
+- [ ] `074-a-interacao-nos-testes-de-unidade-passa-pelo-ponteiro-de-verdade` — o
+      teste unitário que clica um controle exercita o mesmo caminho que a pessoa
+      exercita, e um `pointer-events-none` acidental reprova
+      **Depende de:** `050-linguagem-visual-e-sistema-de-design` — a troca é de
+      padrão e vale para a suíte inteira; fazê-la enquanto os primitivos ainda
+      nascem obrigaria a refazê-la a cada fase.
+      **Origem:** revisão da fase 3 de `050`, em 09/09/2026. As skills da casa
+      pedem `userEvent`, e a suíte usa `fireEvent` em `button.test.tsx` (fase 2),
+      `checkbox.test.tsx` e `pagination.test.tsx` (fase 3). `fireEvent` despacha
+      o evento direto no nó, sem passar pelo teste de acerto do ponteiro: um
+      controle coberto por outro elemento, ou com `pointer-events-none`, continua
+      passando no teste e falha para quem usa o produto.
+      **Por que não foi feito na fase 3:** `@testing-library/user-event` não está
+      declarado em `apps/web/package.json`, e o plano da fase lista esse arquivo e
+      o `pnpm-lock.yaml` entre os que ela não toca. Trocar em dois arquivos e
+      deixar o terceiro como está trocaria um desvio por uma inconsistência.
+      Fechar é declarar a dependência e converter os três de uma vez.
+
 - [ ] `058-o-endereco-de-homologacao-diz-o-nome-do-produto` — os três FQDNs de
       homologação saem de `gbdocs.duckdns.org`, herdado do projeto anterior, para
       um domínio que nomeia esta aplicação
