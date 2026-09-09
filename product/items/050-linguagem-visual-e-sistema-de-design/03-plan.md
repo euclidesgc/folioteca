@@ -1,7 +1,7 @@
 # Plano — 050-linguagem-visual-e-sistema-de-design · Linguagem visual e sistema de design
 
 **Item:** `050-linguagem-visual-e-sistema-de-design` · **Trilha:** completa ·
-**PRD:** `01-prd.md` · **Spec:** `02-spec.md` (`RF-01` a `RF-32`, `RNF-01` a
+**PRD:** `01-prd.md` · **Spec:** `02-spec.md` (`RF-01` a `RF-33`, `RNF-01` a
 `RNF-05`) · **Decisões fixadas:** `00-discovery.md`, seção **Decisões**
 (`D1` a `D8`)
 
@@ -14,8 +14,18 @@ servidas pela própria origem, quinze primitivos de interface em
 cada acesso, um esqueleto de aplicação com quatro destinos navegáveis e gaveta
 abaixo de 768px, e a rota `/design` no artefato publicado — onde tudo isso é
 exercitado e onde a acessibilidade é medida numa execução única da suíte
-comportamental, contra o artefato servido por `vite preview` em
-`http://localhost:4173`.
+comportamental, contra o artefato servido por `vite preview` na origem de
+pré-visualização.
+
+**A origem de pré-visualização é lida, nunca escrita.** Ela é
+`http://localhost:<porta>`, com a porta vinda de `WEB_PREVIEW_PORT` e `4173` por
+padrão — `apps/web/playwright.config.ts` a resolve e a publica como `baseURL`,
+e o job comportamental de `.github/workflows/_suite-react.yml` a fixa em `4273`,
+porque na mesma máquina ele disputava a 4173 com o job que verifica a política.
+Todo caso navega por caminho relativo, e todo critério que fala de origem a lê da
+página com `new URL(page.url()).origin`. **Nenhum critério escreve a porta.** Um
+número escrito à mão aqui fica verde na máquina de quem implementa e vermelho no
+CI, acusando o ambiente em vez do código.
 
 ## Por que cinco fases, nesta ordem
 
@@ -123,10 +133,11 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
       **maior ou igual a** `1`.
 - [ ] `estrutural` — `RF-02.a`, `RF-02.b`, `RF-04.a`, `RF-04.b` — o arquivo de
       tema `apps/web/src/shared/styles/theme.css` declara os seis tokens de cor
-      da direção "Lombada" com os valores fixados, num bloco `.tema-claro` e num
-      bloco `.tema-escuro`, com o mesmo conjunto de nomes nos dois e apenas
-      `--color-carimbo` com valor diferente entre eles. Executado na raiz do
-      repositório:
+      da direção "Lombada" num bloco `.tema-claro` e num bloco `.tema-escuro`,
+      com o mesmo conjunto de nomes nos dois; o bloco claro traz os valores que a
+      direção fixou; e em **cada** bloco os quatro tokens de conteúdo — tinta,
+      grafite, verdete e carimbo — têm razão de contraste **maior ou igual a**
+      `4.5` contra a superfície daquele bloco. Executado na raiz do repositório:
 
       ```
       python3 - <<'PY'
@@ -138,20 +149,51 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
           assert m, f'bloco {seletor} ausente'
           return {k: v.strip().upper() for k, v in
                   re.findall(r'(--color-[a-z0-9-]+)\s*:\s*([^;]+);', m.group(1))}
+      def luminancia(valor):
+          h = valor.lstrip('#')
+          assert re.fullmatch(r'[0-9A-F]{6}', h), f'valor não é hex de seis dígitos: {valor}'
+          canais = [int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+          linear = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+                    for c in canais]
+          return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+      def razao(a, b):
+          la, lb = luminancia(a), luminancia(b)
+          return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
       claro, escuro = bloco('.tema-claro'), bloco('.tema-escuro')
-      esperado = {'--color-papel': '#F4F4F1', '--color-tinta': '#15191B',
-                  '--color-grafite': '#5A6165', '--color-verdete': '#1E4B43',
-                  '--color-carimbo': '#8E1B5B', '--color-fio': '#DBDCD6'}
-      print(sorted(claro) == sorted(escuro))
-      print(all(claro.get(k) == v for k, v in esperado.items()))
-      print(sorted(k for k in claro if claro[k] != escuro.get(k)))
+      fixado = {'--color-papel': '#F4F4F1', '--color-tinta': '#15191B',
+                '--color-grafite': '#5A6165', '--color-verdete': '#1E4B43',
+                '--color-carimbo': '#8E1B5B', '--color-fio': '#DBDCD6'}
+      print(sorted(claro) == sorted(escuro) == sorted(fixado))
+      print(all(claro.get(k) == v for k, v in fixado.items()))
+      conteudo = ['--color-tinta', '--color-grafite', '--color-verdete',
+                  '--color-carimbo']
+      for nome, b in (('claro', claro), ('escuro', escuro)):
+          medidas = {k: round(razao(b[k], b['--color-papel']), 2) for k in conteudo}
+          print(nome, medidas, min(medidas.values()) >= 4.5)
       PY
       ```
 
-      termina com código de saída `0` e imprime, nesta ordem, as três linhas
-      `True`, `True` e `['--color-carimbo']`. Arquivo ausente, bloco ausente ou
-      nome declarado só no escuro fazem o comando terminar com código diferente
-      de `0` sem imprimir as três linhas.
+      termina com código de saída `0` e imprime, nesta ordem, quatro linhas: as
+      duas primeiras `True` — os três conjuntos de nomes coincidem, e os seis
+      valores do bloco claro são os que a direção fixou —, e as duas seguintes
+      começando pelo nome do bloco medido, cada uma com as quatro razões medidas
+      e terminando em `True`. Arquivo ausente, bloco ausente, nome declarado só num
+      dos blocos ou valor que não seja hex de seis dígitos fazem o comando
+      terminar com código diferente de `0` sem imprimir as quatro linhas.
+
+      **Por que o bloco escuro não é medido por igualdade de valores.** A régua
+      da casa é contraste AA nos dois temas, e ela é o que decide: RF-04.a e
+      RF-04.b exigem o mesmo conjunto de **nomes** nos dois blocos, RF-02.c
+      fixa número apenas para o `carimbo`, e RF-04.c proíbe `dark:` dentro do
+      primitivo — então o único lugar onde o tema escuro pode acertar o contraste
+      é o valor do token. Exigir os seis valores idênticos entre os blocos, com
+      exceção do `carimbo`, herdaria para o escuro grafite `#5A6165` sobre tinta
+      `#15191B` a 2,81:1 e verdete `#1E4B43` sobre a mesma superfície a 1,81:1,
+      medidos — os dois abaixo do mínimo AA, com a regra de contraste do axe
+      classificada como séria e a fase 1 reprovando quatro fases depois, na 5,
+      sem saída que não fosse afrouxar a régua. A paleta do dono continua
+      intacta: os valores que ele fixou são os do tema claro, e o bloco escuro
+      deriva os seus pela medição, como já fazia para o `carimbo`.
 - [ ] `estrutural` — `RF-03.a`, `RF-03.b`, `RF-03.c` —
       `apps/web/src/shared/styles/theme.css` declara `--font-display`,
       `--font-body` e `--font-mono` resolvidos para Fraunces, Atkinson
@@ -239,10 +281,10 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
       `grep -c '' apps/web/dist/index.html` imprime um número **maior que** `0` e
       `grep -c -F 'font-src' apps/web/dist/index.html` imprime `0`.
 - [ ] `comportamental` — `RF-11.a`, `RF-11.b`, `RF-11.d`
-      *Dado* o artefato de build servido por `vite preview` em
-      `http://localhost:4173`, subido uma vez pela execução única da suíte
+      *Dado* o artefato de build servido por `vite preview` na origem de
+      pré-visualização, subido uma vez pela execução única da suíte
       comportamental
-      *Quando* a suíte abre `http://localhost:4173/design`
+      *Quando* a suíte abre `/design`
       *Então* o `font-family` computado do elemento de papel `heading` de nível
       `1` da página contém a cadeia `Fraunces`, e
       `document.fonts.check('16px Fraunces')` avaliado na página devolve `true` —
@@ -253,13 +295,14 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
       `bash scripts/e2e/relatorio.sh criterio "a página viva usa a face auto-hospedada"`
       termina com código de saída `0`.
 - [ ] `comportamental` — `RF-08.d`, `RF-11.c`, `RF-26.d`
-      *Dado* o mesmo artefato servido em `http://localhost:4173`, com um coletor
-      de requisições de rede e um coletor de mensagens do console instalados
-      antes da navegação
-      *Quando* a suíte abre `http://localhost:4173/design` e espera o estado
+      *Dado* o mesmo artefato servido na origem de pré-visualização, com um
+      coletor de requisições de rede e um coletor de mensagens do console
+      instalados antes da navegação
+      *Quando* a suíte abre `/design` e espera o estado
       `networkidle`
       *Então* a lista de requisições cujo `resourceType` é `stylesheet` ou `font`
-      e cuja origem é diferente de `http://localhost:4173` é vazia; a lista de
+      e cuja origem é diferente da origem servida — lida na própria página por
+      `new URL(page.url()).origin` — é vazia; a lista de
       requisições para a origem `http://localhost:3000` é vazia; e nenhuma
       mensagem do console contém `Refused to load the stylesheet` nem
       `Applying inline style violates`. As três listas são impressas na falha, e
@@ -271,14 +314,13 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
       `bash scripts/e2e/relatorio.sh criterio "a página viva não busca nada fora do próprio artefato"`
       termina com código de saída `0`.
 - [ ] `comportamental` — `RF-19.a`, `RF-19.b`, `RF-19.c`, `RF-26.b`
-      *Dado* o artefato servido em `http://localhost:4173`, sem nenhuma
+      *Dado* o artefato servido na origem de pré-visualização, sem nenhuma
       credencial, cookie ou cabeçalho de autorização na sessão do navegador
-      *Quando* a suíte navega direto para `http://localhost:4173/design` pela
+      *Quando* a suíte navega direto para `/design` pela
       barra de endereço e, em seguida, recarrega a página sobre essa mesma rota
       *Então* as duas respostas têm código HTTP `200`, e nas duas a página traz
       um elemento de papel `heading` de nível `1` cujo texto acessível é
-      `Página viva`; e uma navegação a `http://localhost:4173/` na mesma sessão
-      continua trazendo o elemento de papel `status` com o texto `ok`.
+      `Página viva`.
       O caso se chama `a rota /design sobrevive à abertura direta e à recarga`, e
       `bash scripts/e2e/relatorio.sh criterio "a rota /design sobrevive à abertura direta e à recarga"`
       termina com código de saída `0`.
@@ -343,9 +385,11 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
       `--font-body`, `--font-mono`, `--spacing`, `--radius-*`, `--shadow-*`,
       `--breakpoint-telefone: 768px`, `--duracao-rapida`, `--duracao-padrao`,
       `--curva-padrao`; o bloco `.tema-claro` com os seis tokens de cor da
-      paleta; o bloco `.tema-escuro` com **os mesmos seis nomes**, iguais em
-      cinco e com `--color-carimbo` num segundo valor mais claro; e a regra
-      `:focus-visible` que desenha o indicador de foco lendo o token de ação.
+      paleta, nos valores que a direção fixou; o bloco `.tema-escuro` com **os
+      mesmos seis nomes**, cada valor escolhido **medindo** a razão de contraste
+      contra a superfície do próprio bloco até os quatro tokens de conteúdo
+      passarem de 4,5:1; e a regra `:focus-visible` que desenha o indicador de
+      foco lendo o token de ação.
       Sobre a paleta, os tokens semânticos de papel — superfície, texto, ação,
       lombada — são declarados nos dois blocos, com o mesmo conjunto de nomes,
       trocando de valor entre eles: é isso que dispensa `dark:` dentro dos
@@ -355,10 +399,10 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
       Justificativa: `RF-01.a`, `RF-02`, `RF-03.a`, `RF-04.a`, `RF-04.b`,
       `RF-07.a`, `RF-24.a`, com `D1` e `D3`. Na v4 o token nasce em `@theme`
       dentro do CSS, e não num `tailwind.config.ts` — é essa diferença que a
-      etapa 1.8 reconcilia na skill. O `carimbo` tem dois valores porque só ele
-      tem problema de contraste sobre superfície escura, e o valor do bloco
-      escuro é escolhido medindo a razão contra a superfície em que ele aparece,
-      não a olho: quem cobra é o critério da fase 5. O ponto de quebra é token
+      etapa 1.8 reconcilia na skill. O valor de cada token no bloco escuro é
+      escolhido medindo a razão contra a superfície em que ele aparece, não a
+      olho: quem cobra é o critério de contraste desta fase, e o axe da fase 5
+      cobra de novo na página viva. O ponto de quebra é token
       único do produto porque `002` a `007` precisam de um número, e não de
       quatro números iguais em quatro arquivos.
 - [ ] 1.4 Modificar `apps/web/vite.config.ts` acrescentando o plugin
@@ -472,9 +516,11 @@ divergência, não improviso.** A etapa 2.1 mede o posicionamento flutuante da b
 candidata contra o artefato construído em 4173. Se o console registrar
 `Applying inline style violates` ou o elemento flutuante ficar em `(0, 0)`, o
 caminho vira misto — diálogo e dica passam a `<dialog>` e `popover` nativos, menu
-e seleção continuam sobre a base —, e a mudança é registrada como divergência em
-`product/items/050-linguagem-visual-e-sistema-de-design/04-divergencias/D-001.md`
-com a linha `**Status:**` e a entrada correspondente em `product/state.json`,
+e seleção continuam sobre a base —, e a mudança é registrada como divergência no próximo
+arquivo livre de
+`product/items/050-linguagem-visual-e-sistema-de-design/04-divergencias/` —
+`D-002.md`, já que `D-001` é a do documento canônico da direção visual — com a
+linha `**Status:**` e a entrada correspondente em `product/state.json`,
 porque ela muda o que o item entrega. O que **não** vale é afrouxar a política:
 `exige_politica_com_nove_diretivas` reprova a décima diretiva e
 `exige_politica_sem_termo` reprova `unsafe-inline`.
@@ -482,9 +528,9 @@ porque ela muda o que o item entrega. O que **não** vale é afrouxar a polític
 **Critérios de aceite:**
 
 - [ ] `comportamental` — `RF-18.d`, `RF-18.e`
-      *Dado* o artefato de build servido em `http://localhost:4173`, com um
+      *Dado* o artefato de build servido na origem de pré-visualização, com um
       coletor de mensagens do console instalado antes da navegação
-      *Quando* a suíte abre `http://localhost:4173/design`, aciona o controle de
+      *Quando* a suíte abre `/design`, aciona o controle de
       papel `button` e nome acessível `Abrir menu de exemplo`, e em seguida move
       o foco para o controle de nome acessível `Campo com dica`
       *Então* o elemento de papel `menu` fica visível com `boundingBox()` de
@@ -551,10 +597,10 @@ porque ela muda o que o item entrega. O que **não** vale é afrouxar a polític
       `rm apps/web/src/shared/components/ui/__sonda.tsx` seguido de
       `pnpm --filter web run typecheck`, que termina com código de saída `0`.
 - [ ] `comportamental` — `RF-15.a`, `RF-15.b`
-      *Dado* o artefato servido em `http://localhost:4173`, onde `/design`
-      apresenta uma amostra de botão com nome acessível
-      `Botão com classe de fora` construída passando `className="px-6"` a um
-      primitivo cuja classe padrão traz `px-4`
+      *Dado* o artefato servido na origem de pré-visualização, onde `/design`
+      apresenta uma amostra de botão com nome acessível `Botão com classe de
+      fora` construída passando `className="px-6"` a um primitivo cuja classe
+      padrão traz `px-4`
       *Quando* a suíte lê o atributo `class` desse elemento e o `padding-left`
       computado dele
       *Então* a lista de classes contém `px-6` e **não** contém `px-4`, e o
@@ -565,9 +611,9 @@ porque ela muda o que o item entrega. O que **não** vale é afrouxar a polític
       `bash scripts/e2e/relatorio.sh criterio "a classe de fora vence a classe padrão"`
       termina com código de saída `0`.
 - [ ] `comportamental` — `RF-18.a`
-      *Dado* o artefato servido em `http://localhost:4173`, com `/design` aberta
-      e o diálogo de exemplo aberto pelo controle de papel `button` e nome
-      acessível `Abrir diálogo de exemplo`
+      *Dado* o artefato servido na origem de pré-visualização, com `/design`
+      aberta e o diálogo de exemplo aberto pelo controle de papel `button` e
+      nome acessível `Abrir diálogo de exemplo`
       *Quando* a suíte pressiona `Tab` doze vezes e depois `Shift+Tab` doze vezes
       *Então* em cada uma das vinte e quatro leituras o elemento com foco está
       contido no elemento de papel `dialog` — medido por
@@ -578,9 +624,9 @@ porque ela muda o que o item entrega. O que **não** vale é afrouxar a polític
       `bash scripts/e2e/relatorio.sh criterio "o diálogo prende o foco enquanto está aberto"`
       termina com código de saída `0`.
 - [ ] `comportamental` — `RF-18.b`
-      *Dado* o artefato servido em `http://localhost:4173`, com `/design` aberta
-      e o foco no controle de papel `button` e nome acessível
-      `Abrir diálogo de exemplo`
+      *Dado* o artefato servido na origem de pré-visualização, com `/design`
+      aberta e o foco no controle de papel `button` e nome acessível `Abrir
+      diálogo de exemplo`
       *Quando* a suíte aciona esse controle, espera o elemento de papel `dialog`
       ficar visível, e pressiona `Escape`
       *Então* o elemento de papel `dialog` deixa de existir na página, e o nome
@@ -589,9 +635,9 @@ porque ela muda o que o item entrega. O que **não** vale é afrouxar a polític
       `bash scripts/e2e/relatorio.sh criterio "o Esc fecha o diálogo e devolve o foco"`
       termina com código de saída `0`.
 - [ ] `comportamental` — `RF-12.c`
-      *Dado* o artefato servido em `http://localhost:4173`, com `/design` aberta
-      e o controle de nome acessível `Campo com dica` fora de foco e sem ponteiro
-      sobre ele
+      *Dado* o artefato servido na origem de pré-visualização, com `/design`
+      aberta e o controle de nome acessível `Campo com dica` fora de foco e
+      sem ponteiro sobre ele
       *Quando* a suíte move o foco do teclado para esse controle e, depois de
       afastá-lo, aproxima o ponteiro do mesmo controle
       *Então* nas duas vezes o elemento de papel `tooltip` com o texto
@@ -602,15 +648,18 @@ porque ela muda o que o item entrega. O que **não** vale é afrouxar a polític
       `bash scripts/e2e/relatorio.sh criterio "a dica abre no foco do teclado e no ponteiro"`
       termina com código de saída `0`.
 - [ ] `comportamental` — `RF-18.c`
-      *Dado* o artefato servido em `http://localhost:4173`, com `/design` aberta
-      e o foco no controle de papel `combobox` e nome acessível
-      `Origem do acesso`
+      *Dado* o artefato servido na origem de pré-visualização, com `/design`
+      aberta e o foco no controle de papel `combobox` e nome acessível `Origem
+      do acesso`
       *Quando* a suíte pressiona `Enter`, depois `ArrowDown`, depois `Enter`; e
       em seguida move o foco para o controle de papel `switch` e nome acessível
       `Mostrar arquivados` e pressiona `Space`
-      *Então* o valor exibido do `combobox` passa a ser `Pessoa`, o elemento de
-      papel `listbox` deixa de existir na página, e o `aria-checked` do `switch`
-      passa de `false` para `true` — o comportamento de teclado é entregue pelo
+      *Então* depois do primeiro `Enter` o elemento de papel `listbox` está
+      visível com ao menos uma opção — o controle positivo, sem o qual a
+      ausência dele ao fim seria verdade também para uma seleção que nunca
+      abriu —; ao fim, o valor exibido do `combobox` passa a ser `Pessoa`, o
+      elemento de papel `listbox` deixa de existir na página, e o `aria-checked`
+      do `switch` passa de `false` para `true` — o comportamento de teclado é entregue pelo
       primitivo, e nenhum manipulador de tecla foi escrito na página que os
       compõe.
       O caso se chama `a seleção e o alternador respondem ao teclado`, e
@@ -657,15 +706,17 @@ porque ela muda o que o item entrega. O que **não** vale é afrouxar a polític
       `minimumReleaseAge: 10080`. Montar em `/design` um menu e uma dica sobre
       ela, construir o artefato com
       `VITE_API_URL=http://localhost:3000 pnpm --filter web run build`, servir com
-      `pnpm --filter web run preview` e abrir `http://localhost:4173/design` num
-      navegador, observando duas coisas: se o console registra
+      `pnpm --filter web run preview` e abrir `/design` na origem que esse
+      comando imprime, num navegador, observando duas coisas: se o console registra
       `Applying inline style violates`, e se o elemento flutuante tem caixa com
       largura e altura maiores que zero. Reprovando qualquer uma, passar diálogo
       e dica para `<dialog>` e `popover` nativos, manter menu e seleção sobre a
-      base, e abrir
-      `product/items/050-linguagem-visual-e-sistema-de-design/04-divergencias/D-001.md`
-      com a linha `**Status:** PENDENTE` e a entrada correspondente em
-      `product/state.json`.
+      base, e abrir o
+      próximo arquivo livre em
+      `product/items/050-linguagem-visual-e-sistema-de-design/04-divergencias/`
+      — `D-002.md`, porque `D-001` já é a divergência do documento canônico da
+      direção visual — com a linha `**Status:** PENDENTE` e a entrada
+      correspondente em `product/state.json`.
       *Considerando a fase 1: a folha estática, os tokens e a rota `/design` já
       estão no artefato, então a medição acontece na superfície onde a política
       existe.*
@@ -750,8 +801,12 @@ porque ela muda o que o item entrega. O que **não** vale é afrouxar a polític
       aceita (`motivo:`, `por quê:`, `decisão:`, `contorno:`, `invariante:`,
       `limitação:`, `restrição:`), e reporta arquivo e linha. Modificar
       `apps/web/eslint.config.mjs` para declarar a regra como erro em
-      `apps/web/src/**`, com `apps/web/src/shared/components/**` em `ignores`
-      dessa entrada. A chave `scripts.lint` de `apps/web/package.json` não muda.
+      `src/**`, com `src/shared/components/**` em `ignores` dessa entrada. **Os
+      dois globs são relativos**, como os que já estão no arquivo: o comando é
+      `eslint .` rodado pelo filtro do pnpm, com o diretório corrente em
+      `apps/web`, e um glob prefixado por `apps/web/` não casaria arquivo nenhum
+      — a regra ficaria declarada, verde e sem medir nada. A chave `scripts.lint`
+      continua sendo `eslint .`.
       *Considerando 2.5: já há componente escrito para a regra medir, e a régua
       passa a valer antes dos nove primitivos da fase 3.*
       Justificativa: `RF-31.a`, `RF-31.c`, `RF-31.d`, com `D6`. Regra local em
@@ -865,8 +920,12 @@ mudança — a página inteira custa milhares de tokens para mostrar o que não 
       apps/web/src/shared/components | grep -vc ':0$'` imprime `0`.
 - [ ] `estrutural` — `RF-04.c`, `RF-07.b` — dentro da camada de primitivos não
       há segunda definição por tema nem duração literal. Executados na raiz do
-      repositório: `find apps/web/src/shared/components/ui -name '*.tsx' | wc -l`
-      imprime `15`, que é a prova de que houve onde procurar;
+      repositório:
+      `find apps/web/src/shared/components/ui -name '*.tsx' ! -name '*.test.tsx' |
+      wc -l` imprime `15`, que é a prova de que houve onde procurar — a exclusão
+      do arquivo de teste é a mesma que o critério dos quinze primitivos faz, e
+      sem ela os dois se contradiriam no dia em que um teste unitário nascesse ao
+      lado do primitivo;
       `grep -rc -F 'dark:' apps/web/src/shared/components/ui | grep -vc ':0$'`
       imprime `0`; e
       `grep -rcE '[0-9]+(ms|s)\b' apps/web/src/shared/components/ui |
@@ -891,13 +950,16 @@ mudança — a página inteira custa milhares de tokens para mostrar o que não 
       um número **maior ou igual a** `1`;
       `grep -c -F 'verdete' apps/web/src/shared/components/access/access-spine.tsx`
       imprime um número **maior ou igual a** `1`;
-      `python3 -c "import re,pathlib;t=pathlib.Path('apps/web/src/shared/styles/theme.css').read_text(encoding='utf-8');m=re.search(r':focus-visible\s*\{(.*?)\}',t,re.S);print(bool(m) and 'verdete' in m.group(1))"`
-      imprime `True`; `find apps/web/src/features -name '*.tsx' -o -name '*.ts' |
+      `python3 -c "import re,pathlib;t=pathlib.Path('apps/web/src/shared/styles/theme.css').read_text(encoding='utf-8');m=re.search(r':focus-visible\s*\{(.*?)\}',t,re.S);assert m,'sem regra :focus-visible';print([l.strip() for l in m.group(1).splitlines() if 'verdete' in l])"`
+      imprime uma lista com ao menos uma declaração, e a regra ausente faz o
+      comando terminar com código diferente de `0` — o oráculo imprime a linha
+      que leu, e não um booleano que responde igual para o arquivo que ele não
+      encontrou; `find apps/web/src/features -name '*.tsx' -o -name '*.ts' |
       wc -l` imprime um número **maior que** `0`; e
       `grep -ric -F '#1E4B43' apps/web/src/features | grep -vc ':0$'` imprime `0`.
 - [ ] `comportamental` — `RF-12.b`, `RF-16.a`, `RF-16.c`
-      *Dado* o artefato servido em `http://localhost:4173`, com `/design` aberta
-      e a amostra de campo em estado de erro
+      *Dado* o artefato servido na origem de pré-visualização, com `/design`
+      aberta e a amostra de campo em estado de erro
       *Quando* a suíte localiza o controle por
       `getByRole("textbox", { name: "E-mail" })`
       *Então* esse controle tem `aria-invalid` igual a `"true"`, e a descrição
@@ -909,8 +971,8 @@ mudança — a página inteira custa milhares de tokens para mostrar o que não 
       `bash scripts/e2e/relatorio.sh criterio "o campo em erro anuncia o erro por papel e descrição"`
       termina com código de saída `0`.
 - [ ] `comportamental` — `RF-16.b`, `RF-16.d`
-      *Dado* o artefato servido em `http://localhost:4173`, com `/design` aberta
-      e a amostra de campo em estado de erro
+      *Dado* o artefato servido na origem de pré-visualização, com `/design`
+      aberta e a amostra de campo em estado de erro
       *Quando* a suíte lê o elemento que carrega a mensagem
       `Informe um e-mail válido`
       *Então* esse elemento contém um descendente `svg` com `aria-hidden` igual a
@@ -922,8 +984,9 @@ mudança — a página inteira custa milhares de tokens para mostrar o que não 
       `bash scripts/e2e/relatorio.sh criterio "a mensagem de erro tem marca e texto além da borda"`
       termina com código de saída `0`.
 - [ ] `comportamental` — `RF-17.a`, `RF-17.b`
-      *Dado* o artefato servido em `http://localhost:4173`, com `/design` aberta
-      e as três amostras de cartão de documento, uma por origem de acesso
+      *Dado* o artefato servido na origem de pré-visualização, com `/design`
+      aberta e as três amostras de cartão de documento, uma por origem de
+      acesso
       *Quando* a suíte lê, de cada uma, o `border-left-width` e o
       `border-left-color` computados do cartão, o texto acessível da etiqueta e a
       presença de um descendente `svg`
@@ -938,11 +1001,14 @@ mudança — a página inteira custa milhares de tokens para mostrar o que não 
       `bash scripts/e2e/relatorio.sh criterio "o filete e a etiqueta dizem de onde vem o acesso"`
       termina com código de saída `0`.
 - [ ] `comportamental` — `RF-17.d`
-      *Dado* o artefato servido em `http://localhost:4173`, com `/design` aberta
-      e a amostra de lista densa, onde as etiquetas de acesso aparecem na
-      variante reduzida
-      *Quando* a suíte lê a primeira etiqueta reduzida da lista densa
-      *Então* o `font-size` computado dela é `12px`, o texto acessível dela é
+      *Dado* o artefato servido na origem de pré-visualização, com `/design`
+      aberta e a amostra de lista densa, onde as etiquetas de acesso aparecem
+      na variante reduzida
+      *Quando* a suíte conta as linhas da lista densa e lê a primeira etiqueta
+      reduzida dela
+      *Então* a contagem de linhas é **maior ou igual a** `3` — a lista densa
+      existe e tem densidade, sem o que a leitura seguinte não teria sujeito —,
+      o `font-size` computado da etiqueta é `12px`, o texto acessível dela é
       `Canal`, ela tem um descendente `svg`, e o `color` computado dela é
       diferente do `color` computado do texto de corpo da mesma linha — a
       redução tira tamanho, não informação.
@@ -956,7 +1022,7 @@ mudança — a página inteira custa milhares de tokens para mostrar o que não 
       `bash scripts/e2e/relatorio.sh criterio "a etiqueta densa mantém rótulo e marca a doze pixels"`
       termina com código de saída `0`.
 - [ ] `comportamental` — `RF-07.c`, `RF-07.d`
-      *Dado* o artefato servido em `http://localhost:4173`, com o navegador
+      *Dado* o artefato servido na origem de pré-visualização, com o navegador
       emulando `prefers-reduced-motion: reduce` e `/design` aberta
       *Quando* a suíte aciona o controle de papel `button` e nome acessível
       `Abrir diálogo de exemplo`, depois o de nome acessível
@@ -972,7 +1038,8 @@ mudança — a página inteira custa milhares de tokens para mostrar o que não 
       `bash scripts/e2e/relatorio.sh criterio "com movimento reduzido a duração some e o estado final permanece"`
       termina com código de saída `0`.
 - [ ] `comportamental` — `RF-25.a`, `RF-25.b`, `RF-25.c`, `RF-32.a`
-      *Dado* o artefato servido em `http://localhost:4173` e `/design` aberta
+      *Dado* o artefato servido na origem de pré-visualização e `/design`
+      aberta
       *Quando* a suíte coleta os textos acessíveis dos elementos de papel
       `heading` de nível `2` da página, e conta os elementos que carregam o
       atributo `data-token`
@@ -988,7 +1055,8 @@ mudança — a página inteira custa milhares de tokens para mostrar o que não 
       `bash scripts/e2e/relatorio.sh criterio "a página viva exercita os quinze primitivos"`
       termina com código de saída `0`.
 - [ ] `comportamental` — `RF-32.c`, `RF-32.e`
-      *Dado* o artefato servido em `http://localhost:4173` e `/design` aberta
+      *Dado* o artefato servido na origem de pré-visualização e `/design`
+      aberta
       *Quando* a suíte aciona o controle de papel `button` e nome acessível
       `Publicar` e, em seguida, lê a mensagem da amostra de campo em erro de
       conexão
@@ -1028,7 +1096,8 @@ mudança — a página inteira custa milhares de tokens para mostrar o que não 
       `person.tsx` e `private.tsx`, cada um um componente `svg` deste
       repositório, com `aria-hidden="true"` quando acompanhado de texto. Criar
       `access-badge.tsx` (`AccessBadge`, que compõe `Badge` com a marca e o
-      rótulo `Canal`, `Pessoa` ou `Privado`, na variante normal e na reduzida) e
+      rótulo da origem — Canal, Pessoa ou Privado —, na variante normal e na
+      reduzida) e
       `access-spine.tsx` (`AccessSpine`, o filete vertical da borda esquerda,
       com a cor vinda do token de lombada da origem). Assinatura das duas:
       `({ origin }: { origin: "canal" | "pessoa" | "privado" }) => ReactElement`.
@@ -1099,7 +1168,8 @@ página** — não do servidor —, e a medição contra a 4173 exige `vite buil
 `apps/web/src/app/routes/{documentos,canais,pesquisa,organizacao}.tsx`,
 `apps/web/src/app/layout/{app-shell,app-header,app-sidebar,skip-link}.tsx`,
 `apps/web/src/app/providers/theme-provider.tsx`,
-`apps/web/src/shared/lib/tema.ts`, `apps/web/src/app/main.tsx`,
+`apps/web/src/shared/lib/tema.ts`, `apps/web/src/shared/lib/tema.test.ts`,
+`apps/web/src/app/main.tsx`,
 `apps/web/src/app/App.tsx`, `apps/web/src/shared/styles/theme.css`,
 `apps/web/e2e/esqueleto.spec.ts`, `apps/web/e2e/health.spec.ts`.
 
@@ -1134,15 +1204,35 @@ uma medição que já existia.
       `grep -c '' apps/web/nginx.conf` imprime um número **maior que** `0`; e
       `grep -c -F 'try_files $uri $uri/ /index.html' apps/web/nginx.conf` imprime
       `1`.
+- [ ] `comando` — `RF-05.d`, `RF-05.e`, `RF-31.a` — a decisão de tema é provada
+      por teste de unidade, e o esqueleto inteiro passa pela checagem de tipos e
+      pela regra de valor mágico que a fase 2 instalou. Executados na raiz do
+      repositório: `pnpm --filter web run typecheck` termina com código de saída
+      `0`; `pnpm --filter web exec vitest run` termina com código de saída `0` e
+      a saída nomeia `tema.test.ts` — sem essa segunda leitura, uma suíte que não
+      encontrou arquivo de teste nenhum responderia igual a uma suíte verde; e
+      `pnpm --filter web run lint` termina com código de saída `0`, com
+      `find apps/web/src/app -name '*.tsx' | wc -l` imprimindo um número **maior
+      ou igual a** `8` antes dele, que é a prova de que havia o que medir.
+
+      **Por que esta fase fura o teto de uma dúzia de critérios.** O teto existe
+      contra escopo que ninguém pediu, e é por isso que este plano não entrega o
+      `eslint-plugin-jsx-a11y`, que nenhum `RF-nn` pede. Ele não vale contra
+      medição que a régua obriga: sem nenhum critério de comando, nada nesta fase
+      roda a suíte de unidade nem o portão de valor mágico, e o validador cego
+      julgaria por leitura justamente a fase que produz o esqueleto, o tema e a
+      largura de telefone — onde mais código nasce.
 - [ ] `comportamental` — `RF-21.a`, `RF-21.b`, `RF-21.c`, `RF-26.c`, `RF-32.d`
-      *Dado* o artefato servido em `http://localhost:4173`, com
-      `http://localhost:4173/documentos` aberta
+      *Dado* o artefato servido na origem de pré-visualização, com
+      `/documentos` aberta
       *Quando* a suíte lê os textos acessíveis dos elementos de papel `link`
       dentro do elemento de papel `navigation` e, em seguida, aciona cada um dos
       quatro
-      *Então* os textos acessíveis são exatamente `Documentos`, `Canais`,
-      `Pesquisa` e `Organização`, nesta ordem, e nenhum deles tem `href` igual a
-      `/design`; e depois de cada acionamento a página traz um elemento de papel
+      *Então* a contagem de elementos de papel `link` dentro da navegação é
+      exatamente `4`, e os textos acessíveis deles são `Documentos`, `Canais`,
+      `Pesquisa` e `Organização`, nesta ordem — a contagem é o que impede a
+      asserção seguinte de valer para uma barra vazia —, e nenhum dos quatro tem
+      `href` igual a `/design`; e depois de cada acionamento a página traz um elemento de papel
       `heading` de nível 1 com o nome daquele destino, um texto de estado vazio
       que começa por `Nenhum` e termina por `ainda`, e um elemento de papel
       `button` ou `link` cujo texto acessível começa pelo verbo da ação daquele
@@ -1152,8 +1242,8 @@ uma medição que já existia.
       `bash scripts/e2e/relatorio.sh criterio "os quatro destinos navegam para o estado vazio que convida a agir"`
       termina com código de saída `0`.
 - [ ] `comportamental` — `RF-22.a`, `RF-22.b`, `RF-22.c`
-      *Dado* o artefato servido em `http://localhost:4173`, com
-      `http://localhost:4173/canais` aberta
+      *Dado* o artefato servido na origem de pré-visualização, com `/canais`
+      aberta
       *Quando* a suíte localiza o elemento de papel `navigation` e lê o atributo
       `aria-current` de cada um dos quatro elementos de papel `link` dentro dele
       *Então* o elemento de papel `navigation` tem nome acessível
@@ -1165,8 +1255,8 @@ uma medição que já existia.
       `bash scripts/e2e/relatorio.sh criterio "a barra é navegação nomeada e marca o destino atual"`
       termina com código de saída `0`.
 - [ ] `comportamental` — `RF-23.a`, `RF-23.b`
-      *Dado* o artefato servido em `http://localhost:4173`, com
-      `http://localhost:4173/documentos` recém-carregada e o foco no documento
+      *Dado* o artefato servido na origem de pré-visualização, com
+      `/documentos` recém-carregada e o foco no documento
       *Quando* a suíte pressiona `Tab` uma vez e, em seguida, `Enter`
       *Então* depois do `Tab` o nome acessível do elemento com foco é
       `Pular para o conteúdo`, e depois do `Enter` o elemento com foco é o
@@ -1177,8 +1267,8 @@ uma medição que já existia.
       `bash scripts/e2e/relatorio.sh criterio "o primeiro Tab alcança pular para o conteúdo"`
       termina com código de saída `0`.
 - [ ] `comportamental` — `RF-20.b`
-      *Dado* o artefato servido em `http://localhost:4173`, com a janela em
-      `1280x800` e `http://localhost:4173/documentos` aberta
+      *Dado* o artefato servido na origem de pré-visualização, com a janela em
+      `1280x800` e `/documentos` aberta
       *Quando* a suíte lê a `boundingBox()` do elemento de papel `banner`, a do
       elemento de nome acessível `Folioteca` dentro dele e a do controle de papel
       `button` e nome acessível `Menu de conta`
@@ -1191,8 +1281,8 @@ uma medição que já existia.
       `bash scripts/e2e/relatorio.sh criterio "a identidade fica à esquerda e a conta no canto superior direito"`
       termina com código de saída `0`.
 - [ ] `comportamental` — `RF-19.b`, `RF-19.c`, `RF-19.e`
-      *Dado* o artefato servido em `http://localhost:4173`
-      *Quando* a suíte abre, uma a uma, `http://localhost:4173/documentos`,
+      *Dado* o artefato servido na origem de pré-visualização
+      *Quando* a suíte abre, uma a uma, `/documentos`,
       `/canais`, `/pesquisa` e `/organizacao` direto na barra de endereço, e
       recarrega a página sobre cada uma
       *Então* as oito respostas têm código HTTP `200`, e em cada uma das oito a
@@ -1202,9 +1292,9 @@ uma medição que já existia.
       `bash scripts/e2e/relatorio.sh criterio "cada destino sobrevive à abertura direta e à recarga"`
       termina com código de saída `0`.
 - [ ] `comportamental` — `RF-05.b`, `RF-05.c`, `RF-05.f`
-      *Dado* o artefato servido em `http://localhost:4173`, com
-      `http://localhost:4173/documentos` aberta, `localStorage` vazio e o
-      navegador emulando `prefers-color-scheme: light`
+      *Dado* o artefato servido na origem de pré-visualização, com
+      `/documentos` aberta, `localStorage` vazio e o navegador emulando
+      `prefers-color-scheme: light`
       *Quando* a suíte pressiona `Tab` repetidamente até o foco alcançar o
       controle de papel `button` e nome acessível `Menu de conta`, aciona-o com
       `Enter`, e aciona o item de papel `menuitem` e nome acessível
@@ -1220,10 +1310,10 @@ uma medição que já existia.
       `bash scripts/e2e/relatorio.sh criterio "o alternador do menu de conta troca o tema sem recarregar"`
       termina com código de saída `0`.
 - [ ] `comportamental` — `RF-05.a`, `RF-05.d`, `RF-05.e`
-      *Dado* o artefato servido em `http://localhost:4173` e o navegador
+      *Dado* o artefato servido na origem de pré-visualização e o navegador
       emulando `prefers-color-scheme: dark`
       *Quando* a suíte, com `localStorage` vazio, abre
-      `http://localhost:4173/documentos`; depois grava
+      `/documentos`; depois grava
       `localStorage.setItem("folioteca.tema", "claro")` e recarrega; depois
       executa `localStorage.removeItem("folioteca.tema")` e recarrega
       *Então* na primeira leitura a classe do elemento raiz é `tema-escuro` (sem
@@ -1236,10 +1326,10 @@ uma medição que já existia.
       `bash scripts/e2e/relatorio.sh criterio "a escolha guardada vence o sistema e sobrevive à recarga"`
       termina com código de saída `0`.
 - [ ] `comportamental` — `RF-06.a`, `RF-06.b`, `RF-06.c`
-      *Dado* o artefato servido em `http://localhost:4173`, o navegador emulando
-      `prefers-color-scheme: dark`, e `localStorage.folioteca.tema` gravado com o
-      valor `claro` antes do carregamento
-      *Quando* a suíte carrega `http://localhost:4173/documentos` e lê, na
+      *Dado* o artefato servido na origem de pré-visualização, o navegador
+      emulando `prefers-color-scheme: dark`, e `localStorage.folioteca.tema`
+      gravado com o valor `claro` antes do carregamento
+      *Quando* a suíte carrega `/documentos` e lê, na
       primeira leitura após o evento de carregamento, o `background-color`
       computado do elemento raiz
       *Então* esse valor é igual ao valor computado de `--color-papel` e
@@ -1252,8 +1342,8 @@ uma medição que já existia.
       `bash scripts/e2e/relatorio.sh criterio "o tema entra antes da primeira pintura"`
       termina com código de saída `0`.
 - [ ] `comportamental` — `RF-24.b`, `RF-24.c`, `RF-24.d`, `RF-24.e`
-      *Dado* o artefato servido em `http://localhost:4173`, com a janela
-      redimensionada para `360x740` e `http://localhost:4173/documentos` aberta
+      *Dado* o artefato servido na origem de pré-visualização, com a janela
+      redimensionada para `360x740` e `/documentos` aberta
       *Quando* a suíte lê a visibilidade do elemento de papel `navigation`,
       aciona o controle de papel `button` e nome acessível `Abrir navegação`,
       pressiona `Tab` oito vezes e depois `Escape`
@@ -1268,11 +1358,14 @@ uma medição que já existia.
       `bash scripts/e2e/relatorio.sh criterio "abaixo de 768px a barra vira gaveta com foco preso"`
       termina com código de saída `0`.
 - [ ] `comportamental` — `RF-24.f`
-      *Dado* o artefato servido em `http://localhost:4173`
+      *Dado* o artefato servido na origem de pré-visualização
       *Quando* a suíte, com a janela em `360x740` e depois em `767x740`, abre
       cada uma das quatro rotas do esqueleto e `/design`, e lê
       `document.documentElement.scrollWidth` e `window.innerWidth`
-      *Então* nas dez leituras `scrollWidth` é igual a `innerWidth`, e
+      *Então* em cada uma das dez leituras a página está renderizada — o
+      elemento de papel `heading` de nível 1 daquela rota está visível, e é esta
+      asserção que impede o critério de aprovar uma página em branco, que também
+      não rola na horizontal —, `scrollWidth` é igual a `innerWidth`, e
       `innerWidth` é `360` nas cinco primeiras e `767` nas cinco últimas — as
       duas pontas do intervalo, porque o defeito de rolagem aparece na menor
       largura real e na última largura antes de a barra lateral voltar.
@@ -1280,8 +1373,8 @@ uma medição que já existia.
       `bash scripts/e2e/relatorio.sh criterio "em 360px e em 767px nada rola na horizontal"`
       termina com código de saída `0`.
 - [ ] `comportamental` — `RF-29.a`
-      *Dado* o artefato servido em `http://localhost:4173`, com
-      `http://localhost:4173/documentos` aberta no tema claro
+      *Dado* o artefato servido na origem de pré-visualização, com
+      `/documentos` aberta no tema claro
       *Quando* a suíte move o foco por teclado para o controle de papel `link` e
       texto acessível `Documentos`, lê o `outline-width` e a `outline-color`
       computados dele, troca o tema pelo alternador do menu de conta na mesma
@@ -1301,7 +1394,13 @@ uma medição que já existia.
       `lerTemaGuardado(): "claro" | "escuro" | null`,
       `gravarTema(tema: "claro" | "escuro"): void` e
       `temaEfetivo(guardado: "claro" | "escuro" | null, prefereEscuro: boolean): "claro" | "escuro"`.
-      A chave é `folioteca.tema` e os valores são `claro` e `escuro`.
+      A chave é `folioteca.tema` e os valores são `claro` e `escuro`. Ao lado
+      dele, `apps/web/src/shared/lib/tema.test.ts` com as três naturezas: o
+      contrato — `temaEfetivo` devolve sempre um dos dois valores —, o caminho
+      feliz — sem escolha guardada vale a preferência do sistema, e com escolha
+      guardada vale ela —, e as bordas — valor guardado que não é nenhum dos dois
+      cai na preferência do sistema, em vez de vazar para a classe do elemento
+      raiz.
       *Considerando a fase 1: o arquivo de tema já declara os dois blocos
       `.tema-claro` e `.tema-escuro`, e é a classe do elemento raiz que os
       seleciona.*
@@ -1352,17 +1451,25 @@ uma medição que já existia.
       convite a agir — `Nenhum documento publicado aqui ainda`, com o botão
       `Publicar um documento` — e não como anúncio de ausência de dados.
       Modificar `apps/web/src/app/routes/index.tsx` para declarar as quatro rotas
-      dentro do esqueleto, manter `/design` **fora** dos quatro destinos e
-      alcançável pela URL, e apontar `/` para `Documentos`.
+      dentro do esqueleto, mover `/design` para **dentro do mesmo layout** — sem
+      link na barra e alcançável pela URL —, e apontar `/` para `Documentos`.
       *Considerando 4.3: o esqueleto existe e é dentro dele que as quatro rotas
       se montam.*
       Justificativa: `RF-19.a`, `RF-21`, `RF-26.c`, `RF-32.d`, com `D7`. Os
       quatro destinos presentes e navegáveis fixam o vocabulário do produto e dão
       a `002` a `007` um lugar onde encaixar em vez de um lugar para inventar; o
       estado vazio é um dos quinze primitivos que o item entrega de qualquer
-      forma, então o custo é zero e ele nasce exercitado. `/design` fica fora da
+      forma, então o custo é zero e ele nasce exercitado. `/design` não entra na
       barra porque ela é o vocabulário do produto, e a página viva é ferramenta
       de quem constrói.
+      **Dentro do layout, e não irmã dele.** As duas leituras satisfazem "fora
+      dos quatro destinos e alcançável pela URL", e a diferença aparece três
+      fases adiante: o critério do axe nos cinco estados alcança a gaveta pelo
+      controle `Abrir navegação` **em `/design`**, e o critério do carimbo no tema
+      escuro troca o tema pelo alternador do menu de conta **em `/design`**. Rota
+      irmã do esqueleto não tem nenhum dos dois controles, e os critérios da fase
+      5 ficariam sem como ser medidos — com a implementação pronta e a fase
+      aberta.
 - [ ] 4.5 Modificar `apps/web/src/shared/styles/theme.css` acrescentando à regra
       `:focus-visible` que já existe desde a fase 1 o que a gaveta e o atalho
       precisam, e nada mais: nenhum token novo, nenhum valor de token alterado.
@@ -1413,7 +1520,8 @@ partir de relatório de outra árvore.
 `apps/web/src/shared/lib/axe-severidade.ts`,
 `apps/web/src/shared/lib/axe-severidade.test.ts`,
 `.github/workflows/_suite-react.yml`, `.gitignore`,
-`product/items/050-linguagem-visual-e-sistema-de-design/06-verificacao-humana.md`.
+`product/items/050-linguagem-visual-e-sistema-de-design/06-verificacao-humana.md`,
+`product/00-linguagem-visual.md`.
 
 **Arquivos explicitamente não tocados:** `apps/web/playwright.config.ts`,
 `apps/web/index.html`, `apps/web/nginx.conf`, `scripts/e2e/relatorio.sh`,
@@ -1458,8 +1566,8 @@ que ninguém consegue provar que aconteceu não aconteceu.
 
       termina com código de saída `0` e imprime duas linhas.
 - [ ] `comportamental` — `RF-27.a`, `RF-27.c`, `RF-28.a`
-      *Dado* o artefato servido em `http://localhost:4173`, com `/design` aberta
-      no tema claro
+      *Dado* o artefato servido na origem de pré-visualização, com `/design`
+      aberta no tema claro
       *Quando* a suíte analisa a página com o axe sob as etiquetas `wcag2a`,
       `wcag2aa`, `wcag21a` e `wcag21aa`, troca o tema acionando o alternador do
       menu de conta **na mesma página**, sem recarregar a aplicação e sem
@@ -1474,25 +1582,30 @@ que ninguém consegue provar que aconteceu não aconteceu.
       `bash scripts/e2e/relatorio.sh criterio "o axe não acha violação séria nos dois temas"`
       termina com código de saída `0`.
 - [ ] `comportamental` — `RF-27.b`, `RF-27.d`, `RF-28.a`
-      *Dado* o artefato servido em `http://localhost:4173`, com `/design` já
-      carregada
+      *Dado* o artefato servido na origem de pré-visualização, com `/design`
+      já carregada
       *Quando* a suíte alcança, navegando na mesma página, cada um dos cinco
       estados — diálogo aberto pelo controle `Abrir diálogo de exemplo`, menu
       aberto pelo controle `Abrir menu de exemplo`, campo com erro na amostra de
       campo, gaveta aberta com a janela em `360x740` pelo controle
       `Abrir navegação`, e a amostra de estado vazio — e analisa cada um com o
       axe sob as mesmas quatro etiquetas
-      *Então* nas cinco análises a lista de violações cujo `impact` é `critical`
-      ou `serious` é vazia, e nas cinco a contagem total de nós analisados é
-      **maior que** `0`; e o contador de eventos `load` da página continua em `1`
-      ao fim das cinco — nenhum estado foi alcançado recarregando a aplicação.
+      *Então* em cada uma das cinco análises o elemento que caracteriza aquele
+      estado está visível no instante em que o axe roda — o de papel `dialog`, o
+      de papel `menu`, o controle com `aria-invalid` igual a `"true"`, o de papel
+      `navigation` dentro da gaveta e o texto do estado vazio —, sem o que cinco
+      análises da mesma página em repouso responderiam igual a cinco análises dos
+      cinco estados; nas cinco a lista de violações cujo `impact` é `critical` ou
+      `serious` é vazia; nas cinco a contagem total de nós analisados é **maior
+      que** `0`; e o contador de eventos `load` da página continua em `1` ao fim
+      das cinco — nenhum estado foi alcançado recarregando a aplicação.
       O caso se chama `o axe não acha violação séria nos cinco estados pós-interação`,
       e
       `bash scripts/e2e/relatorio.sh criterio "o axe não acha violação séria nos cinco estados pós-interação"`
       termina com código de saída `0`.
 - [ ] `comportamental` — `RF-02.c`, `RF-28.a`
-      *Dado* o artefato servido em `http://localhost:4173`, com `/design` aberta
-      e o tema trocado para escuro pelo alternador do menu de conta
+      *Dado* o artefato servido na origem de pré-visualização, com `/design`
+      aberta e o tema trocado para escuro pelo alternador do menu de conta
       *Quando* a suíte lê o `color` computado do texto de corpo da etiqueta de
       acesso de origem `pessoa` e o `background-color` computado da superfície
       sobre a qual ele aparece, **afirma que esse `background-color` é igual ao
@@ -1543,7 +1656,15 @@ que ninguém consegue provar que aconteceu não aconteceu.
       termina com código de saída `0` (o controle positivo);
       `bash scripts/e2e/relatorio.sh criterio "trecho que nao existe em caso nenhum"`
       termina com código de saída **diferente de** `0` e imprime uma saída que
-      contém a cadeia `NAO_MEDIDO`;
+      contém a cadeia `NAO_MEDIDO`; o relatório de outra árvore é recusado, o
+      que se mede guardando `apps/web/.e2e-arvore` numa cópia, gravando nele uma
+      identidade diferente da medida e restaurando a cópia em seguida — com a
+      identidade trocada,
+      `bash scripts/e2e/relatorio.sh criterio "o axe não acha violação séria nos dois temas"`
+      termina com código **diferente de** `0` imprimindo uma saída que contém
+      `outra árvore`, e, restaurada a cópia, a mesma consulta volta a terminar
+      com código de saída `0` — o par é o que separa a recusa por árvore
+      diferente de uma recusa que aconteceria de qualquer jeito;
       `git ls-files '.github/workflows/*.yml' 'scripts/*' 'apps/web/e2e/*' |
       wc -l` imprime um número **maior que** `0`; e
       `git ls-files '.github/workflows/*.yml' 'scripts/*' 'apps/web/e2e/*' |
@@ -1612,6 +1733,60 @@ que ninguém consegue provar que aconteceu não aconteceu.
       `[]`, `3`, `3` e `3` — as três verificações, cada uma com as três
       informações. Arquivo ausente ou verificação faltando fazem o comando
       terminar com código diferente de `0` sem imprimir as quatro linhas.
+- [ ] `estrutural` — `RF-33.a`, `RF-33.b`, `RF-33.c`, `RF-33.d`, `RF-33.e`,
+      `RF-33.f` — o documento canônico da direção visual existe e **bate com o
+      arquivo de tema**: os seis tokens de cor aparecem nele com os dois valores
+      que o tema resolve, um por tema, e com o papel semântico de cada um; as
+      três faces, a escala de espaço, os raios, as sombras, os tokens de
+      movimento e o ponto de quebra estão registrados; a régua de acessibilidade
+      e a regra de idioma também. Executado na raiz do repositório:
+
+      ```
+      python3 - <<'PY'
+      import re, pathlib
+      doc = pathlib.Path('product/00-linguagem-visual.md')
+      assert doc.is_file(), 'o documento canônico da direção visual não existe'
+      d = doc.read_text(encoding='utf-8')
+      assert d.strip(), 'o documento está vazio'
+      tema = pathlib.Path('apps/web/src/shared/styles/theme.css').read_text(encoding='utf-8')
+      def bloco(seletor):
+          m = re.search(re.escape(seletor) + r'\s*\{(.*?)\n\}', tema, re.S)
+          assert m, f'bloco {seletor} ausente no tema'
+          return {k: v.strip().upper() for k, v in
+                  re.findall(r'(--color-[a-z0-9-]+)\s*:\s*([^;]+);', m.group(1))}
+      alto = d.upper()
+      faltando = []
+      for nome in ('papel', 'tinta', 'grafite', 'verdete', 'carimbo', 'fio'):
+          if nome not in d:
+              faltando.append(nome)
+      for seletor in ('.tema-claro', '.tema-escuro'):
+          for chave, valor in bloco(seletor).items():
+              if valor not in alto:
+                  faltando.append(f'{seletor}{chave}={valor}')
+      for termo in ('Fraunces', 'Atkinson Hyperlegible Next', 'IBM Plex Mono',
+                    '--spacing', '--radius', '--shadow', '--duracao-rapida',
+                    '--duracao-padrao', '--curva-padrao', '768px',
+                    'prefers-reduced-motion', 'pt-BR'):
+          if termo not in d:
+              faltando.append(termo)
+      print(faltando)
+      print(len(re.findall(r'(?i)\b4[.,]5\s*:\s*1', d)) >= 1)
+      print(len(d.split()) >= 400)
+      PY
+      ```
+
+      termina com código de saída `0` e imprime, nesta ordem, as três linhas
+      `[]`, `True` e `True` — nada do que o tema resolve ficou de fora, a régua
+      de contraste está escrita com o número, e o documento tem corpo. Documento
+      ausente, valor de token que o documento não acompanhou e face não
+      registrada fazem a primeira linha sair não vazia.
+
+      **Este critério vem de `D-001`**, a divergência que registrou que a spec
+      não pedia o documento que a norma do processo manda este item escrever. Ele
+      leva a fase 5 de doze critérios a treze, contados os quatro de integração,
+      pela mesma razão que vale para o critério de comando da fase 4: o teto
+      protege contra escopo que ninguém pediu, não contra medição que a régua
+      obriga.
 
 **Critérios de integração — as cinco fases na mesma árvore:**
 
@@ -1628,11 +1803,13 @@ vieram depois.
       com tamanho **maior que** `0`; e a saída de
       `bash scripts/e2e/relatorio.sh resumo` contém uma linha que casa com
       `^medido: [0-9]+ caso\(s\) numa subida` cujo primeiro número é **maior ou
-      igual a** `34`, e essa mesma linha contém `0 falhou(aram)`,
+      igual a** `36`, e essa mesma linha contém `0 falhou(aram)`,
       `0 pulado(s)` e `0 sem resultado`. O número mínimo é a soma dos casos que
-      as cinco fases criam mais os cinco que já existiam em
-      `apps/web/e2e/health.spec.ts` e `apps/web/e2e/politica-de-conteudo.spec.ts`
-      na árvore medida em 08/09/2026; um caso a menos é um critério que ficou sem
+      as cinco fases criam — três na fase 1, seis na 2, sete na 3, onze na 4 e
+      quatro na 5, contados um a um pelos títulos que os critérios consultam —
+      mais os cinco que já existiam em `apps/web/e2e/health.spec.ts` e
+      `apps/web/e2e/politica-de-conteudo.spec.ts` na árvore medida em
+      08/09/2026; um caso a menos é um critério que ficou sem
       quem o meça, e `NAO_MEDIDO` reprova.
 - [ ] `comando` — `RF-01.a`, `RF-02.b` — os tokens que a primeira fase declarou
       têm consumidor nas camadas que as fases seguintes escreveram, e nenhum lado
@@ -1661,11 +1838,11 @@ vieram depois.
       — os seis tokens de cor da direção "Lombada" têm ao menos um consumidor nas
       camadas que as fases 2, 3 e 4 escreveram.
 - [ ] `comportamental` — `RF-05.b`, `RF-19.b`, `RF-22.b`, `RF-23.a`, `RF-11.a`
-      *Dado* o artefato servido em `http://localhost:4173`, com `localStorage`
-      vazio e `http://localhost:4173/documentos` aberta
+      *Dado* o artefato servido na origem de pré-visualização, com
+      `localStorage` vazio e `/documentos` aberta
       *Quando* a suíte pressiona `Tab` uma vez, aciona o atalho com `Enter`,
       volta pela navegação ao destino `Canais`, abre o menu de conta e aciona
-      `Tema escuro`, e por fim navega para `http://localhost:4173/design` pela
+      `Tema escuro`, e por fim navega para `/design` pela
       barra de endereço
       *Então* o foco depois do `Enter` está no `<main>`; o link `Canais` fica com
       `aria-current="page"`; a classe do elemento raiz fica `tema-escuro`; e, já
@@ -1769,7 +1946,7 @@ vieram depois.
       `product/items/050-linguagem-visual-e-sistema-de-design/06-verificacao-humana.md`
       com as três verificações, cada uma numa seção com `**Quem:**`, `**Data:**`
       no formato `DD/MM/AAAA` e `**Encontrado:**`: percorrer `/design` inteira só
-      com `Tab`, `Shift+Tab`, `Enter` e `Esc`, alcançando e acionando todo
+      com Tab, Shift+Tab, Enter e Esc, alcançando e acionando todo
       controle interativo; ler em voz alta apenas os textos alternativos e
       perguntar se cada frase identifica a amostra sozinha; e descrever cada
       amostra sem nomear cor nenhuma, mantendo identificáveis o estado do
@@ -1777,13 +1954,36 @@ vieram depois.
       pessoa**, e a fase não fecha sem ela.
       *Considerando 5.4: `/design` está completa e medida por máquina, e o que
       resta é exatamente o que a máquina não vê.*
-      Justificativa: `RF-30`, `RF-16.d`, `RF-17.e`, com `E9.5`. A verificação
+      Justificativa: `RF-30` e os dois requisitos de sinal não-cromático,
+      RF-16.d e RF-17.e, com `E9.5`. A verificação
       automatizada cobre entre um quarto e um terço dos critérios da WCAG, e
       nenhum scanner distingue um estado sinalizado só por borda vermelha de um
       sinalizado por borda, marca e texto — os dois passam no contraste. O
       registro é obrigatório porque verificação que ninguém consegue provar que
-      aconteceu não aconteceu, e é dele que `RF-16.d` e `RF-17.e` dependem para
+      aconteceu não aconteceu, e é dele que RF-16.d e RF-17.e dependem para
       ter veredicto.
+- [ ] 5.7 Escrever `product/00-linguagem-visual.md`, o documento canônico da
+      direção visual, no presente e sem cicatriz: a direção "Lombada" e onde mora
+      a ousadia — o filete de acesso e o token de ação — contra o que fica quieto
+      no resto da interface; os seis tokens de cor com os **dois** valores de
+      cada um, lidos do arquivo de tema, e o papel semântico de cada um; as três
+      faces e a escala de tamanhos; a escala de espaço, os raios, as sombras, os
+      tokens de movimento e o ponto de quebra; a régua de acessibilidade que a
+      direção sustenta — contraste de 4,5:1 nos dois temas, foco visível,
+      movimento reduzido respeitado, nenhum valor mágico, cor nunca como sinal
+      único; e a regra de idioma, com rótulo, erro, estado vazio e texto de botão
+      em pt-BR e identificador de código em inglês.
+      *Considerando 5.4 e 5.6: os dois valores de cada token, os quinze
+      primitivos que existiram de fato e a medição de contraste já estão na
+      árvore, e é deles que o documento é derivado.*
+      Justificativa: RF-33, com `D-001`. O documento é derivado do artefato e não
+      da intenção, e por isso pertence ao fim deste item: quem o escreve precisa
+      dos dois valores de cada token e do que a medição devolveu. O arquivo de
+      tema diz que o verdete vale um hexadecimal; ele não diz que o verdete é a
+      cor de ação e a lombada de acesso por canal, nem por que a ousadia mora no
+      filete. As telas de 002 a 007 são escritas por sessões que nascem limpas, e
+      é este arquivo que elas leem antes de abrir o editor — sem ele, a segunda
+      tela escolhe outra paleta e a terceira a contradiz.
 
 ---
 
@@ -1833,11 +2033,22 @@ lista `eslint-plugin-jsx-a11y` entre as dependências novas, e a skill
 pede**. A omissão nasceu na tradução do discovery para o PRD, e foi encontrada ao
 escrever este plano.
 
-A saída não é acrescentar um décimo terceiro critério a alguma fase. O teto de
-uma dúzia por fase é a regra que este plano respeita em todas as cinco, e ele
-existe porque uma fase que não fecha numa sessão não é lenta — são duas fases
-escritas como uma. Furar o teto para acomodar um requisito que os documentos
-aprovados não pedem trocaria um defeito por outro pior.
+A saída não é acrescentar um critério a alguma fase. O teto de uma dúzia existe
+porque uma fase que não fecha numa sessão não é lenta — são duas fases escritas
+como uma —, e ele protege contra **escopo que ninguém pediu**. Furá-lo para
+acomodar um requisito que os documentos aprovados não pedem trocaria um defeito
+por outro pior.
+
+**Onde o teto cede, e por quê.** Ele não vale contra medição que a régua obriga,
+e é essa distinção que sustenta as duas decisões deste plano ao mesmo tempo. A
+fase 4 tem treze critérios porque sem o de comando nada nela roda a suíte de
+unidade nem o portão de valor mágico, e o validador cego julgaria por leitura
+justamente a fase que produz o esqueleto, o tema e a largura de telefone. A fase
+5 tem treze, contados os de integração, porque `D-001` registrou que a norma do
+processo manda este item escrever `product/00-linguagem-visual.md`, e um
+documento canônico sem critério é um documento que ninguém mede. As fases 1, 2 e
+3 ficam nos doze. Nas duas exceções o requisito é de documento aprovado ou de
+norma do processo; nenhuma delas é conveniência de quem implementa.
 
 A consequência aceita, escrita para quem auditar não a ler como esquecimento:
 **este item entrega o sistema de design sem nada que pegue violação de

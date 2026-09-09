@@ -17,9 +17,14 @@ item registre a direção visual em `product/00-linguagem-visual.md`; ele não
 tem linha na tabela porque a exigência não nasce no PRD.
 
 Duas restrições de medição atravessam a spec inteira e estão escritas como
-`RNF-01`: a superfície medida é o artefato de build servido por `vite preview`
-em `http://localhost:4173`, onde a política de conteúdo existe, e a suíte
-comportamental sobe a aplicação uma vez por execução. Nenhum requisito abaixo
+`RNF-01`: a superfície medida é o artefato de build servido por `vite preview` na
+**origem de pré-visualização**, onde a política de conteúdo existe, e a suíte
+comportamental sobe a aplicação uma vez por execução. A origem de
+pré-visualização é `http://localhost:<porta>`, com a porta vinda de
+`WEB_PREVIEW_PORT` e `4173` por padrão; `apps/web/playwright.config.ts` a resolve
+e a publica como `baseURL`, e o job comportamental do CI a fixa noutro número
+para não disputar a porta com o job que verifica a política. Requisito e critério
+falam da origem, nunca do número. Nenhum requisito abaixo
 pressupõe uma subida por caso medido nem recarga para alcançar o estado
 seguinte.
 
@@ -146,7 +151,7 @@ seguinte.
   `unsafe-eval`, então o sistema deve reprovar por `exige_politica_sem_termo`.
   *(comportamento indesejado)*
 - **RF-11.a** — Quando a suíte comportamental abre `/design` no artefato
-  construído e servido por `vite preview` em `http://localhost:4173`, o sistema
+  construído e servido por `vite preview` na origem de pré-visualização, o sistema
   deve resolver o `font-family` computado de um título da página para a face
   declarada em `--font-display`. *(dirigido a evento)*
 - **RF-11.b** — Se o `font-family` computado do título resolver para a face de
@@ -157,7 +162,7 @@ seguinte.
   então o sistema deve reprovar o caso correspondente da suíte.
   *(comportamento indesejado)*
 - **RF-11.d** — O sistema deve fazer essa observação contra o artefato de build
-  servido em `http://localhost:4173`, nunca contra o servidor de
+  servido na origem de pré-visualização, nunca contra o servidor de
   desenvolvimento da porta 5173, que serve HTML sem a tag de política.
   *(ubíquo)*
 
@@ -251,7 +256,7 @@ seguinte.
 - **RF-19.a** — O sistema deve prover roteador em `apps/web`, com as rotas do
   esqueleto declaradas em `apps/web/src/app/routes/`. *(ubíquo)*
 - **RF-19.b** — Quando uma rota do esqueleto é aberta direto na barra de
-  endereço do artefato servido em `http://localhost:4173`, o sistema deve
+  endereço do artefato servido na origem de pré-visualização, o sistema deve
   devolver a página daquela rota. *(dirigido a evento)*
 - **RF-19.c** — Quando a página é recarregada sobre uma rota do esqueleto, o
   sistema deve devolver a mesma página. *(dirigido a evento)*
@@ -441,7 +446,7 @@ seguinte.
 
 - **RNF-01** — O sistema deve medir todo requisito comportamental desta spec numa
   execução única da suíte, contra o artefato de build servido por `vite preview`
-  em `http://localhost:4173`, com o veredicto de cada caso lido do relatório
+  na origem de pré-visualização, com o veredicto de cada caso lido do relatório
   dessa execução. *(ubíquo)*
 - **RNF-02** — O sistema deve compilar a camada de estilo — Tailwind v4 com
   `cva`, `clsx` e `tailwind-merge` — para folha `.css` estática emitida em
