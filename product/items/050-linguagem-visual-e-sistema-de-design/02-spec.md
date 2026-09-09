@@ -4,13 +4,17 @@
 **Discovery:** `00-discovery.md`
 
 ## 1. Escopo desta spec
+> Reconciliado em D-001.
 
 Esta spec reescreve em EARS os trinta e dois requisitos aprovados no PRD, sem
-acrescentar requisito e sem reabrir decisão: as oito decisões `D1` a `D8` do
-discovery são dado. Cada `RF-nn` do PRD mantém o número; onde ele precisou de
-mais de uma sentença, as sentenças são `RF-nn.a`, `RF-nn.b` e assim por diante.
-A tabela que liga cada `RF-nn` à regra do discovery e à raiz na visão de produto
-está no PRD e não é repetida aqui.
+acrescentar requisito de produto e sem reabrir decisão: as oito decisões `D1`
+a `D8` do discovery são dado. Cada `RF-nn` do PRD mantém o número; onde ele
+precisou de mais de uma sentença, as sentenças são `RF-nn.a`, `RF-nn.b` e
+assim por diante. A tabela que liga cada `RF-nn` à regra do discovery e à
+raiz na visão de produto está no PRD e não é repetida aqui. O `RF-33`, ao fim
+da seção 2, traduz em EARS a exigência de processo — não de PRD — de que este
+item registre a direção visual em `product/00-linguagem-visual.md`; ele não
+tem linha na tabela porque a exigência não nasce no PRD.
 
 Duas restrições de medição atravessam a spec inteira e estão escritas como
 `RNF-01`: a superfície medida é o artefato de build servido por `vite preview`
@@ -406,6 +410,32 @@ seguinte.
   *(ubíquo)*
 - **RF-32.f** — O sistema deve manter zero ocorrências de "algo deu errado",
   "Ops" e "Desculpe" no texto de interface sob `apps/web/src/`. *(ubíquo)*
+
+### 2.7 Documento canônico da direção visual
+> Reconciliado em D-001.
+
+- **RF-33.a** — O sistema deve registrar em `product/00-linguagem-visual.md`,
+  como documento canônico da direção visual, a direção "Lombada" e a razão
+  dela: onde mora a ousadia — o filete de acesso e o token de ação — e o que
+  permanece quieto no resto da interface. *(ubíquo)*
+- **RF-33.b** — O sistema deve registrar os seis tokens de cor — `papel`,
+  `tinta`, `grafite`, `verdete`, `carimbo` e `fio` —, com os dois valores de
+  cada um, um por tema, como resolvidos no arquivo de tema, e o papel
+  semântico de cada um: o que é superfície, o que é texto, o que é ação, o
+  que é lombada de acesso por canal, o que é marca de propriedade e lombada
+  de concessão individual, e o que é fio. *(ubíquo)*
+- **RF-33.c** — O sistema deve registrar as três faces tipográficas e a
+  escala de tamanhos como existem no arquivo de tema. *(ubíquo)*
+- **RF-33.d** — O sistema deve registrar a escala de espaço, os raios, as
+  sombras, os tokens de movimento e o ponto de quebra de telefone com os
+  valores que o arquivo de tema declara. *(ubíquo)*
+- **RF-33.e** — O sistema deve registrar a régua de acessibilidade que a
+  direção sustenta: contraste AA nos dois temas, foco visível,
+  `prefers-reduced-motion` respeitado, nenhum valor mágico e cor nunca como
+  sinal único. *(ubíquo)*
+- **RF-33.f** — O sistema deve registrar a regra de que rótulo, mensagem de
+  erro, estado vazio e texto de botão são pt-BR, e de que identificador de
+  código é inglês. *(ubíquo)*
 
 ## 3. Requisitos não funcionais
 
