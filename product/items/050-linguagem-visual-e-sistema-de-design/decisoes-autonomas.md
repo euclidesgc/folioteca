@@ -49,6 +49,19 @@ trabalho deste item.
 | D26 | execute (fase 1) | **A isenção dos três gates passa a ser por arquivo, `**/*.woff2`, e não pela pasta de fontes** | Deixar `apps/web/src/shared/styles/fonts/**` como `D23` a escreveu | O `phase-validator` mediu o buraco que `D23` abriu: a isenção por pasta faz um `.tsx` guardado ali escapar de G3, G4 e G5 — e o critério de tipografia desta mesma fase argumenta, com todas as letras, que a exclusão tem de ser por arquivo justamente "para que um `.tsx` guardado ali continue reprovando". A régua global contradizia o critério da fase. Medido com controle positivo: com a isenção por pasta o arquivo passa; com `**/*.woff2` o G3 reprova `controle.tsx:1` e o runner sai com código `1`. O defeito nasceu nesta fase e foi fechado nela, que é o que a norma manda quando a solução cabe no trabalho em andamento |
 | D27 | execute (fase 1) | **`D-004` e `D-005` são ratificadas na opção recomendada, e a correção das duas acontece na fase 4** | Corrigir agora, na fase 1, como a leitura literal de "a fase segue na opção recomendada" sugere | As duas opções recomendadas reabrem critérios da fase 1 **cuja validação já está gravada**: `D-004` muda o nome que a asserção de regex procura, `D-005` muda o script que mede o contraste. Reabri-los agora derrubaria um veredicto `APROVADO` sem que uma linha de código tivesse mudado para justificar a reabertura. A fase 4 é onde as duas mordem de verdade — é ela que usa o ponto de quebra, e é a etapa 4.3 que já escreve a instrução invertida —, e a regra 8 da norma manda a reconciliação de documento viajar no mesmo PR da mudança. As duas ficam `APROVADA` com a execução datada na fase 4, e o PR desta fase carrega os dois rótulos |
 
+| D28 | execute (fase 2) | **A base headless é `@ark-ui/react@5.39.1`**, e o caminho misto com `<dialog>` e `popover` nativos não é necessário | `radix-ui@1.6.7`, a convenção mais comum; `react-aria-components@1.21.0`; `@headlessui/react@2.2.10`; `@base-ui-components/react`, ainda em `1.0.0-rc.0` | Medido no navegador, contra o artefato de build servido em 4173, sob a política real, com as quatro candidatas montadas na mesma sonda. **Radix reprova**: cinco recusas de `Applying inline style violates` — duas ao abrir o menu, duas ao abrir o diálogo, uma na carga —, porque `react-remove-scroll` injeta bloco `<style>` por script, e o efeito é o travamento de rolagem que some sem avisar. **React Aria reprova por uma**, sempre na carga: `usePress` injeta `<style id="react-aria-pressable-style">` com a regra de `touch-action` dos elementos pressionáveis; ela tem guarda por `getElementById` e daria para contornar com um elemento marcador, mas o contorno amarra a política a um identificador interno de terceiro. **Headless UI** não abriu menu nem diálogo na sonda e não tem dica. **Ark UI mede zero recusa** em carga, menu, dica, diálogo, seleção e alternador, e entrega na mesma medição tudo o que os seis critérios comportamentais desta fase pedem: menu com caixa de 68×48 posicionada, dica que nasce no foco do teclado e no ponteiro e não existe antes de cada estímulo, foco preso em 12 de 12 `Tab` com três elementos distintos, `Esc` que fecha e devolve o foco ao gatilho, `combobox` com `listbox` de três opções que responde a `Enter`/`ArrowDown`/`Enter`, e papel `switch` com `aria-checked` de `false` para `true` no `Space`. A idade foi remedida no dia: 11 dias contra os 7 de `minimumReleaseAge` |
+| D29 | execute (fase 2) | **O alternador expõe papel `switch` e `aria-checked` pelo `Switch.HiddenInput`, com o valor vindo do `Switch.Context`** | Aceitar o `checkbox` nativo que o Ark entrega por padrão e medir o critério por estado marcado em vez de `aria-checked` | O Ark monta o alternador como `<label>` com `<input type="checkbox">` escondido, e o `Switch.Control` que desenha o traço é `aria-hidden`. Sem papel `switch` no DOM, o critério comportamental desta fase — que consulta por papel `switch` e lê `aria-checked` — não tem o que medir, e mudar o critério para caber no primitivo seria enfraquecer a medição para agradar a biblioteca. Medido depois da correção: `getByRole('switch', {{ name: 'Mostrar arquivados' }})` acha um elemento, e `aria-checked` passa de `false` para `true` no `Space`. O valor vem do estado do próprio primitivo, então não há como as duas leituras divergirem |
+
+| D30 | execute (fase 2) | **O filete lateral fica, e o achado do detector de design é suprimido só em `design.tsx`, com a razão escrita** | Tirar o filete das seções e do cabeçalho da página viva, ou afinar o acento | O detector do `impeccable` acusa `side-tab` nas linhas 101 e 374 e chama o filete colorido de um dos lados de "o indício mais reconhecível de interface gerada por máquina" — e o aviso é legítimo como classe. Nesta casa ele não se aplica: o filete **é** a direção visual, ela se chama Lombada, e é motivada pelo domínio em vez de ornamental — `theme.css` declara `--lombada-canal`, `--lombada-pessoa` e `--lombada-privado`, e a tese do produto é que o acesso vem da origem de quem lê. As duas linhas são código da **fase 1**, já validado, e a fase 2 declara não tocar `theme.css` nem a direção: mudá-la aqui reabriria decisão canônica fora de escopo. A supressão é a mais estreita que a ferramenta oferece — a regra continua valendo em todo arquivo que não seja este. **Isto é para o dono olhar**: se, ao ver as capturas, ele achar que a Lombada caiu num gabarito, quem muda é a fase 5, que escreve o documento canônico da direção |
+| D31 | execute (fase 2) | **A variante destrutiva do botão usa `carimbo`**, e o papel do token fica para a fase 5 resolver | Criar um token de perigo no `theme.css`, ou deixar o botão destrutivo com a mesma cor do primário | A paleta tem seis cores e nenhuma de alerta, e `theme.css` está na lista de arquivos que esta fase declara **não** tocar — criar o sétimo token aqui seria mudar a paleta do dono numa fase que não a discute. O `carimbo` é a única cor de tensão disponível, e é a escolha possível. Ela cobra um preço que fica registrado: na linguagem, o carimbo marca propriedade e concessão individual — é a lombada de acesso por pessoa —, e a fase 3 entrega justamente a assinatura de acesso. Ou o documento canônico da fase 5 dá ao carimbo os dois papéis por escrito, ou a paleta ganha um token de perigo. Quem decide é a fase 5, com a direção inteira à vista |
+| D11 | execute · fase 2 | **A base headless `@ark-ui/react` fica**, e a medição de `D4` que o plano condicionava está feita | Passar diálogo e dica para `<dialog>` e `popover` nativos, que era o caminho misto previsto para o caso de a base reprovar | A etapa 2.1 mandava medir, antes de escrever primitivo, se a base posiciona sob `style-src 'self'`. Medido no navegador contra o artefato construído, servido na origem de pré-visualização: o menu flutua com caixa de 168×137 e canto dentro da janela, a dica flutua com caixa não nula, e o console da sessão inteira não traz nenhuma mensagem `Applying inline style violates` — só o aviso de `frame-ancestors` em `<meta>`, que a fase 1 já conhece, e o 404 do favicon. A base posiciona por propriedade CSSOM, que é o caminho que a política permite, e não por bloco `<style>` injetado nem por atributo `style` escrito como string |
+| D12 | execute · fase 2 | **O primitivo de dica desliga o fechamento por rolagem** (`closeOnScroll={false}` no `Tooltip.Root`) | Deixar o padrão da base, e ajustar a suíte para não rolar antes de medir | Não é acerto de teste: é defeito de teclado que a suíte apenas revelou. A base fecha a dica em qualquer rolagem, e o navegador rola o controle para a vista ao dar-lhe foco — numa página mais alta que a janela, quem chega ao controle com `Tab` produz os dois eventos no mesmo gesto, e o evento de rolagem é despachado no quadro seguinte, quando a dica já abriu. A dica fecha antes de ser lida, e só para quem usa teclado; quem usa ponteiro nunca vê o defeito. Medido: com o padrão da base, o caso da dica reprovou nas três repetições. O posicionamento continua acompanhando a rolagem, porque a âncora é recalculada de forma contínua — o que se desliga é o fechamento. A correção mora no primitivo, e não na página, porque toda tela que usar a dica herda o acerto |
+| D13 | execute · fase 2 | **O caso da seleção espera o estado observável entre as teclas**, e não um tempo | Repetir o caso até passar, ou inserir espera fixa | O caso reprovava em uma execução de cada três. Medido no rastro do Playwright: a lista fica visível 4ms depois do `Enter` que a abre, e o foco só migra do gatilho para ela **17ms** depois — a suíte mandava `ArrowDown` 19ms depois, em cima da fronteira, e o `Enter` seguinte 2ms depois disso. A tecla ia para quem já não a trata, e o caso reprovava por corrida em vez de por defeito. Agora o caso espera a lista **receber o foco** antes de navegar, e espera o `aria-activedescendant` mudar antes de escolher — dois sinais de acessibilidade, os mesmos que um leitor de tela usa, e nenhum deles amarrado ao nome interno da biblioteca. Medido depois: 18 de 18 em três repetições |
+| D14 | execute · fase 2 | **`.impeccable/config.json` fica no diff**, com a isenção que ele traz, embora não esteja na lista de arquivos tocados da fase | Apagá-lo, por estar fora do escopo declarado | Ele é configuração de ferramenta de desenvolvimento local — o detector de qualidade de design que roda no hook desta máquina —, não código do produto: nada no artefato publicado muda com ele. A isenção silencia um falso positivo sobre o filete lateral de `design.tsx`, que o detector lê como aba lateral ornamental e que aqui é a lombada, a metáfora central do produto: `theme.css` declara `--lombada-canal`, `--lombada-pessoa` e `--lombada-privado`, e a tese do item é que o acesso vem da origem da pessoa. As duas linhas apontadas são código da fase 1, já aprovado. Apagar o arquivo faria a próxima sessão reencontrar o mesmo falso positivo e gastar a mesma investigação; mantê-lo custa uma linha no raio de impacto do PR |
+| D15 | execute · fase 2 | **O papel `switch` e o `aria-checked` passam a ser fiados dentro do primitivo**, e a página e o teste unitário deixam de escrevê-los | Deixar como a rodada anterior fez, com a página e o teste repetindo `role="switch"` e `aria-checked` num `Switch.Context` | A base entrega um `input` de caixa de seleção, sem papel de alternador — verificado na fonte de `@zag-js/switch`, cujo `getHiddenInputProps` devolve `type: "checkbox"` e nenhum `role`. Escrito na página, o papel existia só ali: a próxima tela que compusesse `Switch.Root`/`Control`/`Thumb`/`Label` sem lembrar do bloco anunciaria "caixa de seleção" a quem vê um alternador, e nenhum portão acusaria, porque caixa de seleção é marcação válida. Pior, o teste unitário **repetia a mesma composição** e por isso passava por construção: ele media o remendo do próprio teste, não o primitivo. Com a fiação dentro, o teste passou a medir o primitivo — controle negativo executado: removida a fiação, os três casos do alternador reprovam; restaurada, 43 de 43 passam. É a etapa 2.4 do plano ao pé da letra, "o comportamento vive dentro do primitivo e nada é exigido de quem o compõe", aplicada à semântica e não só ao teclado |
+| D16 | execute · fase 2 | **A marca de justificativa do comentário novo é `motivo:`, e não `decisão:`** | Escrever `decisão:`, que é a marca semanticamente certa e que o cabeçalho do próprio portão anuncia como válida | O defeito que o item `069` do roadmap descreveu por análise **mordeu de fato**, e esta fase foi a primeira a topar com ele: `scripts/gates/gate3_no_comments.sh` escreve as marcas acentuadas como classe de caractere — `decis[ãa]o` —, o `awk` desta máquina é `mawk 1.3.4`, que casa **byte** e não caractere, e `ã` ocupa dois bytes. O comentário aberto por `// decisão:` em `switch.tsx` reprovou o G3, com o portão apontando as linhas do bloco que a marca deveria liberar. `motivo:` é ASCII, está na mesma lista documentada, e não muda uma palavra do que o comentário explica. Não é correção: é contorno, e o item `069` foi atualizado com a data e o arquivo da ocorrência, porque um defeito que já aconteceu compete por prioridade de outro jeito que um defeito previsto |
+| D17 | execute · fase 2 | **A regra de valor mágico passa a ler o literal em qualquer profundidade dentro de `className`**, e o teste do portão ganha o caso de `cn()` | Deixar a regra como a rodada anterior escreveu, lendo só o valor direto do atributo — que é o que o critério comportamental da fase exercita e o que já a fazia passar | Medido: com a regra anterior, `className={cn("bg-[#3b82f6] p-[13px]")}` sob `src/features/` passava com código de saída `0`. E `cn(...)` **é** a forma desta casa — os quinze primitivos escrevem assim, e toda tela que os componha vai escrever igual, porque é a única maneira de a classe de fora vencer a padrão. A regra ficava verde exatamente onde a classe de verdade é escrita: falsa segurança, que é pior que regra nenhuma, porque ninguém procura de novo. Os dois visitantes viraram seletores de descendência — `JSXAttribute[name.name="className"] Literal` e o mesmo para `TemplateLiteral` —, o que cobre o valor direto, a chamada de função, o ternário dentro dela e o literal de gabarito, sem enumerar formas. Controle executado nos quatro caminhos: dentro de `cn()` reprova; o literal direto continua reprovando e nomeando arquivo e linha, que é o que o critério pede; a marca de justificativa continua passando; a árvore limpa continua passando |
+
 ## Divergências ratificadas sem o humano
 
 | ID | Tipo | Ratificada em | Na opção | O que ela decide |
@@ -59,6 +72,8 @@ trabalho deste item.
 
 | `D-004` | `normal` | 09/09/2026 | (a) | `--breakpoint-telefone: 768px` gera, no Tailwind v4, uma variante `telefone:` de **min-width** — que vale de 768px para cima e nunca em telefone. O nome diz o oposto do que ativa, e a etapa 4.3 do plano já escreveu "abaixo de" para ele. O token passa a se chamar `--breakpoint-desde-tablet`, **na fase 4** |
 | `D-005` | `normal` | 09/09/2026 | (a) | Os seis valores do tema claro estão escritos duas vezes — em `@theme`, que gera as utilitárias, e em `.tema-claro`, que permite a troca de tema — e o critério de contraste só lê a segunda. Uma cópia pode divergir da outra em silêncio. O critério passa a ler `@theme` também e a reprovar se as duas diferirem, **na fase 4** |
+
+| `D-006` | `normal` | 09/09/2026 | (a) | O primeiro critério comportamental da fase 2 pedia menu e dica abertos ao mesmo tempo, e um menu modal que se comporta corretamente fecha ao perder o foco e o devolve ao próprio gatilho — a dica nunca recebia o estímulo. A suíte passa a fechar o menu com `Escape` entre as duas medições, e ganha a asserção de que o menu deixou de existir. As três asserções que o critério existe para fazer continuam todas |
 
 **`D-001` foi ratificada por um humano em 09/09/2026, às 06:27:43Z**, e o estado
 registra `ratificada_por: humano`. O rótulo `blocked-on-D-001` saiu do PR #63 por
@@ -77,65 +92,356 @@ sem o "sim" de uma pessoa.
 | `plan` | 09/09/2026 | `03-plan.md`, com as correções desta sessão |
 | `plan` (de novo) | 09/09/2026 | `03-plan.md` reconciliado por `D-002` e `D-003`. A aprovação anterior estava amarrada ao conteúdo de antes das duas reconciliações, e o `state.sh check` acusava a diferença |
 
+| `plan` (mais uma vez) | 09/09/2026 | `03-plan.md` reconciliado por `D-006`. A aprovação anterior estava amarrada ao conteúdo de antes da reconciliação, e o `state.sh check` acusava a diferença |
 ## O que esta sessão fez, e o que ela deixou para a próxima
 
-A fase 1 está **`APROVADA`**, com veredicto em `05-veredictos/fase-1.md`: doze
+A **fase 2 está `APROVADA`**, com veredicto em `05-veredictos/fase-2.md`: doze
 critérios de doze cumpridos, cada um com o comando executado e a saída real, e os
-portões verdes — web 21/21, api 40/40, suíte comportamental 8/8 numa subida,
-`gates_runner.sh` em 0.
+portões verdes — 43 testes de unidade em 11 arquivos, tipos e lint limpos, e a
+suíte comportamental 14 de 14 numa subida. A validação foi cega, e conferiu por
+fora os dois pontos em que um caso poderia ser verdadeiro por construção.
 
-Ela fecha as oito etapas: quarentena remedida no dia, três faces auto-hospedadas
-com licença ao lado, arquivo de tema com os seis tokens de cor nos dois temas,
-plugin do Tailwind no build, rota `/design` no artefato, três casos
-comportamentais e a skill `react-styling` reconciliada para a forma v4.
+**A medição que o plano condicionava está feita, e a base passa.** A etapa 2.1
+mandava provar, antes de escrever primitivo, se a base headless posiciona sob
+`style-src 'self'`. `@ark-ui/react` posiciona por propriedade CSSOM, o console não
+registra estilo recusado, e o menu e a dica flutuam com caixa não nula. O caminho
+misto de reserva — `<dialog>` e `popover` nativos — não foi necessário. `D4` está
+respondida, e a fase 3 assenta os nove primitivos restantes sem repetir a medição.
 
-**Duas sessões trabalharam nesta fase.** A primeira implementou e abriu o PR sem
-passar pela revisão nem pela validação; a segunda fechou o ciclo — `react-reviewer`,
-correção do que ele apontou, `phase-validator` cego e veredicto gravado.
+**Três defeitos apareceram medindo, e os três eram do produto, não do teste.**
+A dica fechava para quem chega por `Tab` numa página alta, e só para essa pessoa
+(`D12`). O alternador anunciava-se como caixa de seleção, e o teste que deveria
+pegar isso repetia o mesmo remendo e passava por construção (`D15`). A regra do
+valor mágico não mordia dentro de `cn(...)`, que é a forma que todo primitivo usa
+— verde exatamente onde a classe de verdade é escrita (`D17`). As três correções
+foram para dentro do primitivo ou da regra, e cada uma tem controle negativo
+executado.
 
-**O que a revisão e a validação acrescentaram:**
+**Uma divergência espera o olhar do dono.** `D-006` corrige o primeiro critério
+comportamental desta fase, que pedia menu e dica abertos ao mesmo tempo — coisa
+que um menu modal correto não concede, porque ele devolve o foco ao próprio
+gatilho ao fechar. Ratificada na opção recomendada, o plano reconciliado no mesmo
+PR, e **o PR nasce e permanece `blocked-on-D-006`** até a ratificação humana. Não
+é trabalho pendente: o trabalho está feito e medido.
 
-- O `react-reviewer` mediu que nenhum teste de unidade tocava `design.tsx`. Quatro
-  testes entraram, sem mudar código de produção (`D25`).
-- O `phase-validator` achou quatro coisas fora do escopo dos critérios. Uma foi
-  **fechada aqui** — a isenção dos gates por pasta, que deixava um `.tsx` escapar de
-  G3, G4 e G5, virou isenção por arquivo, com controle positivo medido (`D26`).
-  Uma **já estava prevista** pelo plano: o tema fixo em claro, com o alternador na
-  fase 4. As outras duas viraram `D-004` e `D-005`, ratificadas na opção
-  recomendada, com a correção datada para a fase 4 (`D27`).
+**Somam-se a ela as quatro da fase 1** — `D-002` a `D-005` —, que continuam
+esperando. `D-004` e `D-005` são executadas na fase 4.
 
-**Quatro divergências esperam o olhar do dono.** `D-002` e `D-003` corrigem
-critérios desta fase; `D-004` e `D-005` corrigem o nome do ponto de quebra e a
-paleta escrita duas vezes, e são executadas na fase 4. **O PR nasce e permanece
-`blocked-on-D-002`, `blocked-on-D-003`, `blocked-on-D-004` e `blocked-on-D-005`**
-até a ratificação com `--por humano`. Não são bloqueios de trabalho pendente: o
-trabalho está feito e medido. São o olhar que a norma reserva para quem decidiu
-sozinho de madrugada.
+**A revisão de código passou limpa**, com um único apontamento: o
+`.impeccable/config.json` está no diff sem estar na lista de arquivos tocados do
+plano (`D14`). É configuração do detector de design que roda no hook desta
+máquina, e nada no artefato publicado muda com ele.
 
-**Um defeito do harness parou o processo no meio, e não é do repositório.** O
-`phase-validator` não conseguiu gravar o próprio veredicto: `.harness/tool-matrix.json`
-declara `writes: []` e nega `Write` nas ferramentas dele, enquanto a skill
-`harness-orchestrator` diz, com seção própria, que ele grava. Ele recusou o caminho
-canônico por escopo, recusou `/tmp` por ferramenta, e não contornou por `Bash` — que
-é o comportamento certo. O veredicto foi reproduzido por ele e gravado pela thread
-principal, sem edição. A correção mora no plugin, em `scripts/init/compose.py`, e
-está descrita com a asserção que impede a reincidência em
-`.harness/proposals/2026-09-09-003.md`.
+**Três entradas novas de roadmap, e uma atualizada.**
 
-**Três entradas de roadmap saíram deste item**, todas da mesma raiz — um portão que
-não consegue medir e não diz isso: `068` e `069`, escritas pela sessão anterior, e a
-proposta do harness acima, que não é item de produto e por isso vive em
-`.harness/proposals/`.
+- `070` — a aplicação não declara ícone, e o navegador recebe `404` de
+  `/favicon.ico` em toda página. Ruído permanente em cima do coletor de console
+  que os critérios desta linguagem visual usam.
+- `071` — **e este a próxima sessão precisa ler antes de começar.** A forma
+  `grep -c '' <arquivo>`, que os critérios das fases 3, 4 e 5 usam para dizer "o
+  arquivo não está vazio", passa pelo escape de saída crua do harness, e esse
+  escape descarta o argumento de string vazia: o comando vira `grep -c <arquivo>`,
+  lê o stdin e imprime `0`. O validador desta fase mediu `0` onde os arquivos têm
+  6, 38 e 56 linhas, e só não reprovou porque desconfiou do número e remediu. É a
+  classe de defeito desta casa com o sinal trocado — o portão reprova o que está
+  certo —, e a fase 3 topa com ela.
+- `072` — o artefato da web é um único pedaço de 806 KB sem divisão de código, e
+  nenhum critério de nenhuma fase mede tamanho. Ficou na região de dívida, atrás
+  dos itens de produto, porque não trava a corrida.
+- `069` deixou de ser previsão: o defeito do `awk` que casa byte e não caractere
+  **mordeu de verdade** nesta fase, e a entrada ganhou a data e o arquivo.
 
-**Validação de campo que só o dono faz:** olhar as quatro capturas em
-`06-capturas/` e dizer se a direção "Lombada" está de pé. A régua automática mediu o
-que dá para medir — contraste dos dois temas, ausência de rolagem horizontal em 375,
-768 e 1440, a face carregada da própria origem. O que ela não mede é se a página está
-boa.
+**Validação de campo que só o dono faz:** olhar as sete capturas em
+`06-capturas/` e dizer se a direção "Lombada" está de pé nos primitivos. A régua
+automática mediu o que dá para medir — inclusive `prefers-reduced-motion`, em que
+a animação some e o estado final permanece. O que ela não mede é se a página está
+boa. E que um leitor de tela de verdade anuncie "alternador" onde agora há
+`role="switch"` é coisa que nenhum teste desta suíte prova.
 
-**A próxima sessão faz a fase 2** — a base headless medida, o contrato de componente
-e os seis primitivos de teclado. Ela começa lendo que a fase 4 deve duas correções
-(`D-004`, `D-005`) e que os quatro avisos do portão de critérios, nas fases 2, 4 e 5,
-continuam de pé: a conclusão desses critérios só afirma ausência, e isso é verdade
-também para uma entrada que não existe. O aviso não reprova, mas a fase 2 é a
-primeira que topa com um deles.
+**A próxima sessão faz a fase 3** — os nove primitivos restantes e a assinatura
+de acesso. Ela começa lendo o `071` acima, e sabendo que a base headless já está
+medida, que o contrato de componente (`cn`, `cva`, `defaultVariants`,
+`VariantProps`) está fixado pelo `button.tsx`, e que a regra do valor mágico já
+vale para tudo que ela escrever fora de `src/shared/components/`.
+
+---
+
+## Fase 3 — os nove primitivos restantes e a assinatura de acesso
+
+**Aprovação autônoma:** `plan` reaprovado em 09/09/2026, `--por autonomo`, sobre
+o conteúdo reconciliado com D-007, D-008 e D-009 (sha `75082dbbc819`). O plano
+já estava aprovado; a reaprovação amarra o "sim" ao texto novo, sem o que o
+`check` acusaria documento mudado depois do aval.
+
+**As três divergências, todas `normal`, todas ratificadas em modo autônomo.** As
+três têm a mesma causa: o bloco de critérios da fase 3 foi escrito antes de as
+fases 1 e 2 existirem, e fixou a forma de uma implementação imaginada. Em nenhuma
+delas o código está errado — em todas o oráculo mede a letra e a entrega cumpre o
+espírito por outro caminho. Foram medidas **antes** de escrever código, e não
+depois de uma reprovação: rodar os oráculos do plano contra a árvore de hoje é a
+primeira coisa que a fase faz, e custa minutos contra a rodada de validação
+inteira que a descoberta tardia custaria.
+
+- **D-007** — o critério pedia `--color-verdete` declarado duas vezes em
+  `theme.css`, e há três: uma por bloco de tema mais a do `@theme` do Tailwind,
+  que é quem **gera** as utilidades `bg-verdete` e `border-l-verdete` que o botão
+  e o filete consomem. E pedia a cadeia `verdete` dentro da regra `:focus-visible`,
+  que lê `var(--acao)` — o token semântico que é `var(--color-verdete)` nos dois
+  blocos, e cuja existência é o que dispensa `dark:` dentro do primitivo.
+  *Descartado:* tocar `theme.css` para satisfazer a letra, que quebraria a fase 1
+  e regrediria a camada de tokens. *Escolhido:* o oráculo passa a medir a cadeia
+  de tokens por bloco, o que é mais forte — o anterior aprovaria um `/* verdete */`
+  em comentário.
+- **D-008** — o critério exigia que os cabeçalhos de nível 2 da página fossem
+  **exatamente** os quinze primitivos, e a página tem seis seções de fundação
+  (`Cor`, `Tipografia`, `Espaço`, `Raio`, `Sombra`, `Movimento`) que a fase 1
+  entregou e que o próprio plano prevê. *Descartado:* trocar `é exatamente` por
+  `contém`, que perderia a capacidade de acusar seção duplicada ou sobrando — o
+  defeito típico de uma página montada em três fases; e envolver os quinze numa
+  região só para o oráculo, deformação que a fase 4 herdaria. *Escolhido:*
+  enumerar as vinte e uma, mantendo o conjunto fechado.
+- **D-009** — o critério exigia duração computada igual a `0s` sob movimento
+  reduzido. Medido no Chromium, a supressão de `0.01ms` que a fase 1 entregou
+  computa `1e-05s`, e nunca será `0s`. E `0.01ms` não é acidente: `0s` **cancela**
+  `transitionend` e `animationend`, e código que os espera para revelar o estado
+  final trava — o defeito que a segunda metade do mesmo critério existe para
+  impedir. *Descartado:* trocar por `0s` em `theme.css`; e aceitar `1e-05s` como
+  cadeia, que amarra o critério à serialização de um motor. *Escolhido:* teto de
+  `0.001` segundo, que responde a pergunta em qualquer navegador e continua
+  reprovando os `120ms` do token.
+
+**A direção das três marcas de acesso, decidida aqui.** `canal`, `pessoa` e
+`privado` são o dispositivo que assina o produto, e assinatura não se toma
+emprestada: nenhum catálogo de ícones entrou. As três saem do mundo do próprio
+assunto — uma folioteca é uma estante, e a unidade é a **lombada**, a mesma que o
+filete vertical do cartão repete em outra escala. `canal` são três lombadas lado
+a lado, o acesso coletivo que existe sem você; `pessoa` é uma lombada só com o
+carimbo, a concessão nominal; `privado` é o volume virado, com o corte das
+páginas para fora, ilegível de fora. *Descartado:* cadeado para `privado`, que é
+o gabarito e diz "segurança" onde o produto diz "ninguém mais alcança". As três
+compartilham o módulo geométrico e se distinguem pela **forma**, não pela cor —
+verificado ampliando as três a 180px, em `06-capturas/fase-3-marcas-de-acesso-ampliadas.png`.
+
+**Os avisos do `criteria-lint` que ficam como estão.** Quatro, nas linhas 699
+(fase 2), 1317 e 1455 (fase 4) e 1689 (fase 5): conclusão que só afirma ausência.
+Nenhum é da fase 3, e o da fase 2 é de fase encerrada. As fases 4 e 5 respondem
+aos seus quando chegarem — corrigi-los agora seria editar critério de fase que
+ainda não começou, sem o código na frente para saber qual é o controle positivo
+certo.
+
+**O que a verificação de tela achou, e o código não contava.** A página foi
+aberta no navegador, em 375, 768 e 1440, nos dois temas. Contraste das etiquetas
+de acesso: mínimo 5,70:1, nos dois temas, acima de AA. Rolagem horizontal: limpa
+em 768 e 1440. Os dois defeitos que a suíte não pegou estão anotados no bloco de
+correção que voltou ao implementer, e nenhum dos dois é de critério — são de
+régua da casa, que é o que a captura existe para alcançar.
+
+**A rodada que retomou a fase 3 encontrou a implementação inteira e não medida.**
+A rodada anterior morreu depois de escrever código, marcas e capturas, e antes de
+rodar um oráculo sequer; o commit `ebbf547` diz isso no corpo. A primeira coisa
+que esta rodada fez foi medir os doze critérios contra a árvore que herdou, e é
+dessa medição que sai tudo o que está escrito abaixo.
+
+**Cada marca de acesso volta a ser um `svg` autocontido, e `mark-frame.tsx`
+morre.** O critério estrutural das três marcas pede `grep -c '<svg'` maior ou
+igual a `1` em `channel.tsx`, `person.tsx` e `private.tsx`, e media `0` nos três:
+a rodada anterior extraiu o elemento `svg` e seus atributos para um quarto
+arquivo compartilhado, que nem consta dos arquivos tocados que o plano declara
+para esta fase. *Descartado:* registrar divergência e reescrever o oráculo para
+seguir a indireção, que é o caminho que a fase vinha tomando com D-007 a D-009 —
+aqui ele custaria uma divergência para defender um arquivo a mais. *Escolhido:*
+repetir os sete atributos de moldura nos três, que é como todo catálogo de ícones
+se escreve, devolve a pasta à lista de arquivos que o plano declara, e mantém o
+oráculo capaz de ver uma marca que passasse a vir de fora. O `svg` compartilhado
+escondia justamente isso: com a moldura num quarto arquivo, um `channel.tsx` que
+importasse de um catálogo de terceiro continuaria com zero `<svg>` e o critério
+não teria como distinguir os dois casos.
+
+**O portão reprovou por não conseguir medir, e a causa era minha.** Apagado o
+`mark-frame.tsx` sem encenar a remoção, `git ls-files` continuou listando o
+arquivo e `gates_runner.sh` parou na cópia do universo, com a frase exata que a
+norma manda — *portão que varre parte da árvore aprova o que não leu*. Encenada
+a remoção, os portões passam. Fica o registro porque o sintoma aparece longe da
+causa: quem apaga arquivo versionado e roda o portão em seguida vê um erro de
+`cp`, não um erro de índice.
+
+**O diálogo se chamava "Conceder acesso" e seu botão dizia "Publicar".** É a
+incoerência de verbo que `RF-32.c` proíbe, dentro da página que existe para
+ensinar a regra do verbo constante — e o critério que a mede passava, porque
+media o único par que havia. A seção **Aviso temporário**, por sua vez, trazia o
+aviso já aberto e nenhum botão: o efeito sem a causa, numa página cujo trabalho é
+mostrar a causa. As duas coisas eram a mesma: o par verbo→aviso estava montado na
+seção errada. *Descartado:* renomear só o título do diálogo, que calaria o sintoma
+e deixaria a seção do aviso sem gatilho. *Escolhido:* cada seção tem o seu par —
+o diálogo concede e avisa `Concedido`, o aviso temporário publica e avisa
+`Publicado` —, e a página passa a mostrar a regra duas vezes em vez de violá-la
+uma.
+
+**Por que o critério passava mesmo assim, e por que isso importa mais que o
+defeito.** `getByRole("status")` casava um elemento só porque o diálogo aberto
+torna inerte todo o resto da página, e o aviso permanente sumia da árvore de
+acessibilidade. Fechado o diálogo, a mesma consulta casaria dois e o caso
+quebraria em modo estrito. O caso passava por acidente de inércia, não por
+desenho — e um critério que depende de qual elemento a base escondeu não mede o
+que diz medir. Com o par em cada seção, os dois casos consultam dentro da região
+que os nomeia, e a leitura não depende mais de o que está inerte.
+
+**O título do estado vazio vira cabeçalho de verdade.** Era um `<p>` com corpo de
+título: quem navega por lista de cabeçalhos nunca alcançava "Nenhum documento por
+aqui", e o axe não acusa — não há hierarquia quebrada, só um texto que se parece
+com título. O nível vem de quem usa (`titleAs`, `h3` por padrão), porque o nível
+certo depende de onde o estado vazio senta, e um valor fixo dentro do primitivo
+seria adivinhação. `EmptyState` é primitivo que toda tela de `002` a `007` monta:
+fechar aqui custa três linhas, e fechar depois custa uma passagem por todas elas.
+
+**Quatro buracos de medição fechados com teste, sem mudar código de produção.**
+A revisão mediu que `AccessSpine` — o componente que dá nome à fase — não tinha
+teste que provasse a fiação de `origin`: fixar a cor de `canal` para as três
+origens passava em tudo. E que o ramo `hasHint={false}` do campo, o que descreve
+um erro sem dica, não era exercitado por nada — defeito que só aparece para quem
+usa leitor de tela. Somam-se as variantes de `cva` de `Avatar` e `Toast`, que
+ninguém provava serem diferentes entre si. Onze testes novos, `89` passando
+contra os `78` que a rodada anterior deixou.
+
+**A troca de `fireEvent` por `userEvent` não é desta fase, e virou o item `074`.**
+A revisão está certa no mérito — `fireEvent` despacha direto no nó e não vê um
+`pointer-events-none` —, mas `@testing-library/user-event` não está declarado em
+`apps/web/package.json`, e esse arquivo e o `pnpm-lock.yaml` estão entre os que o
+plano da fase 3 declara não tocar. *Descartado:* declarar a dependência aqui, que
+seria abrir escopo por um achado de estilo de teste. *Escolhido:* o item de
+roadmap, que converte os três arquivos de uma vez — inclusive o da fase 2, que
+esta fase não alcançaria de qualquer jeito.
+
+**Os nomes de teste ficam em inglês.** A revisão cobrou o formato
+`deve <resultado> quando <condição>` em pt-BR que a skill `react-testing-unit`
+demonstra. A regra 16 do `CLAUDE.md` diz o contrário para código, e nome de caso
+de teste é código; a fase 2 já fixou o padrão em inglês e foi aprovada assim.
+Entre a skill e a norma canônica, vale a norma.
+
+**O caso de foco fica, e a escrita fora do escopo está registrada.** O oitavo
+caso — `todo controle que recebe foco mostra onde o foco está` — não responde a
+critério nenhum da fase 3, e o plano autoriza sete. Ele percorre a página inteira
+por `Tab` e é a única coisa no repositório que mede a linha "foco visível em tudo
+que recebe foco" da régua da casa. *Descartado:* apagá-lo por escopo, perdendo a
+medição. *Escolhido:* mantê-lo, com o registro aqui, como `D23` e `D25` fizeram
+na fase 1.
+
+**Dois erros no console de toda carga, nenhum desta fase, os dois em roadmap.**
+Medidos no navegador contra o artefato de 4173: `frame-ancestors` ignorado no
+`<meta>` — que já é o item `066` — e `favicon.ico` respondendo `404`, que virou
+o `073`. Os dois moram em arquivos que o plano desta fase proíbe tocar, e juntos
+são a razão de nenhum critério conseguir exigir "console sem erro" sem nomear
+exceção.
+
+**As capturas do tema escuro da rodada anterior mediam o tema claro.** Pedir
+`colorScheme: "dark"` ao navegador não muda nada nesta aplicação: o tema é classe
+no elemento raiz, e o alternador só nasce na fase 4. As capturas foram refeitas
+trocando a classe, e é por isso que as novas mostram os dois temas de verdade.
+
+**A validação cega aprovou os doze e achou um portão que não podia reprovar.**
+`scripts/gates/gate5_import_direction.sh` é detector, não juiz: lê a lista de
+arquivos por entrada padrão, imprime `arquivo:linha:trecho` por violação e termina
+sempre com `exit 0` — quem julga é o dispatcher, que trata saída não vazia como
+reprovação. O critério da fase o invocava **sem entrada padrão** e media o código
+de saída: o laço não recebia arquivo nenhum, não examinava nada, e saía `0`. O
+validador provou com controle positivo que o portão imprime a violação e ainda
+assim sai zero. Um critério verde por construção, dentro do item que escreve a
+linguagem visual, e prestes a ser copiado pelas fases 4 e 5. Virou **D-010**, e o
+critério passa a alimentar `git ls-files 'apps/web/src/**'` e exigir saída vazia,
+com a contagem do universo impressa ao lado. Medido depois: universo de `71`
+arquivos, `0` linhas de violação, e o controle positivo produz `1` — as duas
+perguntas, *consegui medir?* e *o que medi?*, agora têm resposta separada.
+*Descartado:* fazer o portão sair diferente de zero, que consertaria o
+instrumento certo pelo motivo errado e mudaria o contrato de todos os detectores
+do harness com o dispatcher, num arquivo que esta fase declara não tocar.
+
+**D-011 fecha o rótulo que a correção do verbo deixou para trás.** O critério de
+movimento reduzido mandava acionar `Publicar` com o diálogo aberto, e o botão do
+diálogo passou a ser `Conceder`. O que o critério mede — duração desprezível com
+diálogo, aviso e esqueleto visíveis ao mesmo tempo — não depende de qual botão
+dispara o aviso, então trocar o nome do controle preserva a medição inteira.
+*Descartado:* devolver o nome `Publicar` ao botão do diálogo, que reintroduziria
+a incoerência de verbo dentro da página que existe para proibi-la.
+
+**O terceiro achado virou asserção, não divergência.** O critério fala em *texto
+acessível* das etiquetas, e os dois casos liam texto renderizado; hoje coincidem
+porque a marca é `aria-hidden`, mas a equivalência era acidental — tirar o
+`aria-hidden` mudaria o texto acessível sem que caso nenhum acusasse. Aqui o
+critério está certo e o teste é que media outra coisa: os dois casos passam a
+provar que a marca está fora da árvore de acessibilidade antes de ler o texto.
+
+**A revalidação aprovou os doze e achou mais dois, os dois na API dos primitivos
+novos.** `Pagination` renderiza um botão por página sem janela nem reticências —
+com total grande, quem usa teclado atravessa todos antes de chegar a "Próxima".
+E `Field.Root` tem `hasHint` com padrão `true`, então quem compuser um campo sem
+dica e esquecer `hasHint={false}` produz `aria-describedby` apontando para
+elemento inexistente, que some da descrição acessível sem erro nenhum. Nenhum dos
+dois quebra nada nesta árvore: a amostra da paginação usa total pequeno e os três
+usos do campo estão corretos. *Descartado:* corrigir agora, que reabriria critério
+já validado sem que uma linha de código estivesse errada — o mesmo argumento de
+`D27` na fase 1 — e, no caso do campo, decidiria a API de um primitivo sem mais de
+três usos para olhar. *Escolhido:* os itens `075` e `076`, ambos dependendo da
+primeira tela que consome cada coisa de verdade. O `076` traz escrita a forma que
+fecha — a parte se registra no contexto e o `Root` deriva a lista — e a que não
+fecha: inverter o padrão para `false` só troca um erro silencioso por outro.
+
+**O despacho da validação vazou envelope, e isso é meu.** Levei ao validador cego
+o ponteiro para a seção inteira da fase, a notícia da validação anterior com seus
+três achados, e a existência e ratificação de `D-007` a `D-011`. Ele diz ter
+ignorado o conteúdo e lido apenas o objetivo e o bloco de critérios, e o veredicto
+registra isso — mas a cegueira não deve depender da disciplina de quem julga. O
+conserto é do despacho: um validador recebe o caminho do plano, o número da fase e
+a ponta da branch, e nada mais. Fica anotado aqui porque a próxima sessão vai
+despachar igual se ninguém disser o contrário.
+
+## Fase 4 — o esqueleto, os quatro destinos, o tema e a largura de telefone
+
+| # | Fase | Decidido | Alternativa descartada | Por quê |
+|---|---|---|---|---|
+| D32 | execute · fase 4 | **`design.tsx` entra na lista de arquivos tocados, e o `<main>` que abre a página viva vira `<div>`** | Deixar `/design` fora do esqueleto, como rota irmã; ou deixar os dois `main` e anotar como pendência | Registrada como divergência `D-012`. Medido no artefato servido: `/documentos` tem um `main`, `/design` tem **dois**, um aninhado no outro. A página viva nasceu como rota de topo e trouxe o próprio landmark; dentro do esqueleto ela fica envolvida pelo `<main id="conteudo">`. Nenhum critério da fase 4 acusa, porque `document.querySelector("main")` devolve o primeiro e os onze casos medem `/documentos` — mas o axe da fase 5 mede `/design`, que é a rota escolhida por ser onde a gaveta e o alternador existem. A etapa 4.4 pediu a mudança que produz o defeito sem listar o arquivo que o desfaz |
+| D33 | execute · fase 4 | **`D-004` e `D-005` são executadas nesta fase**, como os dois arquivos de divergência mandam, mesmo sem o plano tê-las absorvido | Fechar a fase 4 pelo plano como ele está e deixar as duas para uma sessão futura | As duas foram ratificadas na fase 1 com a frase "**a correção acontece na fase 4**", escrita em `04-divergencias/D-004.md` e `D-005.md`, e a fase 1 fechou sem executá-las porque a norma manda a reconciliação viajar no mesmo PR da mudança — que é o desta fase. Medido: o plano não tem âncora de `D-004` nem de `D-005`, `--breakpoint-telefone` continua no `theme.css`, e o implementer escreveu `telefone:hidden`/`telefone:block` no código novo, propagando o nome invertido para o esqueleto inteiro. Divergência ratificada cuja execução ninguém agenda é dívida órfã: some do rastro sem que nada acuse, e a fase 5 herda o nome errado em toda tela que compuser |
+| D34 | execute · fase 4 | **A área de conteúdo do esqueleto ganha largura máxima de leitura** | Deixar o `<main>` esticar até a largura da janela, que é o que o plano não decidia | Olhado nas capturas, não medido por critério: em `1440x900` o `<main>` tem 1216px e o estado vazio estica com ele, com o texto centralizado num vazio de mais de mil pixels. O plano fixa o esqueleto e os quatro destinos sem dizer nada sobre largura de leitura, e ambiguidade de plano vira decisão de implementador na tela seguinte — as telas de `002` a `007` encaixam aqui dentro. A `/design` já resolve por conta própria, com `max-w-4xl`, e por isso aparece deslocada dentro do esqueleto: duas larguras concorrentes no mesmo lugar. O teto mora no esqueleto, uma vez |
+| D35 | execute · fase 4 | **O controle que abre a gaveta usa marca desenhada, e não o caractere `☰`** | Manter `<span aria-hidden="true">☰</span>`, que passa em todos os critérios | Medido na página: o glifo é `U+2630`, e a família computada é `"Atkinson Hyperlegible Next", system-ui, sans-serif`. As três `@font-face` auto-hospedadas declaram `unicode-range: U+0000-00FF, …`, que **não** cobre `U+2630` — então o desenho vem da fonte de reserva do sistema, exatamente o sintoma que a norma nomeia em `CLAUDE.md`: "o sintoma aparece como texto na fonte de reserva, longe da causa". Num sistema sem o glifo, o controle de navegação do telefone vira caixa vazia, e nenhum portão acusa. A casa já desenha marca própria em `shared/components/access/marks/` desde a fase 3 |
+| D36 | execute · fase 4 | **A gaveta ganha um controle `Fechar navegação` visível** | Confiar em `Escape` e no toque fora, que é o que a base entrega e o que o critério mede | O critério comportamental mede `Escape`, e telefone não tem `Escape`. Nas capturas de `360x740` a gaveta ocupa 256 dos 360px e deixa 104px de fundo tocável — que fecha, e que ninguém sabe que fecha. A fase entrega a primeira tela de telefone do produto, e a saída de um painel modal é a coisa que menos deve depender de descoberta |
+| D37 | execute · fase 4 | **A requebra do `unicode-range` nos quatro `@font-face` fica no diff** | Reverter a reformatação, para o diff do `theme.css` conter só o que a etapa 4.5 autoriza | Apontado pelo revisor como carona fora da fronteira declarada, e ele tem razão sobre a fronteira. Conferido no diff: são quatro quebras de linha, zero mudança de valor. A reformatação é do prettier do hook desta máquina, que corrigiu um arquivo que a fase 1 comitou fora do formato canônico — o portão de formatação não a pegou lá. Reverter não se sustenta: o hook reformata de novo no salvamento seguinte, e esta fase salva o arquivo outra vez para executar `D-004`. Empurrar a carona para a fase 5 só troca de dono |
+| D38 | execute · fase 4 | **A fase 1 não é revalidada por causa da reconciliação de `D-004` e `D-005`**, e os dois critérios reconciliados dela são **executados** no PR desta fase, como evidência | Reabrir a fase 1, revalidá-la com um validador cego novo e regravar o veredicto | Pergunta levantada pelo reconciliador: os dois critérios reconciliados pertencem à fase 1, que tem veredicto `APROVADO` persistido e `criteria_sha` gravado. Revalidar contraria as próprias divergências, que decidiram executar a correção aqui **justamente** para não reabrir critério cuja validação está gravada, e contraria a norma do harness — árvore que muda depois do veredicto só é cobrada na fase corrente; fase encerrada é história. Mas deixar os dois sem medida nenhuma seria reconciliar no escuro: o critério passa a exigir `--breakpoint-desde-tablet`, e quem renomeia é esta fase. Executá-los e colar a saída no PR responde as duas perguntas do portão — *consegui medir?* e *o que medi?* — sem mover o veredicto de uma fase encerrada |
+| D39 | execute · fase 4 | **O filete lateral do destino ativo sai, e o sinal passa a ser peso tipográfico somado ao fundo** | Suprimir o achado `side-tab` do detector, como `D30` fez na fase 2 pelo mesmo desenho | `D30` suprimiu com razão: em `design.tsx` o filete **é** a Lombada, o gesto que diz de onde vem o acesso, e `theme.css` declara `--lombada-canal`, `--lombada-pessoa` e `--lombada-privado` para ele. Aqui o desenho é o mesmo e o significado é outro — *onde você está*, não *de onde vem o acesso*. Quando `004` a `007` trouxerem listas de documentos com lombada de acesso ao lado de uma barra com lombada de navegação, o filete deixa de significar acesso nos dois lugares, e a assinatura que motivou a escolha da direção A se gasta num indicador de menu. O filete foi pedido por mim na rodada anterior, para fechar o apontamento de cor como único sinal; peso e área de fundo fecham o mesmo apontamento sem tocar no vocabulário. O detector acusou pelo motivo genérico e acertou pelo específico |
+| D40 | execute · fase 4 | **O `Dialog.CloseTrigger` fica dentro do `<nav>` da gaveta**, e a pendência vira o item `077` do roadmap | Mover para fora do `<nav>`, como o revisor recomendou; ou registrar divergência e reescrever o critério de `RF-24` | O revisor tem razão no mérito — o landmark de navegação passou a conter uma ação de chrome do diálogo — e escreveu que o teste "passa de qualquer jeito". Medido, não passa: os cinco focáveis da gaveta ciclam e o botão cai nas posições 0 e 5 da trilha de oito `Tab`, e o critério de `RF-24` exige o foco **contido no elemento de papel `navigation`** nas oito leituras. Fora do `<nav>`, duas devolvem falso. A informação que decide não estava com quem recomendou. Reescrever o critério é mudar a régua da fase enquanto ela é medida, que é o antipadrão que a norma nomeia; a impureza não é violação mensurável e o axe não acusa. O item `077` fica na precedência de `002` a `007`, com a forma que fecha escrita: cabeçalho próprio na gaveta, e o critério medindo foco preso no diálogo, que é o que ele sempre quis dizer |
+| D41 | execute · fase 4 | **O alcance da fase cede, e os dois critérios reprovados ficam como estão** | Reescrever os dois critérios para caber no alcance declarado — `vitest run --reporter=verbose` no primeiro, `document.body` no segundo; ou fechar a fase com 11 de 13 | Registrada como divergência `D-013`. Os dois critérios acertaram: o `comando` pegou uma suíte que não diz o que rodou — medido, `grep -c "tema.test.ts"` na saída devolve `0`, inclusive em TTY real —, e o `comportamental` de `RF-06` pegou um elemento raiz transparente, `rgba(0, 0, 0, 0)` contra `rgb(244, 244, 241)` no corpo, que deixa o quadro escuro aparecer antes de o corpo pintar. Quando o critério acerta e o alcance não deixa consertar, quem cede é o alcance. Reescrever a régua enquanto a fase é medida é o antipadrão que a norma nomeia em três lugares; e as duas reescritas enfraqueceriam exatamente a asserção que cada critério existe para fazer — a flag não protege o CI, que roda o comando sem ela, e ler o corpo apaga a medição do quadro escuro |
+| D42 | execute · fase 4 | **O veredicto da fase 4 é gravado pela thread principal, com o texto do validador sem retoque, e o defeito fica anotado no próprio arquivo** | Insistir na gravação pelo agent, ou registrar a fase sem arquivo de veredicto | O guard de escopo recusou a escrita do `phase-validator` — "o agent `phase-validator` é de leitura" —, contra o que a skill `harness-orchestrator` descreve: ela diz que o validador tem `Write` e grava o próprio veredicto, e que o retorno dele à thread principal cabe em cinco linhas justamente por isso. Sem gravar, ele devolveu o veredicto inteiro pelo canal de retorno, que é o custo de contexto que o desenho existe para evitar. Fase aprovada sem veredicto persistido é o que o `check` acusa, então não gravar não era opção. A anomalia mora no plugin `generic_harness`, fora deste repositório, e o harness não se edita de dentro da corrida — vira proposta de retrospectiva |
+| D43 | execute · fase 4 | **O reporter da suíte de unidade é declarado como `verbose` em `vite.config.ts`, sem flag na linha de comando** | Passar `--reporter=verbose` no comando do critério; ou baixar o critério para só o código de saída | Executando `D-013`, que abriu o alcance. A flag no comando não protege nada: o CI e o portão rodam `vitest run` sem ela, e a asserção que o critério existe para fazer — distinguir suíte verde de suíte que não achou arquivo nenhum — só vale onde o comando de verdade roda. Medido depois da mudança: `pnpm --filter web exec vitest run` nomeia `tema.test.ts` em 8 linhas, e os 23 arquivos com 97 casos aparecem um a um |
+| D44 | execute · fase 4 | **O caso de `RF-06` passa a ler `document.documentElement`, e o elemento raiz carrega a superfície do tema** | Deixar o caso lendo `document.body`, que passava | Executando `D-013`. O critério nomeia o elemento raiz, e o resto do bloco também: é no raiz que a classe de tema é lida e é nele que `main.tsx` a aplica. Medido antes: raiz em `rgba(0, 0, 0, 0)` contra `rgb(244, 244, 241)` no corpo. Depois da regra `:root { background-color: var(--superficie) }` e do `color-scheme` em cada bloco de tema, o caso passa lendo o elemento que o critério nomeia, e a defesa que ele existe para dar — não ver quadro escuro com `claro` guardado — passa a valer também na janela em que o corpo ainda não pintou |
+| D45 | execute · fase 4 | **Os dois achados de forma que o validador anotou fora de escopo são corrigidos aqui**: o caso do alternador afirma a classe **antes** da troca, e o do indicador de foco chega ao link por `Tab` | Registrá-los como pendência de roadmap, já que o validador os pôs fora do escopo dos critérios | Os dois são o texto literal do critério que já está escrito, não escopo novo. `RF-05` diz "a classe do elemento raiz **passa de `tema-claro` para** `tema-escuro`", e o caso só afirmava o destino — um esqueleto que nascesse escuro passaria igual; `RF-29` diz "move o foco **por teclado**", e o caso chamava `link.focus()`. Corrigir um caso para medir o que o critério escreve não é mudar a régua: é parar de medir outra coisa. Medido: os 33 casos da suíte seguem verdes numa subida |
+| D46 | execute · fase 4 | **O lampejo claro antes de o módulo rodar vira o item `078` do roadmap, e não remendo desta fase** | Declarar `color-scheme: light dark` no `:root` sem classe, que é a mudança de uma linha | Medido no artefato de `dist`: o documento servido é `<html lang="pt-BR">` sem classe, e `color-scheme` só existe dentro de `.tema-claro` e `.tema-escuro` — entre o HTML e o módulo, o navegador pinta o quadro claro por padrão. A saída de uma linha troca de lado o defeito: acerta quem não tem escolha guardada e erra quem guardou o tema contrário ao do sistema. A forma canônica — script embutido antes da folha — é bloqueada por `script-src 'self'`, a política que o próprio `RF-06` mede pela contagem de `script` sem `src` igual a `0`. Fechar exige mudar o artefato, não uma regra de CSS |
+| D47 | execute · fase 4 | **As dez capturas sem interação são retiradas de novo contra o build corrigido**, e as quatro que exigem interação ficam da rodada anterior | Manter as catorze como estavam, já que a mudança de CSS não altera nada visível nelas | A evidência de uma fase tem que vir da árvore que a fase entrega, e a árvore mudou depois que elas foram tiradas. Olhadas as novas: a paleta, o esqueleto e as três larguras seguem como estavam, e o telefone em `360` e a última largura em `767` continuam sem rolagem horizontal. As quatro de interação — atalho, menu aberto, foco no destino e gaveta aberta — dependem de passos que o script de captura não executa, e nada no diff desta rodada as toca |
+| D48 | execute · fase 4 | **O plano é reaprovado em modo autônomo depois das reconciliações de `D-012` e `D-013`**, e o veredicto da fase 1 é **regravado** contra a régua reconciliada | Revalidar a fase 1 com um validador cego novo; ou deixar o `check` acusando os dois desalinhamentos | O `check` acusava duas coisas: `03-plan.md` mudou depois da aprovação de `plan`, e os critérios da fase 1 mudaram depois do veredicto dela. A primeira é mecânica — quem reconcilia documento aprovado reaprova o conteúdo novo, ou a aprovação deixa de amarrar a nada. A segunda é a mesma pergunta de `D38`, agora cobrada pela máquina de estado, e a resposta não muda: a régua nova está **cumprida**, medida nesta árvore — o script do critério imprime as cinco linhas com `@theme x .tema-claro: 6 tokens, idênticos: True` e as duas medições de contraste em `True`, e `--breakpoint-desde-tablet` conta `1` contra `0` do nome antigo. Registrar o veredicto de novo é a saída que o próprio `check` oferece para régua nova já cumprida; revalidar reabriria uma fase encerrada para medir o que acabou de ser medido |
+| D49 | execute · fase 4 | **A recusa da escrita do validador vira proposta nomeada no roadmap, com a causa separada da do item `037`** | Tratar como repetição de `D42` e seguir; ou abrir worktree e corrigir o guard, como a regra da reincidência manda | É a **segunda** ocorrência do mesmo defeito, e a regra da casa diz que a segunda vira causa raiz, não terceiro remendo. A causa raiz mora no plugin, fora deste repositório, e a norma daqui proíbe aplicar mudança de harness de dentro de um item — então o que a regra permite é nomear a causa onde a próxima sessão a leia. Nomeada, e separada de `037`: aquele item descreve o guard atribuindo escopo ao agent **errado** com outro agent vivo em segundo plano; aqui o sujeito está certo e o guard nega a ferramenta que a definição do agent concede. Duas causas no mesmo guard, e fechar uma não fecha a outra. O custo medido do contorno é o veredicto inteiro — 181 linhas — atravessando o contexto de quem orquestra, que é exatamente o que a validação cega existe para não contaminar |
+
+## Fase 5 — a acessibilidade medida e o registro que só gente produz
+
+| # | Fase | Decidido | Alternativa descartada | Por quê |
+|---|---|---|---|---|
+| D50 | execute · fase 5 | **A etapa 5.6 é executada pelo agente autônomo conduzindo navegador real, e o registro assina quem de fato verificou**, com as capturas de cada passo em `06-capturas/` como prova | Parar a fase e esperar o dono percorrer `/design`, como a etapa escreve; ou assinar o registro como se uma pessoa tivesse verificado | A etapa 5.6 diz "esta etapa é executada por uma pessoa", e o dono autorizou autonomia para o roadmap inteiro sem humano acordado. Parar aqui trava a corrida por um arquivo que ninguém vai escrever antes de amanhã, e o item inteiro fica sem fechar. Assinar como pessoa seria mentir no único documento cuja razão de existir é dizer quem verificou. O que resta é a terceira via: as três verificações são executáveis com navegador de verdade — percorrer só com teclado, ler os textos alternativos isolados, descrever cada amostra sem nomear cor —, e o que o agente **não** pode fazer é ser uma pessoa. Então o registro diz, em cada seção, que quem verificou foi o agente autônomo, com a data e a captura de cada passo, e a confirmação humana vai para *Validações de campo pendentes* do PR. Verificação que ninguém consegue provar que aconteceu não aconteceu — e a prova aqui é a captura, não a assinatura |
+| D51 | execute · fase 5 | **O documento canônico registra a exceção de idioma dos tokens, declarada e estreita**, e a tensão com a regra 16 vira a divergência `D-014` | Traduzir os 23 tokens em pt-BR para o inglês; ou deixar o documento calado sobre o assunto | Medido em `theme.css`: dos 27 tokens declarados, 23 têm segmento em pt-BR, e só `--font-display`, `--font-body`, `--font-mono` e `--spacing` são ingleses — os quatro por imposição do Tailwind. O vocabulário nasceu assim na fase 1 e atravessou quatro fases validadas cujos critérios citam os nomes palavra por palavra. Nenhum portão acusa: `RF-32.f` mede identificador em `.tsx` por `function\|const\|type\|interface`, e nome de propriedade CSS não passa por lá. Traduzir reabre quatro fases fechadas e mata as metáforas que dão nome à direção — `--color-greenish` não significa nada. Calar troca a contradição escrita por uma silenciosa, que é pior: a próxima sessão olha `--color-verdete`, lê "identificador em inglês" e decide sozinha qual das duas manda |
+| D52 | execute · fase 5 | **A etapa 5.5 é aplicada pela thread principal**, e o guard que barrou o implementer fica como está | Alargar o escopo do `react-implementer` para além de `apps/web/**`; ou contornar o guard escrevendo por `bash`, como o próprio implementer chegou a fazer antes de reverter | O guard recusou `.github/workflows/_suite-react.yml` e `.gitignore` com "o `react-implementer` escreve apenas em `apps/web/**`", e ele está **certo**: publicar artefato de CI não é código React, e alargar o escopo de um agent de stack para caber uma etapa é como o escopo deixa de significar alguma coisa. O erro foi meu, no despacho: o plano lista os dois arquivos entre os tocados da fase, e eu mandei um agent de stack fazer trabalho de infraestrutura. Diferente de `D42` e `D49`, aqui o guard não nega ferramenta que a definição do agent concede — ele nega arquivo fora do escopo declarado, que é exatamente o que ele existe para fazer. Medido depois de aplicar: `grep -c -F 'name: e2e-apontamentos'` devolve `1`, e o registro sumiu de `git status` |
+| D53 | execute · fase 5 | **A terceira mordida do portão G3 vira worktree e correção de causa raiz**, com teste que prova que ela morde, e o item `069` fecha | Contornar de novo com marcas sem acento, como as fases 2 e 5 fizeram; ou deixar a dívida na fila atrás dos itens de produto, onde ela já estava | A regra da casa é explícita: a **segunda** ocorrência do mesmo defeito vira causa raiz, não terceiro remendo. Esta é a terceira — detectada na fase 1, mordeu na fase 2 (`switch.tsx`, contornada trocando `decisão:` por `motivo:`), e contornada de novo agora. Medido: `echo 'decisão' \| mawk '/decis[ãa]o/'` não casa, `'decisao'` casa — o `mawk 1.3.4` desta máquina trata classe de caractere como byte, e `ã` ocupa dois. O portão documenta no próprio cabeçalho marcas que ele recusa, então cada sessão que escreve a marca certa leva uma recusa que a documentação diz não existir. A correção é uma linha de regex e cabe numa worktree paralela, sem furar a fila do produto: a fase 5 não espera por ela |
+| D54 | execute · fase 5 | **O veredicto da fase 5 é gravado pela thread principal**, com o texto do validador sem retoque e a recusa anotada no próprio arquivo | Insistir na gravação pelo agent; ou registrar a fase sem arquivo de veredicto | Terceira ocorrência de `D42` e `D49`: o guard recusou a escrita do `phase-validator` com "`[escada] Write está fora do conjunto de ferramentas de phase-validator`", contra o que a skill de orquestração descreve — ela diz que o validador grava o próprio veredicto e que por isso o retorno dele cabe em cinco linhas. Sem gravar, ele devolveu o parecer inteiro pelo canal de retorno, que é o custo de contexto que o desenho existe para evitar. Fase aprovada sem veredicto persistido é o que o `check` acusa. A causa raiz mora no plugin `generic_harness`, fora deste repositório, e a norma daqui proíbe editar o harness de dentro de um item; a proposta já está nomeada no roadmap por `D49`. O que muda aqui é só o registro de que reincidiu uma terceira vez, com o item já aberto |
+| D55 | execute · fase 5 | **O achado do validador sobre `axe-severidade.ts` na árvore de produção vira o item `080` do roadmap** | Mover o arquivo para `apps/web/e2e/` agora, contrariando o critério 1 que manda medi-lo em `src/shared/lib/`; ou não registrar, já que o código não chega ao artefato | O validador notou que os únicos consumidores de `apps/web/src/shared/lib/axe-severidade.ts` são o apoio do e2e e o próprio teste unitário — nada em `src` o importa, então ele não entra no artefato, mas entra em toda régua estática que varre `apps/web/src`, o critério 7 entre elas. Mover agora reprovaria o critério 1 da própria fase que está sendo medida, que é o antipadrão da casa; não registrar faz a próxima pessoa encontrar código de teste em `src` sem saber por quê. O item guarda a pergunta com a evidência, para a primeira fase que tocar a camada decidir com mais de um caso na mão |
+
+## Encerramento do item
+
+Quando esta sessão começou, o `check` listava as quinze divergências do item
+como ratificadas em modo autônomo, esperando olho humano. Às 16:11:23Z, com a
+sessão em curso, elas passaram a `ratificada_por: humano` e os rótulos
+`blocked-on-*` saíram dos cinco PRs — não foi ato meu, e fica registrado porque
+muda o que a próxima sessão encontra: a pilha do `050` está destravada, e o
+merge passa a ser decisão de quem mede o fundo dela.
+
+| # | Fase | Decidido | Alternativa descartada | Por quê |
+|---|---|---|---|---|
+| D56 | done | **O item fecha com `stage --stage done` antes de qualquer uma das cinco fases estar em `develop`** | Segurar o encerramento até o fundo da pilha mergear | O que o `done` mede é coerência de estado, e o `check` responde `problemas: []` — cinco fases aprovadas com veredicto persistido, `criteria_sha` batendo, nenhuma divergência pendente, nenhuma fase em handoff. Presença em `develop` não é pergunta que o estado faça, e não poderia ser: o encerramento é o PR do topo da pilha, então esperar o merge do fundo para escrever o `done` é esperar por um PR que só existe depois de o `done` estar escrito |
+| D57 | done | **Oito validações de campo migram para o roadmap**, consolidando o que o plano previu com o que os corpos dos PRs 65 a 70 registraram | Migrar as quatro que a seção *Validações de campo pendentes* do plano declara | O plano previu quatro; os PRs registraram quatro classes que ele não tinha: a direção "Lombada" julgada pelo olho de quem é dono, a face auto-hospedada em conexão lenta, as marcas de acesso sob deficiência de visão de cor e no tamanho de uso, e a leitura de `RF-30.b` aceita explicitamente em vez de herdada. Validação que fica só na prosa de um PR não é reencontrada — é exatamente a falha que a seção do roadmap existe para impedir, e a norma põe o registro como obrigação de quem fecha o item |
+| D58 | done | **O PR do item `069` sobe nesta sessão, junto do encerramento** | Deixar a branch como a rodada anterior a deixou, empurrada e sem PR | A correção de causa raiz do portão G3 está commitada em `7f2b164`, empurrada, e o roadmap já marca `069` como `[x]`. Branch empurrada sem PR não chega a `develop` nunca: o trabalho fica verde numa referência que ninguém mergeia, e o roadmap passa a mentir sobre o que está feito. Ela é a penúltima da pilha `#67`, abaixo do encerramento, e `gh stack submit` abre as duas de uma vez |
+| D59 | done | **O PR #65 — fundo da pilha, fase 1 — é mergeado nesta sessão, pela tranca**, e a sessão para aí em vez de descer a pilha inteira | Deixar os sete PRs empilhados para o dono mergear em lote; ou seguir mergeando #66 em diante enquanto estivessem verdes | As catorze divergências viraram ratificação humana e os rótulos saíram: o fundo da pilha ficou verde, aberto, fora de rascunho e `CLEAN`, que é a condição que a norma escreve para mergear — e "não antes" tem o par "não depois", porque uma pilha que só cresce faz cada item novo partir de uma base cada vez mais distante do que já foi aprovado. `002-conta-e-organizacao`, que é o próximo da fila, declara `050` como dependência e parte de `develop`. Medido pela tranca: `PR #65 liberado: sem bloqueio, nenhuma verificação vermelha nem pendente`, `a pilha da branch atual tem 7 PR(s), 7 aberto(s)`, merge em `4e4e611`. Parar no fundo é a outra metade da regra: só o PR do fundo se mergeia, e depois do merge o #66 herda a base `develop` e volta para o CI — mergear em cima de verificação que ainda não correu contra a base nova é aprovar o que não foi medido |
+| D60 | done | **A pilha é reempilhada com `gh stack sync` antes de qualquer outra coisa**, e o conteúdo das seis branches é conferido árvore a árvore depois | Mergear o `#66` como estava; ou abrir o item seguinte deixando a pilha conflitada para depois | O merge do `#65` foi por esmagamento, então `develop` ganhou a fase 1 num commit novo e o `#66` amanheceu `DIRTY`, `CONFLICTING` — não por conteúdo divergente, mas por história. Medido antes de agir: `git diff 4f4c11b origin/develop` é vazio, isto é, a árvore que o esmagamento produziu é idêntica à ponta da fase 1, e o reempilhamento é mecânico. Depois do `sync`, as sete branches têm árvore idêntica à de antes e local igual a remoto — a conferência existe porque a armadilha registrada do `gh stack sync` é abortar em conflito descartando commit, e a linha de sucesso dele não é prova |
+| D61 | done | **Esta sessão desce a pilha do `050` pelo fundo, em vez de abrir o discovery de `002-conta-e-organizacao`** | Abrir o `002` agora, numa segunda pilha com `develop` por tronco, deixando os seis PRs para depois | O motor aponta `002/discovery` como próxima ação, e ele mede estágio, não pilha. Três coisas dizem que a pilha vem antes: `gh stack add` recusa em terminal não interativo quando duas pilhas dividem o tronco `develop`, e é isso que uma pilha nova produziria; todo estágio de documento grava `product/state.json` e `product/roadmap.md`, os dois arquivos que os seis PRs abertos também tocam, então o `002` nasceria colidindo com o que já está na fila; e o `002` declara `050` como dependência — abrir sobre um `develop` que só tem a fase 1 é partir de uma base sem os primitivos que as telas dele montam. A norma da casa escreve os dois lados: mergear "não antes" de estar verde tem por par "não depois", porque pilha que só cresce afasta cada item novo da base aprovada |

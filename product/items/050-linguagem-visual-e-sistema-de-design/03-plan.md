@@ -166,6 +166,9 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
           la, lb = luminancia(a), luminancia(b)
           return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
       claro, escuro = bloco('.tema-claro'), bloco('.tema-escuro')
+      tema = bloco('@theme')
+      print('@theme x .tema-claro:', len(tema), 'tokens, idênticos:', tema == claro)
+      assert tema == claro, f'@theme e .tema-claro divergem: {tema} != {claro}'
       fixado = {'--color-papel': '#F4F4F1', '--color-tinta': '#15191B',
                 '--color-grafite': '#5A6165', '--color-verdete': '#1E4B43',
                 '--color-carimbo': '#8E1B5B', '--color-fio': '#DBDCD6'}
@@ -179,13 +182,16 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
       PY
       ```
 
-      termina com código de saída `0` e imprime, nesta ordem, quatro linhas: as
-      duas primeiras `True` — os três conjuntos de nomes coincidem, e os seis
-      valores do bloco claro são os que a direção fixou —, e as duas seguintes
-      começando pelo nome do bloco medido, cada uma com as quatro razões medidas
-      e terminando em `True`. Arquivo ausente, bloco ausente, nome declarado só num
-      dos blocos ou valor que não seja hex de seis dígitos fazem o comando
-      terminar com código diferente de `0` sem imprimir as quatro linhas.
+      termina com código de saída `0` e imprime, nesta ordem, cinco linhas: a
+      primeira compara `@theme` contra `.tema-claro` — a contagem de tokens do
+      bloco `@theme` e se as duas cópias são idênticas —, as duas seguintes
+      `True` — os três conjuntos de nomes coincidem, e os seis valores do bloco
+      claro são os que a direção fixou —, e as duas últimas começando pelo nome
+      do bloco medido, cada uma com as quatro razões medidas e terminando em
+      `True`. Arquivo ausente, bloco ausente, nome declarado só num dos blocos,
+      valor que não seja hex de seis dígitos ou divergência entre `@theme` e
+      `.tema-claro` fazem o comando terminar com código diferente de `0` sem
+      imprimir as cinco linhas.
 
       **Por que o bloco escuro não é medido por igualdade de valores.** A régua
       da casa é contraste AA nos dois temas, e ela é o que decide: RF-04.a e
@@ -200,6 +206,7 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
       sem saída que não fosse afrouxar a régua. A paleta do dono continua
       intacta: os valores que ele fixou são os do tema claro, e o bloco escuro
       deriva os seus pela medição, como já fazia para o `carimbo`.
+      > Reconciliado em D-005.
 - [ ] `estrutural` — `RF-03.a`, `RF-03.b`, `RF-03.c` —
       `apps/web/src/shared/styles/theme.css` declara `--font-display`,
       `--font-body` e `--font-mono` resolvidos para Fraunces, Atkinson
@@ -243,10 +250,11 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
       **maior que** `0`; `grep -c -E '^\s*--duracao-rapida\s*:'` imprime `1`;
       `grep -c -E '^\s*--duracao-padrao\s*:'` imprime `1`;
       `grep -c -E '^\s*--curva-padrao\s*:'` imprime `1`;
-      `grep -c -E '^\s*--breakpoint-telefone\s*:\s*768px\s*;'` imprime `1`;
+      `grep -c -E '^\s*--breakpoint-desde-tablet\s*:\s*768px\s*;'` imprime `1`;
       `grep -c -E '^\s*--radius-[a-z0-9-]+\s*:'` imprime um número **maior ou
       igual a** `3`; `grep -c -E '^\s*--shadow-[a-z0-9-]+\s*:'` imprime um número
       **maior ou igual a** `2`; e `grep -c -E '^\s*--spacing\s*:'` imprime `1`.
+      > Reconciliado em D-004.
 - [ ] `estrutural` — `RF-08.a`, `RF-08.c`, `RF-09.a`, `RF-09.b`, `RF-09.c` — os
       arquivos `.woff2` das três famílias estão versionados, cada família tem o
       arquivo de licença OFL na própria pasta, e nenhum `@font-face` aponta para
@@ -426,7 +434,7 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
       arquivos da etapa 1.2 e `font-display: swap`; o bloco `@theme` que registra
       os nomes no espaço de nomes do Tailwind v4 — `--color-*`, `--font-display`,
       `--font-body`, `--font-mono`, `--spacing`, `--radius-*`, `--shadow-*`,
-      `--breakpoint-telefone: 768px`, `--duracao-rapida`, `--duracao-padrao`,
+      `--breakpoint-desde-tablet: 768px`, `--duracao-rapida`, `--duracao-padrao`,
       `--curva-padrao`; o bloco `.tema-claro` com os seis tokens de cor da
       paleta, nos valores que a direção fixou; o bloco `.tema-escuro` com **os
       mesmos seis nomes**, cada valor escolhido **medindo** a razão de contraste
@@ -448,6 +456,7 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
       cobra de novo na página viva. O ponto de quebra é token
       único do produto porque `002` a `007` precisam de um número, e não de
       quatro números iguais em quatro arquivos.
+      > Reconciliado em D-004.
 - [ ] 1.4 Modificar `apps/web/vite.config.ts` acrescentando o plugin
       `@tailwindcss/vite` à lista `plugins`, **depois** de `react()` e antes de
       `requireApiUrlOnBuild()`. Nenhuma outra chave é tocada: `server`,
@@ -573,20 +582,26 @@ porque ela muda o que o item entrega. O que **não** vale é afrouxar a polític
 - [ ] `comportamental` — `RF-18.d`, `RF-18.e`
       *Dado* o artefato de build servido na origem de pré-visualização, com um
       coletor de mensagens do console instalado antes da navegação
-      *Quando* a suíte abre `/design`, aciona o controle de
-      papel `button` e nome acessível `Abrir menu de exemplo`, e em seguida move
-      o foco para o controle de nome acessível `Campo com dica`
-      *Então* o elemento de papel `menu` fica visível com `boundingBox()` de
-      largura e altura **maiores que** `0` e canto superior esquerdo dentro da
-      janela; o elemento de papel `tooltip` fica visível com `boundingBox()` de
-      largura e altura **maiores que** `0`; e nenhuma mensagem do console contém
-      `Applying inline style violates`. A lista de mensagens do console é impressa
-      na falha, e a asserção prévia é que a página carregou — o cabeçalho de
-      nível 1 com o texto `Página viva` está visível —, sem a qual uma página em
-      branco passaria pela ausência de mensagem de recusa.
+      *Quando* a suíte abre `/design`, aciona o controle de papel `button` e
+      nome acessível `Abrir menu de exemplo`, pressiona `Escape` e, só então,
+      move o foco para o controle de nome acessível `Campo com dica`
+      *Então* logo depois de acionar o menu, o elemento de papel `menu` fica
+      visível com `boundingBox()` de largura e altura **maiores que** `0` e
+      canto superior esquerdo dentro da janela; depois do `Escape`, o elemento
+      de papel `menu` deixou de existir — sem essa asserção o caso não
+      distingue o menu que fechou do menu que nunca abriu; o elemento de papel
+      `tooltip` fica visível com `boundingBox()` de largura e altura
+      **maiores que** `0`; e nenhuma mensagem do console contém `Applying
+      inline style violates`. A lista de mensagens do console é impressa na
+      falha, e a asserção prévia é que a página carregou — o cabeçalho de
+      nível 1 com o texto `Página viva` está visível —, sem a qual uma página
+      em branco passaria pela ausência de mensagem de recusa. O menu e a dica
+      são medidos um de cada vez porque o critério prova posicionamento
+      flutuante sob a política de conteúdo, não convivência de sobreposições.
       O caso se chama `o menu e a dica flutuam sem estilo recusado`, e
       `bash scripts/e2e/relatorio.sh criterio "o menu e a dica flutuam sem estilo recusado"`
       termina com código de saída `0`.
+      > Reconciliado em D-006.
 - [ ] `estrutural` — `RF-15.a` — existe `apps/web/src/shared/lib/cn.ts`
       exportando a função `cn`, que compõe `clsx` e `tailwind-merge`. Executados
       na raiz do repositório: `grep -c '' apps/web/src/shared/lib/cn.ts` imprime
@@ -960,12 +975,18 @@ mudança — a página inteira custa milhares de tokens para mostrar o que não 
       número **maior ou igual a** `20`, que é a prova de que houve onde procurar;
       e
       `grep -rcE "from ['\"][^'\"]*(@/features|@/app|@tanstack/react-query)"
-      apps/web/src/shared/components | grep -vc ':0$'` imprime `0`; e
-      `bash scripts/gates/gate5_import_direction.sh` termina com código de saída
-      `0` — `RF-13.b` nomeia esse portão como quem reprova o import proibido, e
-      um `grep` próprio ao lado dele mediria outra coisa com o mesmo nome: o dia
-      em que o portão passasse a ler outro caminho, o critério continuaria
-      verde.
+      apps/web/src/shared/components | grep -vc ':0$'` imprime `0`. E a fronteira
+      inteira se mede pelo portão que `RF-13.b` nomeia, alimentado como o
+      dispatcher o alimenta:
+      `git ls-files 'apps/web/src/**' | wc -l` imprime um número **maior que**
+      `0`, que é a prova de que houve o que examinar; e
+      `git ls-files 'apps/web/src/**' | bash scripts/gates/gate5_import_direction.sh
+      | wc -l` imprime `0` — o portão é detector e imprime `arquivo:linha:trecho`
+      por violação, então é a saída vazia que o aprova, nunca o código de saída,
+      que ele devolve `0` inclusive quando não examinou arquivo nenhum. Um `grep`
+      próprio no lugar dele mediria outra coisa com o mesmo nome: o dia em que o
+      portão passasse a ler outro caminho, o critério continuaria verde.
+      > Reconciliado em D-010.
 - [ ] `estrutural` — `RF-04.c`, `RF-07.b` — dentro da camada de primitivos não
       há segunda definição por tema nem duração literal. Executados na raiz do
       repositório:
@@ -993,19 +1014,49 @@ mudança — a página inteira custa milhares de tokens para mostrar o que não 
       o indicador de foco leem o **mesmo** token de ação pelo nome, declarado uma
       vez por bloco de tema, e nenhum arquivo sob `apps/web/src/features/` carrega
       o valor literal. Executados na raiz do repositório:
-      `grep -c -E '^\s*--color-verdete\s*:' apps/web/src/shared/styles/theme.css`
-      imprime `2`, uma declaração por bloco;
+
+      ```
+      python3 - <<'PY'
+      import pathlib, re
+      texto = pathlib.Path('apps/web/src/shared/styles/theme.css').read_text(encoding='utf-8')
+
+      def bloco(seletor):
+          m = re.search(re.escape(seletor) + r'\s*\{(.*?)\n\}', texto, re.S)
+          assert m, f'bloco {seletor} não encontrado'
+          return m.group(1)
+
+      claro, escuro, foco = bloco('.tema-claro'), bloco('.tema-escuro'), bloco(':focus-visible')
+
+      for nome, corpo in (('.tema-claro', claro), ('.tema-escuro', escuro)):
+          n = len(re.findall(r'^\s*--color-verdete\s*:', corpo, re.M))
+          assert n == 1, f'--color-verdete aparece {n} vez(es) em {nome}, esperado 1'
+          print(f'--color-verdete em {nome}: {n}')
+
+      m_outline = re.search(r'outline\s*:\s*[^;]*var\(--acao\)[^;]*;', foco)
+      assert m_outline, ':focus-visible não declara outline com var(--acao)'
+      print(m_outline.group(0).strip())
+
+      for nome, corpo in (('.tema-claro', claro), ('.tema-escuro', escuro)):
+          m_acao = re.search(r'--acao\s*:\s*var\(--color-verdete\)\s*;', corpo)
+          assert m_acao, f'--acao não é var(--color-verdete) em {nome}'
+          print(f'{nome}: {m_acao.group(0).strip()}')
+      PY
+      ```
+
+      termina com código de saída `0` e imprime as cinco linhas que leu — a
+      contagem de `--color-verdete` em `.tema-claro` e em `.tema-escuro`, a
+      declaração de `outline` na regra `:focus-visible` e a declaração de
+      `--acao` em cada bloco de tema —, e termina com código diferente de `0`
+      quando qualquer uma delas falta: o oráculo mede a cadeia de tokens, não a
+      cadeia de caracteres. Além disso,
       `grep -c -F 'verdete' apps/web/src/shared/components/ui/button.tsx` imprime
       um número **maior ou igual a** `1`;
       `grep -c -F 'verdete' apps/web/src/shared/components/access/access-spine.tsx`
       imprime um número **maior ou igual a** `1`;
-      `python3 -c "import re,pathlib;t=pathlib.Path('apps/web/src/shared/styles/theme.css').read_text(encoding='utf-8');m=re.search(r':focus-visible\s*\{(.*?)\}',t,re.S);assert m,'sem regra :focus-visible';print([l.strip() for l in m.group(1).splitlines() if 'verdete' in l])"`
-      imprime uma lista com ao menos uma declaração, e a regra ausente faz o
-      comando terminar com código diferente de `0` — o oráculo imprime a linha
-      que leu, e não um booleano que responde igual para o arquivo que ele não
-      encontrou; `find apps/web/src/features -name '*.tsx' -o -name '*.ts' |
+      `find apps/web/src/features -name '*.tsx' -o -name '*.ts' |
       wc -l` imprime um número **maior que** `0`; e
       `grep -ric -F '#1E4B43' apps/web/src/features | grep -vc ':0$'` imprime `0`.
+      > Reconciliado em D-007.
 - [ ] `comportamental` — `RF-12.b`, `RF-16.a`, `RF-16.c`
       *Dado* o artefato servido na origem de pré-visualização, com `/design`
       aberta e a amostra de campo em estado de erro
@@ -1075,17 +1126,22 @@ mudança — a página inteira custa milhares de tokens para mostrar o que não 
       emulando `prefers-reduced-motion: reduce` e `/design` aberta
       *Quando* a suíte aciona o controle de papel `button` e nome acessível
       `Abrir diálogo de exemplo`, depois o de nome acessível
-      `Publicar`, e lê a amostra de esqueleto de carregamento
+      `Conceder` — o botão do diálogo, cujo aviso diz `Concedido` —, e lê a
+      amostra de esqueleto de carregamento
       *Então* o `transition-duration` e o `animation-duration` computados do
       elemento de papel `dialog`, do elemento de papel `status` do aviso
-      temporário e da amostra de esqueleto são todos `0s`; e, ao mesmo tempo, o
-      elemento de papel `dialog` está visível com o foco dentro dele, o aviso
-      temporário está visível, e a amostra de esqueleto continua ocupando o lugar
-      do conteúdo — a duração some, o estado final não.
+      temporário e da amostra de esqueleto, convertidos para segundos, são todos
+      **menores ou iguais a** `0.001` — a supressão da folha de estilo usa
+      `0.01ms`, que o navegador computa como `1e-05s`, e é esse valor, não `0s`,
+      que mantém os eventos `transitionend` e `animationend` disparando; e, ao
+      mesmo tempo, o elemento de papel `dialog` está visível com o foco dentro
+      dele, o aviso temporário está visível, e a amostra de esqueleto continua
+      ocupando o lugar do conteúdo — a duração some, o estado final não.
       O caso se chama `com movimento reduzido a duração some e o estado final permanece`,
       e
       `bash scripts/e2e/relatorio.sh criterio "com movimento reduzido a duração some e o estado final permanece"`
       termina com código de saída `0`.
+      > Reconciliado em D-009 e em D-011.
 - [ ] `comportamental` — `RF-25.a`, `RF-25.b`, `RF-25.c`, `RF-32.a`
       *Dado* o artefato servido na origem de pré-visualização e `/design`
       aberta
@@ -1093,16 +1149,19 @@ mudança — a página inteira custa milhares de tokens para mostrar o que não 
       `heading` de nível `2` da página, e conta os elementos que carregam o
       atributo `data-token`
       *Então* o conjunto dos textos coletados é exatamente
-      `Botão`, `Campo`, `Seleção`, `Caixa de marcação`, `Alternador`, `Cartão`,
+      `Cor`, `Tipografia`, `Espaço`, `Raio`, `Sombra`, `Movimento`, `Botão`,
+      `Campo`, `Seleção`, `Caixa de marcação`, `Alternador`, `Cartão`,
       `Etiqueta`, `Avatar`, `Diálogo`, `Menu`, `Aviso temporário`, `Dica`,
-      `Esqueleto de carregamento`, `Estado vazio` e `Paginação` — quinze seções,
-      em pt-BR —, a seção `Botão` traz sete amostras de botão (as quatro
+      `Esqueleto de carregamento`, `Estado vazio` e `Paginação` — vinte e uma
+      seções, em pt-BR: as seis de fundação que a fase 1 entregou e as quinze de
+      primitivo —, a seção `Botão` traz sete amostras de botão (as quatro
       variantes e os três tamanhos) e as amostras de repouso, foco, carregando,
       desabilitado e erro, e a contagem de elementos com `data-token` é **maior
       ou igual a** `15`, cada um trazendo o nome do token ao lado da amostra.
       O caso se chama `a página viva exercita os quinze primitivos`, e
       `bash scripts/e2e/relatorio.sh criterio "a página viva exercita os quinze primitivos"`
       termina com código de saída `0`.
+      > Reconciliado em D-008.
 - [ ] `comportamental` — `RF-32.c`, `RF-32.e`
       *Dado* o artefato servido na origem de pré-visualização e `/design`
       aberta
@@ -1215,12 +1274,21 @@ página** — não do servidor —, e a medição contra a 4173 exige `vite buil
 
 **Arquivos tocados:** `apps/web/src/app/routes/index.tsx`,
 `apps/web/src/app/routes/{documentos,canais,pesquisa,organizacao}.tsx`,
+`apps/web/src/app/routes/design.tsx` — na linha que abre a página viva, o
+elemento `<main>` vira `<div>` e as classes `mx-auto` e `max-w-4xl` saem dela;
+nenhuma outra linha do arquivo muda —,
 `apps/web/src/app/layout/{app-shell,app-header,app-sidebar,skip-link}.tsx`,
 `apps/web/src/app/providers/theme-provider.tsx`,
 `apps/web/src/shared/lib/tema.ts`, `apps/web/src/shared/lib/tema.test.ts`,
 `apps/web/src/app/main.tsx`,
 `apps/web/src/app/App.tsx`, `apps/web/src/shared/styles/theme.css`,
-`apps/web/e2e/esqueleto.spec.ts`, `apps/web/e2e/health.spec.ts`.
+`apps/web/e2e/esqueleto.spec.ts`, `apps/web/e2e/health.spec.ts`,
+`apps/web/vite.config.ts` — com o alcance de declarar o reporter da suíte de
+unidade, de modo que a saída de `pnpm --filter web exec vitest run` — sem
+flag — nomeie os arquivos de teste que rodaram; o reporter padrão do Vitest 4
+só imprime o sumário quando nada falha, e uma suíte sem arquivo nenhum
+responderia igual a uma suíte verde.
+> Reconciliado em D-012 e em D-013.
 
 **Arquivos explicitamente não tocados:** `apps/web/index.html`,
 `apps/web/nginx.conf`, `apps/web/playwright.config.ts`,
@@ -1484,7 +1552,7 @@ uma medição que já existia.
       é um item desse menu. A barra é um `<nav aria-label="Destinos do produto">`
       com quatro links — `Documentos`, `Canais`, `Pesquisa`, `Organização` —, e o
       link do destino atual leva `aria-current="page"`. Abaixo de
-      `--breakpoint-telefone` a barra vira gaveta, montada sobre o primitivo de
+      `--breakpoint-desde-tablet` a barra vira gaveta, montada sobre o primitivo de
       diálogo, aberta pelo controle `Abrir navegação` do cabeçalho, com foco
       preso enquanto aberta e devolvido ao botão que a abriu no `Esc`.
       *Considerando as fases 2 e 3: diálogo, menu e os quinze primitivos já
@@ -1497,6 +1565,7 @@ uma medição que já existia.
       teclado atravessa a barra lateral inteira em toda troca de tela. O reúso do
       diálogo na gaveta é o custo aceito de `D8`, e é menor que o custo de cada
       uma das telas de `002` a `007` inventar a própria largura pequena.
+      > Reconciliado em D-004.
 - [ ] 4.4 Criar `apps/web/src/app/routes/documentos.tsx`, `canais.tsx`,
       `pesquisa.tsx` e `organizacao.tsx`, cada uma com um cabeçalho de nível 1
       com o nome do destino e o primitivo de estado vazio acionável, escrito como
@@ -1524,13 +1593,18 @@ uma medição que já existia.
       aberta.
 - [ ] 4.5 Modificar `apps/web/src/shared/styles/theme.css` acrescentando à regra
       `:focus-visible` que já existe desde a fase 1 o que a gaveta e o atalho
-      precisam, e nada mais: nenhum token novo, nenhum valor de token alterado.
+      precisam, e a regra que dá ao elemento raiz a superfície do tema corrente
+      e declara `color-scheme` em cada bloco de tema; nenhum token novo, nenhum
+      valor de token alterado. O arquivo hoje declara `background-color` só em
+      `:where(body)`, e o elemento raiz transparente deixa aparecer, antes de o
+      corpo pintar, o quadro escuro que `RF-06` existe para impedir.
       *Considerando a fase 1: os tokens de cor, de movimento e o ponto de quebra
       já estão declarados, e esta etapa só os consome.*
       Justificativa: `RF-01.a`, `RF-29.a`. O arquivo de tema é o único lugar onde
       valor de desenho nasce; tocá-lo para acrescentar valor nesta fase
       significaria que a fase 1 não fechou o contrato que ela existia para
       fechar.
+      > Reconciliado em D-013.
 - [ ] 4.6 Modificar `apps/web/e2e/health.spec.ts`: o caso
       `mostra o status da API na página inicial` passa a abrir a rota onde o
       componente de saúde vive depois do esqueleto, com o título reescrito para
@@ -1595,7 +1669,7 @@ que ninguém consegue provar que aconteceu não aconteceu.
       acessibilidade existe, corta por severidade e as dependências dela estão
       declaradas em versão fixa. Executados na raiz do repositório:
       `grep -c '' apps/web/e2e/a11y.spec.ts` imprime um número **maior que** `0`;
-      `grep -c -F '@axe-core/playwright' apps/web/e2e/a11y.spec.ts` imprime um
+      `grep -c -F '@axe-core/playwright' apps/web/e2e/apoio/axe.ts` imprime um
       número **maior ou igual a** `1`;
       `grep -c '' apps/web/src/shared/lib/axe-severidade.ts` imprime um número
       **maior que** `0`;
@@ -1627,6 +1701,7 @@ que ninguém consegue provar que aconteceu não aconteceu.
       ainda declarada. A terceira linha é o que `RNF-03` promete e as duas
       primeiras não medem: uma versão fixada por alguém que desligou o
       `minimumReleaseAge` no mesmo PR passaria sem ela.
+      > Reconciliado em D-015.
 - [ ] `comportamental` — `RF-27.a`, `RF-27.c`, `RF-28.a`
       *Dado* o artefato servido na origem de pré-visualização, com `/design`
       aberta no tema claro
@@ -1932,12 +2007,16 @@ vieram depois.
       *Então* o foco depois do `Enter` está no `<main>`; o link `Canais` fica com
       `aria-current="page"`; a classe do elemento raiz fica `tema-escuro`; e, já
       em `/design`, o `background-color` computado do elemento raiz é igual ao
-      valor computado de `--color-tinta` e o `font-family` computado do cabeçalho
-      de nível 1 contém `Fraunces` — o caminho atravessa o esqueleto da fase 4, o
-      menu da fase 2, o tema da fase 1 e a rota da fase 1 numa página só.
+      valor computado de `--color-papel` e **diferente** do valor que
+      `--color-papel` tem no tema claro — a superfície acompanha o tema, e a
+      segunda metade é o que separa a medição de uma coincidência; e o
+      `font-family` computado do cabeçalho de nível 1 contém `Fraunces`. O
+      caminho atravessa o esqueleto da fase 4, o menu da fase 2, o tema da fase 1
+      e a rota da fase 1 numa página só.
       O caso se chama `o caminho do esqueleto à página viva atravessa as fases`, e
       `bash scripts/e2e/relatorio.sh criterio "o caminho do esqueleto à página viva atravessa as fases"`
       termina com código de saída `0`.
+      > Reconciliado em D-015.
 - [ ] `comando` — `RF-08.d`, `RF-10.a`, `RF-11.c`, `RF-26.d` — as garantias da
       primeira fase sobrevivem às quatro que vieram depois. Executados na raiz do
       repositório: `mkdir -p apps/web/dist && find apps/web/dist -mindepth 1 -delete`

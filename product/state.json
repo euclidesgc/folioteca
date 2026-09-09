@@ -632,7 +632,7 @@
     "050-linguagem-visual-e-sistema-de-design": {
       "title": "Linguagem visual e sistema de design: tokens de cor, tipografia, espaço e movimento em tema claro e escuro, os primitivos que toda tela monta, o esqueleto de aplicação onde elas moram, e a página viva onde a acessibilidade é medida",
       "track": "completa",
-      "stage": "execute",
+      "stage": "done",
       "stacks": [],
       "created_at": "2026-09-08T00:48:12Z",
       "approvals": {
@@ -649,20 +649,20 @@
           "por": "autonomo"
         },
         "plan": {
-          "at": "2026-09-09T07:18:45Z",
-          "sha": "cc02bb3cc4733940934aea791138c28b870be687",
+          "at": "2026-09-09T15:33:10Z",
+          "sha": "c39ebc804967bfe008b02508a13b7d9dd1f9f2e4",
           "file": "product/items/050-linguagem-visual-e-sistema-de-design/03-plan.md",
           "por": "autonomo"
         }
       },
-      "current_phase": 1,
+      "current_phase": 5,
       "phases": {
         "1": {
           "status": "aprovada",
           "reproved_count": 0,
           "verdict": "APROVADO",
           "verdict_file": "product/items/050-linguagem-visual-e-sistema-de-design/05-veredictos/fase-1.md",
-          "validated_sha": "17d7f8bd54928cd608b0ae29bda655a56093e22b",
+          "validated_sha": "4efcea4bcd40296a8a8f28665aab2c426a625987",
           "pr": null,
           "blocked_on": [
             "D-002",
@@ -670,12 +670,86 @@
             "D-004",
             "D-005"
           ],
-          "verdict_at": "2026-09-09T07:52:37Z",
+          "verdict_at": "2026-09-09T14:52:09Z",
           "validated_trees": {
             "apps/api": "f614cd78e3d0df6ba3647394bc0c8d0c6d02d4b4",
-            "apps/web": "1f1c1f66eed898e124e7408ac9dbdd6b384272b9"
+            "apps/web": "70327b1a2bd5bb7a69afe6e282311f40822884f8"
           },
-          "criteria_sha": "17fd24dcaf19557e72b840b227a97eaf956d6ef49049aae843519a5090422721"
+          "criteria_sha": "e4c89e7f4fa7fb2f497e9a1caeb8a57aa8b97da4a0b778c7cb98a61be5d51bd6"
+        },
+        "2": {
+          "status": "aprovada",
+          "reproved_count": 0,
+          "verdict": "APROVADO",
+          "verdict_file": "product/items/050-linguagem-visual-e-sistema-de-design/05-veredictos/fase-2.md",
+          "validated_sha": "0ed90d58e48875e49e6b3e52ce3efab8790b56b1",
+          "pr": null,
+          "blocked_on": [
+            "D-006"
+          ],
+          "verdict_at": "2026-09-09T11:48:36Z",
+          "validated_trees": {
+            "apps/api": "f614cd78e3d0df6ba3647394bc0c8d0c6d02d4b4",
+            "apps/web": "a7ce9077ec6be6f9b955eee36fafd929276040cd"
+          },
+          "criteria_sha": "20318c75674cef1c930cb08386ae7a8c1022e3a1bc7ecfbdfb333713c5c7ea8b"
+        },
+        "3": {
+          "status": "aprovada",
+          "reproved_count": 0,
+          "verdict": "APROVADO",
+          "verdict_file": "product/items/050-linguagem-visual-e-sistema-de-design/05-veredictos/fase-3.md",
+          "validated_sha": "c4e963df0fdd17a9c1a678aa5f7e66572836af0c",
+          "pr": 68,
+          "blocked_on": [
+            "D-007",
+            "D-008",
+            "D-009",
+            "D-010",
+            "D-011"
+          ],
+          "verdict_at": "2026-09-09T13:39:13Z",
+          "validated_trees": {
+            "apps/api": "f614cd78e3d0df6ba3647394bc0c8d0c6d02d4b4",
+            "apps/web": "462c8fcc5fcc3b830f583566166154b11aa9d9a8"
+          },
+          "criteria_sha": "10ea8cde8460b2774e43f8ec70a7593513089feca0ff908d7907105a15d7a05e"
+        },
+        "4": {
+          "status": "aprovada",
+          "reproved_count": 0,
+          "verdict": "APROVADO",
+          "verdict_file": "product/items/050-linguagem-visual-e-sistema-de-design/05-veredictos/fase-4.md",
+          "validated_sha": "190159e472c1ce48366026173558ae36898da5ef",
+          "pr": 69,
+          "blocked_on": [
+            "D-012",
+            "D-013"
+          ],
+          "verdict_at": "2026-09-09T15:03:50Z",
+          "validated_trees": {
+            "apps/api": "f614cd78e3d0df6ba3647394bc0c8d0c6d02d4b4",
+            "apps/web": "70327b1a2bd5bb7a69afe6e282311f40822884f8"
+          },
+          "criteria_sha": "b5ad8e513d5f5f02d905a99976d6ebaffb9ebaeb9fdb5d453f300ee97af5a752"
+        },
+        "5": {
+          "status": "aprovada",
+          "reproved_count": 0,
+          "verdict": "APROVADO",
+          "verdict_file": "product/items/050-linguagem-visual-e-sistema-de-design/05-veredictos/fase-5.md",
+          "validated_sha": "cd09dafddd40c6513f1fb58333f5ff29b405cc05",
+          "pr": 70,
+          "blocked_on": [
+            "D-014",
+            "D-015"
+          ],
+          "verdict_at": "2026-09-09T16:04:01Z",
+          "validated_trees": {
+            "apps/api": "f614cd78e3d0df6ba3647394bc0c8d0c6d02d4b4",
+            "apps/web": "aa76d427cd0ac63d0a56da49d04839aa0af29c72"
+          },
+          "criteria_sha": "78592c1d3a910e82adfcb94bbfb56a2e76d42f7a51b18d9c94c9e2a872c4134b"
         }
       },
       "divergences": {
@@ -694,7 +768,8 @@
           "phase": 1,
           "detected_at": "2026-09-09T07:04:01Z",
           "aprovada_at": "2026-09-09T07:04:03Z",
-          "ratificada_por": "autonomo"
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:23Z"
         },
         "D-003": {
           "status": "APROVADA",
@@ -702,7 +777,8 @@
           "phase": 1,
           "detected_at": "2026-09-09T07:12:54Z",
           "aprovada_at": "2026-09-09T07:12:54Z",
-          "ratificada_por": "autonomo"
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:23Z"
         },
         "D-004": {
           "status": "APROVADA",
@@ -710,7 +786,8 @@
           "phase": 1,
           "detected_at": "2026-09-09T07:51:20Z",
           "aprovada_at": "2026-09-09T07:51:23Z",
-          "ratificada_por": "autonomo"
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:23Z"
         },
         "D-005": {
           "status": "APROVADA",
@@ -718,7 +795,98 @@
           "phase": 1,
           "detected_at": "2026-09-09T07:51:20Z",
           "aprovada_at": "2026-09-09T07:51:23Z",
-          "ratificada_por": "autonomo"
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:23Z"
+        },
+        "D-006": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 2,
+          "detected_at": "2026-09-09T11:16:30Z",
+          "aprovada_at": "2026-09-09T11:16:30Z",
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:23Z"
+        },
+        "D-007": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 3,
+          "detected_at": "2026-09-09T12:00:13Z",
+          "aprovada_at": "2026-09-09T12:00:13Z",
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:23Z"
+        },
+        "D-008": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 3,
+          "detected_at": "2026-09-09T12:00:13Z",
+          "aprovada_at": "2026-09-09T12:00:13Z",
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:23Z"
+        },
+        "D-009": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 3,
+          "detected_at": "2026-09-09T12:00:13Z",
+          "aprovada_at": "2026-09-09T12:00:14Z",
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:23Z"
+        },
+        "D-010": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 3,
+          "detected_at": "2026-09-09T13:25:27Z",
+          "aprovada_at": "2026-09-09T13:25:27Z",
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:23Z"
+        },
+        "D-011": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 3,
+          "detected_at": "2026-09-09T13:25:27Z",
+          "aprovada_at": "2026-09-09T13:25:27Z",
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:23Z"
+        },
+        "D-012": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 4,
+          "detected_at": "2026-09-09T14:07:28Z",
+          "aprovada_at": "2026-09-09T14:07:28Z",
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:23Z"
+        },
+        "D-013": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 4,
+          "detected_at": "2026-09-09T14:38:48Z",
+          "aprovada_at": "2026-09-09T14:38:48Z",
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:23Z"
+        },
+        "D-014": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 5,
+          "detected_at": "2026-09-09T15:18:02Z",
+          "aprovada_at": "2026-09-09T15:18:11Z",
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:24Z"
+        },
+        "D-015": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 5,
+          "detected_at": "2026-09-09T15:30:34Z",
+          "aprovada_at": "2026-09-09T15:30:34Z",
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T16:11:24Z"
         }
       },
       "criteria_exception": null
