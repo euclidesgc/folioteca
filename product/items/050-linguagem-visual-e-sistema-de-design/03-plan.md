@@ -1282,8 +1282,13 @@ nenhuma outra linha do arquivo muda —,
 `apps/web/src/shared/lib/tema.ts`, `apps/web/src/shared/lib/tema.test.ts`,
 `apps/web/src/app/main.tsx`,
 `apps/web/src/app/App.tsx`, `apps/web/src/shared/styles/theme.css`,
-`apps/web/e2e/esqueleto.spec.ts`, `apps/web/e2e/health.spec.ts`.
-> Reconciliado em D-012.
+`apps/web/e2e/esqueleto.spec.ts`, `apps/web/e2e/health.spec.ts`,
+`apps/web/vite.config.ts` — com o alcance de declarar o reporter da suíte de
+unidade, de modo que a saída de `pnpm --filter web exec vitest run` — sem
+flag — nomeie os arquivos de teste que rodaram; o reporter padrão do Vitest 4
+só imprime o sumário quando nada falha, e uma suíte sem arquivo nenhum
+responderia igual a uma suíte verde.
+> Reconciliado em D-012 e em D-013.
 
 **Arquivos explicitamente não tocados:** `apps/web/index.html`,
 `apps/web/nginx.conf`, `apps/web/playwright.config.ts`,
@@ -1588,13 +1593,18 @@ uma medição que já existia.
       aberta.
 - [ ] 4.5 Modificar `apps/web/src/shared/styles/theme.css` acrescentando à regra
       `:focus-visible` que já existe desde a fase 1 o que a gaveta e o atalho
-      precisam, e nada mais: nenhum token novo, nenhum valor de token alterado.
+      precisam, e a regra que dá ao elemento raiz a superfície do tema corrente
+      e declara `color-scheme` em cada bloco de tema; nenhum token novo, nenhum
+      valor de token alterado. O arquivo hoje declara `background-color` só em
+      `:where(body)`, e o elemento raiz transparente deixa aparecer, antes de o
+      corpo pintar, o quadro escuro que `RF-06` existe para impedir.
       *Considerando a fase 1: os tokens de cor, de movimento e o ponto de quebra
       já estão declarados, e esta etapa só os consome.*
       Justificativa: `RF-01.a`, `RF-29.a`. O arquivo de tema é o único lugar onde
       valor de desenho nasce; tocá-lo para acrescentar valor nesta fase
       significaria que a fase 1 não fechou o contrato que ela existia para
       fechar.
+      > Reconciliado em D-013.
 - [ ] 4.6 Modificar `apps/web/e2e/health.spec.ts`: o caso
       `mostra o status da API na página inicial` passa a abrir a rota onde o
       componente de saúde vive depois do esqueleto, com o título reescrito para
