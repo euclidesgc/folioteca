@@ -2,8 +2,15 @@ import { Tooltip as ArkTooltip } from "@ark-ui/react";
 import type { ComponentProps } from "react";
 import { cn } from "@/shared/lib/cn";
 
+// contorno: a base fecha a dica em qualquer rolagem, e o navegador rola o
+// controle para a vista ao dar-lhe foco. Numa página mais alta que a janela,
+// quem chega ao controle com Tab produz os dois eventos no mesmo gesto — o
+// evento de rolagem é despachado no quadro seguinte, quando a dica já abriu —,
+// e a dica fecha antes de ser lida. Quem usa ponteiro nunca vê o defeito. O
+// posicionamento continua acompanhando a rolagem, porque a âncora é
+// recalculada de forma contínua; o que se desliga é o fechamento.
 function Root(props: ComponentProps<typeof ArkTooltip.Root>) {
-  return <ArkTooltip.Root {...props} />;
+  return <ArkTooltip.Root closeOnScroll={false} {...props} />;
 }
 
 function Trigger({
