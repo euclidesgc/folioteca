@@ -25,6 +25,9 @@ limpo é o commit `30f18b5`, anterior a qualquer trabalho deste item.
 | D12 | discovery | Limite de taxa nas rotas de autenticação, por `@nestjs/throttler` | Adiar para um item de segurança | "A tela responde a mesma coisa exista ou não a conta" não vale nada se o atacante puder testar dez mil endereços por minuto: sem freio, o tempo de resposta e o volume respondem o que o corpo esconde. |
 | D13 | discovery | Sem Zustand neste item; quem está na sessão é estado de servidor, por TanStack Query | Fatia de sessão em Zustand | `CLAUDE.md` manda classificar o estado antes de guardá-lo, e a identidade de quem entrou vem de `GET /auth/me` — é dado do servidor, com cache e invalidação, não estado de aplicação. Guardá-lo duas vezes é a origem clássica da tela que mostra alguém que já saiu. |
 | D14 | discovery | A falta do limiar de contexto no motor vira `081-a-sessao-mede-o-proprio-consumo-de-contexto-antes-de-estourar`, logo depois de `063` | Instalar os dois scripts agora, dentro deste item | Dívida de motor não fura a fila do produto: o CI está verde e a corrida anda sem ela. A posição é a da dívida de corrida, atrás dos itens de produto e junto de `061` e `063`, que são do mesmo motor. |
+| D15 | prd | A pendência que o PRD encontrou — a conta cuidando de si depois da entrada — vira `082-manutencao-da-propria-conta` no roadmap, posicionado depois de `009-convite-e-desligamento` | Parar a corrida e levar ao dono como mudança de roadmap | Acrescentar item na posição de precedência certa é o que o processo manda para toda pendência que sobra; não reordena nem redefine o que já está na fila, que é o que seria decisão do dono. A posição espera `009` porque, com uma pessoa só na organização, a recuperação por e-mail já faz o que essa tela faria. |
+| D16 | prd | O escopo do PRD numera requisitos `RF-nn`, e a spec mantém o número desdobrando em `RF-nn.a` | Escopo em prosa ancorada só nas regras `R-n` do discovery | É a forma dos dois PRDs já aprovados, `001` e `050`, e é o identificador que o `criteria-auditor` cobra depois: cada `RF-nn` da spec precisa de critério que o cubra. Documento canônico fora do padrão da casa vira cicatriz de forma. |
+| D17 | prd | O PRD fica com quatro métricas próprias: confirmação do endereço, recuperação que termina em senha nova, senha redefinida fora do fluxo e sessão viva depois da redefinição | Manter também a mediana de tempo entre o cadastro aceito e a primeira sessão | A skill `prd-authoring` recomenda no máximo quatro, e a mediana de tempo media a mesma coisa que a primeira métrica já mede — a fricção que a confirmação por e-mail acrescenta. Métrica que repete outra não é medida a mais, é ruído no painel. |
 
 ## Aprovações registradas em modo autônomo
 
@@ -33,9 +36,16 @@ Cada linha aqui é um `state.sh approve --por autonomo` ou um
 
 | Estágio | Documento | O que foi aprovado | Quando |
 |---|---|---|---|
-| — | — | Nenhuma até aqui | — |
+| `prd` | `01-prd.md`, `sha` `43f954d4` | Os 32 requisitos `RF-01` a `RF-32`, o não-escopo, as quatro métricas e os riscos deste item, sem o olho do dono | 09/09/2026 |
 
 ## O que ficou para o humano
 
-- Nada travado até aqui. O discovery não abriu divergência nem encontrou
-  decisão que contrarie as quinze regras do modelo de acesso.
+- **O PRD foi aprovado por máquina.** Nenhuma divergência foi aberta, e nada
+  nele contraria as quinze regras do modelo de acesso, o não-escopo da visão nem
+  o roadmap. Se algo estiver errado, o ponto de retorno limpo continua sendo o
+  commit `30f18b5`, e a spec ainda não foi escrita.
+- **Um item novo entrou no roadmap sem o seu aval:**
+  `082-manutencao-da-propria-conta`, depois de `009-convite-e-desligamento`. Ele
+  recolhe a conta cuidando de si — trocar senha sabendo a atual, corrigir nome,
+  trocar endereço — que nenhuma das treze regras do discovery cobria. Se a
+  posição estiver errada, mover é uma linha.

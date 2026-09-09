@@ -337,6 +337,19 @@ PR e commit já escritos.
       **Depende de:** `008-registro-de-auditoria` — abrir documento herdado só é
       aceitável porque fica registrado; sem o registro, o ato existe e ninguém o vê.
 
+- [ ] `082-manutencao-da-propria-conta` — quem já entrou cuida da própria
+      conta: troca a senha sabendo a atual, corrige o nome e troca o endereço de
+      e-mail, que só passa a valer depois de confirmado no endereço novo
+      **Depende de:** `002-conta-e-organizacao` — não há conta para manter, nem
+      sessão para encerrar quando a senha muda, antes dela. A posição espera
+      `009-convite-e-desligamento` porque, enquanto a organização tem uma pessoa
+      só, a recuperação por e-mail já faz o que esta tela faria.
+      **Origem:** PRD de `002-conta-e-organizacao`, em 09/09/2026. Nenhuma das
+      treze regras do discovery cobre a conta cuidando de si, e o caso concreto
+      que a pede é quem se cadastra com o endereço digitado errado: a conta
+      nunca confirma, o endereço fica ocupado, e a única saída dentro de `002` é
+      cadastrar de novo com o endereço certo.
+
 - [ ] `010-revogacao-verificada` — uma verificação diária reexecuta a resolução
       de acesso sobre os registros do dia e acusa qualquer acesso resolvido para
       conta desativada, ou para quem já não é membro do canal e não tem concessão
