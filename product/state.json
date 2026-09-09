@@ -678,15 +678,21 @@
           "criteria_sha": "17fd24dcaf19557e72b840b227a97eaf956d6ef49049aae843519a5090422721"
         },
         "2": {
-          "status": "em_execucao",
+          "status": "aprovada",
           "reproved_count": 0,
-          "verdict": null,
-          "verdict_file": null,
-          "validated_sha": null,
+          "verdict": "APROVADO",
+          "verdict_file": "product/items/050-linguagem-visual-e-sistema-de-design/05-veredictos/fase-2.md",
+          "validated_sha": "0ed90d58e48875e49e6b3e52ce3efab8790b56b1",
           "pr": null,
           "blocked_on": [
             "D-006"
-          ]
+          ],
+          "verdict_at": "2026-09-09T11:48:36Z",
+          "validated_trees": {
+            "apps/api": "f614cd78e3d0df6ba3647394bc0c8d0c6d02d4b4",
+            "apps/web": "a7ce9077ec6be6f9b955eee36fafd929276040cd"
+          },
+          "criteria_sha": "20318c75674cef1c930cb08386ae7a8c1022e3a1bc7ecfbdfb333713c5c7ea8b"
         }
       },
       "divergences": {

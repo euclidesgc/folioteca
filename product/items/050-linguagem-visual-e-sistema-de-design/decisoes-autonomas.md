@@ -93,66 +93,73 @@ sem o "sim" de uma pessoa.
 | `plan` (de novo) | 09/09/2026 | `03-plan.md` reconciliado por `D-002` e `D-003`. A aprovação anterior estava amarrada ao conteúdo de antes das duas reconciliações, e o `state.sh check` acusava a diferença |
 
 | `plan` (mais uma vez) | 09/09/2026 | `03-plan.md` reconciliado por `D-006`. A aprovação anterior estava amarrada ao conteúdo de antes da reconciliação, e o `state.sh check` acusava a diferença |
-
 ## O que esta sessão fez, e o que ela deixou para a próxima
 
-A fase 1 está **`APROVADA`**, com veredicto em `05-veredictos/fase-1.md`: doze
+A **fase 2 está `APROVADA`**, com veredicto em `05-veredictos/fase-2.md`: doze
 critérios de doze cumpridos, cada um com o comando executado e a saída real, e os
-portões verdes — web 21/21, api 40/40, suíte comportamental 8/8 numa subida,
-`gates_runner.sh` em 0.
+portões verdes — 43 testes de unidade em 11 arquivos, tipos e lint limpos, e a
+suíte comportamental 14 de 14 numa subida. A validação foi cega, e conferiu por
+fora os dois pontos em que um caso poderia ser verdadeiro por construção.
 
-Ela fecha as oito etapas: quarentena remedida no dia, três faces auto-hospedadas
-com licença ao lado, arquivo de tema com os seis tokens de cor nos dois temas,
-plugin do Tailwind no build, rota `/design` no artefato, três casos
-comportamentais e a skill `react-styling` reconciliada para a forma v4.
+**A medição que o plano condicionava está feita, e a base passa.** A etapa 2.1
+mandava provar, antes de escrever primitivo, se a base headless posiciona sob
+`style-src 'self'`. `@ark-ui/react` posiciona por propriedade CSSOM, o console não
+registra estilo recusado, e o menu e a dica flutuam com caixa não nula. O caminho
+misto de reserva — `<dialog>` e `popover` nativos — não foi necessário. `D4` está
+respondida, e a fase 3 assenta os nove primitivos restantes sem repetir a medição.
 
-**Duas sessões trabalharam nesta fase.** A primeira implementou e abriu o PR sem
-passar pela revisão nem pela validação; a segunda fechou o ciclo — `react-reviewer`,
-correção do que ele apontou, `phase-validator` cego e veredicto gravado.
+**Três defeitos apareceram medindo, e os três eram do produto, não do teste.**
+A dica fechava para quem chega por `Tab` numa página alta, e só para essa pessoa
+(`D12`). O alternador anunciava-se como caixa de seleção, e o teste que deveria
+pegar isso repetia o mesmo remendo e passava por construção (`D15`). A regra do
+valor mágico não mordia dentro de `cn(...)`, que é a forma que todo primitivo usa
+— verde exatamente onde a classe de verdade é escrita (`D17`). As três correções
+foram para dentro do primitivo ou da regra, e cada uma tem controle negativo
+executado.
 
-**O que a revisão e a validação acrescentaram:**
+**Uma divergência espera o olhar do dono.** `D-006` corrige o primeiro critério
+comportamental desta fase, que pedia menu e dica abertos ao mesmo tempo — coisa
+que um menu modal correto não concede, porque ele devolve o foco ao próprio
+gatilho ao fechar. Ratificada na opção recomendada, o plano reconciliado no mesmo
+PR, e **o PR nasce e permanece `blocked-on-D-006`** até a ratificação humana. Não
+é trabalho pendente: o trabalho está feito e medido.
 
-- O `react-reviewer` mediu que nenhum teste de unidade tocava `design.tsx`. Quatro
-  testes entraram, sem mudar código de produção (`D25`).
-- O `phase-validator` achou quatro coisas fora do escopo dos critérios. Uma foi
-  **fechada aqui** — a isenção dos gates por pasta, que deixava um `.tsx` escapar de
-  G3, G4 e G5, virou isenção por arquivo, com controle positivo medido (`D26`).
-  Uma **já estava prevista** pelo plano: o tema fixo em claro, com o alternador na
-  fase 4. As outras duas viraram `D-004` e `D-005`, ratificadas na opção
-  recomendada, com a correção datada para a fase 4 (`D27`).
+**Somam-se a ela as quatro da fase 1** — `D-002` a `D-005` —, que continuam
+esperando. `D-004` e `D-005` são executadas na fase 4.
 
-**Quatro divergências esperam o olhar do dono.** `D-002` e `D-003` corrigem
-critérios desta fase; `D-004` e `D-005` corrigem o nome do ponto de quebra e a
-paleta escrita duas vezes, e são executadas na fase 4. **O PR nasce e permanece
-`blocked-on-D-002`, `blocked-on-D-003`, `blocked-on-D-004` e `blocked-on-D-005`**
-até a ratificação com `--por humano`. Não são bloqueios de trabalho pendente: o
-trabalho está feito e medido. São o olhar que a norma reserva para quem decidiu
-sozinho de madrugada.
+**A revisão de código passou limpa**, com um único apontamento: o
+`.impeccable/config.json` está no diff sem estar na lista de arquivos tocados do
+plano (`D14`). É configuração do detector de design que roda no hook desta
+máquina, e nada no artefato publicado muda com ele.
 
-**Um defeito do harness parou o processo no meio, e não é do repositório.** O
-`phase-validator` não conseguiu gravar o próprio veredicto: `.harness/tool-matrix.json`
-declara `writes: []` e nega `Write` nas ferramentas dele, enquanto a skill
-`harness-orchestrator` diz, com seção própria, que ele grava. Ele recusou o caminho
-canônico por escopo, recusou `/tmp` por ferramenta, e não contornou por `Bash` — que
-é o comportamento certo. O veredicto foi reproduzido por ele e gravado pela thread
-principal, sem edição. A correção mora no plugin, em `scripts/init/compose.py`, e
-está descrita com a asserção que impede a reincidência em
-`.harness/proposals/2026-09-09-003.md`.
+**Três entradas novas de roadmap, e uma atualizada.**
 
-**Três entradas de roadmap saíram deste item**, todas da mesma raiz — um portão que
-não consegue medir e não diz isso: `068` e `069`, escritas pela sessão anterior, e a
-proposta do harness acima, que não é item de produto e por isso vive em
-`.harness/proposals/`.
+- `070` — a aplicação não declara ícone, e o navegador recebe `404` de
+  `/favicon.ico` em toda página. Ruído permanente em cima do coletor de console
+  que os critérios desta linguagem visual usam.
+- `071` — **e este a próxima sessão precisa ler antes de começar.** A forma
+  `grep -c '' <arquivo>`, que os critérios das fases 3, 4 e 5 usam para dizer "o
+  arquivo não está vazio", passa pelo escape de saída crua do harness, e esse
+  escape descarta o argumento de string vazia: o comando vira `grep -c <arquivo>`,
+  lê o stdin e imprime `0`. O validador desta fase mediu `0` onde os arquivos têm
+  6, 38 e 56 linhas, e só não reprovou porque desconfiou do número e remediu. É a
+  classe de defeito desta casa com o sinal trocado — o portão reprova o que está
+  certo —, e a fase 3 topa com ela.
+- `072` — o artefato da web é um único pedaço de 806 KB sem divisão de código, e
+  nenhum critério de nenhuma fase mede tamanho. Ficou na região de dívida, atrás
+  dos itens de produto, porque não trava a corrida.
+- `069` deixou de ser previsão: o defeito do `awk` que casa byte e não caractere
+  **mordeu de verdade** nesta fase, e a entrada ganhou a data e o arquivo.
 
-**Validação de campo que só o dono faz:** olhar as quatro capturas em
-`06-capturas/` e dizer se a direção "Lombada" está de pé. A régua automática mediu o
-que dá para medir — contraste dos dois temas, ausência de rolagem horizontal em 375,
-768 e 1440, a face carregada da própria origem. O que ela não mede é se a página está
-boa.
+**Validação de campo que só o dono faz:** olhar as sete capturas em
+`06-capturas/` e dizer se a direção "Lombada" está de pé nos primitivos. A régua
+automática mediu o que dá para medir — inclusive `prefers-reduced-motion`, em que
+a animação some e o estado final permanece. O que ela não mede é se a página está
+boa. E que um leitor de tela de verdade anuncie "alternador" onde agora há
+`role="switch"` é coisa que nenhum teste desta suíte prova.
 
-**A próxima sessão faz a fase 2** — a base headless medida, o contrato de componente
-e os seis primitivos de teclado. Ela começa lendo que a fase 4 deve duas correções
-(`D-004`, `D-005`) e que os quatro avisos do portão de critérios, nas fases 2, 4 e 5,
-continuam de pé: a conclusão desses critérios só afirma ausência, e isso é verdade
-também para uma entrada que não existe. O aviso não reprova, mas a fase 2 é a
-primeira que topa com um deles.
+**A próxima sessão faz a fase 3** — os nove primitivos restantes e a assinatura
+de acesso. Ela começa lendo o `071` acima, e sabendo que a base headless já está
+medida, que o contrato de componente (`cn`, `cva`, `defaultVariants`,
+`VariantProps`) está fixado pelo `button.tsx`, e que a regra do valor mágico já
+vale para tudo que ela escrever fora de `src/shared/components/`.

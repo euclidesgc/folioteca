@@ -220,6 +220,31 @@ PR e commit já escritos.
       escolha natural quando `eslint-plugin-react` alcançar essa série — ver
       `04-divergencias/D-013.md`.
 
+- [ ] `071-o-criterio-mede-o-arquivo-vazio-por-uma-forma-que-o-proxy-nao-engole` —
+      um critério `estrutural` que pergunta "o arquivo tem conteúdo?" imprime o
+      número de linhas de verdade, em vez de imprimir `0` para um arquivo correto
+      **Depende de:** nada. É a forma escrita dentro dos critérios do plano, e a
+      regra de escrita que evita a reincidência.
+      **Origem:** validação cega da fase 2 de `050`, em 09/09/2026. A forma
+      `grep -c '' <arquivo>` — usada como "não está vazio" em três sub-checagens
+      desta fase e repetida nos critérios das fases 3, 4 e 5 — passa pelo escape de
+      saída crua que `.harness/config.json` impõe, e esse escape **descarta o
+      argumento de string vazia**: o comando roda como `grep -c <arquivo>`, que
+      trata o nome do arquivo como padrão de busca, lê o stdin, imprime `0` e sai
+      com `1`. O validador mediu `0` onde os arquivos têm 6, 38 e 56 linhas, e só
+      não reprovou porque desconfiou do número e remediu embrulhando o comando.
+      **É a classe de defeito que este repositório existe para matar, com o sinal
+      trocado:** aqui o portão reprova o que está certo, e a próxima sessão gasta a
+      madrugada procurando um defeito que não existe — ou, pior, "corrige" código
+      correto até o número mudar.
+      Fechar é (a) trocar a forma nos critérios que ainda não foram medidos, por
+      uma que não dependa de argumento vazio — `wc -l < <arquivo>` diz a mesma
+      coisa e não tem argumento que se perca; (b) escrever a regra onde o
+      `plan-writer` a leia, junto das outras três formas que já enganaram este
+      repositório; e (c) uma asserção no portão de forma de critério que recuse
+      `grep -c ''`, porque regra escrita sem quem a cobre é regra que a pressa
+      esquece.
+
 - [ ] `070-o-produto-tem-icone-proprio-na-aba-do-navegador` — quem abre a
       aplicação vê o ícone da Folioteca na aba e nos favoritos, em vez do ícone
       genérico do navegador, e o console para de registrar a busca frustrada
@@ -795,6 +820,28 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       `awk` — a forma mais barata é aceitar o prefixo sem acento (`decis`,
       `restri`, `limita`) — e acrescentar ao teste do gate uma linha por marca
       documentada, que é o controle positivo que faltava.
+
+- [ ] `072-o-artefato-da-web-declara-orcamento-de-carga` — o artefato publicado de
+      `apps/web` tem teto de tamanho medido no CI, e quem o estoura descobre no
+      PR em vez de no telefone de quem abre o endereço
+      **Depende de:** `050-linguagem-visual-e-sistema-de-design` — o teto se mede
+      depois que os quinze primitivos e o esqueleto existem, senão o número é
+      chutado sobre uma aplicação que ainda vai triplicar.
+      **Origem:** validação cega da fase 2 de `050`, em 09/09/2026, como
+      apontamento fora do escopo dos critérios. O build imprime `Some chunks are
+      larger than 500 kB after minification`, e `dist/assets/index-*.js` é **um
+      único pedaço de 806 KB** — sem divisão de código, com `@ark-ui/react`,
+      `react`, `react-router` e `@tanstack/react-query` no mesmo arquivo. Nenhum
+      critério de nenhuma fase mede tamanho de artefato, então o número só cresce
+      e ninguém é avisado.
+      **A tese do produto pesa nisso:** o acesso vem de onde a pessoa está, e ela
+      abre o documento do lugar onde trabalha — inclusive de rede ruim. Um pedaço
+      único também significa que a primeira tela espera o download do editor
+      inteiro, que a maioria das telas não usa.
+      Fechar é (a) medir o tamanho no CI e reprovar acima do teto, com o número
+      escrito e a data em que foi escolhido; e (b) separar por rota o que não é
+      preciso na primeira pintura. O teto vem antes da divisão: sem ele, a divisão
+      não tem como provar que resolveu.
 
 - [ ] `058-o-endereco-de-homologacao-diz-o-nome-do-produto` — os três FQDNs de
       homologação saem de `gbdocs.duckdns.org`, herdado do projeto anterior, para
