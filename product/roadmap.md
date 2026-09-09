@@ -69,7 +69,7 @@ PR e commit já escritos.
       a vulnerável que já está no lockfile — são portas diferentes, e só uma
       delas fecha em `023`.
 
-- [-] `050-linguagem-visual-e-sistema-de-design` — o produto ganha linguagem
+- [x] `050-linguagem-visual-e-sistema-de-design` — o produto ganha linguagem
       visual própria: tokens de cor, tipografia, espaço e movimento em tema claro
       e escuro, os primitivos de interface que toda tela daqui em diante monta, e
       o esqueleto de aplicação onde elas moram — tudo exercitado numa página viva
@@ -219,6 +219,51 @@ PR e commit já escritos.
       `eslint-config-next` não roda no ESLint 10 do repositório, e volta a ser a
       escolha natural quando `eslint-plugin-react` alcançar essa série — ver
       `04-divergencias/D-013.md`.
+
+- [ ] `071-o-criterio-mede-o-arquivo-vazio-por-uma-forma-que-o-proxy-nao-engole` —
+      um critério `estrutural` que pergunta "o arquivo tem conteúdo?" imprime o
+      número de linhas de verdade, em vez de imprimir `0` para um arquivo correto
+      **Depende de:** nada. É a forma escrita dentro dos critérios do plano, e a
+      regra de escrita que evita a reincidência.
+      **Origem:** validação cega da fase 2 de `050`, em 09/09/2026. A forma
+      `grep -c '' <arquivo>` — usada como "não está vazio" em três sub-checagens
+      desta fase e repetida nos critérios das fases 3, 4 e 5 — passa pelo escape de
+      saída crua que `.harness/config.json` impõe, e esse escape **descarta o
+      argumento de string vazia**: o comando roda como `grep -c <arquivo>`, que
+      trata o nome do arquivo como padrão de busca, lê o stdin, imprime `0` e sai
+      com `1`. O validador mediu `0` onde os arquivos têm 6, 38 e 56 linhas, e só
+      não reprovou porque desconfiou do número e remediu embrulhando o comando.
+      **É a classe de defeito que este repositório existe para matar, com o sinal
+      trocado:** aqui o portão reprova o que está certo, e a próxima sessão gasta a
+      madrugada procurando um defeito que não existe — ou, pior, "corrige" código
+      correto até o número mudar.
+      Fechar é (a) trocar a forma nos critérios que ainda não foram medidos, por
+      uma que não dependa de argumento vazio — `wc -l < <arquivo>` diz a mesma
+      coisa e não tem argumento que se perca; (b) escrever a regra onde o
+      `plan-writer` a leia, junto das outras três formas que já enganaram este
+      repositório; e (c) uma asserção no portão de forma de critério que recuse
+      `grep -c ''`, porque regra escrita sem quem a cobre é regra que a pressa
+      esquece.
+
+- [ ] `070-o-produto-tem-icone-proprio-na-aba-do-navegador` — quem abre a
+      aplicação vê o ícone da Folioteca na aba e nos favoritos, em vez do ícone
+      genérico do navegador, e o console para de registrar a busca frustrada
+      **Depende de:** `050-linguagem-visual-e-sistema-de-design` — o ícone deriva
+      da paleta e da metáfora da lombada que o `050` fixa; desenhado antes, ele
+      vira a segunda marca que o `051` teria de reconciliar.
+      **Origem:** fase 2 de `050`, medido em 09/09/2026 no navegador, contra o
+      artefato construído servido na origem de pré-visualização. `apps/web/index.html`
+      não declara `<link rel="icon">`, então o navegador busca `/favicon.ico` por
+      conta própria e recebe `404` — a mensagem aparece no console de **toda**
+      página da aplicação, e é ruído permanente em cima do coletor de console que
+      os critérios comportamentais desta linguagem visual usam para provar que
+      nenhum estilo foi recusado.
+      Fechar é desenhar o ícone a partir dos tokens do `050`, servi-lo pela
+      própria origem — a política de conteúdo do artefato é `default-src 'self'`,
+      e ícone de outra origem é bloqueado do mesmo jeito que folha e fonte —,
+      declará-lo em `index.html` nos tamanhos que a aba e o atalho de tela usam, e
+      cobrir `apps/site` pela mesma decisão, para que a empresa não tenha um ícone
+      no produto e outro no hotsite.
 
 - [ ] `051-identidade-e-hotsite` — o hotsite deixa de ser a página do bootstrap e
       passa a apresentar o produto a quem chega sem sessão: a tese na primeira
@@ -749,7 +794,7 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       que as duas asserções mordem — um critério com o comando proibido, e um
       universo com um arquivo binário.
 
-- [ ] `069-a-marca-de-justificativa-que-o-portao-documenta-e-a-que-ele-aceita` —
+- [x] `069-a-marca-de-justificativa-que-o-portao-documenta-e-a-que-ele-aceita` —
       quem escreve `// decisão:` num arquivo de `apps/web/src` para de ser
       reprovado por uma marca que o próprio portão anuncia como válida
       **Depende de:** nada. É uma linha de `scripts/gates/gate3_no_comments.sh`.
@@ -765,10 +810,214 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       do universo `apps/web/src/**` do gate; ele morde na primeira vez que
       alguém escreve a marca documentada dentro do universo, e o sintoma é uma
       recusa que a documentação do gate diz que não existe.
-      Fechar é fazer o regex casar as marcas acentuadas independentemente do
-      `awk` — a forma mais barata é aceitar o prefixo sem acento (`decis`,
-      `restri`, `limita`) — e acrescentar ao teste do gate uma linha por marca
-      documentada, que é o controle positivo que faltava.
+      **Mordeu, em 09/09/2026, na fase 2 de `050`.** Um comentário aberto por
+      `// decisão:` em `apps/web/src/shared/components/ui/switch.tsx` reprovou o
+      G3, com o portão apontando as linhas do próprio bloco que a marca deveria
+      liberar. A fase seguiu trocando a marca por `motivo:`, que é ASCII e passa
+      — contorno, não correção: quem escrever a marca acentuada de novo reprova
+      de novo, e a documentação do gate continua prometendo que ela vale.
+      **Mordeu pela terceira vez, em 09/09/2026, na fase 5 de `050`**, e o
+      implementer contornou de novo escrevendo só marcas sem acento. Três
+      contornos para o mesmo defeito é o que a regra 20 do `CLAUDE.md` chama de
+      causa raiz, e foi ela que mandou este item para worktree.
+      **Fechado pela terceira ocorrência, em worktree:** cada marca acentuada
+      passa a aparecer por extenso no regex de `scripts/gates/gate3_no_comments.sh`,
+      nas formas com e sem acento — `decisão|decisao`, `limitação|limitacao`,
+      `restrição|restricao`, `por ?quê|por ?que` —, e o mesmo vale para o
+      `licen[çc]a` da isenção de cabeçalho de licença. Literal casa igual em
+      `mawk` e em `gawk`, com ou sem locale UTF-8, porque é a mesma sequência de
+      bytes; classe de caractere é que depende do `awk` ser UTF-8-aware. Descartado
+      o prefixo sem acento que este item propunha: `limita` e `restri` casariam
+      `limita o escopo a três` e `restringe a busca`, e a marca deixaria de custar
+      o que ela existe para custar.
+      **Como se prova:** `bash scripts/gates/__tests__/marca-acentuada.test.sh`
+      cobra as quatro marcas acentuadas do cabeçalho, o controle positivo de
+      comentário sem marca nenhuma, e a continuação de bloco aberto por marca
+      acentuada. Com o regex antigo no lugar, quatro casos reprovam — `decisão`,
+      `limitação`, `restrição` e a continuação; `por quê` passava dos dois lados
+      por acidente, porque `[êe]` casava o primeiro byte de `ê`. O teste corre no
+      `_suite-portoes.yml`, junto dos outros testes de portão.
+
+- [ ] `072-o-artefato-da-web-declara-orcamento-de-carga` — o artefato publicado de
+      `apps/web` tem teto de tamanho medido no CI, e quem o estoura descobre no
+      PR em vez de no telefone de quem abre o endereço
+      **Depende de:** `050-linguagem-visual-e-sistema-de-design` — o teto se mede
+      depois que os quinze primitivos e o esqueleto existem, senão o número é
+      chutado sobre uma aplicação que ainda vai triplicar.
+      **Origem:** validação cega da fase 2 de `050`, em 09/09/2026, como
+      apontamento fora do escopo dos critérios. O build imprime `Some chunks are
+      larger than 500 kB after minification`, e `dist/assets/index-*.js` é **um
+      único pedaço de 806 KB** — sem divisão de código, com `@ark-ui/react`,
+      `react`, `react-router` e `@tanstack/react-query` no mesmo arquivo. Nenhum
+      critério de nenhuma fase mede tamanho de artefato, então o número só cresce
+      e ninguém é avisado.
+      **A tese do produto pesa nisso:** o acesso vem de onde a pessoa está, e ela
+      abre o documento do lugar onde trabalha — inclusive de rede ruim. Um pedaço
+      único também significa que a primeira tela espera o download do editor
+      inteiro, que a maioria das telas não usa.
+      Fechar é (a) medir o tamanho no CI e reprovar acima do teto, com o número
+      escrito e a data em que foi escolhido; e (b) separar por rota o que não é
+      preciso na primeira pintura. O teto vem antes da divisão: sem ele, a divisão
+      não tem como provar que resolveu.
+
+- [ ] `073-o-artefato-da-web-responde-pelo-icone-que-o-navegador-pede` — quem abre
+      a aplicação vê o ícone dela na aba, e o console não traz um 404 a cada carga
+      **Depende de:** nada. É um arquivo em `apps/web/public/` e a linha que o
+      declara em `apps/web/index.html`.
+      **Origem:** fase 3 de `050`, medido em 09/09/2026 no navegador contra o
+      artefato servido em 4173. Toda carga de `/design` traz
+      `Failed to load resource: the server responded with a status of 404
+      (Not Found) @ /favicon.ico`. Não há favicon no repositório, e o navegador
+      pede um sempre.
+      **Anda junto de `066`.** Os dois são erro de console em toda carga, os dois
+      moram em arquivos que nenhuma fase de `050` pode tocar, e enquanto os dois
+      existirem nenhum critério consegue exigir "console sem erro" sem nomear
+      exceção. Fechá-los na mesma passagem é o que devolve o console como
+      instrumento de medida.
+
+- [ ] `074-a-interacao-nos-testes-de-unidade-passa-pelo-ponteiro-de-verdade` — o
+      teste unitário que clica um controle exercita o mesmo caminho que a pessoa
+      exercita, e um `pointer-events-none` acidental reprova
+      **Depende de:** `050-linguagem-visual-e-sistema-de-design` — a troca é de
+      padrão e vale para a suíte inteira; fazê-la enquanto os primitivos ainda
+      nascem obrigaria a refazê-la a cada fase.
+      **Origem:** revisão da fase 3 de `050`, em 09/09/2026. As skills da casa
+      pedem `userEvent`, e a suíte usa `fireEvent` em `button.test.tsx` (fase 2),
+      `checkbox.test.tsx` e `pagination.test.tsx` (fase 3). `fireEvent` despacha
+      o evento direto no nó, sem passar pelo teste de acerto do ponteiro: um
+      controle coberto por outro elemento, ou com `pointer-events-none`, continua
+      passando no teste e falha para quem usa o produto.
+      **Por que não foi feito na fase 3:** `@testing-library/user-event` não está
+      declarado em `apps/web/package.json`, e o plano da fase lista esse arquivo e
+      o `pnpm-lock.yaml` entre os que ela não toca. Trocar em dois arquivos e
+      deixar o terceiro como está trocaria um desvio por uma inconsistência.
+      Fechar é declarar a dependência e converter os três de uma vez.
+
+- [ ] `075-a-paginacao-mostra-uma-janela-de-paginas-e-nao-todas` — quem navega uma
+      lista longa alcança a próxima página sem passar por todos os números
+      **Depende de:** a primeira tela que lista documentos com paginação real —
+      hoje `002` a `007`. O tamanho da janela e a forma das reticências se decidem
+      com um total de verdade na frente, não com a amostra de cinco da página viva.
+      **Origem:** validação cega da fase 3 de `050`, em 09/09/2026, como
+      apontamento fora do escopo dos critérios. `Pagination` monta
+      `Array.from({ length: total })` e renderiza um botão por página. Com `total`
+      grande, o primitivo põe `total` botões no DOM e quem usa teclado atravessa
+      todos antes de chegar a "Próxima" — o custo é de navegação, não de pintura.
+      Nenhum critério da fase mede o comportamento com muitas páginas, e a amostra
+      usa total pequeno, então nada está quebrado hoje.
+
+- [ ] `076-a-dica-do-campo-e-derivada-da-parte-que-existe-e-nao-declarada-por-quem-usa` —
+      quem compõe um campo sem dica não precisa lembrar de dizer isso, e não
+      produz `aria-describedby` apontando para o nada
+      **Depende de:** a primeira tela que compõe campos fora da página viva —
+      `002` a `007`. É mudança de API de primitivo, e o desenho certo aparece
+      quando há mais de três usos para olhar.
+      **Origem:** validação cega da fase 3 de `050`, em 09/09/2026, como
+      apontamento fora do escopo dos critérios. `Field.Root` tem `hasHint` com
+      padrão `true`, então o `aria-describedby` do controle sempre inclui o id da
+      dica, exista ou não um `<Field.Hint>` renderizado. Quem esquecer
+      `hasHint={false}` num campo sem dica produz referência para elemento
+      inexistente — violação de `aria-valid-attr-value`, e a descrição acessível
+      some sem erro nenhum. Os três usos de hoje estão corretos.
+      **A forma que fecha:** a parte se registra no contexto quando monta, e o
+      `Root` deriva a lista de descrições do que existe, em vez de pedir a quem
+      usa que declare. O que não se faz é inverter o padrão para `false`: troca
+      um erro silencioso por outro, com o sintoma só mudando de lado.
+
+- [ ] `077-a-gaveta-de-largura-pequena-ganha-cabecalho-e-o-fechar-sai-da-navegacao` —
+      quem navega por landmark chega à navegação da gaveta e encontra os quatro
+      destinos, sem um botão de chrome no meio deles
+      **Depende de:** a primeira tela que dê à gaveta mais conteúdo que os quatro
+      destinos — `002` a `007`. O cabeçalho da gaveta é onde o botão de fechar
+      mora com naturalidade, e ele só se desenha quando há o que pôr nele.
+      **Origem:** revisão da fase 4 de `050`, em 09/09/2026. O
+      `Dialog.CloseTrigger` de nome acessível `Fechar navegação` é o primeiro
+      filho do `<nav aria-label="Destinos do produto">` da gaveta, então o
+      landmark de navegação contém uma ação de chrome do diálogo. Não é violação
+      mensurável e o axe não acusa; é semântica imprecisa.
+      **Por que não foi corrigido na fase que o criou:** medido — os cinco
+      focáveis da gaveta ciclam, e o botão cai nas posições 0 e 5 da trilha de
+      oito `Tab`. O critério comportamental de `RF-24` exige o elemento com foco
+      **contido no elemento de papel `navigation`** nas oito leituras; com o botão
+      fora do `<nav>`, duas delas devolvem falso e o critério reprova. Mudar a
+      régua da fase enquanto ela está sendo medida é o antipadrão que a norma
+      nomeia, e o botão não podia sair sem levar o critério junto.
+      **A forma que fecha:** a gaveta ganha um cabeçalho — título visível e o
+      controle de fechar — irmão do `<nav>` dentro do conteúdo do diálogo, e o
+      critério passa a medir foco preso **no diálogo**, que é o que ele sempre
+      quis dizer, em vez de contenção no landmark de navegação, que era o proxy
+      que funcionava enquanto a gaveta não tinha mais nada dentro.
+
+- [ ] `078-o-quadro-nativo-nasce-no-tema-certo-antes-de-o-modulo-rodar` — quem
+      abre o produto num sistema escuro não vê o lampejo branco que antecede a
+      primeira pintura
+      **Depende de:** `050` — o esqueleto e o tema que este defeito habita. E
+      precede qualquer critério que meça a tela **antes** do evento de carga.
+      **Origem:** fase 4 de `050`, em 09/09/2026, como achado da correção que
+      fez o elemento raiz carregar a superfície do tema. Medido no artefato de
+      `apps/web/dist`: o documento servido é `<html lang="pt-BR">`, sem classe de
+      tema, e `color-scheme` só existe dentro de `.tema-claro` e `.tema-escuro`.
+      Entre a chegada do HTML e a execução do módulo de entrada, portanto, o
+      documento não tem tema nem `color-scheme`, e o navegador pinta o quadro
+      claro por padrão — num sistema escuro, um lampejo branco, que é o sintoma
+      que `RF-06` quer eliminar, na única janela que o CSS do app não alcança.
+      **Por que não foi corrigido na fase que o encontrou:** as duas saídas
+      baratas trocam de lado o defeito em vez de fechá-lo. `color-scheme:
+      light dark` no `:root` sem classe acerta quem não tem escolha guardada e
+      erra quem guardou o tema contrário ao do sistema; e um `<script>` embutido
+      antes da folha de estilo — a forma canônica — é bloqueado por
+      `script-src 'self'`, a política que `RF-06` mede pela contagem de `script`
+      sem `src` igual a `0`. Fechar exige escolher entre servir a classe já no
+      documento e um módulo de bloqueio com `src` próprio, e as duas mudam o
+      artefato, não uma regra de CSS.
+
+- [ ] `079-o-campo-em-erro-e-o-estado-vazio-da-pagina-viva-nascem-de-interacao` —
+      os cinco estados que o axe analisa depois de interagir são cinco estados
+      que a interação de fato produziu, e não três mais dois que já estavam no
+      documento
+      **Depende de:** `050` — é a página viva que ele corrige, e a régua que ele
+      fortalece é a da fase 5.
+      **Origem:** revisão do diff da fase 5 de `050`, em 09/09/2026. O critério
+      manda alcançar cinco estados "navegando na mesma página" e analisar cada
+      um: diálogo aberto, menu aberto, campo com erro, gaveta aberta e estado
+      vazio. Três nascem de interação de verdade. Os outros dois — a amostra de
+      campo em erro (`design.tsx:355`, `Field.Root` com `invalid` fixo) e a de
+      estado vazio (`design.tsx:646`) — são markup estático: estão no documento
+      desde a primeira pintura, e nem o clique nem a rolagem que o caso executa
+      mudam nó que o axe enxergue. As duas análises medem o mesmo DOM que a
+      análise da página em repouso já mediu, e a guarda "o elemento
+      caracterizador está visível" passa trivialmente sobre markup que sempre
+      esteve lá.
+      **Não é defeito de código:** o caso faz o que o critério escreveu, e a
+      amostra estática é uma escolha legítima para uma página que existe para
+      exibir primitivos. É a **medição** que fica mais fraca do que promete —
+      cinco análises com a cobertura de três. Fechar é dar às duas amostras um
+      controle que produza o estado: um campo que só fica inválido depois de
+      submeter vazio, e uma lista que só fica vazia depois de limpar o filtro.
+      Aí os cinco estados passam a exercitar cinco caminhos, e o critério mede o
+      que a frase dele diz.
+
+- [ ] `080-o-corte-por-severidade-do-axe-mora-onde-quem-o-consome-mora` — o
+      código que só a suíte comportamental usa deixa de morar na árvore que o
+      artefato de produção declara
+      **Depende de:** `050` — é a fase 5 dele que cria o arquivo, e é o critério
+      dela que fixa o caminho de hoje.
+      **Origem:** validação cega da fase 5 de `050`, em 09/09/2026, como achado
+      fora do escopo dos critérios. `apps/web/src/shared/lib/axe-severidade.ts`
+      declara o corte entre severidade que reprova e severidade que só se
+      registra, e seus únicos consumidores são `apps/web/e2e/apoio/axe.ts` e o
+      próprio teste unitário ao lado. Nada sob `src` o importa, então ele não
+      entra no artefato — mas entra em toda régua estática que varre
+      `apps/web/src`, inclusive a medição de identificador em inglês e a de
+      valor mágico da própria fase 5.
+      **Não é defeito, e não foi corrigido onde nasceu:** o critério `estrutural`
+      da fase 5 mede o arquivo naquele caminho, e movê-lo enquanto a fase era
+      medida seria mudar a régua durante a medição — o antipadrão que a norma
+      nomeia em três lugares. Fechar é decidir onde mora código que só o teste de
+      ponta a ponta consome: junto de quem o usa, em `apps/web/e2e/`, ou numa
+      camada de apoio declarada, com a régua estática sabendo distingui-la. A
+      decisão fica melhor com mais de um caso na mão, e o segundo caso aparece na
+      primeira fase que precisar de outro instrumento assim.
 
 - [ ] `058-o-endereco-de-homologacao-diz-o-nome-do-produto` — os três FQDNs de
       homologação saem de `gbdocs.duckdns.org`, herdado do projeto anterior, para
@@ -1426,6 +1675,36 @@ não bloqueia trabalho que não dependa dela.
   duas acontecer, todo `--update` exige revisar os `.bak` antes de commitar.
   **Origem:** atualização do harness de 0.6.1 para 0.7.0, em 04/09/2026.
 
+
+- **A definição do `phase-validator` e o guard `escada` discordam sobre quem
+  grava o veredicto, e a discordância já custou duas vezes.** A definição do
+  agent lhe dá `Write`; o guard responde
+  `Ferramentas negadas para phase-validator: Task, Write, Edit, MultiEdit,
+  WebFetch, WebSearch`. A skill `harness-orchestrator` descreve o desenho que a
+  definição implementa: o validador grava o próprio veredicto e devolve à thread
+  principal um resumo de cinco linhas. Com a escrita negada, ele devolve o
+  veredicto **inteiro** pelo canal de retorno — 181 linhas nesta rodada — e é a
+  thread principal que grava. O custo é exatamente o que o desenho existe para
+  evitar: o veredicto atravessa o contexto de quem orquestra, que é o contexto
+  que a validação cega existe para não contaminar.
+  **Não é o `037`.** Aquele item descreve o guard atribuindo o escopo ao agent
+  errado quando há outro agent vivo em segundo plano — sujeito trocado. Aqui o
+  sujeito está certo: o guard sabe que é o `phase-validator` e nega a ferramenta
+  que a definição dele concede. São duas causas distintas no mesmo guard, e
+  fechar uma não fecha a outra.
+  **A decisão é sua:** alinhar o guard à definição do agent, deixando o
+  `phase-validator` gravar apenas sob `product/items/*/05-veredictos/`, que é o
+  único caminho que o desenho lhe pede; ou aceitar que a thread principal grave
+  e corrigir a skill `harness-orchestrator`, que hoje descreve um fluxo que o
+  guard não permite. O que não se sustenta é a documentação e o guard dizerem
+  coisas opostas: a sessão descobre a discordância no meio da validação, e o
+  contorno é sempre pagar o contexto.
+  **Origem:** fases 3 e 4 de `050-linguagem-visual-e-sistema-de-design`, em
+  09/09/2026 — duas ocorrências, registradas em `D42` e no cabeçalho de
+  `05-veredictos/fase-4.md`. O plugin mora fora deste repositório, e a norma
+  daqui é que a retrospectiva proponha a mudança do harness, nunca a aplique de
+  dentro de um item.
+
 ## Validações de campo pendentes
 
 O que só o hardware, o aparelho real ou o navegador real provam. Não vira tipo
@@ -1552,6 +1831,79 @@ verificação**.
   cancelar à mão, e a classe vizinha tem dono —
   `059-a-tranca-nao-le-check-cancelado-como-verde`.
 
+- **`050-linguagem-visual-e-sistema-de-design`, Fase 1 — as faces
+  auto-hospedadas num motor que não seja Chromium.** Provado está que, no
+  navegador da suíte, o `font-family` computado do título resolve para Fraunces e
+  `document.fonts.check` responde `true` contra o artefato servido em 4173; e que
+  a política `style-src 'self'` não bloqueia nada, porque nada vem de fora. O que
+  não fica provado é como Safari e Firefox renderizam o mesmo `@font-face` — peso
+  aparente, altura de linha, quebra —, e nenhuma dessas diferenças é observável em
+  Chromium headless. Cai no primeiro item que puser interface diante de gente,
+  `002-conta-e-organizacao`.
+
+- **`050-linguagem-visual-e-sistema-de-design`, Fase 1 — a face em conexão
+  lenta.** O artefato serve as três faces da própria origem, e o portão mede que
+  nenhuma vem de fora. O intervalo em que o texto aparece na face de reserva antes
+  de a face própria carregar depende da rede e do motor, e nenhuma medição desta
+  máquina o produz. Confere-se abrindo o artefato com a rede estrangulada no
+  navegador.
+
+- **`050-linguagem-visual-e-sistema-de-design`, Fases 1 a 5 — a direção
+  "Lombada", julgada por quem é dono do produto.** As trinta capturas em
+  `product/items/050-linguagem-visual-e-sistema-de-design/06-capturas/` mostram os
+  quinze primitivos, o esqueleto e a página viva nos dois temas e em 375, 768 e
+  1440. A régua automática mediu contraste, foco, ausência de valor mágico e
+  violação do axe; nenhuma delas responde se a direção está de pé. É a única linha
+  desta seção que não espera hardware nem plataforma: espera um olho com
+  autoridade para dizer que sim ou que não.
+
+- **`050-linguagem-visual-e-sistema-de-design`, Fase 3 — a assinatura de acesso
+  ouvida num leitor de tela real.** Provado está que as três etiquetas expõem
+  texto acessível `Canal`, `Pessoa` e `Privado`, marca gráfica `aria-hidden` e
+  filete com cor de token, e que o campo em erro anuncia dica e mensagem por
+  `aria-describedby`. O que não fica provado é a cadência: como NVDA, JAWS ou
+  VoiceOver emendam rótulo e origem dentro de uma linha de lista densa, e se vinte
+  linhas seguidas ficam utilizáveis. É a primeira das três confirmações que
+  `06-verificacao-humana.md` deixa nomeadas para o dono. Cai no primeiro item que
+  trouxer uma lista de verdade, `004-canais`.
+
+- **`050-linguagem-visual-e-sistema-de-design`, Fase 3 — as marcas de acesso no
+  tamanho de uso e sob deficiência de visão de cor.** As três marcas foram
+  julgadas ampliadas a 180px, e a separação entre a cor de ação e a de destaque
+  foi medida por razão de contraste e por sinal redundante em cada amostra. Falta
+  olhar as capturas num simulador de deuteranopia e de protanopia, e olhar as
+  marcas a 16px numa tela de baixa densidade — que é o tamanho em que elas de fato
+  aparecem.
+
+- **`050-linguagem-visual-e-sistema-de-design`, Fase 4 — a gaveta num telefone
+  real.** Provado está que, com a janela em 360x740 e em 767x740, a barra vira
+  gaveta, o foco fica preso dentro dela, o `Esc` a fecha devolvendo o foco e o
+  `scrollWidth` do documento não passa da largura da janela. O que não fica
+  provado é o toque: alvo pequeno demais para o dedo, gesto de arrastar competindo
+  com a rolagem, teclado virtual que sobe e reduz a altura útil, e barra de
+  endereço que encolhe a viewport. Redimensionar a janela de um navegador de mesa
+  não produz nenhuma dessas condições. Cai no primeiro item que puser a ferramenta
+  na mão de alguém, `002-conta-e-organizacao`.
+
+- **`050-linguagem-visual-e-sistema-de-design`, Fase 5 — o quadro de conteúdo do
+  tema, percebido por gente.** Provado está que o `background-color` computado do
+  elemento raiz, na primeira leitura após o carregamento, é o de `papel` quando a
+  escolha guardada é `claro` num sistema em escuro. Não provado está que ninguém
+  **vê** um lampejo: a leitura acontece depois do evento de carregamento, e um
+  quadro de um único fotograma antes da primeira pintura não aparece nela. A
+  observação exige olho humano sobre a máquina que recarrega, com a rede lenta. A
+  correção da causa tem dono —
+  `078-o-quadro-nativo-nasce-no-tema-certo-antes-de-o-modulo-rodar`.
+
+- **`050-linguagem-visual-e-sistema-de-design`, Fase 5 — a leitura de `RF-30.b`,
+  aceita e não herdada.** O registro de verificação humana afirma, com evidência,
+  que 13 das 16 marcas gráficas não têm texto alternativo porque são
+  `aria-hidden="true"` ao lado do rótulo em texto que já diz a mesma coisa — dar
+  nome a elas faria o leitor de tela anunciar tudo duas vezes. O validador cego
+  anotou que essa justificativa precisa ser aceita explicitamente por quem é dono
+  do requisito, não herdada de quem a escreveu. É a terceira confirmação nomeada
+  em `06-verificacao-humana.md`.
+
 Nenhuma dessas linhas se verifica nesta máquina, e elas esperam coisas
 diferentes. As duas do `023` sobre o `gitleaks` e sobre o cache esperam o
 **runner hospedado pelo GitHub**, que não inicia job nenhum enquanto o
@@ -1562,4 +1914,8 @@ permissão espera uma configuração de conta que nenhum comando daqui lê. A do
 Dependabot e a primeira do `057` esperam a plataforma agir sozinha — o agendador
 semanal, e o primeiro merge que puser dois commits seguidos em `develop`. A
 segunda do `057` não espera nada: ela só se verifica se alguém cancelar um run à
-mão, e por isso a classe virou o item `059`.
+mão, e por isso a classe virou o item `059`. As oito do `050` esperam olho e
+aparelho humanos — outro motor de navegador, uma rede lenta, um telefone de
+verdade, um leitor de tela, um simulador de visão de cor e o julgamento de quem
+é dono do produto —, e a maioria delas cai no primeiro item que puser interface
+diante de gente, `002-conta-e-organizacao`.

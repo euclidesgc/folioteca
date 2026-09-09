@@ -1,4 +1,5 @@
 import tseslint from "typescript-eslint";
+import valorMagico from "./eslint-rules/valor-magico.js";
 
 export default tseslint.config(
   {
@@ -14,6 +15,16 @@ export default tseslint.config(
   {
     rules: {
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+    },
+  },
+  {
+    files: ["src/**"],
+    ignores: ["src/shared/components/**"],
+    plugins: {
+      local: { rules: { "valor-magico": valorMagico } },
+    },
+    rules: {
+      "local/valor-magico": "error",
     },
   },
 );

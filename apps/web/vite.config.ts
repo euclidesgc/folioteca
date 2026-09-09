@@ -122,6 +122,11 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
+    // decisão: o reporter padrão do Vitest 4 só imprime o sumário quando nada
+    // falha, e uma suíte que não encontrou arquivo nenhum responde igual a uma
+    // suíte verde. `verbose` nomeia cada arquivo que rodou, que é o observável
+    // que separa os dois casos sem depender de flag na linha de comando.
+    reporters: ["verbose"],
     include: ["src/**/*.test.{ts,tsx}"],
     setupFiles: ["./vitest.setup.ts"],
     env: {
