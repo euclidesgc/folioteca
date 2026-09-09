@@ -1274,8 +1274,9 @@ página** — não do servidor —, e a medição contra a 4173 exige `vite buil
 
 **Arquivos tocados:** `apps/web/src/app/routes/index.tsx`,
 `apps/web/src/app/routes/{documentos,canais,pesquisa,organizacao}.tsx`,
-`apps/web/src/app/routes/design.tsx` — o elemento `<main>` que abre a página
-viva vira `<div>`, mantidas as classes; nenhuma outra linha do arquivo muda —,
+`apps/web/src/app/routes/design.tsx` — na linha que abre a página viva, o
+elemento `<main>` vira `<div>` e as classes `mx-auto` e `max-w-4xl` saem dela;
+nenhuma outra linha do arquivo muda —,
 `apps/web/src/app/layout/{app-shell,app-header,app-sidebar,skip-link}.tsx`,
 `apps/web/src/app/providers/theme-provider.tsx`,
 `apps/web/src/shared/lib/tema.ts`, `apps/web/src/shared/lib/tema.test.ts`,
