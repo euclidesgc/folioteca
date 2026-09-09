@@ -655,7 +655,7 @@
           "por": "autonomo"
         }
       },
-      "current_phase": 1,
+      "current_phase": 2,
       "phases": {
         "1": {
           "status": "aprovada",
@@ -676,6 +676,15 @@
             "apps/web": "1f1c1f66eed898e124e7408ac9dbdd6b384272b9"
           },
           "criteria_sha": "17fd24dcaf19557e72b840b227a97eaf956d6ef49049aae843519a5090422721"
+        },
+        "2": {
+          "status": "em_execucao",
+          "reproved_count": 0,
+          "verdict": null,
+          "verdict_file": null,
+          "validated_sha": null,
+          "pr": null,
+          "blocked_on": []
         }
       },
       "divergences": {

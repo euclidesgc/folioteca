@@ -134,6 +134,9 @@ jobs:
       - name: As asserções da política da web mordem
         run: bash apps/web/scripts/__tests__/verificar-politica.test.sh
 
+      - name: A regra do valor mágico morde
+        run: bash apps/web/scripts/__tests__/valor-magico.test.sh
+
   comportamental:
     needs: guarda
     if: needs.guarda.outputs.pronto == 'true'
