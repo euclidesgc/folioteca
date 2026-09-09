@@ -2,14 +2,14 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "// hml": "Código da branch rodando na máquina contra a API e o banco de homologação. VITE_API_URL da task vence o valor do .env da raiz — o Vite dá precedência ao process.env sobre os arquivos .env —, então nada sobe aqui além do Vite.",
+      "// hml": "Código da branch rodando na máquina contra a API e o banco de homologação. VITE_API_URL da task vence o valor do .env da raiz — o Vite dá precedência ao process.env sobre os arquivos .env —, então nada sobe aqui além do Vite. Abre direto no produto: o hotsite não fala com a API, e o que se testa contra hml é o produto.",
       "name": "hml ▶ API e banco de homologação",
       "type": "chrome",
       "request": "launch",
       "url": "http://localhost:5173",
       "webRoot": "${workspaceFolder}/apps/web",
       "preLaunchTask": "web hml (bg)",
-      "postDebugTask": "para o web",
+      "postDebugTask": "para as telas",
       "presentation": { "group": "1-aplicacao", "order": 2 }
     },
     {
@@ -26,22 +26,22 @@
       "presentation": { "hidden": true }
     },
     {
-      "// web (local)": "Metade navegador do composto 'local'. O preLaunchTask sobe o Vite e só devolve quando /health responder, para o navegador não abrir antes de a API existir.",
-      "name": "web (local)",
+      "// navegador (local)": "Metade navegador do composto 'local'. Abre no hotsite (3001), que é a página de apresentação por onde quem chega sem sessão entra; o produto (5173) sobe junto, atrás da porta do hotsite. O webRoot segue em apps/web porque é lá que há script de cliente para depurar — o hotsite renderiza no servidor. O preLaunchTask sobe as duas telas e só devolve quando /health responder, para o navegador não abrir antes de a API existir.",
+      "name": "navegador (local)",
       "type": "chrome",
       "request": "launch",
-      "url": "http://localhost:5173",
+      "url": "http://localhost:3001",
       "webRoot": "${workspaceFolder}/apps/web",
-      "preLaunchTask": "local: Vite e espera a API",
-      "postDebugTask": "para o web",
+      "preLaunchTask": "local: hotsite, Vite e espera a API",
+      "postDebugTask": "para as telas",
       "presentation": { "hidden": true }
     }
   ],
   "compounds": [
     {
-      "// local": "Banco em contêiner, API em watch e Vite, tudo na máquina, com breakpoint no navegador e no servidor. O banco fica de pé ao terminar; para derrubá-lo, a task 'banco (down)'.",
+      "// local": "Banco em contêiner, API em watch, hotsite e Vite, tudo na máquina, com breakpoint no navegador e no servidor. O banco fica de pé ao terminar; para derrubá-lo, a task 'banco (down)'.",
       "name": "local ▶ API e banco na máquina",
-      "configurations": ["api (local)", "web (local)"],
+      "configurations": ["api (local)", "navegador (local)"],
       "stopAll": true,
       "presentation": { "group": "1-aplicacao", "order": 1 }
     }

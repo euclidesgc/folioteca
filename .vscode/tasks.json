@@ -27,7 +27,22 @@
         "background": {
           "activeOnStart": true,
           "beginsPattern": ".*",
-          "endsPattern": "ready in \\d+"
+          "endsPattern": "[Rr]eady in \\d+"
+        }
+      }
+    },
+    {
+      "// hotsite local (bg)": "O hotsite é a porta de entrada do ambiente local: é ele que o navegador abre. O `Ready in` do Next vem com maiúscula, ao contrário do `ready in` do Vite — daí a classe no endsPattern.",
+      "label": "hotsite local (bg)",
+      "type": "shell",
+      "isBackground": true,
+      "command": "bash \"${workspaceFolder}/.vscode/scripts/service-up.sh\" \"${workspaceFolder}/.vscode/site.pid\" apps/site pnpm run dev",
+      "problemMatcher": {
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*",
+          "endsPattern": "[Rr]eady in \\d+"
         }
       }
     },
@@ -45,7 +60,7 @@
         "background": {
           "activeOnStart": true,
           "beginsPattern": ".*",
-          "endsPattern": "ready in \\d+"
+          "endsPattern": "[Rr]eady in \\d+"
         }
       }
     },
@@ -57,15 +72,16 @@
       "problemMatcher": []
     },
     {
-      "label": "local: Vite e espera a API",
+      "label": "local: hotsite, Vite e espera a API",
       "dependsOrder": "sequence",
-      "dependsOn": ["web local (bg)", "espera a API"],
+      "dependsOn": ["hotsite local (bg)", "web local (bg)", "espera a API"],
       "problemMatcher": []
     },
     {
-      "label": "para o web",
+      "// para as telas": "Recebe os dois pids porque o ambiente hml sobe só o Vite; arquivo de pid ausente é caso normal para o script.",
+      "label": "para as telas",
       "type": "shell",
-      "command": "bash \"${workspaceFolder}/.vscode/scripts/service-down.sh\" \"${workspaceFolder}/.vscode/web.pid\"",
+      "command": "bash \"${workspaceFolder}/.vscode/scripts/service-down.sh\" \"${workspaceFolder}/.vscode/site.pid\" \"${workspaceFolder}/.vscode/web.pid\"",
       "problemMatcher": []
     },
     {
