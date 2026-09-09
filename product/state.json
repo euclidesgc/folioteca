@@ -649,8 +649,8 @@
           "por": "autonomo"
         },
         "plan": {
-          "at": "2026-09-09T13:26:27Z",
-          "sha": "6541796a5961e4495522a5f8d9968201daac9928",
+          "at": "2026-09-09T14:52:05Z",
+          "sha": "c182311c411a8fcb4075a840b74b75eb54ccce63",
           "file": "product/items/050-linguagem-visual-e-sistema-de-design/03-plan.md",
           "por": "autonomo"
         }
@@ -662,7 +662,7 @@
           "reproved_count": 0,
           "verdict": "APROVADO",
           "verdict_file": "product/items/050-linguagem-visual-e-sistema-de-design/05-veredictos/fase-1.md",
-          "validated_sha": "17d7f8bd54928cd608b0ae29bda655a56093e22b",
+          "validated_sha": "4efcea4bcd40296a8a8f28665aab2c426a625987",
           "pr": null,
           "blocked_on": [
             "D-002",
@@ -670,12 +670,12 @@
             "D-004",
             "D-005"
           ],
-          "verdict_at": "2026-09-09T07:52:37Z",
+          "verdict_at": "2026-09-09T14:52:09Z",
           "validated_trees": {
             "apps/api": "f614cd78e3d0df6ba3647394bc0c8d0c6d02d4b4",
-            "apps/web": "1f1c1f66eed898e124e7408ac9dbdd6b384272b9"
+            "apps/web": "70327b1a2bd5bb7a69afe6e282311f40822884f8"
           },
-          "criteria_sha": "17fd24dcaf19557e72b840b227a97eaf956d6ef49049aae843519a5090422721"
+          "criteria_sha": "e4c89e7f4fa7fb2f497e9a1caeb8a57aa8b97da4a0b778c7cb98a61be5d51bd6"
         },
         "2": {
           "status": "aprovada",
