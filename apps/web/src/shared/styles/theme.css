@@ -95,6 +95,8 @@
   --lombada-canal: var(--color-verdete);
   --lombada-pessoa: var(--color-carimbo);
   --lombada-privado: var(--color-grafite);
+
+  color-scheme: light;
 }
 
 /* Os seis nomes são os mesmos do bloco claro, e é isso que dispensa `dark:`
@@ -122,6 +124,18 @@
   --lombada-canal: var(--color-verdete);
   --lombada-pessoa: var(--color-carimbo);
   --lombada-privado: var(--color-grafite);
+
+  color-scheme: dark;
+}
+
+/* decisão: até aqui só :where(body) pintava a superfície do tema. Entre a
+   aplicação da classe e a primeira pintura do corpo, o navegador desenha o
+   quadro nativo do color-scheme — e sem esta regra ele ficava claro mesmo com
+   o tema escuro já escolhido (RF-06). color-scheme, declarado em cada bloco de
+   tema, cobre a mesma janela para barra de rolagem e controles nativos, que
+   nenhum seletor de aplicação alcança. */
+:root {
+  background-color: var(--superficie);
 }
 
 :where(body) {

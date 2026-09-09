@@ -716,15 +716,18 @@
           "criteria_sha": "10ea8cde8460b2774e43f8ec70a7593513089feca0ff908d7907105a15d7a05e"
         },
         "4": {
-          "status": "em_execucao",
-          "reproved_count": 0,
-          "verdict": null,
-          "verdict_file": null,
+          "status": "reprovada",
+          "reproved_count": 1,
+          "verdict": "REPROVADO",
+          "verdict_file": "product/items/050-linguagem-visual-e-sistema-de-design/05-veredictos/fase-4.md",
           "validated_sha": null,
           "pr": null,
           "blocked_on": [
-            "D-012"
-          ]
+            "D-012",
+            "D-013"
+          ],
+          "verdict_at": "2026-09-09T14:37:55Z",
+          "validated_trees": {}
         }
       },
       "divergences": {
@@ -823,6 +826,14 @@
           "phase": 4,
           "detected_at": "2026-09-09T14:07:28Z",
           "aprovada_at": "2026-09-09T14:07:28Z",
+          "ratificada_por": "autonomo"
+        },
+        "D-013": {
+          "status": "APROVADA",
+          "kind": "normal",
+          "phase": 4,
+          "detected_at": "2026-09-09T14:38:48Z",
+          "aprovada_at": "2026-09-09T14:38:48Z",
           "ratificada_por": "autonomo"
         }
       },
