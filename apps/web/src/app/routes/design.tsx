@@ -1,4 +1,11 @@
 import { useEffect, useState } from "react";
+import { createListCollection } from "@ark-ui/react";
+import { Button } from "@/shared/components/ui/button";
+import { Dialog } from "@/shared/components/ui/dialog";
+import { Menu } from "@/shared/components/ui/menu";
+import { Select } from "@/shared/components/ui/select";
+import { Switch } from "@/shared/components/ui/switch";
+import { Tooltip } from "@/shared/components/ui/tooltip";
 
 const CORES = [
   "--color-papel",
@@ -20,6 +27,14 @@ const MOVIMENTO = [
   "--duracao-padrao",
   "--curva-padrao",
 ] as const;
+
+const ORIGENS_ACESSO = createListCollection({
+  items: [
+    { label: "Canal", value: "canal" },
+    { label: "Pessoa", value: "pessoa" },
+    { label: "Privado", value: "privado" },
+  ],
+});
 
 const FACES = [
   {
@@ -146,7 +161,10 @@ function Espaco() {
   return (
     <ul className="flex flex-col gap-3">
       {ESPACOS.map((passo) => (
-        <li key={passo} className="grid grid-cols-[10rem_1fr] items-center gap-4">
+        <li
+          key={passo}
+          className="grid grid-cols-[10rem_1fr] items-center gap-4"
+        >
           <Token nome={`--spacing × ${passo}`} />
           <span
             aria-hidden="true"
@@ -206,6 +224,146 @@ function Movimento() {
         </li>
       ))}
     </ul>
+  );
+}
+
+function Botao() {
+  return (
+    <div className="flex flex-col gap-8">
+      <ul className="flex flex-wrap items-end gap-6">
+        <li className="flex flex-col items-start gap-2">
+          <Button variant="primary">Primário</Button>
+          <Token nome="bg-verdete" />
+        </li>
+        <li className="flex flex-col items-start gap-2">
+          <Button variant="secondary">Secundário</Button>
+          <Token nome="border-fio" />
+        </li>
+        <li className="flex flex-col items-start gap-2">
+          <Button variant="ghost">Sutil</Button>
+          <Token nome="hover:bg-fio" />
+        </li>
+        <li className="flex flex-col items-start gap-2">
+          <Button variant="destructive">Perigo</Button>
+          <Token nome="bg-carimbo" />
+        </li>
+      </ul>
+      <div className="flex flex-col items-start gap-2">
+        <Button className="px-6">Botão com classe de fora</Button>
+        <Token nome="px-6 (fora) vence px-4 (padrão)" />
+      </div>
+    </div>
+  );
+}
+
+function MenuDeExemplo() {
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <Menu.Root>
+        <Menu.Trigger>Abrir menu de exemplo</Menu.Trigger>
+        <Menu.Positioner>
+          <Menu.Content>
+            <Menu.Item value="canal">
+              <Menu.ItemText>Canal</Menu.ItemText>
+            </Menu.Item>
+            <Menu.Item value="pessoa">
+              <Menu.ItemText>Pessoa</Menu.ItemText>
+            </Menu.Item>
+            <Menu.Item value="privado">
+              <Menu.ItemText>Privado</Menu.ItemText>
+            </Menu.Item>
+          </Menu.Content>
+        </Menu.Positioner>
+      </Menu.Root>
+      <Token nome="rounded-amplo · shadow-eleva" />
+    </div>
+  );
+}
+
+function DialogoDeExemplo() {
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <Dialog.Root>
+        <Dialog.Trigger>Abrir diálogo de exemplo</Dialog.Trigger>
+        <Dialog.Backdrop />
+        <Dialog.Positioner>
+          <Dialog.Content>
+            <Dialog.Title>Conceder acesso</Dialog.Title>
+            <label className="flex flex-col gap-1 text-sm text-tinta">
+              Nome
+              <input
+                type="text"
+                className="rounded-padrao border border-fio bg-papel px-3 py-2 text-tinta"
+              />
+            </label>
+            <div className="flex justify-end gap-2">
+              <Dialog.CloseTrigger>Cancelar</Dialog.CloseTrigger>
+              <Button>Salvar</Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Dialog.Root>
+      <Token nome="--duracao-rapida · --curva-padrao" />
+    </div>
+  );
+}
+
+function CampoComDica() {
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <Tooltip.Root openDelay={0} closeDelay={0}>
+        <Tooltip.Trigger>Campo com dica</Tooltip.Trigger>
+        <Tooltip.Positioner>
+          <Tooltip.Content>Use o nome que aparece na lista</Tooltip.Content>
+        </Tooltip.Positioner>
+      </Tooltip.Root>
+      <Token nome="--duracao-rapida" />
+    </div>
+  );
+}
+
+function SelecaoDeExemplo() {
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <Select.Root collection={ORIGENS_ACESSO} className="w-64">
+        <Select.Label>Origem do acesso</Select.Label>
+        <Select.Control>
+          <Select.Trigger>
+            <Select.ValueText placeholder="Selecione" />
+          </Select.Trigger>
+        </Select.Control>
+        <Select.Positioner>
+          <Select.Content>
+            {ORIGENS_ACESSO.items.map((item) => (
+              <Select.Item key={item.value} item={item}>
+                <Select.ItemText>{item.label}</Select.ItemText>
+              </Select.Item>
+            ))}
+          </Select.Content>
+        </Select.Positioner>
+        <Select.HiddenSelect />
+      </Select.Root>
+      <Token nome="role=combobox" />
+    </div>
+  );
+}
+
+function AlternadorDeExemplo() {
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <Switch.Root>
+        <Switch.Control>
+          <Switch.Thumb />
+        </Switch.Control>
+        <Switch.Label>Mostrar arquivados</Switch.Label>
+        <Switch.Context>
+          {(api) => (
+            <Switch.HiddenInput role="switch" aria-checked={api.checked} />
+          )}
+        </Switch.Context>
+      </Switch.Root>
+      <Token nome="data-[state=checked]:bg-verdete" />
+    </div>
   );
 }
 
@@ -273,6 +431,54 @@ export function PaginaViva() {
           resumo="Duas durações e uma curva. Sob preferência por movimento reduzido, a animação some e o estado final permanece."
         >
           <Movimento />
+        </Secao>
+
+        <Secao
+          id="botao"
+          titulo="Botão"
+          resumo="Quatro variantes e três tamanhos, declarados em cva. A classe passada por quem consome vence a padrão pelo cn."
+        >
+          <Botao />
+        </Secao>
+
+        <Secao
+          id="menu"
+          titulo="Menu"
+          resumo="Um menu flutuante sobre a base headless, com foco e Esc geridos dentro do primitivo."
+        >
+          <MenuDeExemplo />
+        </Secao>
+
+        <Secao
+          id="dialogo"
+          titulo="Diálogo"
+          resumo="Foco preso enquanto aberto; Esc fecha e devolve o foco a quem abriu."
+        >
+          <DialogoDeExemplo />
+        </Secao>
+
+        <Secao
+          id="dica"
+          titulo="Dica"
+          resumo="Abre no foco do teclado e no ponteiro, com o mesmo atraso — zero — para as duas entradas."
+        >
+          <CampoComDica />
+        </Secao>
+
+        <Secao
+          id="selecao"
+          titulo="Seleção"
+          resumo="Um combobox acessível: Enter abre, as setas navegam, Enter escolhe."
+        >
+          <SelecaoDeExemplo />
+        </Secao>
+
+        <Secao
+          id="alternador"
+          titulo="Alternador"
+          resumo="Um switch com papel e estado marcado no elemento nativo escondido."
+        >
+          <AlternadorDeExemplo />
         </Secao>
       </main>
     </div>
