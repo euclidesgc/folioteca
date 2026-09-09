@@ -1669,7 +1669,7 @@ que ninguém consegue provar que aconteceu não aconteceu.
       acessibilidade existe, corta por severidade e as dependências dela estão
       declaradas em versão fixa. Executados na raiz do repositório:
       `grep -c '' apps/web/e2e/a11y.spec.ts` imprime um número **maior que** `0`;
-      `grep -c -F '@axe-core/playwright' apps/web/e2e/a11y.spec.ts` imprime um
+      `grep -c -F '@axe-core/playwright' apps/web/e2e/apoio/axe.ts` imprime um
       número **maior ou igual a** `1`;
       `grep -c '' apps/web/src/shared/lib/axe-severidade.ts` imprime um número
       **maior que** `0`;
@@ -1701,6 +1701,7 @@ que ninguém consegue provar que aconteceu não aconteceu.
       ainda declarada. A terceira linha é o que `RNF-03` promete e as duas
       primeiras não medem: uma versão fixada por alguém que desligou o
       `minimumReleaseAge` no mesmo PR passaria sem ela.
+      > Reconciliado em D-015.
 - [ ] `comportamental` — `RF-27.a`, `RF-27.c`, `RF-28.a`
       *Dado* o artefato servido na origem de pré-visualização, com `/design`
       aberta no tema claro
@@ -2006,12 +2007,16 @@ vieram depois.
       *Então* o foco depois do `Enter` está no `<main>`; o link `Canais` fica com
       `aria-current="page"`; a classe do elemento raiz fica `tema-escuro`; e, já
       em `/design`, o `background-color` computado do elemento raiz é igual ao
-      valor computado de `--color-tinta` e o `font-family` computado do cabeçalho
-      de nível 1 contém `Fraunces` — o caminho atravessa o esqueleto da fase 4, o
-      menu da fase 2, o tema da fase 1 e a rota da fase 1 numa página só.
+      valor computado de `--color-papel` e **diferente** do valor que
+      `--color-papel` tem no tema claro — a superfície acompanha o tema, e a
+      segunda metade é o que separa a medição de uma coincidência; e o
+      `font-family` computado do cabeçalho de nível 1 contém `Fraunces`. O
+      caminho atravessa o esqueleto da fase 4, o menu da fase 2, o tema da fase 1
+      e a rota da fase 1 numa página só.
       O caso se chama `o caminho do esqueleto à página viva atravessa as fases`, e
       `bash scripts/e2e/relatorio.sh criterio "o caminho do esqueleto à página viva atravessa as fases"`
       termina com código de saída `0`.
+      > Reconciliado em D-015.
 - [ ] `comando` — `RF-08.d`, `RF-10.a`, `RF-11.c`, `RF-26.d` — as garantias da
       primeira fase sobrevivem às quatro que vieram depois. Executados na raiz do
       repositório: `mkdir -p apps/web/dist && find apps/web/dist -mindepth 1 -delete`
