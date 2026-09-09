@@ -573,20 +573,26 @@ porque ela muda o que o item entrega. O que **não** vale é afrouxar a polític
 - [ ] `comportamental` — `RF-18.d`, `RF-18.e`
       *Dado* o artefato de build servido na origem de pré-visualização, com um
       coletor de mensagens do console instalado antes da navegação
-      *Quando* a suíte abre `/design`, aciona o controle de
-      papel `button` e nome acessível `Abrir menu de exemplo`, e em seguida move
-      o foco para o controle de nome acessível `Campo com dica`
-      *Então* o elemento de papel `menu` fica visível com `boundingBox()` de
-      largura e altura **maiores que** `0` e canto superior esquerdo dentro da
-      janela; o elemento de papel `tooltip` fica visível com `boundingBox()` de
-      largura e altura **maiores que** `0`; e nenhuma mensagem do console contém
-      `Applying inline style violates`. A lista de mensagens do console é impressa
-      na falha, e a asserção prévia é que a página carregou — o cabeçalho de
-      nível 1 com o texto `Página viva` está visível —, sem a qual uma página em
-      branco passaria pela ausência de mensagem de recusa.
+      *Quando* a suíte abre `/design`, aciona o controle de papel `button` e
+      nome acessível `Abrir menu de exemplo`, pressiona `Escape` e, só então,
+      move o foco para o controle de nome acessível `Campo com dica`
+      *Então* logo depois de acionar o menu, o elemento de papel `menu` fica
+      visível com `boundingBox()` de largura e altura **maiores que** `0` e
+      canto superior esquerdo dentro da janela; depois do `Escape`, o elemento
+      de papel `menu` deixou de existir — sem essa asserção o caso não
+      distingue o menu que fechou do menu que nunca abriu; o elemento de papel
+      `tooltip` fica visível com `boundingBox()` de largura e altura
+      **maiores que** `0`; e nenhuma mensagem do console contém `Applying
+      inline style violates`. A lista de mensagens do console é impressa na
+      falha, e a asserção prévia é que a página carregou — o cabeçalho de
+      nível 1 com o texto `Página viva` está visível —, sem a qual uma página
+      em branco passaria pela ausência de mensagem de recusa. O menu e a dica
+      são medidos um de cada vez porque o critério prova posicionamento
+      flutuante sob a política de conteúdo, não convivência de sobreposições.
       O caso se chama `o menu e a dica flutuam sem estilo recusado`, e
       `bash scripts/e2e/relatorio.sh criterio "o menu e a dica flutuam sem estilo recusado"`
       termina com código de saída `0`.
+      > Reconciliado em D-006.
 - [ ] `estrutural` — `RF-15.a` — existe `apps/web/src/shared/lib/cn.ts`
       exportando a função `cn`, que compõe `clsx` e `tailwind-merge`. Executados
       na raiz do repositório: `grep -c '' apps/web/src/shared/lib/cn.ts` imprime
