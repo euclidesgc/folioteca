@@ -12,7 +12,7 @@
         "**/*.test.ts",
         "**/*.test.tsx",
         "**/*.spec.ts",
-        "apps/web/src/shared/styles/fonts/**"
+        "**/*.woff2"
       ],
       "cobra": "comentário que descreve mecânica em vez de justificar decisão",
       "pack": "react"
@@ -25,7 +25,7 @@
         "apps/web/src/**"
       ],
       "exempt": [
-        "apps/web/src/shared/styles/fonts/**"
+        "**/*.woff2"
       ],
       "cobra": "TODO, FIXME, XXX ou HACK",
       "pack": "react"
@@ -40,7 +40,7 @@
       "exempt": [
         "**/*.test.ts",
         "**/*.test.tsx",
-        "apps/web/src/shared/styles/fonts/**"
+        "**/*.woff2"
       ],
       "cobra": "import contra o fluxo shared → features → app",
       "pack": "react"
