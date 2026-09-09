@@ -169,6 +169,11 @@ test("o alternador do menu de conta troca o tema sem recarregar", async ({
   const primeiraContagem = await contarTabsAteMenuDeConta();
   expect(primeiraContagem).toBeLessThanOrEqual(8);
 
+  const classeAntesDaTroca = await page.evaluate(
+    () => document.documentElement.className,
+  );
+  expect(classeAntesDaTroca).toContain("tema-claro");
+
   await page.keyboard.press("Enter");
   await page.getByRole("menuitem", { name: "Tema escuro" }).click();
 
@@ -176,6 +181,7 @@ test("o alternador do menu de conta troca o tema sem recarregar", async ({
     () => document.documentElement.className,
   );
   expect(classeAposTroca).toContain("tema-escuro");
+  expect(classeAposTroca).not.toContain("tema-claro");
 
   const cargas = await page.evaluate(
     () => (window as unknown as { __cargas: number }).__cargas,
@@ -228,7 +234,7 @@ test("o tema entra antes da primeira pintura", async ({ page }) => {
   await page.goto("/documentos");
 
   const corDeFundo = await page.evaluate(
-    () => getComputedStyle(document.body).backgroundColor,
+    () => getComputedStyle(document.documentElement).backgroundColor,
   );
   const corPapel = await corComputadaDoToken(page, "--color-papel");
   const corTinta = await corComputadaDoToken(page, "--color-tinta");
@@ -306,8 +312,24 @@ test("o indicador de foco existe nos dois temas", async ({ page }) => {
 
   const link = page.getByRole("link", { name: "Documentos" });
 
+  // decisão: o foco chega por Tab, e não por `link.focus()`, porque é o
+  // caminho do teclado que o critério mede — `:focus-visible` casa sempre com
+  // teclado, mas medir pelo caminho programático provaria outra coisa.
+  const focarPorTeclado = async () => {
+    await page.evaluate(() => {
+      (document.activeElement as HTMLElement | null)?.blur();
+    });
+    for (let tentativas = 0; tentativas < 12; tentativas++) {
+      await page.keyboard.press("Tab");
+      if (await link.evaluate((el) => el === document.activeElement)) {
+        return;
+      }
+    }
+    throw new Error("o link Documentos não recebeu foco em 12 pressões de Tab");
+  };
+
   const lerIndicador = async () => {
-    await link.focus();
+    await focarPorTeclado();
     return link.evaluate((elemento) => {
       const estilo = getComputedStyle(elemento);
       return {
