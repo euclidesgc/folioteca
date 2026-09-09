@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "active_item": "050-linguagem-visual-e-sistema-de-design",
+  "active_item": "002-conta-e-organizacao",
   "items": {
     "001-esqueleto-do-monorepo": {
       "title": "Esqueleto do monorepo: os três apps sobem, o contrato é gerado e o CI fica verde",
@@ -889,6 +889,34 @@
           "ratificacao_humana_at": "2026-09-09T16:11:24Z"
         }
       },
+      "criteria_exception": null
+    },
+    "002-conta-e-organizacao": {
+      "title": "Conta e organização: quem se cadastra cria a organização e vira o seu primeiro administrador; o endereço é confirmado por e-mail, a senha se recupera sozinha, e a tela responde a mesma coisa exista ou não a conta",
+      "track": "completa",
+      "stage": "prd",
+      "stacks": [
+        "web",
+        "api"
+      ],
+      "created_at": "2026-09-09T16:57:55Z",
+      "approvals": {
+        "prd": {
+          "at": null,
+          "sha": null
+        },
+        "spec": {
+          "at": null,
+          "sha": null
+        },
+        "plan": {
+          "at": null,
+          "sha": null
+        }
+      },
+      "current_phase": null,
+      "phases": {},
+      "divergences": {},
       "criteria_exception": null
     }
   }

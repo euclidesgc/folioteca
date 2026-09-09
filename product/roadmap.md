@@ -149,7 +149,7 @@ PR e commit já escritos.
       de fechar. `verificar-politica.sh` já reprova o `dist/` que nomeia cabeçalho
       constante; é ele quem acusa se a escolha vazar.
 
-- [ ] `002-conta-e-organizacao` — quem se cadastra cria a organização e vira o
+- [-] `002-conta-e-organizacao` — quem se cadastra cria a organização e vira o
       seu primeiro administrador; o endereço é confirmado por e-mail, a senha se
       recupera sozinha, e a tela responde a mesma coisa exista ou não a conta
       **Depende de:** `001-esqueleto-do-monorepo` — não há onde rodar, nem banco,
@@ -1434,6 +1434,24 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       chamada de API e cabe no `proxima-sessao.sh`, que é onde a rede já tem teto
       de tempo; não cabe no `decide-next-action.mjs`, que é puro de propósito e
       não fala com a rede.
+
+- [ ] `081-a-sessao-mede-o-proprio-consumo-de-contexto-antes-de-estourar` — uma
+      fase grande encerra o commit corrente e sai limpa quando cruza o limiar, em
+      vez de estourar a janela no meio de um arquivo
+      **Depende de:** nada. São dois scripts e uma seção no prompt da sessão.
+      **Origem:** discovery de `002-conta-e-organizacao`, em 09/09/2026. A skill
+      `autonomous-run` descreve o mecanismo do limiar em quatro parágrafos, e este
+      projeto instalou o motor sem as duas peças que o executam:
+      `scripts/loop/limiar-contexto.mjs` e
+      `scripts/loop/registra-janela-contexto.mjs` não existem,
+      `scripts/loop/proxima-sessao.sh` não menciona nenhum dos dois, e
+      `product/prompt-da-proxima-sessao.md` não manda a sessão medir nada. A
+      bandeira nunca sobe: a sessão descobre o próprio tamanho quando a janela
+      acaba, que é o defeito que a medição de 13.204 palavras de veredicto num
+      contexto só nomeou. Fechar é copiar os dois templates da skill para
+      `scripts/loop/`, invocar cada rodada com `--output-format json` para que
+      `registra-janela-contexto.mjs` guarde `modelUsage`, e escrever no prompt a
+      instrução de medir e encerrar no commit corrente.
 
 - [ ] `037-a-fronteira-de-agent-mede-quem-escreve` — o guard de escopo recusa a
       escrita pelo agent que a fez, e não pelo último agent despachado
