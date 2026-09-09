@@ -51,6 +51,20 @@ else
   falha "a reprovação nomeia a linha da ocorrência" "a saída não contém 1:"
 fi
 
+# A classe desta casa chega por `cn(...)`, não como valor direto do atributo:
+# uma regra que só lesse o valor direto ficaria verde exatamente onde a classe
+# de verdade é escrita, e ninguém procuraria de novo.
+printf 'import { cn } from "@/shared/lib/cn";\nexport const Sonda = () => <div className={cn("bg-[#3b82f6] p-[13px]")}>x</div>;\n' \
+  > "$sonda_feature/sonda.tsx"
+
+rodar_lint >/dev/null 2>&1
+codigo=$?
+if [ "$codigo" -ne 0 ]; then
+  ok "a sintaxe arbitrária dentro de cn() reprova o lint"
+else
+  falha "a sintaxe arbitrária dentro de cn() reprova o lint" "terminou com código 0"
+fi
+
 printf '// motivo: o cabeçalho do parceiro exige exatos treze pixels\nexport const Sonda = () => <div className="bg-[#3b82f6] p-[13px]">x</div>;\n' \
   > "$sonda_feature/sonda.tsx"
 
