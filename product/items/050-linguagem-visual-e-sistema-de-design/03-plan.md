@@ -1265,12 +1265,15 @@ página** — não do servidor —, e a medição contra a 4173 exige `vite buil
 
 **Arquivos tocados:** `apps/web/src/app/routes/index.tsx`,
 `apps/web/src/app/routes/{documentos,canais,pesquisa,organizacao}.tsx`,
+`apps/web/src/app/routes/design.tsx` — o elemento `<main>` que abre a página
+viva vira `<div>`, mantidas as classes; nenhuma outra linha do arquivo muda —,
 `apps/web/src/app/layout/{app-shell,app-header,app-sidebar,skip-link}.tsx`,
 `apps/web/src/app/providers/theme-provider.tsx`,
 `apps/web/src/shared/lib/tema.ts`, `apps/web/src/shared/lib/tema.test.ts`,
 `apps/web/src/app/main.tsx`,
 `apps/web/src/app/App.tsx`, `apps/web/src/shared/styles/theme.css`,
 `apps/web/e2e/esqueleto.spec.ts`, `apps/web/e2e/health.spec.ts`.
+> Reconciliado em D-012.
 
 **Arquivos explicitamente não tocados:** `apps/web/index.html`,
 `apps/web/nginx.conf`, `apps/web/playwright.config.ts`,
