@@ -192,6 +192,22 @@ Texto curto e explicativo, com a referência para quem quiser o detalhe. A
 seção *Pendências de produto abertas* do roadmap é para o que precisa de
 decisão do dono; item de trabalho vai na lista de itens.
 
+## Dívida de portão não fura a fila do produto
+
+A fila de `product/roadmap.md` está ordenada por dependência, e é ela que manda.
+Enquanto houver item de produto pendente, dívida de portão, de harness ou de CI
+só passa à frente quando **o CI está vermelho** ou quando **a corrida não avança
+sem ela** — `059-a-tranca-nao-le-check-cancelado-como-verde` e
+`063-o-motor-para-a-corrida-quando-o-bloqueio-e-da-conta` são desse tipo, porque
+é por elas que a noite inteira se perde. Qualquer outra espera atrás dos itens de
+produto, na posição de precedência que já tem.
+
+**Por que:** a primeira semana fechou cinco itens, quatro deles de
+infraestrutura. Das cento e duas mudanças em `develop`, onze foram de item de
+produto e trinta e três foram do próprio ferramental; um único item de CI custou
+dezenove. A máquina construindo a máquina passa no portão e não aparece na tela
+de quem abre o endereço.
+
 ## Quando o item mexe em interface
 
 Uma sessão nasce limpa e não viu o que a anterior desenhou. Sem uma fonte
