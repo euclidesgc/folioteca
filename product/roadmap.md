@@ -202,6 +202,51 @@ PR e commit já escritos.
       **Depende de:** `006-concessao-individual` — filtrar sem a precedência
       completa devolveria documento que a concessão individual já havia tirado.
 
+- [ ] `083-a-producao-da-folioteca-existe` — o ambiente `prod` deixa de guardar
+      os restos do projeto descontinuado e passa a servir a Folioteca, e a regra
+      de deploy fecha inteira: `merge na develop` publica em homologação,
+      `merge na main` publica em produção
+      **Depende de:** `007-lista-e-busca-do-canal` — produção só tem o que
+      publicar quando existir produto que se usa de ponta a ponta. Publicar
+      antes disso é o mesmo erro de construir a fachada antes da casa, e o
+      endereço de produção passa a decepcionar quem o abrir.
+      **Origem:** decisão do dono, 09/09/2026, depois do levantamento do Coolify
+      nesta data. Medido na instância `bmjtech.duckdns.org`, projeto `Folioteca`
+      (`eypuotbiw5y24rsfmqzrnvpq`): existem **três** ambientes onde deveriam
+      existir dois. O `hml` (`c3iaqne8c5d76q2vrcq8vwbu`) tem as três aplicações
+      da Folioteca, saudáveis. O `prod` (`qzaqiuod1u90kuxxritg1ql5`) tem duas
+      aplicações do repositório `euclidesgc/gb-docs-hub` — `gb-docs-web-prod` e
+      `gb-docs-api-prod`, nos endereços `gbdocs.duckdns.org`, `exited:unhealthy`
+      e sem contêiner desde 04/09/2026. O `production`
+      (`fduwarvfzfn6zejiaky41mxu`) está vazio: nasceu com o projeto, porque é o
+      nome que o Coolify cria sozinho.
+      **O que ele fecha:**
+      1. **O ambiente `production` é excluído**, e ficam os dois que a casa usa:
+         `hml` e `prod`.
+      2. **As duas aplicações `gb-docs-*-prod` saem do `prod`.** Elas pertencem a
+         outro repositório e a um produto descontinuado; enquanto estiverem ali,
+         disputam nome com as da Folioteca e carregam o domínio velho.
+      3. **Três aplicações novas no `prod`** — `folioteca-web-prod`,
+         `folioteca-api-prod` e `folioteca-site-prod` —, na branch `main`, com
+         `dockerfile_location` por aplicação e `watch_paths` como as de `hml`.
+      4. **O banco de produção**, separado do de homologação, com senha que
+         nasce fora de qualquer sessão de configuração.
+      5. **Os FQDNs de produção** sob `folioteca.duckdns.org`, e as variáveis que
+         carregam o domínio — `VITE_API_URL`, `NEXT_PUBLIC_SITE_URL` e
+         `WEB_ORIGIN` — coerentes com eles, porque trocar o FQDN sem trocar as
+         três produz um front que carrega e não fala com a API.
+      6. **`is_auto_deploy_enabled` ligado nas três**, apontando para `main`.
+         Em `hml` isso já vale desde 09/09/2026.
+      7. **A `main` deixa de estar no commit de bootstrap.** Hoje ela está em
+         `1f50033` e tudo vive na `develop`; sem um merge de `develop` para
+         `main`, a metade `main → prod` da regra não tem o que publicar.
+      8. **`docs/DEPLOY.md` reconciliado** com os dois ambientes e a regra
+         inteira.
+      **Nota de segurança:** a senha do Postgres de homologação apareceu em texto
+      claro numa sessão de configuração, e está registrada como pendência em
+      `docs/DEPLOY.md`. O banco de produção nasce depois disso, e não repete o
+      caminho: a senha não passa por sessão de agent nenhuma.
+
 - [ ] `014-norma-do-hotsite` — `apps/site` ganha norma de código escrita:
       estrutura de rotas, camada de estilo e fronteira de import, com os
       portões que a cobrem
