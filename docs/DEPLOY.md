@@ -113,12 +113,17 @@ saudável a cada `health_check_retries`.
 
 ## O que falta
 
-- **A Folioteca não tem produção.** As duas aplicações de `prod` no servidor
+- **A Folioteca não tem produção**, e isso é o item de roadmap
+  `083-a-producao-da-folioteca-existe`, que espera atrás de
+  `007-lista-e-busca-do-canal`. As duas aplicações de `prod` no servidor
   (`gb-docs-web-prod`, `gb-docs-api-prod`) são do projeto descontinuado, apontam
   para `euclidesgc/gb-docs-hub` e estão paradas. A `main` deste repositório está
-  no commit de bootstrap: tudo que existe vive na `develop`. Produção passa a ter
-  o que publicar quando `002-conta-e-organizacao` entregar o cadastro — antes
-  disso, um endereço de produção só decepciona quem o abrir.
+  no commit de bootstrap: tudo que existe vive na `develop`.
+
+  O projeto tem **três** ambientes onde a casa usa dois — `hml`, `prod` e um
+  `production` vazio que o Coolify criou sozinho. O item `083` fecha os três
+  pontos de uma vez: apaga o `production`, tira os restos do projeto antigo do
+  `prod` e cria ali as três aplicações da Folioteca na `main`.
 - **O hotsite de produção** não existe como aplicação.
 - **Metade da regra de deploy está automatizada.** A regra que o dono declarou
   em 09/09/2026 é `merge na develop → publica em homologação`,
