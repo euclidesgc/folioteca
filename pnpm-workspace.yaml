@@ -22,6 +22,23 @@ allowBuilds:
 # terceiro entrar no gerador.
 overrides:
   js-yaml: ">=4.3.2"
+  # `multer` chega por `@nestjs/platform-express`, que é dependência de produção
+  # da API: ele lê o corpo multipart de toda requisição de upload. Em 08/09/2026 a
+  # auditoria do lockfile passou a devolver TRÊS achados de severidade alta sobre
+  # `multer@2.2.0` — GHSA-wc9g-mqfw-jrwm, GHSA-qfvm-cv95-jqjf e
+  # GHSA-535w-7cp7-47q4 —, e nada no repositório havia mudado: os avisos são que
+  # são novos.
+  #
+  # A correção sobe para `2.3.0`, publicada em 2026-08-28 e com onze dias no dia
+  # em que este override entrou, portanto fora da quarentena de sete dias. Ela
+  # fecha dois dos três avisos; o terceiro ainda não declara versão corrigida, e
+  # é por isso que o piso é `>=2.3.0` e não uma versão fixa — quando a correção
+  # do terceiro sair, ela entra sozinha.
+  #
+  # O override existe porque a correção mora numa dependência transitiva: subir
+  # `@nestjs/platform-express` esperaria o NestJS republicar, e o caminho é de
+  # produção.
+  multer: ">=2.3.0"
 
 # Versão publicada há menos de sete dias não entra na resolução. As campanhas
 # recentes de publicação maliciosa em npm foram detectadas e despublicadas
