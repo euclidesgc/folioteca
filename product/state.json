@@ -721,7 +721,7 @@
           "verdict": "APROVADO",
           "verdict_file": "product/items/050-linguagem-visual-e-sistema-de-design/05-veredictos/fase-4.md",
           "validated_sha": "190159e472c1ce48366026173558ae36898da5ef",
-          "pr": null,
+          "pr": 69,
           "blocked_on": [
             "D-012",
             "D-013"
