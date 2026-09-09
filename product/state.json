@@ -662,7 +662,8 @@
           "phase": null,
           "detected_at": "2026-09-09T05:26:58Z",
           "aprovada_at": "2026-09-09T05:27:36Z",
-          "ratificada_por": "autonomo"
+          "ratificada_por": "humano",
+          "ratificacao_humana_at": "2026-09-09T06:27:43Z"
         }
       },
       "criteria_exception": null
