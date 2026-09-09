@@ -150,7 +150,7 @@ function Cores() {
   const valores = useValoresDeToken(CORES);
 
   return (
-    <ul className="grid grid-cols-2 gap-4 telefone:grid-cols-3">
+    <ul className="grid grid-cols-2 gap-4 desde-tablet:grid-cols-3">
       {CORES.map((nome) => (
         <li
           key={nome}
@@ -431,7 +431,7 @@ function AlternadorDeExemplo() {
 
 function LegendaDoFilete() {
   return (
-    <ul className="flex flex-col gap-2 telefone:flex-row telefone:flex-wrap telefone:items-center telefone:gap-6">
+    <ul className="flex flex-col gap-2 desde-tablet:flex-row desde-tablet:flex-wrap desde-tablet:items-center desde-tablet:gap-6">
       {ORIGENS.map((origem) => (
         <li key={origem} className="flex items-center gap-2">
           <AccessSpine origin={origem} />
@@ -444,7 +444,7 @@ function LegendaDoFilete() {
 
 function CartoesDeDocumento() {
   return (
-    <ul className="grid grid-cols-1 gap-4 telefone:grid-cols-3">
+    <ul className="grid grid-cols-1 gap-4 desde-tablet:grid-cols-3">
       {ORIGENS.map((origem) => (
         <li key={origem}>
           <Card
@@ -671,7 +671,7 @@ function PaginacaoDeExemplo() {
 export function PaginaViva() {
   return (
     <div className="min-h-dvh bg-papel text-tinta">
-      <main className="mx-auto flex max-w-4xl flex-col gap-16 px-6 py-16">
+      <div className="flex flex-col gap-16 px-6 py-16">
         <header className="border-l-4 border-carimbo pl-6">
           <p className="font-mono text-xs tracking-widest text-grafite uppercase">
             Folioteca · linguagem visual
@@ -853,7 +853,7 @@ export function PaginaViva() {
         >
           <PaginacaoDeExemplo />
         </Secao>
-      </main>
+      </div>
     </div>
   );
 }

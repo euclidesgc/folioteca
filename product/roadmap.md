@@ -907,6 +907,30 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       usa que declare. O que não se faz é inverter o padrão para `false`: troca
       um erro silencioso por outro, com o sintoma só mudando de lado.
 
+- [ ] `077-a-gaveta-de-largura-pequena-ganha-cabecalho-e-o-fechar-sai-da-navegacao` —
+      quem navega por landmark chega à navegação da gaveta e encontra os quatro
+      destinos, sem um botão de chrome no meio deles
+      **Depende de:** a primeira tela que dê à gaveta mais conteúdo que os quatro
+      destinos — `002` a `007`. O cabeçalho da gaveta é onde o botão de fechar
+      mora com naturalidade, e ele só se desenha quando há o que pôr nele.
+      **Origem:** revisão da fase 4 de `050`, em 09/09/2026. O
+      `Dialog.CloseTrigger` de nome acessível `Fechar navegação` é o primeiro
+      filho do `<nav aria-label="Destinos do produto">` da gaveta, então o
+      landmark de navegação contém uma ação de chrome do diálogo. Não é violação
+      mensurável e o axe não acusa; é semântica imprecisa.
+      **Por que não foi corrigido na fase que o criou:** medido — os cinco
+      focáveis da gaveta ciclam, e o botão cai nas posições 0 e 5 da trilha de
+      oito `Tab`. O critério comportamental de `RF-24` exige o elemento com foco
+      **contido no elemento de papel `navigation`** nas oito leituras; com o botão
+      fora do `<nav>`, duas delas devolvem falso e o critério reprova. Mudar a
+      régua da fase enquanto ela está sendo medida é o antipadrão que a norma
+      nomeia, e o botão não podia sair sem levar o critério junto.
+      **A forma que fecha:** a gaveta ganha um cabeçalho — título visível e o
+      controle de fechar — irmão do `<nav>` dentro do conteúdo do diálogo, e o
+      critério passa a medir foco preso **no diálogo**, que é o que ele sempre
+      quis dizer, em vez de contenção no landmark de navegação, que era o proxy
+      que funcionava enquanto a gaveta não tinha mais nada dentro.
+
 - [ ] `058-o-endereco-de-homologacao-diz-o-nome-do-produto` — os três FQDNs de
       homologação saem de `gbdocs.duckdns.org`, herdado do projeto anterior, para
       um domínio que nomeia esta aplicação
