@@ -11,6 +11,14 @@
 # `por quê:`, `decisão:`, `contorno:`, `invariante:`, `limitação:`. A marca é o
 # custo de dizer que aquilo é uma razão, e não uma descrição.
 #
+# restrição de plataforma: cada marca acentuada aparece por extenso, na forma
+# com e sem acento, em vez de classe de caractere como `decis[ãa]o`. O mawk
+# 1.3.4 desta máquina casa BYTE, não caractere, e `ã` ocupa dois — a classe
+# testava o primeiro byte de `ã` contra `a` e nunca casava a palavra acentuada.
+# Não colapse a alternância de volta em classe: o gawk disfarça o defeito e o
+# mawk o traz de volta, sem erro, só deixando de reconhecer a própria marca que
+# este cabeçalho promete.
+#
 # Comentário de várias linhas conta como UM bloco: se a primeira linha carrega
 # a marca, a continuação passa junto. Justificativa raramente cabe em oitenta
 # colunas, e reprovar a segunda linha ensinaria a escrever justificativa ruim.
@@ -23,7 +31,7 @@ while IFS= read -r file || [ -n "$file" ]; do
   [ -f "$file" ] || continue
   awk -v arquivo="$file" '
     BEGIN {
-      justificativa = "(por ?qu[êe]|motivo|decis[ãa]o|contorno|workaround|invariante|limita[çc][ãa]o|restri[çc][ãa]o|ignore:|gate[0-9]-ok|coverage:ignore)"
+      justificativa = "(por ?quê|por ?que|motivo|decisão|decisao|contorno|workaround|invariante|limitação|limitacao|restrição|restricao|ignore:|gate[0-9]-ok|coverage:ignore)"
       diretiva = "(ignore_for_file|dart format|coverage:|@|https?:|eslint-|prettier-|ts-ignore|ts-expect-error|#!|#region|#endregion)"
       bloco_justificado = 0
     }
@@ -40,7 +48,7 @@ while IFS= read -r file || [ -n "$file" ]; do
       if (linha ~ /gate3-ok/) { next }
       if (tolower(linha) ~ justificativa) { bloco_justificado = 1; next }
       if (linha ~ diretiva) { next }
-      if (NR <= 3 && tolower(linha) ~ /(copyright|license|licen[çc]a)/) { next }
+      if (NR <= 3 && tolower(linha) ~ /(copyright|license|licença|licenca)/) { next }
 
       # Continuação de um bloco cuja primeira linha declarou a razão.
       if (bloco_justificado) { next }

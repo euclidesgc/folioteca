@@ -794,7 +794,7 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       que as duas asserções mordem — um critério com o comando proibido, e um
       universo com um arquivo binário.
 
-- [ ] `069-a-marca-de-justificativa-que-o-portao-documenta-e-a-que-ele-aceita` —
+- [x] `069-a-marca-de-justificativa-que-o-portao-documenta-e-a-que-ele-aceita` —
       quem escreve `// decisão:` num arquivo de `apps/web/src` para de ser
       reprovado por uma marca que o próprio portão anuncia como válida
       **Depende de:** nada. É uma linha de `scripts/gates/gate3_no_comments.sh`.
@@ -816,10 +816,27 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       liberar. A fase seguiu trocando a marca por `motivo:`, que é ASCII e passa
       — contorno, não correção: quem escrever a marca acentuada de novo reprova
       de novo, e a documentação do gate continua prometendo que ela vale.
-      Fechar é fazer o regex casar as marcas acentuadas independentemente do
-      `awk` — a forma mais barata é aceitar o prefixo sem acento (`decis`,
-      `restri`, `limita`) — e acrescentar ao teste do gate uma linha por marca
-      documentada, que é o controle positivo que faltava.
+      **Mordeu pela terceira vez, em 09/09/2026, na fase 5 de `050`**, e o
+      implementer contornou de novo escrevendo só marcas sem acento. Três
+      contornos para o mesmo defeito é o que a regra 20 do `CLAUDE.md` chama de
+      causa raiz, e foi ela que mandou este item para worktree.
+      **Fechado pela terceira ocorrência, em worktree:** cada marca acentuada
+      passa a aparecer por extenso no regex de `scripts/gates/gate3_no_comments.sh`,
+      nas formas com e sem acento — `decisão|decisao`, `limitação|limitacao`,
+      `restrição|restricao`, `por ?quê|por ?que` —, e o mesmo vale para o
+      `licen[çc]a` da isenção de cabeçalho de licença. Literal casa igual em
+      `mawk` e em `gawk`, com ou sem locale UTF-8, porque é a mesma sequência de
+      bytes; classe de caractere é que depende do `awk` ser UTF-8-aware. Descartado
+      o prefixo sem acento que este item propunha: `limita` e `restri` casariam
+      `limita o escopo a três` e `restringe a busca`, e a marca deixaria de custar
+      o que ela existe para custar.
+      **Como se prova:** `bash scripts/gates/__tests__/marca-acentuada.test.sh`
+      cobra as quatro marcas acentuadas do cabeçalho, o controle positivo de
+      comentário sem marca nenhuma, e a continuação de bloco aberto por marca
+      acentuada. Com o regex antigo no lugar, quatro casos reprovam — `decisão`,
+      `limitação`, `restrição` e a continuação; `por quê` passava dos dois lados
+      por acidente, porque `[êe]` casava o primeiro byte de `ê`. O teste corre no
+      `_suite-portoes.yml`, junto dos outros testes de portão.
 
 - [ ] `072-o-artefato-da-web-declara-orcamento-de-carga` — o artefato publicado de
       `apps/web` tem teto de tamanho medido no CI, e quem o estoura descobre no
