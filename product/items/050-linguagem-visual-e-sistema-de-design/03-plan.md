@@ -166,6 +166,9 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
           la, lb = luminancia(a), luminancia(b)
           return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
       claro, escuro = bloco('.tema-claro'), bloco('.tema-escuro')
+      tema = bloco('@theme')
+      print('@theme x .tema-claro:', len(tema), 'tokens, idênticos:', tema == claro)
+      assert tema == claro, f'@theme e .tema-claro divergem: {tema} != {claro}'
       fixado = {'--color-papel': '#F4F4F1', '--color-tinta': '#15191B',
                 '--color-grafite': '#5A6165', '--color-verdete': '#1E4B43',
                 '--color-carimbo': '#8E1B5B', '--color-fio': '#DBDCD6'}
@@ -179,13 +182,16 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
       PY
       ```
 
-      termina com código de saída `0` e imprime, nesta ordem, quatro linhas: as
-      duas primeiras `True` — os três conjuntos de nomes coincidem, e os seis
-      valores do bloco claro são os que a direção fixou —, e as duas seguintes
-      começando pelo nome do bloco medido, cada uma com as quatro razões medidas
-      e terminando em `True`. Arquivo ausente, bloco ausente, nome declarado só num
-      dos blocos ou valor que não seja hex de seis dígitos fazem o comando
-      terminar com código diferente de `0` sem imprimir as quatro linhas.
+      termina com código de saída `0` e imprime, nesta ordem, cinco linhas: a
+      primeira compara `@theme` contra `.tema-claro` — a contagem de tokens do
+      bloco `@theme` e se as duas cópias são idênticas —, as duas seguintes
+      `True` — os três conjuntos de nomes coincidem, e os seis valores do bloco
+      claro são os que a direção fixou —, e as duas últimas começando pelo nome
+      do bloco medido, cada uma com as quatro razões medidas e terminando em
+      `True`. Arquivo ausente, bloco ausente, nome declarado só num dos blocos,
+      valor que não seja hex de seis dígitos ou divergência entre `@theme` e
+      `.tema-claro` fazem o comando terminar com código diferente de `0` sem
+      imprimir as cinco linhas.
 
       **Por que o bloco escuro não é medido por igualdade de valores.** A régua
       da casa é contraste AA nos dois temas, e ela é o que decide: RF-04.a e
@@ -200,6 +206,7 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
       sem saída que não fosse afrouxar a régua. A paleta do dono continua
       intacta: os valores que ele fixou são os do tema claro, e o bloco escuro
       deriva os seus pela medição, como já fazia para o `carimbo`.
+      > Reconciliado em D-005.
 - [ ] `estrutural` — `RF-03.a`, `RF-03.b`, `RF-03.c` —
       `apps/web/src/shared/styles/theme.css` declara `--font-display`,
       `--font-body` e `--font-mono` resolvidos para Fraunces, Atkinson
@@ -243,10 +250,11 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
       **maior que** `0`; `grep -c -E '^\s*--duracao-rapida\s*:'` imprime `1`;
       `grep -c -E '^\s*--duracao-padrao\s*:'` imprime `1`;
       `grep -c -E '^\s*--curva-padrao\s*:'` imprime `1`;
-      `grep -c -E '^\s*--breakpoint-telefone\s*:\s*768px\s*;'` imprime `1`;
+      `grep -c -E '^\s*--breakpoint-desde-tablet\s*:\s*768px\s*;'` imprime `1`;
       `grep -c -E '^\s*--radius-[a-z0-9-]+\s*:'` imprime um número **maior ou
       igual a** `3`; `grep -c -E '^\s*--shadow-[a-z0-9-]+\s*:'` imprime um número
       **maior ou igual a** `2`; e `grep -c -E '^\s*--spacing\s*:'` imprime `1`.
+      > Reconciliado em D-004.
 - [ ] `estrutural` — `RF-08.a`, `RF-08.c`, `RF-09.a`, `RF-09.b`, `RF-09.c` — os
       arquivos `.woff2` das três famílias estão versionados, cada família tem o
       arquivo de licença OFL na própria pasta, e nenhum `@font-face` aponta para
@@ -426,7 +434,7 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
       arquivos da etapa 1.2 e `font-display: swap`; o bloco `@theme` que registra
       os nomes no espaço de nomes do Tailwind v4 — `--color-*`, `--font-display`,
       `--font-body`, `--font-mono`, `--spacing`, `--radius-*`, `--shadow-*`,
-      `--breakpoint-telefone: 768px`, `--duracao-rapida`, `--duracao-padrao`,
+      `--breakpoint-desde-tablet: 768px`, `--duracao-rapida`, `--duracao-padrao`,
       `--curva-padrao`; o bloco `.tema-claro` com os seis tokens de cor da
       paleta, nos valores que a direção fixou; o bloco `.tema-escuro` com **os
       mesmos seis nomes**, cada valor escolhido **medindo** a razão de contraste
@@ -448,6 +456,7 @@ tarde, com a fase aberta. Esta lição custou o item `049` a este repositório.
       cobra de novo na página viva. O ponto de quebra é token
       único do produto porque `002` a `007` precisam de um número, e não de
       quatro números iguais em quatro arquivos.
+      > Reconciliado em D-004.
 - [ ] 1.4 Modificar `apps/web/vite.config.ts` acrescentando o plugin
       `@tailwindcss/vite` à lista `plugins`, **depois** de `react()` e antes de
       `requireApiUrlOnBuild()`. Nenhuma outra chave é tocada: `server`,
@@ -1537,7 +1546,7 @@ uma medição que já existia.
       é um item desse menu. A barra é um `<nav aria-label="Destinos do produto">`
       com quatro links — `Documentos`, `Canais`, `Pesquisa`, `Organização` —, e o
       link do destino atual leva `aria-current="page"`. Abaixo de
-      `--breakpoint-telefone` a barra vira gaveta, montada sobre o primitivo de
+      `--breakpoint-desde-tablet` a barra vira gaveta, montada sobre o primitivo de
       diálogo, aberta pelo controle `Abrir navegação` do cabeçalho, com foco
       preso enquanto aberta e devolvido ao botão que a abriu no `Esc`.
       *Considerando as fases 2 e 3: diálogo, menu e os quinze primitivos já
@@ -1550,6 +1559,7 @@ uma medição que já existia.
       teclado atravessa a barra lateral inteira em toda troca de tela. O reúso do
       diálogo na gaveta é o custo aceito de `D8`, e é menor que o custo de cada
       uma das telas de `002` a `007` inventar a própria largura pequena.
+      > Reconciliado em D-004.
 - [ ] 4.4 Criar `apps/web/src/app/routes/documentos.tsx`, `canais.tsx`,
       `pesquisa.tsx` e `organizacao.tsx`, cada uma com um cabeçalho de nível 1
       com o nome do destino e o primitivo de estado vazio acionável, escrito como
