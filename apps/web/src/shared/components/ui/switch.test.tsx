@@ -9,11 +9,7 @@ function ExemploAlternador() {
         <Switch.Thumb />
       </Switch.Control>
       <Switch.Label>Mostrar arquivados</Switch.Label>
-      <Switch.Context>
-        {(api) => (
-          <Switch.HiddenInput role="switch" aria-checked={api.checked} />
-        )}
-      </Switch.Context>
+      <Switch.HiddenInput />
     </Switch.Root>
   );
 }

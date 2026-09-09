@@ -356,11 +356,7 @@ function AlternadorDeExemplo() {
           <Switch.Thumb />
         </Switch.Control>
         <Switch.Label>Mostrar arquivados</Switch.Label>
-        <Switch.Context>
-          {(api) => (
-            <Switch.HiddenInput role="switch" aria-checked={api.checked} />
-          )}
-        </Switch.Context>
+        <Switch.HiddenInput />
       </Switch.Root>
       <Token nome="data-[state=checked]:bg-verdete" />
     </div>

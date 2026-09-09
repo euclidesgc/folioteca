@@ -220,6 +220,26 @@ PR e commit já escritos.
       escolha natural quando `eslint-plugin-react` alcançar essa série — ver
       `04-divergencias/D-013.md`.
 
+- [ ] `070-o-produto-tem-icone-proprio-na-aba-do-navegador` — quem abre a
+      aplicação vê o ícone da Folioteca na aba e nos favoritos, em vez do ícone
+      genérico do navegador, e o console para de registrar a busca frustrada
+      **Depende de:** `050-linguagem-visual-e-sistema-de-design` — o ícone deriva
+      da paleta e da metáfora da lombada que o `050` fixa; desenhado antes, ele
+      vira a segunda marca que o `051` teria de reconciliar.
+      **Origem:** fase 2 de `050`, medido em 09/09/2026 no navegador, contra o
+      artefato construído servido na origem de pré-visualização. `apps/web/index.html`
+      não declara `<link rel="icon">`, então o navegador busca `/favicon.ico` por
+      conta própria e recebe `404` — a mensagem aparece no console de **toda**
+      página da aplicação, e é ruído permanente em cima do coletor de console que
+      os critérios comportamentais desta linguagem visual usam para provar que
+      nenhum estilo foi recusado.
+      Fechar é desenhar o ícone a partir dos tokens do `050`, servi-lo pela
+      própria origem — a política de conteúdo do artefato é `default-src 'self'`,
+      e ícone de outra origem é bloqueado do mesmo jeito que folha e fonte —,
+      declará-lo em `index.html` nos tamanhos que a aba e o atalho de tela usam, e
+      cobrir `apps/site` pela mesma decisão, para que a empresa não tenha um ícone
+      no produto e outro no hotsite.
+
 - [ ] `051-identidade-e-hotsite` — o hotsite deixa de ser a página do bootstrap e
       passa a apresentar o produto a quem chega sem sessão: a tese na primeira
       dobra, as três dores que ela resolve, o modelo de acesso explicado por
