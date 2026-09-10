@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SectionHeading } from "@/components/section-heading";
+import { ROTA_DE_CADASTRO } from "@/lib/app-url";
 
 const inclusosNoGratis = [
   "Documentos e modelos ilimitados",
@@ -99,7 +100,7 @@ export function Pricing(): ReactElement {
             ))}
           </ul>
           <ButtonLink
-            href="#entrar"
+            href={ROTA_DE_CADASTRO}
             variant="secondary"
             className="mt-auto w-full"
           >
@@ -136,7 +137,7 @@ export function Pricing(): ReactElement {
               <li key={item}>{item}</li>
             ))}
           </ul>
-          <ButtonLink href="#entrar" className="mt-auto w-full">
+          <ButtonLink href={ROTA_DE_CADASTRO} className="mt-auto w-full">
             Assinar o Time
           </ButtonLink>
         </Card>
@@ -156,7 +157,7 @@ export function Pricing(): ReactElement {
             ))}
           </ul>
           <ButtonLink
-            href="#entrar"
+            href="mailto:contato@folioteca.com?subject=Plano%20Empresa"
             variant="secondary"
             className="mt-auto w-full"
           >

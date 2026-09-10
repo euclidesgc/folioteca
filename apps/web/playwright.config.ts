@@ -11,6 +11,11 @@ const API_PORT = 3000;
 const WEB_PORT = Number(process.env.WEB_PREVIEW_PORT ?? 4173);
 const API_URL = `http://localhost:${API_PORT}`;
 const WEB_URL = `http://localhost:${WEB_PORT}`;
+// decisão: o hotsite sobe junto porque a escolha de tema atravessa de uma origem
+// para a outra, e travessia entre origens não se mede numa origem só. É a única
+// evidência executada de que o cookie faz o que promete.
+const SITE_PORT = Number(process.env.SITE_PORT ?? 3101);
+const SITE_URL = `http://localhost:${SITE_PORT}`;
 
 // decisão: a suíte sobe a aplicação UMA vez e mede tudo nessa subida. O custo de
 // uma execução é dominado pelo build e pelo boot da API, não pelos casos, e o
@@ -60,8 +65,18 @@ export default defineConfig({
       env: {
         NODE_ENV: "development",
         PORT: String(API_PORT),
-        DATABASE_URL: "postgresql://folioteca:senha@localhost:5433/folioteca",
-        WEB_ORIGIN: WEB_URL,
+        // motivo: no CI a porta do Postgres é sorteada pelo runner, e o
+        // endereço chega pelo ambiente. O padrão é o do compose local, para
+        // quem roda na mão não precisar declarar nada.
+        DATABASE_URL:
+          process.env.DATABASE_URL ??
+          "postgresql://folioteca:senha@localhost:5433/folioteca",
+        WEB_ORIGIN: `${WEB_URL},${SITE_URL}`,
+        // motivo: a configuração é validada no boot e esta chave é obrigatória —
+        // sem ela a API não sobe e a suíte inteira morre dizendo que o servidor
+        // não respondeu. O valor é de teste e não protege nada.
+        BETTER_AUTH_SECRET: "segredo-de-teste-com-trinta-e-dois-caracteres",
+        API_URL: API_URL,
       },
     },
     {
@@ -81,5 +96,21 @@ export default defineConfig({
         VITE_API_URL: API_URL,
       },
     },
+    {
+      // decisão: build e start, não `next dev`. O tema do hotsite é decidido no
+      // servidor a partir do cookie, e é o caminho de produção que precisa ser
+      // medido — em desenvolvimento o Next serve por outro caminho.
+      command: `pnpm --filter site run build && pnpm --filter site exec next start -p ${SITE_PORT}`,
+      cwd: "../../",
+      url: SITE_URL,
+      reuseExistingServer: !process.env.CI,
+      timeout: 180_000,
+      env: {
+        NODE_ENV: "production",
+        NEXT_PUBLIC_APP_URL: WEB_URL,
+      },
+    },
   ],
 });
+
+export { SITE_URL, WEB_URL };

@@ -1,26 +1,36 @@
 "use client";
 
 import type { ReactElement } from "react";
+import {
+  ATRIBUTO_DO_TEMA,
+  comoTema,
+  serializarCookieDeTema,
+  temaEfetivo,
+  type Tema,
+} from "@folioteca/tema";
 import { Button } from "@/components/ui/button";
 
-const CHAVE_TEMA = "folioteca.tema";
+const DOMINIO_DO_COOKIE = process.env.NEXT_PUBLIC_COOKIE_DOMAIN || undefined;
 
-type Tema = "claro" | "escuro";
-
-function temaEfetivo(): Tema {
-  const escolhido = document.documentElement.getAttribute("data-tema");
-  if (escolhido === "claro" || escolhido === "escuro") {
-    return escolhido;
-  }
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "escuro"
-    : "claro";
+function temaNaTela(): Tema {
+  const escolhido = comoTema(
+    document.documentElement.getAttribute(ATRIBUTO_DO_TEMA),
+  );
+  return temaEfetivo(
+    escolhido,
+    window.matchMedia("(prefers-color-scheme: dark)").matches,
+  );
 }
 
 function aplicarTema(tema: Tema): void {
-  document.documentElement.setAttribute("data-tema", tema);
+  document.documentElement.setAttribute(ATRIBUTO_DO_TEMA, tema);
   try {
-    localStorage.setItem(CHAVE_TEMA, tema);
+    // motivo: cookie, e não localStorage, porque a aplicação vive em outra
+    // origem — armazenamento local não atravessa, e cookie de domínio pai sim.
+    document.cookie = serializarCookieDeTema(tema, {
+      dominio: DOMINIO_DO_COOKIE,
+      seguro: window.location.protocol === "https:",
+    });
   } catch {
     // decisão: navegação privada e bloqueio de dados de site recusam a escrita,
     // e a escolha valer só nesta página é melhor do que a página quebrar
@@ -34,9 +44,11 @@ export function ThemeToggle(): ReactElement {
       variant="ghost"
       size="sm"
       onClick={() => {
-        aplicarTema(temaEfetivo() === "claro" ? "escuro" : "claro");
+        aplicarTema(temaNaTela() === "claro" ? "escuro" : "claro");
       }}
     >
+      {/* decisão: os dois rótulos vão no HTML e o CSS mostra um — quando não há
+          cookie, quem sabe o tema é a folha de estilo, não o servidor nem o JS */}
       <span className="no-claro">Tema escuro</span>
       <span className="no-escuro">Tema claro</span>
     </Button>

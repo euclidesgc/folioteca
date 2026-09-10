@@ -4,6 +4,10 @@ import { APP_PIPE } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { environmentSchema } from './config/environment.schema';
 import { HealthModule } from './health/health.module';
+import { AccountModule } from './account/account.module';
+import { AuthModule } from './auth/auth.module';
+import { MailModule } from './mail/mail.module';
+import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
   imports: [
@@ -13,6 +17,10 @@ import { HealthModule } from './health/health.module';
       validationSchema: environmentSchema,
       validationOptions: { abortEarly: false, allowUnknown: true },
     }),
+    PrismaModule,
+    MailModule,
+    AuthModule,
+    AccountModule,
     HealthModule,
   ],
   providers: [

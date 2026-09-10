@@ -1,65 +1,28 @@
-import type { ReactElement, SVGProps } from "react";
+import type { ReactElement } from "react";
 import { Link } from "react-router";
-import { Dialog } from "@/shared/components/ui/dialog";
-import { Menu } from "@/shared/components/ui/menu";
-import { useTema } from "@/app/providers/theme-provider";
+import { GavetaDeDestinos } from "./gaveta-de-destinos";
+import { MenuDeConta } from "./menu-de-conta";
+import { NavegacaoDeDestinos } from "./navegacao-de-destinos";
 
-function MenuMark(props: SVGProps<SVGSVGElement>): ReactElement {
+export function AppHeader(): ReactElement {
   return (
-    <svg
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      strokeLinecap="round"
-      width="1em"
-      height="1em"
-      aria-hidden="true"
-      {...props}
-    >
-      <line x1="2" y1="4.5" x2="14" y2="4.5" />
-      <line x1="2" y1="8" x2="14" y2="8" />
-      <line x1="2" y1="11.5" x2="14" y2="11.5" />
-    </svg>
-  );
-}
-
-export function AppHeader() {
-  const { tema, alternarTema } = useTema();
-  const rotuloAlternador = tema === "claro" ? "Tema escuro" : "Tema claro";
-
-  return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b border-fio bg-papel px-4 desde-tablet:px-6">
+    // motivo: fixa no topo porque a navegação principal mora aqui — rolando uma
+    // lista longa de documentos, os destinos precisam continuar ao alcance. O
+    // z-20 fica abaixo do z-50 do salto para o conteúdo, para o anel de foco
+    // dele não nascer coberto.
+    <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-fio bg-papel px-4 desde-tablet:px-6">
       <div className="flex items-center gap-3">
-        <Dialog.Trigger
-          aria-label="Abrir navegação"
-          className="desde-tablet:hidden h-10 w-10 bg-transparent px-0 text-tinta hover:bg-fio"
-        >
-          <MenuMark />
-        </Dialog.Trigger>
+        <GavetaDeDestinos />
         <Link to="/" className="font-display text-lg font-semibold text-tinta">
           Folioteca
         </Link>
+        <NavegacaoDeDestinos
+          orientacao="horizontal"
+          className="desde-tablet:flex hidden"
+        />
       </div>
 
-      <Menu.Root
-        onSelect={(detalhe) => {
-          if (detalhe.value === "alternar-tema") {
-            alternarTema();
-          }
-        }}
-      >
-        <Menu.Trigger className="bg-transparent px-3 text-tinta hover:bg-fio">
-          Menu de conta
-        </Menu.Trigger>
-        <Menu.Positioner>
-          <Menu.Content>
-            <Menu.Item value="alternar-tema">
-              <Menu.ItemText>{rotuloAlternador}</Menu.ItemText>
-            </Menu.Item>
-          </Menu.Content>
-        </Menu.Positioner>
-      </Menu.Root>
+      <MenuDeConta />
     </header>
   );
 }

@@ -23,6 +23,11 @@ const seguranca =
     : conjuntoConstante;
 
 const nextConfig: NextConfig = {
+  // motivo: `@folioteca/tema` é publicado como TypeScript cru, sem passo de
+  // build — sem esta linha o Next tenta carregá-lo como JavaScript já compilado
+  // e quebra na primeira importação.
+  transpilePackages: ["@folioteca/tema"],
+
   // `standalone` empacota o servidor com só as dependências que ele alcança, e
   // é o que permite a imagem final não carregar `node_modules` inteiro nem o
   // pnpm. Sem isto, a imagem do hotsite passa de 1 GB para servir umas poucas

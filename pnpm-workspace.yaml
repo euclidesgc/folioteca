@@ -2,18 +2,26 @@ packages:
   - "apps/*"
   - "packages/*"
 
-# Nenhuma dependência roda script de instalação, e a recusa é nomeada. Na linha
-# 11 do pnpm, script de build ignorado é erro duro em vez de aviso: a decisão
-# tem de ser de alguém, não da omissão. `@scarf/scarf` é telemetria e não entra
-# de jeito nenhum; `@parcel/watcher` e `unrs-resolver` são bindings nativos com
-# caminho de reserva em JavaScript, e nada no projeto depende do ganho de
-# desempenho deles. O script do `msw` instala o worker de service worker do
-# navegador, e a web usa só `msw/node`.
+# Script de instalação roda só onde a dependência não funciona sem ele, e cada
+# decisão é nomeada. Na linha 11 do pnpm, script de build ignorado é erro duro
+# em vez de aviso: a decisão tem de ser de alguém, não da omissão.
+#
+# Recusados: `@scarf/scarf` é telemetria e não entra de jeito nenhum;
+# `@parcel/watcher` e `unrs-resolver` são bindings nativos com caminho de
+# reserva em JavaScript, e nada no projeto depende do ganho de desempenho deles.
+# O script do `msw` instala o worker de service worker do navegador, e a web usa
+# só `msw/node`.
+#
+# Liberados: `prisma` e `@prisma/engines` posicionam no postinstall o motor de
+# consulta nativo. Sem ele o cliente não conecta e migration nenhuma roda — é a
+# condição de o Prisma existir, não um ganho de desempenho.
 allowBuilds:
   "@parcel/watcher": false
   "@scarf/scarf": false
   unrs-resolver: false
   msw: false
+  "@prisma/engines": true
+  prisma: true
 
 # `js-yaml` 4.2.0 entra por `@hey-api/openapi-ts` e carrega dois avisos de
 # negação de serviço por análise quadrática. O gerador só lê `apps/api/openapi.json`,
@@ -39,6 +47,19 @@ overrides:
   # `@nestjs/platform-express` esperaria o NestJS republicar, e o caminho é de
   # produção.
   multer: ">=2.3.0"
+
+  # `deepmerge-ts` e `mysql2` entraram em 10/09/2026 com o Prisma e o Better
+  # Auth — o primeiro por `@prisma/config`, o segundo porque o Better Auth
+  # carrega os drivers de todos os bancos que suporta. A auditoria acusou os
+  # dois como severidade alta: GHSA-ggr8-5vv4-36mx e GHSA-3f6p-5ww8-9rcr.
+  #
+  # Nenhum dos dois é alcançado pelo nosso código: o banco é Postgres, e o
+  # driver MySQL nunca é carregado. É por isso que o piso sobe em vez de a
+  # dependência ser trocada — não há caminho de execução a mudar, só um lockfile
+  # que declara versão vulnerável e um portão que, com razão, não distingue
+  # dependência alcançada de dependência presente.
+  deepmerge-ts: ">=8.0.0"
+  mysql2: ">=3.22.0"
 
 # Versão publicada há menos de sete dias não entra na resolução. As campanhas
 # recentes de publicação maliciosa em npm foram detectadas e despublicadas

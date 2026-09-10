@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./apoio/sessao";
 
 test("mostra o status da API na rota Organização", async ({ page }) => {
   await page.goto("/organizacao");

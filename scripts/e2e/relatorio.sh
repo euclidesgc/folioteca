@@ -37,7 +37,7 @@ _reprova() {
 # a cada alteração deles, versionada ou não.
 arvore_atual() {
   find apps/web/src apps/web/e2e apps/web/index.html apps/web/vite.config.ts \
-       apps/web/playwright.config.ts -type f 2>/dev/null |
+       apps/web/playwright.config.ts packages/tema/src -type f 2>/dev/null |
     LC_ALL=C sort |
     xargs -r sha256sum 2>/dev/null |
     sha256sum |

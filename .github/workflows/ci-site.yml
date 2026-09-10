@@ -30,6 +30,7 @@ on:
     branches: [main, develop]
     paths:
       - "apps/site/**"
+      - "packages/**"
       - "scripts/gates/**"
       - ".github/workflows/ci-site.yml"
       - ".github/workflows/_suite-site.yml"
@@ -40,6 +41,7 @@ on:
     types: [opened, reopened, synchronize, ready_for_review]
     paths:
       - "apps/site/**"
+      - "packages/**"
       - "scripts/gates/**"
       - ".github/workflows/ci-site.yml"
       - ".github/workflows/_suite-site.yml"

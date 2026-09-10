@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { expect, test } from "./apoio/sessao";
 // motivo: a análise de acessibilidade — `@axe-core/playwright` sob as
 // etiquetas wcag2a, wcag2aa, wcag21a e wcag21aa — mora em `./apoio/axe`, e não
 // dentro de cada caso daqui. Um construtor por caso deixaria a lista de
@@ -29,8 +30,10 @@ function contarCargas(page: Page): () => number {
   return () => cargas;
 }
 
-async function classeDaRaiz(page: Page): Promise<string> {
-  return page.evaluate(() => document.documentElement.className);
+async function temaDaRaiz(page: Page): Promise<string | null> {
+  return page.evaluate(() =>
+    document.documentElement.getAttribute("data-tema"),
+  );
 }
 
 async function corComputadaDoToken(page: Page, token: string): Promise<string> {
@@ -44,10 +47,18 @@ async function corComputadaDoToken(page: Page, token: string): Promise<string> {
   }, token);
 }
 
+// motivo: a página viva abre sem sessão e fora do esqueleto, então não tem menu
+// de conta — o alternador dela é um botão avulso. Este helper é usado nas duas
+// superfícies, e é por isso que procura o rótulo, não o caminho até ele.
 async function trocarParaTemaEscuro(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Menu de conta" }).click();
-  await page.getByRole("menuitem", { name: "Tema escuro" }).click();
-  await expect.poll(() => classeDaRaiz(page)).toContain("tema-escuro");
+  const noMenuDeConta = page.getByRole("button", { name: "Menu de conta" });
+  if (await noMenuDeConta.isVisible()) {
+    await noMenuDeConta.click();
+    await page.getByRole("menuitem", { name: "Tema escuro" }).click();
+  } else {
+    await page.getByRole("button", { name: "Tema escuro" }).click();
+  }
+  await expect.poll(() => temaDaRaiz(page)).toBe("escuro");
 }
 
 function canais(cor: string): [number, number, number] {
@@ -91,7 +102,9 @@ test("o axe não acha violação séria nos dois temas", async ({ page }) => {
     page.getByRole("heading", { level: 1, name: "Página viva" }),
   ).toBeVisible();
 
-  expect(await classeDaRaiz(page)).toContain("tema-claro");
+  // Sem escolha guardada não há atributo: o claro vem do sistema emulado acima,
+  // pela folha de estilo, e é a cor na tela que prova isso.
+  expect(await temaDaRaiz(page)).toBeNull();
   await analisar(page, "página viva no tema claro");
 
   await trocarParaTemaEscuro(page);
@@ -100,7 +113,7 @@ test("o axe não acha violação séria nos dois temas", async ({ page }) => {
   expect(cargas()).toBe(1);
 });
 
-test("o axe não acha violação séria nos cinco estados pós-interação", async ({
+test("o axe não acha violação séria nos quatro estados pós-interação", async ({
   page,
 }) => {
   const cargas = contarCargas(page);
@@ -137,7 +150,20 @@ test("o axe não acha violação séria nos cinco estados pós-interação", asy
   await expect(vazio).toBeVisible();
   await analisar(page, "amostra de estado vazio");
 
+  expect(cargas()).toBe(1);
+});
+
+// O quinto estado mora noutro caso porque a gaveta mora noutra superfície: ela é
+// do esqueleto de aplicação, e a página viva abre fora dele desde que passou a
+// ser alcançável sem sessão.
+test("o axe não acha violação séria na gaveta de navegação", async ({
+  page,
+}) => {
+  const cargas = contarCargas(page);
   await page.setViewportSize(JANELA_DE_TELEFONE);
+  await page.goto("/documentos");
+  await expect(page.getByRole("banner")).toBeVisible();
+
   await page.getByRole("button", { name: "Abrir navegação" }).click();
   const gaveta = page.getByRole("dialog", { name: "Destinos do produto" });
   const navegacaoDaGaveta = gaveta.getByRole("navigation", {
@@ -196,14 +222,16 @@ test("o carimbo do tema escuro tem contraste de corpo", async ({ page }) => {
 
 test("o caminho do esqueleto à página viva atravessa as fases", async ({
   page,
+  context,
 }) => {
   await page.emulateMedia({ colorScheme: "light" });
+  await context.clearCookies();
   await page.goto("/documentos");
 
-  const temaGuardado = await page.evaluate(() =>
-    window.localStorage.getItem("folioteca.tema"),
-  );
-  expect(temaGuardado).toBeNull();
+  const cookies = await context.cookies();
+  expect(
+    cookies.find((cookie) => cookie.name === "folioteca.tema"),
+  ).toBeUndefined();
 
   const papelClaro = await corComputadaDoToken(page, "--color-papel");
 
@@ -224,7 +252,7 @@ test("o caminho do esqueleto à página viva atravessa as fases", async ({
   await trocarParaTemaEscuro(page);
 
   await page.goto("/design");
-  expect(await classeDaRaiz(page)).toContain("tema-escuro");
+  expect(await temaDaRaiz(page)).toBe("escuro");
 
   const fundoDaRaiz = await page.evaluate(
     () => getComputedStyle(document.documentElement).backgroundColor,

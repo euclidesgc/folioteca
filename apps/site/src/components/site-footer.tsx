@@ -1,12 +1,13 @@
 import type { ReactElement } from "react";
 import { cn } from "@/lib/cn";
 import { moldura } from "@/lib/moldura";
+import { ROTA_DE_ENTRADA } from "@/lib/app-url";
 
 const links = [
   { href: "#produto", rotulo: "Produto" },
   { href: "#funcionalidades", rotulo: "Funcionalidades" },
   { href: "#precos", rotulo: "Preços" },
-  { href: "#entrar", rotulo: "Entrar" },
+  { href: ROTA_DE_ENTRADA, rotulo: "Entrar" },
 ];
 
 export function SiteFooter(): ReactElement {

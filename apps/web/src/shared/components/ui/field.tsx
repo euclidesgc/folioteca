@@ -3,6 +3,7 @@ import {
   useContext,
   useId,
   useMemo,
+  useState,
   type ComponentProps,
   type ReactElement,
   type ReactNode,
@@ -95,6 +96,61 @@ function Control({
   );
 }
 
+function Olho({ cortado }: { cortado: boolean }): ReactElement {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      className="size-4"
+    >
+      <path d="M1.25 8S3.75 3.75 8 3.75 14.75 8 14.75 8 12.25 12.25 8 12.25 1.25 8 1.25 8Z" />
+      <circle cx="8" cy="8" r="1.9" />
+      {cortado ? <line x1="2.75" y1="13.25" x2="13.25" y2="2.75" /> : null}
+    </svg>
+  );
+}
+
+function Password({
+  className,
+  ...props
+}: Omit<ComponentProps<"input">, "type">): ReactElement {
+  const { controlId, invalid, describedBy } = useFieldContext("Password");
+  const [visivel, setVisivel] = useState(false);
+  const acao = visivel ? "Ocultar senha" : "Mostrar senha";
+
+  return (
+    <div className="relative flex">
+      <input
+        id={controlId}
+        type={visivel ? "text" : "password"}
+        aria-invalid={invalid ? "true" : undefined}
+        aria-describedby={describedBy}
+        className={cn(
+          "h-10 w-full rounded-padrao border border-fio bg-papel pr-11 pl-3 text-base text-tinta transition-colors duration-[var(--duracao-rapida)] ease-[var(--curva-padrao)]",
+          invalid && "border-carimbo",
+          className,
+        )}
+        {...props}
+      />
+      {/* motivo: dentro de um <form>, botão sem `type` é submit por padrão — sem
+          isto, olhar a senha enviaria o formulário. */}
+      <button
+        type="button"
+        onClick={() => setVisivel((atual) => !atual)}
+        aria-controls={controlId}
+        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-padrao text-grafite transition-colors duration-[var(--duracao-rapida)] ease-[var(--curva-padrao)] hover:text-tinta"
+      >
+        <span className="sr-only">{acao}</span>
+        <Olho cortado={visivel} />
+      </button>
+    </div>
+  );
+}
+
 function Hint({ className, ...props }: ComponentProps<"p">): ReactElement {
   const { hintId } = useFieldContext("Hint");
   return (
@@ -138,4 +194,4 @@ function ErrorText({
   );
 }
 
-export const Field = { Root, Label, Control, Hint, Error: ErrorText };
+export const Field = { Root, Label, Control, Password, Hint, Error: ErrorText };

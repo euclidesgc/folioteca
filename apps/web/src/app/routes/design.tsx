@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { createListCollection } from "@ark-ui/react";
+import { ATRIBUTO_DO_TEMA } from "@folioteca/tema";
+import { AlternadorDeTema } from "@/shared/components/alternador-de-tema";
 import { Button } from "@/shared/components/ui/button";
 import { Dialog } from "@/shared/components/ui/dialog";
 import { Menu } from "@/shared/components/ui/menu";
@@ -108,7 +110,7 @@ function useValoresDeToken(nomes: readonly string[]) {
 
     ler();
     const observador = new MutationObserver(ler);
-    observador.observe(raiz, { attributeFilter: ["class"] });
+    observador.observe(raiz, { attributeFilter: [ATRIBUTO_DO_TEMA] });
     return () => observador.disconnect();
   }, [nomes]);
 
@@ -359,6 +361,15 @@ function CampoDeExemplo() {
           <Field.Error>Informe um e-mail válido</Field.Error>
         </Field.Root>
         <Token nome="border-carimbo (erro de validação)" />
+      </div>
+
+      <div className="flex max-w-sm flex-col gap-2">
+        <Field.Root>
+          <Field.Label>Senha</Field.Label>
+          <Field.Password defaultValue="uma-frase-que-so-voce-sabe" />
+          <Field.Hint>O olho ao lado revela o que foi digitado</Field.Hint>
+        </Field.Root>
+        <Token nome="pr-11 (vaga do gatilho dentro do campo)" />
       </div>
 
       <div className="flex max-w-sm flex-col gap-2">
@@ -672,6 +683,12 @@ export function PaginaViva() {
   return (
     <div className="min-h-dvh bg-papel text-tinta">
       <div className="flex flex-col gap-16 px-6 py-16">
+        {/* motivo: esta página abre sem sessão e fora do esqueleto, então não
+            herda o menu de conta. Sem o alternador aqui, não há como medir os
+            dois temas contra ela sem recarregar. */}
+        <div className="flex justify-end">
+          <AlternadorDeTema />
+        </div>
         <header className="border-l-4 border-carimbo pl-6">
           <p className="font-mono text-xs tracking-widest text-grafite uppercase">
             Folioteca · linguagem visual

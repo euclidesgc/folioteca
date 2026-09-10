@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
+import { cookies } from "next/headers";
 import type { ReactNode } from "react";
+import { CHAVE_DO_TEMA, comoTema } from "@folioteca/tema";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { moldura } from "@/lib/moldura";
@@ -8,9 +9,6 @@ import "@/styles/theme.css";
 
 // decisão: o nonce da política muda a cada requisição, e o HTML de uma rota prerenderizada é gerado uma vez no build — serviria o nonce de outra requisição, que é o mesmo que nonce ausente
 export const dynamic = "force-dynamic";
-
-// decisão: este script é embutido e roda antes da folha porque o tema tem de estar decidido no primeiro quadro — carregado como arquivo, ele só chegaria depois da primeira pintura, e quem escolheu escuro veria a página nascer clara. É por isso que ele carrega o nonce da resposta: a política é `script-src 'self' 'nonce-…'`, e script embutido sem nonce é bloqueado.
-const APLICA_TEMA_GUARDADO = `(function(){try{var t=localStorage.getItem("folioteca.tema");if(t==="claro"||t==="escuro"){document.documentElement.setAttribute("data-tema",t)}}catch(e){}})()`;
 
 export const metadata: Metadata = {
   title: "Folioteca — a biblioteca de fólios da empresa",
@@ -23,15 +21,19 @@ export default async function RootLayout({
 }: {
   children: ReactNode;
 }) {
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
+  // motivo: o tema sai do cookie aqui, no servidor, e chega estampado no HTML —
+  // não há janela entre a primeira pintura e a decisão, e some o único script
+  // embutido escrito à mão do repositório. Sem cookie o atributo não vai, e
+  // quem decide é o `prefers-color-scheme` da folha de estilo.
+  const temaEscolhido = comoTema((await cookies()).get(CHAVE_DO_TEMA)?.value);
 
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
+    <html
+      lang="pt-BR"
+      data-tema={temaEscolhido ?? undefined}
+      suppressHydrationWarning
+    >
       <head>
-        <script
-          nonce={nonce}
-          dangerouslySetInnerHTML={{ __html: APLICA_TEMA_GUARDADO }}
-        />
         <link
           rel="preload"
           as="font"

@@ -5,7 +5,7 @@
 #
 # ## Por que o contexto é a raiz do repositório
 #
-# `apps/web` participa do workspace pnpm e resolve `@folioteca/editor` por
+# `apps/web` participa do workspace pnpm e resolve `@folioteca/tema` por
 # `workspace:*`. Com o contexto em `apps/web`, o `pnpm install` não enxerga o
 # pacote irmão. No Coolify isto aparece como `base_directory: /` mais
 # `dockerfile_location: /apps/web/Dockerfile`.
@@ -27,6 +27,7 @@ WORKDIR /repo
 
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY packages/editor/package.json packages/editor/
+COPY packages/tema/package.json packages/tema/
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 COPY apps/site/package.json apps/site/
@@ -37,6 +38,8 @@ COPY . .
 
 ARG VITE_API_URL
 ENV VITE_API_URL=${VITE_API_URL}
+ARG VITE_COOKIE_DOMAIN
+ENV VITE_COOKIE_DOMAIN=${VITE_COOKIE_DOMAIN}
 
 RUN pnpm --filter web run build
 

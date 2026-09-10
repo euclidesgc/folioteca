@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ButtonLink } from "@/components/ui/button";
+import { ROTA_DE_ENTRADA } from "@/lib/app-url";
 import { cn } from "@/lib/cn";
 import { moldura } from "@/lib/moldura";
 
@@ -44,7 +45,7 @@ export function SiteHeader(): ReactElement {
         </nav>
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <ButtonLink href="#entrar" variant="secondary" size="sm">
+          <ButtonLink href={ROTA_DE_ENTRADA} variant="secondary" size="sm">
             Entrar
           </ButtonLink>
         </div>

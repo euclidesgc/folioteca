@@ -127,7 +127,10 @@ export default defineConfig({
     // suíte verde. `verbose` nomeia cada arquivo que rodou, que é o observável
     // que separa os dois casos sem depender de flag na linha de comando.
     reporters: ["verbose"],
-    include: ["src/**/*.test.{ts,tsx}"],
+    // motivo: `@folioteca/tema` é fonte compartilhada com o hotsite, sem passo
+    // de build e sem runner próprio — os testes dele rodam aqui para que a
+    // regra do cookie e do atributo tenha um só lugar que a mede.
+    include: ["src/**/*.test.{ts,tsx}", "../../packages/tema/src/**/*.test.ts"],
     setupFiles: ["./vitest.setup.ts"],
     env: {
       VITE_API_URL: "http://localhost:3000",

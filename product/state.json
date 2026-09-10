@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "active_item": "002-conta-e-organizacao",
+  "active_item": null,
   "items": {
     "001-esqueleto-do-monorepo": {
       "title": "Esqueleto do monorepo: os três apps sobem, o contrato é gerado e o CI fica verde",

@@ -27,6 +27,7 @@ WORKDIR /repo
 # a camada de instalação e o build na VPS não reinstala o mundo a cada commit.
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY packages/editor/package.json packages/editor/
+COPY packages/tema/package.json packages/tema/
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 COPY apps/site/package.json apps/site/
@@ -37,6 +38,10 @@ COPY . .
 
 ARG NEXT_PUBLIC_SITE_URL
 ENV NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
+ARG NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+ARG NEXT_PUBLIC_COOKIE_DOMAIN
+ENV NEXT_PUBLIC_COOKIE_DOMAIN=${NEXT_PUBLIC_COOKIE_DOMAIN}
 
 # `NODE_ENV=production` no build é o que liga o conjunto de cabeçalhos completo
 # do `next.config.ts` — o `Strict-Transport-Security` entre eles — e o que faz o

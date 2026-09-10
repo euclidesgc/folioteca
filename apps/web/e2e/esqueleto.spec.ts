@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./apoio/sessao";
 
 async function corComputadaDoToken(
   page: import("@playwright/test").Page,
@@ -43,7 +43,11 @@ test("os quatro destinos navegam para o estado vazio que convida a agir", async 
     await expect(
       page.getByRole("heading", { level: 1, name: destino.titulo }),
     ).toBeVisible();
-    await expect(page.getByText(/^Nenhum.*ainda$/)).toBeVisible();
+    // motivo: escopado no conteúdo porque a sublateral de Documentos e de
+    // Canais também tem estado vazio — o que se afirma aqui é o da página.
+    await expect(
+      page.getByRole("main").getByText(/^Nenhum.*ainda$/),
+    ).toBeVisible();
     await expect(
       page.getByRole("button", { name: destino.verbo }),
     ).toBeVisible();
@@ -78,6 +82,10 @@ test("a barra é navegação nomeada e marca o destino atual", async ({
 
 test("o primeiro Tab alcança pular para o conteúdo", async ({ page }) => {
   await page.goto("/documentos");
+  // motivo: a rota é guardada, e até a sessão ser resolvida a página mostra o
+  // aviso de verificação — sem esta espera o Tab cai numa árvore que ainda vai
+  // ser trocada, e o foco se perde na troca.
+  await expect(page.getByRole("banner")).toBeVisible();
 
   await page.keyboard.press("Tab");
   await expect(
@@ -144,10 +152,11 @@ test("cada destino sobrevive à abertura direta e à recarga", async ({
 
 test("o alternador do menu de conta troca o tema sem recarregar", async ({
   page,
+  context,
 }) => {
   await page.emulateMedia({ colorScheme: "light" });
+  await context.clearCookies();
   await page.addInitScript(() => {
-    window.localStorage.clear();
     (window as unknown as { __cargas: number }).__cargas = 0;
     window.addEventListener("load", () => {
       (window as unknown as { __cargas: number }).__cargas += 1;
@@ -169,31 +178,35 @@ test("o alternador do menu de conta troca o tema sem recarregar", async ({
   const primeiraContagem = await contarTabsAteMenuDeConta();
   expect(primeiraContagem).toBeLessThanOrEqual(8);
 
-  const classeAntesDaTroca = await page.evaluate(
-    () => document.documentElement.className,
+  // Sem escolha guardada o atributo não existe: quem decide é a folha de estilo
+  // pelo `prefers-color-scheme`, então o que se afirma aqui é a cor na tela.
+  const corAntesDaTroca = await page.evaluate(
+    () => getComputedStyle(document.documentElement).backgroundColor,
   );
-  expect(classeAntesDaTroca).toContain("tema-claro");
+  expect(corAntesDaTroca).toBe(
+    await corComputadaDoToken(page, "--color-papel"),
+  );
 
   await page.keyboard.press("Enter");
   await page.getByRole("menuitem", { name: "Tema escuro" }).click();
 
-  const classeAposTroca = await page.evaluate(
-    () => document.documentElement.className,
-  );
-  expect(classeAposTroca).toContain("tema-escuro");
-  expect(classeAposTroca).not.toContain("tema-claro");
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.documentElement.getAttribute("data-tema")),
+    )
+    .toBe("escuro");
 
   const cargas = await page.evaluate(
     () => (window as unknown as { __cargas: number }).__cargas,
   );
   expect(cargas).toBe(1);
 
-  const temaGuardado = await page.evaluate(() =>
-    window.localStorage.getItem("folioteca.tema"),
-  );
-  expect(temaGuardado).toBe("escuro");
+  const cookies = await context.cookies();
+  expect(
+    cookies.find((cookie) => cookie.name === "folioteca.tema")?.value,
+  ).toBe("escuro");
 
-  const outrasRotas = ["/canais", "/pesquisa", "/organizacao", "/design"];
+  const outrasRotas = ["/canais", "/pesquisa", "/organizacao"];
   for (const rota of outrasRotas) {
     await page.goto(rota);
     const contagem = await contarTabsAteMenuDeConta();
@@ -203,33 +216,48 @@ test("o alternador do menu de conta troca o tema sem recarregar", async ({
 
 test("a escolha guardada vence o sistema e sobrevive à recarga", async ({
   page,
+  context,
 }) => {
   await page.emulateMedia({ colorScheme: "dark" });
+  await context.clearCookies();
   await page.goto("/documentos");
 
-  const classeRaiz = () =>
-    page.evaluate(() => document.documentElement.className);
+  const corDaRaiz = () =>
+    page.evaluate(
+      () => getComputedStyle(document.documentElement).backgroundColor,
+    );
+  const escuro = await corComputadaDoToken(page, "--color-papel");
 
-  await expect.poll(classeRaiz).toContain("tema-escuro");
+  await expect.poll(corDaRaiz).toBe(escuro);
 
-  await page.evaluate(() => {
-    window.localStorage.setItem("folioteca.tema", "claro");
-  });
+  await context.addCookies([
+    { name: "folioteca.tema", value: "claro", url: page.url() },
+  ]);
   await page.reload();
-  await expect.poll(classeRaiz).toContain("tema-claro");
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.documentElement.getAttribute("data-tema")),
+    )
+    .toBe("claro");
+  const claro = await corComputadaDoToken(page, "--color-papel");
+  expect(claro).not.toBe(escuro);
 
-  await page.evaluate(() => {
-    window.localStorage.removeItem("folioteca.tema");
-  });
+  // Sem escolha nenhuma o sistema volta a mandar, e o atributo some junto.
+  await context.clearCookies();
   await page.reload();
-  await expect.poll(classeRaiz).toContain("tema-escuro");
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.documentElement.getAttribute("data-tema")),
+    )
+    .toBeNull();
+  await expect.poll(corDaRaiz).toBe(escuro);
 });
 
-test("o tema entra antes da primeira pintura", async ({ page }) => {
+test("o tema entra antes da primeira pintura", async ({ page, context }) => {
   await page.emulateMedia({ colorScheme: "dark" });
-  await page.addInitScript(() => {
-    window.localStorage.setItem("folioteca.tema", "claro");
-  });
+  await context.addCookies([
+    { name: "folioteca.tema", value: "claro", url: "http://localhost" },
+  ]);
 
   await page.goto("/documentos");
 
@@ -354,4 +382,75 @@ test("o indicador de foco existe nos dois temas", async ({ page }) => {
   expect(Number.parseFloat(indicadorEscuro.largura)).toBeGreaterThan(0);
   expect(indicadorEscuro.estilo).not.toBe("none");
   expect(indicadorEscuro.cor).toBe(verdeteEscuro);
+});
+
+test("o topo fica fixo enquanto o conteúdo rola", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 600 });
+  await page.goto("/documentos");
+  const cabecalho = page.getByRole("banner");
+  await expect(cabecalho).toBeVisible();
+
+  const topoAntes = await cabecalho.evaluate(
+    (el) => el.getBoundingClientRect().top,
+  );
+  await page.evaluate(() => window.scrollBy(0, 400));
+
+  const topoDepois = await cabecalho.evaluate(
+    (el) => el.getBoundingClientRect().top,
+  );
+  expect(topoAntes).toBe(0);
+  expect(topoDepois).toBe(0);
+  await expect(
+    page.getByRole("navigation", { name: "Destinos do produto" }),
+  ).toBeVisible();
+});
+
+test("a sublateral aparece em Documentos e Canais, e não nas outras seções", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+
+  await page.goto("/documentos");
+  await expect(
+    page.getByRole("navigation", { name: "Documentos" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Documentos" }),
+  ).toContainText("Nenhum documento ainda");
+
+  await page.getByRole("link", { name: "Canais" }).click();
+  await expect(page.getByRole("navigation", { name: "Canais" })).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Documentos" }),
+  ).toBeHidden();
+
+  await page.getByRole("link", { name: "Pesquisa" }).click();
+  await expect(page.getByRole("navigation", { name: "Canais" })).toBeHidden();
+  await expect(
+    page.getByRole("navigation", { name: "Documentos" }),
+  ).toBeHidden();
+
+  await page.getByRole("link", { name: "Organização" }).click();
+  await expect(
+    page.getByRole("navigation", { name: "Organização" }),
+  ).toBeHidden();
+});
+
+test("o salto para o conteúdo não aterrissa atrás do topo fixo", async ({
+  page,
+}) => {
+  await page.goto("/documentos");
+  await expect(page.getByRole("banner")).toBeVisible();
+
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Enter");
+
+  const alturaDoTopo = await page
+    .getByRole("banner")
+    .evaluate((el) => el.getBoundingClientRect().height);
+  const topoDoConteudo = await page
+    .getByRole("main")
+    .evaluate((el) => el.getBoundingClientRect().top);
+
+  expect(topoDoConteudo).toBeGreaterThanOrEqual(alturaDoTopo - 1);
 });

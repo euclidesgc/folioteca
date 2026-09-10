@@ -70,6 +70,7 @@ nenhum.
 | Variável | `folioteca-web-hml` |
 |---|---|
 | `VITE_API_URL` | `https://api-hml.folioteca.duckdns.org` |
+| `VITE_COOKIE_DOMAIN` | `folioteca.duckdns.org` |
 
 ### Site — `is_buildtime` **e** `is_runtime`
 
@@ -81,6 +82,19 @@ log.
 | Variável | `folioteca-site-hml` |
 |---|---|
 | `NEXT_PUBLIC_SITE_URL` | `https://site-hml.folioteca.duckdns.org` |
+| `NEXT_PUBLIC_APP_URL` | `https://hml.folioteca.duckdns.org` |
+| `NEXT_PUBLIC_COOKIE_DOMAIN` | `folioteca.duckdns.org` |
+
+O domínio do cookie é o **pai** dos dois apps, e por isso é o mesmo valor nas duas
+tabelas: é ele que faz a escolha de tema feita no hotsite valer na aplicação.
+Escrever ali o FQDN de um dos apps prende o cookie àquele subdomínio e a
+travessia deixa de acontecer, sem erro nenhum no console. `duckdns.org` é sufixo
+público — declarar o domínio sem o rótulo `folioteca` faz o navegador descartar o
+cookie em silêncio.
+
+`NEXT_PUBLIC_APP_URL` é o destino dos botões de entrar e criar conta do hotsite.
+Ausente, eles caem no padrão de desenvolvimento e apontam para `localhost:5173` no
+ambiente publicado.
 
 ### API — runtime, e duas derrubam o processo
 

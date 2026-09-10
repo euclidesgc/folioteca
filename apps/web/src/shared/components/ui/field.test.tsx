@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Field } from "./field";
 
 function CampoDeExemplo({ invalido = false }: { invalido?: boolean }) {
@@ -71,5 +72,90 @@ describe("Field", () => {
 
   it("throws when a part renders outside of Field.Root, instead of silently losing its wiring", () => {
     expect(() => render(<Field.Label>Solto</Field.Label>)).toThrow();
+  });
+});
+
+describe("Field.Password", () => {
+  function CampoDeSenha() {
+    return (
+      <Field.Root>
+        <Field.Label>Senha</Field.Label>
+        <Field.Password defaultValue="uma-senha-de-doze" />
+        <Field.Hint>De 12 a 128 caracteres</Field.Hint>
+      </Field.Root>
+    );
+  }
+
+  it("nasce oculto, e o gatilho oferece revelar", () => {
+    render(<CampoDeSenha />);
+    expect(screen.getByLabelText("Senha")).toHaveAttribute("type", "password");
+    expect(
+      screen.getByRole("button", { name: "Mostrar senha" }),
+    ).toBeInTheDocument();
+  });
+
+  it("revela o que foi digitado e passa a oferecer o caminho de volta", async () => {
+    const pessoa = userEvent.setup();
+    render(<CampoDeSenha />);
+
+    await pessoa.click(screen.getByRole("button", { name: "Mostrar senha" }));
+
+    expect(screen.getByLabelText("Senha")).toHaveAttribute("type", "text");
+    expect(screen.getByLabelText("Senha")).toHaveValue("uma-senha-de-doze");
+    expect(
+      screen.getByRole("button", { name: "Ocultar senha" }),
+    ).toBeInTheDocument();
+  });
+
+  it("volta a ocultar na segunda vez", async () => {
+    const pessoa = userEvent.setup();
+    render(<CampoDeSenha />);
+
+    await pessoa.click(screen.getByRole("button", { name: "Mostrar senha" }));
+    await pessoa.click(screen.getByRole("button", { name: "Ocultar senha" }));
+
+    expect(screen.getByLabelText("Senha")).toHaveAttribute("type", "password");
+  });
+
+  // O gatilho vive dentro de um <form>: botão sem `type` é submit por padrão, e
+  // olhar a senha enviaria o formulário. Se este caso quebrar, o formulário de
+  // entrada volta a enviar sozinho.
+  it("olhar a senha não envia o formulário que a contém", async () => {
+    const pessoa = userEvent.setup();
+    let enviou = false;
+    render(
+      <form
+        onSubmit={(evento) => {
+          evento.preventDefault();
+          enviou = true;
+        }}
+      >
+        <CampoDeSenha />
+      </form>,
+    );
+
+    await pessoa.click(screen.getByRole("button", { name: "Mostrar senha" }));
+
+    expect(enviou).toBe(false);
+  });
+
+  it("mantém a fiação de acessibilidade do campo, dica inclusive", () => {
+    render(<CampoDeSenha />);
+    expect(screen.getByLabelText("Senha")).toHaveAccessibleDescription(
+      "De 12 a 128 caracteres",
+    );
+  });
+
+  it("marca aria-invalid quando o campo está inválido", () => {
+    render(
+      <Field.Root invalid hasHint={false}>
+        <Field.Label>Senha</Field.Label>
+        <Field.Password />
+        <Field.Error>Informe sua senha.</Field.Error>
+      </Field.Root>,
+    );
+    const controle = screen.getByLabelText("Senha");
+    expect(controle).toHaveAttribute("aria-invalid", "true");
+    expect(controle).toHaveAccessibleDescription("Informe sua senha.");
   });
 });

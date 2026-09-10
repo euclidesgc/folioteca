@@ -30,6 +30,7 @@ WORKDIR /repo
 # cada commit.
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY packages/editor/package.json packages/editor/
+COPY packages/tema/package.json packages/tema/
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 COPY apps/site/package.json apps/site/
@@ -41,6 +42,13 @@ COPY apps/site/package.json apps/site/
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
 COPY . .
+
+# O cliente do Prisma é gerado a partir do schema e não é versionado — sem ele
+# os tipos não existem e o `nest build` reprova. O `rebuild` posiciona antes o
+# motor de consulta nativo, que o `--ignore-scripts` acima deixou de fora: a
+# regra vale para o Playwright, e o Prisma é a exceção nomeada em `allowBuilds`.
+RUN pnpm rebuild --filter api prisma @prisma/engines
+RUN pnpm --filter api run db:generate
 RUN pnpm --filter api run build
 
 # `pnpm deploy` monta em /app só o que a API precisa em produção, com as

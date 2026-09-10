@@ -79,7 +79,12 @@
   --curva-padrao: cubic-bezier(0.2, 0, 0.13, 1);
 }
 
-.tema-claro {
+/* decisão: o claro é incondicional, e não a face de um seletor de tema. Enquanto
+   estes tokens moraram dentro de um seletor aplicado por JavaScript, existia uma
+   janela — antes de o módulo executar — em que `--superficie` e `--texto` não
+   resolviam e a página nascia sem fundo. O hotsite nunca teve esse buraco porque
+   o bloco claro dele sempre foi :root. */
+:root {
   --color-papel: #f4f4f1;
   --color-tinta: #15191b;
   --color-grafite: #5a6165;
@@ -108,7 +113,34 @@
    7,00 contra 8,89; carimbo 7,02 contra 7,75. Herdar os valores do claro daria
    grafite a 2,81 e verdete a 1,81 sobre esta superfície, os dois abaixo do
    mínimo AA. */
-.tema-escuro {
+/* Os dois blocos abaixo repetem os mesmos valores de propósito, espelhando
+   `apps/site/src/styles/theme.css`: o primeiro atende quem nunca escolheu e tem
+   o sistema no escuro, o segundo atende a escolha explícita e precisa vencer
+   fora da consulta de mídia. CSS não permite fatorar os dois numa lista de
+   seletores, porque um deles vive dentro do @media. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) {
+    --color-papel: #14181a;
+    --color-tinta: #ebebe7;
+    --color-grafite: #8a9397;
+    --color-verdete: #48b3a0;
+    --color-carimbo: #e781ba;
+    --color-fio: #2b3235;
+
+    --superficie: var(--color-papel);
+    --texto: var(--color-tinta);
+    --texto-suave: var(--color-grafite);
+    --acao: var(--color-verdete);
+    --divisoria: var(--color-fio);
+    --lombada-canal: var(--color-verdete);
+    --lombada-pessoa: var(--color-carimbo);
+    --lombada-privado: var(--color-grafite);
+
+    color-scheme: dark;
+  }
+}
+
+:root[data-tema="escuro"] {
   --color-papel: #14181a;
   --color-tinta: #ebebe7;
   --color-grafite: #8a9397;

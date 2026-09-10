@@ -142,6 +142,35 @@ jobs:
     if: needs.guarda.outputs.pronto == 'true'
     name: Critérios comportamentais
     runs-on: ${{ inputs.runner }}
+    # A API valida a configuração no boot e conecta ao Postgres em `onModuleInit`:
+    # sem banco de pé ela não sobe, o `webServer` do Playwright estoura no
+    # `/health` e NENHUM caso roda — o job reprova dizendo que o navegador não
+    # encontrou a aplicação, que é o lugar errado.
+    #
+    # As portas do hospedeiro são sorteadas, e não escritas: os runners desta
+    # casa são processos da MESMA máquina, e porta fixa faz o segundo job morrer
+    # em `port is already allocated` antes do primeiro passo. O endereço sorteado
+    # é lido de `job.services` num passo, porque esse contexto não resolve no
+    # `env:` do job.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: folioteca
+          POSTGRES_PASSWORD: senha
+          POSTGRES_DB: folioteca
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U folioteca -d folioteca"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+      mailpit:
+        image: axllent/mailpit:v1.21
+        ports:
+          - 1025/tcp
+          - 8025/tcp
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       # `dest` fora do HOME, e isto não é preferência: os runners desta casa são
@@ -167,6 +196,27 @@ jobs:
         run: |
           source scripts/gates/medir.sh
           exige_pacote_pnpm web "o pacote da web"
+
+      # O endereço dos serviços só existe depois que o runner os sobe, e o
+      # contexto `job` não resolve no `env:` do job — daí a travessia por
+      # GITHUB_ENV, que é o que leva o valor aos passos seguintes e ao
+      # `playwright.config.ts`.
+      - name: Endereço dos serviços
+        run: |
+          echo "DATABASE_URL=postgresql://folioteca:senha@localhost:${{ job.services.postgres.ports['5432'] }}/folioteca" >> "$GITHUB_ENV"
+          echo "SMTP_PORT=${{ job.services.mailpit.ports['1025'] }}" >> "$GITHUB_ENV"
+          echo "MAILPIT_HTTP_PORT=${{ job.services.mailpit.ports['8025'] }}" >> "$GITHUB_ENV"
+
+      # O cliente do Prisma é gerado, não versionado: sem este passo os tipos
+      # dele não existem, a API não compila e o `webServer` do Playwright morre
+      # dizendo que o servidor não subiu — de novo, longe da causa.
+      #
+      # O esquema entra por migration versionada, nunca por `db push`: o banco
+      # que a suíte mede é o mesmo que a produção terá.
+      - name: Cliente e esquema do banco
+        run: |
+          pnpm --filter api run db:generate
+          pnpm --filter api run db:migrate
 
       - name: Navegador
         # `--with-deps` chama `sudo apt-get` para as bibliotecas de sistema do
