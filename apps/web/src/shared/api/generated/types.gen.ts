@@ -20,3 +20,68 @@ export type GetHealthResponses = {
 };
 
 export type GetHealthResponse = GetHealthResponses[keyof GetHealthResponses];
+
+export type GetReadinessData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/health/ready';
+};
+
+export type GetReadinessErrors = {
+    /**
+     * The Health Check is not successful
+     */
+    503: {
+        status?: string;
+        info?: {
+            [key: string]: {
+                status: string;
+                [key: string]: unknown;
+            };
+        } | null;
+        error?: {
+            [key: string]: {
+                status: string;
+                [key: string]: unknown;
+            };
+        } | null;
+        details?: {
+            [key: string]: {
+                status: string;
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type GetReadinessError = GetReadinessErrors[keyof GetReadinessErrors];
+
+export type GetReadinessResponses = {
+    /**
+     * The Health Check is successful
+     */
+    200: {
+        status?: string;
+        info?: {
+            [key: string]: {
+                status: string;
+                [key: string]: unknown;
+            };
+        } | null;
+        error?: {
+            [key: string]: {
+                status: string;
+                [key: string]: unknown;
+            };
+        } | null;
+        details?: {
+            [key: string]: {
+                status: string;
+                [key: string]: unknown;
+            };
+        };
+    };
+};
+
+export type GetReadinessResponse = GetReadinessResponses[keyof GetReadinessResponses];

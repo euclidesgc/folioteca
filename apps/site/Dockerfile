@@ -9,14 +9,6 @@
 # `apps/site` participa do workspace pnpm. Com o contexto em `apps/site`, o
 # `pnpm install` não enxerga os pacotes irmãos. No Coolify isto aparece como
 # `base_directory: /` mais `dockerfile_location: /apps/site/Dockerfile`.
-#
-# ## `NEXT_PUBLIC_SITE_URL` é de BUILD, e o sintoma de errar isso é silencioso
-#
-# Ela alimenta `metadataBase`, `openGraph` e o canonical, que o Next resolve ao
-# gerar as páginas. Fornecida só no runtime, ela chega `undefined` e o defeito
-# aparece na prévia do link compartilhado — longe da causa, e sem erro nenhum no
-# log. Por isso é `ARG` aqui, e precisa estar marcada como *build variable* no
-# painel.
 
 FROM node:24.13-alpine AS build
 
@@ -36,8 +28,6 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 
 COPY . .
 
-ARG NEXT_PUBLIC_SITE_URL
-ENV NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
 ARG NEXT_PUBLIC_APP_URL
 ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
 ARG NEXT_PUBLIC_COOKIE_DOMAIN

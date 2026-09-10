@@ -1669,6 +1669,21 @@ revoga o acesso que vinha dele, e a concessão individual sobrevive" diz.
 O que precisa de decisão do dono antes de virar spec. Não é fase, não é item, e
 não bloqueia trabalho que não dependa dela.
 
+- **O hotsite não tem endereço canônico nem prévia de link.** O `metadata` de
+  `apps/site/src/app/layout.tsx` declara título, descrição e ícones, e para aí:
+  não há `metadataBase`, `openGraph` nem canonical. Sem eles, o link do hotsite
+  colado no WhatsApp, no LinkedIn ou no Slack aparece sem imagem e sem resumo, e
+  o buscador trata cada endereço que chega ao mesmo conteúdo como página
+  distinta. Implementar exige o endereço público do hotsite no build — Next
+  resolve `metadataBase` ao gerar a página, e fornecido só no runtime ele chega
+  `undefined`, com o defeito aparecendo na prévia do link, longe da causa.
+  **A decisão é sua:** que imagem representa a Folioteca na prévia, e se o
+  canonical aponta para o domínio próprio ou para o `duckdns` de hoje.
+  **Origem:** limpeza das variáveis de ambiente, 10/09/2026 — a
+  `NEXT_PUBLIC_SITE_URL` existia no `.env.example` e no Dockerfile do hotsite
+  para este fim, sem nenhuma linha de código que a lesse; saiu dos dois, e a
+  intenção ficou aqui.
+
 - **Dois cabeçalhos do `apps/web` não têm onde morar enquanto não houver host.**
   `apps/web` é uma SPA estática e não tem servidor de produção: os dois que
   existem são o de desenvolvimento e o de pré-visualização do Vite. O item `023`
