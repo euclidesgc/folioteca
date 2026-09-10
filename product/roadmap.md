@@ -849,7 +849,25 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       o que falta é o requisito que elas cobrem.
       **Não vale para o hotsite:** `RF-24.1` também nomeia `frame-ancestors`, e
       ali está certo — `apps/site` entrega a política por cabeçalho HTTP no
-      middleware, onde a diretiva tem efeito.
+      proxy, onde a diretiva tem efeito.
+
+- [ ] `086-rf-08-1-volta-a-nomear-o-arquivo-que-emite-a-politica-do-hotsite` — o
+      requisito escrito e o arquivo que emite a política do hotsite dizem o mesmo
+      nome
+      **Depende de:** `030-o-hotsite-emite-a-politica-pela-convencao-atual` — é a
+      troca dele que abre a distância.
+      **Origem:** fechamento de `030`, 10/09/2026. `RF-08.1` da spec de
+      `023-endurecimento-antes-da-sessao` diz que a política sai de
+      `apps/site/src/middleware.ts`, exportando `middleware`, e o critério
+      estrutural da fase 2 em `03-plan.md` mede o mesmo caminho. O arquivo passa a
+      ser `apps/site/src/proxy.ts`, exportando `proxy`, porque o Next 16 marca a
+      convenção antiga como obsoleta e avisa a cada build. A spec é documento
+      aprovado e o guard recusa edição direta: a correção passa por divergência
+      registrada e ratificação humana, não por edição.
+      Fechar é `RF-08.1` nomear `apps/site/src/proxy.ts` e a função `proxy`. O que
+      o requisito protege não muda — nonce por requisição, política gravada no
+      cabeçalho de requisição e no de resposta —, e
+      `apps/site/scripts/verificar-politica.sh` já exige o caminho novo.
 
 - [ ] `067-a-violacao-de-acessibilidade-e-pega-na-escrita-e-nao-so-depois-de-renderizar` —
       quem escreve um componente descobre a violação no editor, e não no relatório
@@ -1308,7 +1326,7 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       delas está num plano aprovado que não se edita fora de janela de exceção,
       e apontar para fora do repositório deixa a norma dependente de um plugin.
 
-- [ ] `030-o-hotsite-emite-a-politica-pela-convencao-atual` — o nonce e a
+- [x] `030-o-hotsite-emite-a-politica-pela-convencao-atual` — o nonce e a
       política do hotsite saem do arquivo que o Next 16 prescreve, e o build
       para de avisar que a convenção usada está a caminho da remoção
       **Depende de:** `023-endurecimento-antes-da-sessao` — é a fase 2 dele que
@@ -1321,6 +1339,11 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       pelo documento aprovado seria mudar por baixo o que o portão verifica. A
       troca é mecânica — mesma função, mesmo cabeçalho de requisição, mesmo
       `matcher` —, e o que ela custa é reconciliar RF-08.1 e o critério.
+      **Fechado em 10/09/2026.** A política sai de `apps/site/src/proxy.ts`, que
+      exporta `proxy`, e `verificar-politica.sh producao` mede o que media antes:
+      as nove diretivas, nonce distinto a cada resposta e estampado nos `<script>`
+      do corpo. RF-08.1 continua nomeando `middleware.ts` — a spec é aprovada e
+      não se edita direto —, e a reconciliação é o item `086`.
 
 - [ ] `031-o-dev-do-hotsite-nao-afoga-o-console` — quem roda `next dev` no
       hotsite encontra o console limpo e as devtools do Next com estilo, sem que
@@ -1367,7 +1390,7 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       portão por arquivo — `script` mais `applies_to` de globs —, então
       `apps/site/scripts/verificar-politica.sh`, que sobe o hotsite e mede a
       resposta HTTP, roda apenas em `.github/workflows/ci-site.yml`. Quem
-      trabalha localmente altera `middleware.ts`, roda o comando que a regra 19
+      trabalha localmente altera `proxy.ts`, roda o comando que a regra 19
       chama de canônico, lê `gates: limpos` e só descobre a quebra no CI. No
       mesmo item cabe a segunda metade: `semgrep` não faz o parse de nenhum `.sh`
       deste repositório — a camada dos portões é a única sem ferramenta que a
