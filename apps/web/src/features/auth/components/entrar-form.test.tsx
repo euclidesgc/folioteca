@@ -5,6 +5,8 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import {
+  confirmacaoComFalhaDeRede,
+  confirmacaoReenviada,
   entrarComCredencialInvalida,
   entrarComEnderecoNaoConfirmado,
   entrarComFalhaDeRede,
@@ -149,5 +151,81 @@ describe("EntrarForm — bordas", () => {
     await pessoa.click(screen.getByRole("button", { name: "Entrar" }));
 
     expect(await screen.findByText("Informe sua senha.")).toBeInTheDocument();
+  });
+});
+
+describe("EntrarForm — reenvio da confirmação", () => {
+  it("oferece reenviar só quando o endereço está pendente de confirmação", async () => {
+    server.use(entrarComCredencialInvalida);
+    renderEntrarForm();
+
+    await preencherEEnviar("maria@acme.com", "senha-errada-longa");
+
+    await screen.findByRole("alert");
+    expect(
+      screen.queryByRole("button", { name: "Reenviar e-mail de confirmação" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("reenvia para o endereço que o servidor recusou, aparado e em minúsculas", async () => {
+    let corpoEnviado: unknown = null;
+    server.use(
+      entrarComEnderecoNaoConfirmado,
+      http.post("*/api/auth/send-verification-email", async ({ request }) => {
+        corpoEnviado = await request.json();
+        return HttpResponse.json({ status: true });
+      }),
+    );
+    renderEntrarForm();
+    await preencherEEnviar("  MARIA@ACME.COM  ", "uma-senha-qualquer");
+
+    const pessoa = userEvent.setup();
+    await pessoa.click(
+      await screen.findByRole("button", {
+        name: "Reenviar e-mail de confirmação",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(corpoEnviado).toMatchObject({ email: "maria@acme.com" }),
+    );
+  });
+
+  it("confirma o reenvio na própria tela, sem tirar a pessoa daqui", async () => {
+    server.use(entrarComEnderecoNaoConfirmado, confirmacaoReenviada);
+    renderEntrarForm();
+    await preencherEEnviar("maria@acme.com", "uma-senha-qualquer");
+
+    const pessoa = userEvent.setup();
+    await pessoa.click(
+      await screen.findByRole("button", {
+        name: "Reenviar e-mail de confirmação",
+      }),
+    );
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Enviamos de novo.",
+    );
+  });
+
+  it("falha no reenvio não se disfarça de sucesso", async () => {
+    server.use(entrarComEnderecoNaoConfirmado, confirmacaoComFalhaDeRede);
+    renderEntrarForm();
+    await preencherEEnviar("maria@acme.com", "uma-senha-qualquer");
+
+    const pessoa = userEvent.setup();
+    await pessoa.click(
+      await screen.findByRole("button", {
+        name: "Reenviar e-mail de confirmação",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole("alert").some((no) =>
+          no.textContent?.includes("Não conseguimos reenviar agora."),
+        ),
+      ).toBe(true),
+    );
   });
 });

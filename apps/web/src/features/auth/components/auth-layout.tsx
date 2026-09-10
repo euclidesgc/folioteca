@@ -9,7 +9,7 @@ export function AuthLayout({
 }: {
   titulo: string;
   descricao: string;
-  children: ReactNode;
+  children?: ReactNode;
   rodape?: ReactNode;
 }): ReactElement {
   return (
@@ -28,7 +28,7 @@ export function AuthLayout({
           {titulo}
         </h1>
         <p className="mt-2 text-sm text-grafite">{descricao}</p>
-        <div className="mt-8">{children}</div>
+        {children ? <div className="mt-8">{children}</div> : null}
         {rodape ? (
           <div className="mt-6 text-sm text-grafite">{rodape}</div>
         ) : null}

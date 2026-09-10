@@ -6,6 +6,7 @@ import { z } from "zod";
 import { Button } from "@/shared/components/ui/button";
 import { Field } from "@/shared/components/ui/field";
 import { signIn } from "../api/auth-client";
+import { ReenviarConfirmacao } from "./reenviar-confirmacao";
 
 const esquema = z.object({
   email: z
@@ -28,6 +29,12 @@ export function EntrarForm(): ReactElement {
   const destino =
     (location.state as { de?: string } | null)?.de ?? "/documentos";
   const [falha, setFalha] = useState<string | null>(null);
+  // motivo: guarda o endereço aparado que o servidor recusou por falta de
+  // confirmação. É ele que o reenvio usa — e não o que está no campo, que a
+  // pessoa pode ter continuado editando depois da recusa.
+  const [aguardandoConfirmacao, setAguardandoConfirmacao] = useState<
+    string | null
+  >(null);
   const {
     register,
     handleSubmit,
@@ -39,17 +46,19 @@ export function EntrarForm(): ReactElement {
 
   async function aoEnviar(valores: Entrada): Promise<void> {
     setFalha(null);
+    setAguardandoConfirmacao(null);
+    const { email, password } = esquema.parse(valores);
     // motivo: o cliente devolve o erro do servidor em `error`, mas LANÇA quando
     // a requisição nem chega a sair — rede caída, servidor fora do ar. Sem este
     // laço, esse caso vira promessa rejeitada sem tratamento e o formulário fica
     // mudo, com a pessoa olhando para um botão que não responde.
     try {
-      const { error } = await signIn.email({
-        email: valores.email,
-        password: valores.password,
-      });
+      const { error } = await signIn.email({ email, password });
       if (error) {
         setFalha(MENSAGEM_POR_CODIGO[error.code ?? ""] ?? FALHA_GENERICA);
+        if (error.code === "EMAIL_NOT_VERIFIED") {
+          setAguardandoConfirmacao(email);
+        }
         return;
       }
     } catch {
@@ -72,6 +81,10 @@ export function EntrarForm(): ReactElement {
         >
           {falha}
         </p>
+      ) : null}
+
+      {aguardandoConfirmacao ? (
+        <ReenviarConfirmacao email={aguardandoConfirmacao} />
       ) : null}
 
       <Field.Root invalid={Boolean(errors.email)} hasHint={false}>

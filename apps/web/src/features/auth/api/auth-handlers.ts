@@ -73,3 +73,36 @@ export const cadastroAceito = http.post("*/auth/register", () =>
 export const cadastroFreado = http.post("*/auth/register", () =>
   HttpResponse.json({ message: "Too many requests" }, { status: 429 }),
 );
+
+export const recuperacaoAceita = http.post(
+  "*/api/auth/request-password-reset",
+  () => HttpResponse.json({ status: true }),
+);
+
+export const recuperacaoComFalhaDeRede = http.post(
+  "*/api/auth/request-password-reset",
+  () => HttpResponse.error(),
+);
+
+export const senhaTrocada = http.post("*/api/auth/reset-password", () =>
+  HttpResponse.json({ status: true }),
+);
+
+export const senhaComTokenInvalido = http.post(
+  "*/api/auth/reset-password",
+  () =>
+    HttpResponse.json(
+      { message: "invalid token", code: "INVALID_TOKEN" },
+      { status: 400 },
+    ),
+);
+
+export const confirmacaoReenviada = http.post(
+  "*/api/auth/send-verification-email",
+  () => HttpResponse.json({ status: true }),
+);
+
+export const confirmacaoComFalhaDeRede = http.post(
+  "*/api/auth/send-verification-email",
+  () => HttpResponse.error(),
+);
