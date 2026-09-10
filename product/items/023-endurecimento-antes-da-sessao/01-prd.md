@@ -81,7 +81,7 @@ O hotsite entrega os cinco em toda resposta, porque é Next renderizado no
 servidor. `X-Content-Type-Options: nosniff`, `Referrer-Policy:
 strict-origin-when-cross-origin`, `X-Frame-Options: DENY` e
 `Permissions-Policy` são constantes e saem de `headers()` em `next.config.ts`.
-`Content-Security-Policy` sai de `middleware.ts`, com um nonce gerado a cada
+`Content-Security-Policy` sai de `proxy.ts`, com um nonce gerado a cada
 requisição: o HTML que o App Router serve carrega um script embutido — o
 payload de streaming pelo qual a página hidrata —, e uma política declarada em
 `headers()` grava a mesma string em toda resposta, incapaz de autorizar um
@@ -111,17 +111,18 @@ escritos à mão porque o conjunto correto muda com o tempo e alguém precisa
 acompanhá-lo; escrevê-lo à mão é assumir esse acompanhamento sem ninguém
 designado.
 
-> Reconciliado em D-001.
+> Reconciliado em D-001, D-013.
 
 ### A política de conteúdo do app nomeia a origem da API
 
+> Reconciliado em D-014.
+
 A política é `default-src 'self'`; `script-src 'self'`; `style-src 'self'`;
 `img-src 'self' data:`; `connect-src 'self' <VITE_API_URL>`; `object-src 'none'`;
-`base-uri 'self'`; `form-action 'self'`; `frame-ancestors 'none'` (D2). O
-`connect-src` é derivado de `VITE_API_URL` no instante do build, e não escrito à
-mão num segundo lugar que passa a divergir. `'unsafe-inline'` e `'unsafe-eval'`
-ficam fora: com eles, a política deixa de impedir a classe de ataque que a
-justifica.
+`base-uri 'self'`; `form-action 'self'` (D2, D-014). O `connect-src` é derivado
+de `VITE_API_URL` no instante do build, e não escrito à mão num segundo lugar
+que passa a divergir. `'unsafe-inline'` e `'unsafe-eval'` ficam fora: com eles,
+a política deixa de impedir a classe de ataque que a justifica.
 
 A meta existe no artefato de build e não no que `vite dev` serve. A política de
 produção proíbe o script embutido de que o recarregamento a quente do Vite
@@ -181,8 +182,8 @@ vez de aplicá-lo pela metade.
 | Assunto | Regra do discovery | Decisões |
 |---|---|---|
 | Origem autorizada em lista | R1 | D3 |
-| Cabeçalhos nas frentes de navegador e na API | R2 | D1, D-001 |
-| Política de conteúdo derivada de `VITE_API_URL` | R3 | D1, D2, D9 |
+| Cabeçalhos nas frentes de navegador e na API | R2 | D1, D-001, D-013 |
+| Política de conteúdo derivada de `VITE_API_URL` | R3 | D1, D2, D9, D-014 |
 | Portão de segredo sobre fontes e artefatos | R4 | D6, D7, D8, D12 |
 | Quarentena de dependência | R5 | D4 |
 | Ações do CI em SHA, com rotina de atualização | R6 | D5 |

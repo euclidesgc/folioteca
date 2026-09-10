@@ -5,7 +5,7 @@
 - **PRD:** `01-prd.md`
 - **Discovery:** `00-discovery.md` (regras R1 a R6)
 - **Divergência ratificada:** `04-divergencias/D-001.md` — a política de conteúdo
-  do hotsite sai de `middleware.ts` com nonce por requisição, e não de
+  do hotsite sai de `proxy.ts` com nonce por requisição, e não de
   `headers()`
 - **Stacks tocadas:** api (`apps/api`, nestjs), web (`apps/web`, react),
   site (`apps/site`, sem pack), raiz do workspace e os cinco fluxos de CI
@@ -180,12 +180,14 @@ servidor. RF-07.4 traça a fronteira no artefato: nenhum desses quatro
 cabeçalhos vale em `<meta>`, e quem os emite para o `dist/` em produção é o
 host, que este item não escolhe.
 
-#### RF-08 · A política de conteúdo do hotsite sai do middleware, com nonce
+#### RF-08 · A política de conteúdo do hotsite sai do proxy, com nonce
+
+> Reconciliado em D-013.
 
 **RF-08.1** — *ubíquo*
 
 O hotsite deve emitir `Content-Security-Policy` a partir de
-`apps/site/src/middleware.ts`.
+`apps/site/src/proxy.ts`.
 
 **RF-08.2** — *ubíquo*
 
@@ -272,9 +274,11 @@ hotsite, no mesmo item, o escape recusado no app é a incoerência que a opção
 
 #### RF-25 · O custo do nonce é visível na saída do build
 
+> Reconciliado em D-013.
+
 **RF-25.1** — *ubíquo*
 
-As rotas do hotsite atendidas pelo middleware da política devem ser
+As rotas do hotsite atendidas pelo proxy da política devem ser
 classificadas como dinâmicas na saída de `pnpm --filter site build`, e não como
 estáticas.
 
@@ -302,14 +306,16 @@ Enquanto o app é servido por `vite dev`, o HTML entregue não deve conter a tag
 que o recarregamento a quente do Vite depende, e uma meta válida nos dois
 lugares seria uma política frouxa nos dois (D1).
 
-#### RF-11 · As nove diretivas, sem escape
+#### RF-11 · As oito diretivas, sem escape
+
+> Reconciliado em D-014.
 
 **RF-11.1** — *ubíquo*
 
-A política do app deve conter exatamente estas nove diretivas: `default-src
+A política do app deve conter exatamente estas oito diretivas: `default-src
 'self'`; `script-src 'self'`; `style-src 'self'`; `img-src 'self' data:`;
 `connect-src 'self' <VITE_API_URL>`; `object-src 'none'`; `base-uri 'self'`;
-`form-action 'self'`; `frame-ancestors 'none'`.
+`form-action 'self'`.
 
 **RF-11.2** — *ubíquo*
 
@@ -319,8 +325,20 @@ A política do app não deve conter `'unsafe-inline'` em nenhuma diretiva.
 
 A política do app não deve conter `'unsafe-eval'` em nenhuma diretiva.
 
+**RF-11.4** — *ubíquo*
+
+A política do app não deve conter `frame-ancestors`.
+
+**RF-11.5** — *ubíquo*
+
+O servidor que serve o app deve responder com `X-Frame-Options: DENY` no
+cabeçalho HTTP.
+
 **Exemplo de origem:** D2 e E2.4 — com qualquer um dos dois escapes, a política
-deixa de impedir a classe de ataque que a justifica.
+deixa de impedir a classe de ataque que a justifica. RF-11.4 e RF-11.5 são
+D-014: entregue por `<meta>`, `frame-ancestors` é ignorado pelo navegador, que
+registra um erro de console em toda carga; quem barra enquadramento é
+`X-Frame-Options: DENY`, e sem o requisito a diretiva inerte volta à política.
 
 #### RF-12 · O `connect-src` é derivado de `VITE_API_URL` no instante do build
 
@@ -690,13 +708,13 @@ divergência de contrato e para o trabalho.
 | RF-05 | RF-05.1 | ubíquo | R2 (E2.1, D-001) |
 | RF-06 | RF-06.1, RF-06.2, RF-06.3 | estado, indesejado, ubíquo | R2 |
 | RF-07 | RF-07.1, RF-07.2, RF-07.3, RF-07.4 | ubíquo, ubíquo, ubíquo, ubíquo | R2 (D1) |
-| RF-08 | RF-08.1, RF-08.2, RF-08.3 | ubíquo, ubíquo, ubíquo | R2 (D9, D-001) |
+| RF-08 | RF-08.1, RF-08.2, RF-08.3 | ubíquo, ubíquo, ubíquo | R2 (D9, D-001, D-013) |
 | RF-09 | RF-09.1, RF-09.2, RF-09.3, RF-09.4 | ubíquo, ubíquo, ubíquo, ubíquo | R2 (E2.2) |
 | RF-23 | RF-23.1, RF-23.2, RF-23.3 | evento, ubíquo, indesejado | R2 (D-001) |
 | RF-24 | RF-24.1, RF-24.2, RF-24.3 | ubíquo, ubíquo, ubíquo | R2 (D2, D9, D-001) |
-| RF-25 | RF-25.1 | ubíquo | R2 (D-001) |
+| RF-25 | RF-25.1 | ubíquo | R2 (D-001, D-013) |
 | RF-10 | RF-10.1, RF-10.2 | evento, estado | R3 (E2.3, D1) |
-| RF-11 | RF-11.1, RF-11.2, RF-11.3 | ubíquo, ubíquo, ubíquo | R3 (E2.4, D2) |
+| RF-11 | RF-11.1, RF-11.2, RF-11.3, RF-11.4, RF-11.5 | ubíquo, ubíquo, ubíquo, ubíquo, ubíquo | R3 (E2.4, D2, D-014) |
 | RF-12 | RF-12.1, RF-12.2, RF-12.3, RF-12.4 | evento, evento, indesejado, indesejado | R3 (E3.1, E3.2, D-007) |
 | RF-13 | RF-13.1, RF-13.2, RF-13.3 | ubíquo, ubíquo, ubíquo | R4 (D6, D8) |
 | RF-14 | RF-14.1, RF-14.2 | evento, evento | R4 (E4.1) |
