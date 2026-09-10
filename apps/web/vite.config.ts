@@ -2,7 +2,9 @@ import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import type { Plugin } from "vite";
-import { validateApiUrlForBuild } from "./src/shared/config/build-api-url";
+// motivo: com a extensão escrita, o carregador nativo de configuração do Vite —
+// que vai virar o padrão — resolve o arquivo; sem ela, toda subida avisa.
+import { validateApiUrlForBuild } from "./src/shared/config/build-api-url.ts";
 
 // decisão: sem HSTS — os dois servidores deste arquivo respondem em http
 // local, e a HSTS emitida em localhost fixa no navegador de quem desenvolve
@@ -121,6 +123,36 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": new URL("./src", import.meta.url).pathname,
+    },
+  },
+  // decisão: sem entrada declarada, o scanner de dependências rastreia todo
+  // .html da raiz — inclusive o relatório do Playwright, que não é aplicação.
+  optimizeDeps: {
+    entries: ["index.html"],
+  },
+  build: {
+    rolldownOptions: {
+      output: {
+        // decisão: as bibliotecas saem em pedaços por família. Junto com o
+        // código da aplicação, eram um arquivo só acima de 500 kB cujo hash
+        // mudava a cada deploy e descartava o cache de quem volta; separadas,
+        // cada família só muda quando a própria dependência muda.
+        codeSplitting: {
+          groups: [
+            {
+              name: "react",
+              test: /[\\/]node_modules[\\/](react|react-dom|scheduler|react-router)[\\/]/,
+              priority: 3,
+            },
+            {
+              name: "ark",
+              test: /[\\/]node_modules[\\/](@ark-ui|@zag-js)[\\/]/,
+              priority: 2,
+            },
+            { name: "vendor", test: /[\\/]node_modules[\\/]/, priority: 1 },
+          ],
+        },
+      },
     },
   },
   test: {
