@@ -257,6 +257,19 @@ test("a mensagem de erro tem marca e texto além da borda", async ({ page }) => 
   expect(corInvalida).not.toBe(corRepouso);
 });
 
+test("o olho revela a senha com o cursor no campo", async ({ page }) => {
+  await page.goto("/design");
+  const campo = page.getByLabel("Senha", { exact: true });
+
+  await campo.click();
+  await page.getByRole("button", { name: "Mostrar senha" }).click();
+
+  await expect(campo).toHaveAttribute("type", "text");
+  await expect(
+    page.getByRole("button", { name: "Ocultar senha" }),
+  ).toBeVisible();
+});
+
 test("o filete e a etiqueta dizem de onde vem o acesso", async ({ page }) => {
   await page.goto("/design");
 
