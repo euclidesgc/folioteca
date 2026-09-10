@@ -123,7 +123,11 @@ function Password({
   const acao = visivel ? "Ocultar senha" : "Mostrar senha";
 
   return (
-    <div className="relative flex">
+    // motivo: o `:focus-visible` global sobe o elemento focado para a camada 1,
+    // e o campo, item de flex, passava por cima do olho — com o cursor no campo,
+    // o clique no botão caía no campo. A pilha é local, por `isolate`, para o
+    // olho não furar o fundo do diálogo nem o cabeçalho.
+    <div className="relative isolate flex">
       <input
         id={controlId}
         type={visivel ? "text" : "password"}
@@ -142,7 +146,7 @@ function Password({
         type="button"
         onClick={() => setVisivel((atual) => !atual)}
         aria-controls={controlId}
-        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-padrao text-grafite transition-colors duration-[var(--duracao-rapida)] ease-[var(--curva-padrao)] hover:text-tinta"
+        className="absolute inset-y-0 right-0 z-10 flex w-10 items-center justify-center rounded-padrao text-grafite transition-colors duration-[var(--duracao-rapida)] ease-[var(--curva-padrao)] hover:text-tinta"
       >
         <span className="sr-only">{acao}</span>
         <Olho cortado={visivel} />
