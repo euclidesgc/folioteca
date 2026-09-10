@@ -363,14 +363,22 @@ function CampoDeExemplo() {
         <Token nome="border-carimbo (erro de validação)" />
       </div>
 
-      <div className="flex max-w-sm flex-col gap-2">
+      {/* motivo: campo de senha fora de <form> é acusado pelo Chrome no console
+          a cada carga. O formulário não envia nada e o campo não guarda
+          credencial — por isso `off`, e não um papel que o gerenciador de senhas
+          tentaria preencher. Sem valor de exemplo: o detector de segredos do PR
+          lê texto fixo em campo de senha como senha vazada e reprova. */}
+      <form
+        className="flex max-w-sm flex-col gap-2"
+        onSubmit={(evento) => evento.preventDefault()}
+      >
         <Field.Root>
           <Field.Label>Senha</Field.Label>
-          <Field.Password defaultValue="uma-frase-que-so-voce-sabe" />
+          <Field.Password autoComplete="off" />
           <Field.Hint>O olho ao lado revela o que foi digitado</Field.Hint>
         </Field.Root>
         <Token nome="pr-11 (vaga do gatilho dentro do campo)" />
-      </div>
+      </form>
 
       <div className="flex max-w-sm flex-col gap-2">
         <Field.Root invalid hasHint={false}>
