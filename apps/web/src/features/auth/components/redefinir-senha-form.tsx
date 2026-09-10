@@ -112,6 +112,20 @@ export function RedefinirSenhaForm(): ReactElement {
         </p>
       ) : null}
 
+      {/* motivo: o gerenciador de senhas do navegador precisa de um campo de
+          usuário no formulário para saber a qual conta a senha nova pertence;
+          sem ele o Chrome avisa no console e a senha é guardada solta. O
+          endereço não está nesta tela — quem chega aqui traz um token, não uma
+          sessão —, então o campo existe vazio: dá a estrutura que o navegador
+          procura sem inventar um valor nem expor o endereço na URL. */}
+      <input
+        type="text"
+        name="username"
+        autoComplete="username"
+        hidden
+        readOnly
+      />
+
       <Field.Root invalid={Boolean(errors.password)}>
         <Field.Label>Senha nova</Field.Label>
         <Field.Password autoComplete="new-password" {...register("password")} />

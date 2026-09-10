@@ -207,16 +207,12 @@ jobs:
           echo "SMTP_PORT=${{ job.services.mailpit.ports['1025'] }}" >> "$GITHUB_ENV"
           echo "MAILPIT_HTTP_PORT=${{ job.services.mailpit.ports['8025'] }}" >> "$GITHUB_ENV"
 
-      # O cliente do Prisma é gerado, não versionado: sem este passo os tipos
-      # dele não existem, a API não compila e o `webServer` do Playwright morre
-      # dizendo que o servidor não subiu — de novo, longe da causa.
-      #
       # O esquema entra por migration versionada, nunca por `db push`: o banco
-      # que a suíte mede é o mesmo que a produção terá.
-      - name: Cliente e esquema do banco
-        run: |
-          pnpm --filter api run db:generate
-          pnpm --filter api run db:migrate
+      # que a suíte mede é o mesmo que a produção terá. O cliente do Prisma não
+      # aparece aqui porque nasce do `postinstall` da API, junto com as
+      # dependências que o passo anterior instalou.
+      - name: Esquema do banco
+        run: pnpm --filter api run db:migrate
 
       - name: Navegador
         # `--with-deps` chama `sudo apt-get` para as bibliotecas de sistema do
