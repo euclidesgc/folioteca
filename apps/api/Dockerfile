@@ -56,6 +56,16 @@ RUN pnpm --filter api run build
 # dependências do workspace já resolvidas para dentro.
 RUN pnpm deploy --filter=api --prod --legacy /app
 
+# O cliente gerado no estágio de build não sobrevive ao `pnpm deploy`: ele é
+# escrito dentro do diretório do `@prisma/client` no store do pnpm, não faz parte
+# do pacote publicado, e a árvore de /app é remontada a partir do store. Só
+# gerando de novo contra /app o cliente fica ao lado do `@prisma/client` que o
+# processo resolve, com acesso às dependências internas do pacote — fora dali a
+# resolução do Node não as enxerga.
+RUN cp -r /repo/apps/api/prisma /app/prisma \
+ && cd /app \
+ && node_modules/.bin/prisma generate
+
 FROM node:24.13-alpine AS runtime
 
 # `tini` como PID 1: sem ele o Node não recebe SIGTERM direito e o contêiner
@@ -67,8 +77,18 @@ WORKDIR /app
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /repo/apps/api/dist ./dist
 
+# O schema e as migrations viajam na imagem porque é o próprio contêiner que
+# aplica a migration ao subir: o banco não é alcançável de fora do servidor, e a
+# API não tem outro momento em que o esquema possa evoluir junto com o código.
+COPY --from=build --chown=node:node /app/prisma ./prisma
+COPY --from=build --chown=node:node /app/prisma.config.ts ./prisma.config.ts
+
 ENV NODE_ENV=production
 EXPOSE 3000
 
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node", "dist/main.js"]
+# A migration antes do processo, e `exec` para que o Node herde o PID do shell e
+# receba o SIGTERM. Migration reprovada derruba o boot de propósito: o
+# healthcheck falha, o Coolify volta ao contêiner anterior, e o esquema errado
+# não chega a atender requisição.
+CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && exec node dist/main.js"]
