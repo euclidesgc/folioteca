@@ -215,6 +215,12 @@ jobs:
           fi
           echo "medido: o banco responde em localhost:$porta"
           echo "DATABASE_URL=postgresql://folioteca:${{ github.run_id }}-${{ github.run_attempt }}@localhost:$porta/folioteca" >> "$GITHUB_ENV"
+          # A chave de sessão é exigida pelo schema em todo ambiente, e sem ela
+          # a aplicação nem monta: a suíte inteira morre em "Config validation
+          # error", que não tem relação com o que ela mede. Nasce por execução e
+          # morre com o job — valor fixo aqui seria segredo versionado, e o
+          # mesmo valor entre execuções daria a duas medições a mesma assinatura.
+          echo "BETTER_AUTH_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
       # `dest` fora do HOME, e isto não é preferência: os runners desta casa são
       # quatro processos na MESMA máquina, com o MESMO `$HOME`. O padrão da ação é
       # `~/setup-pnpm`, então dois jobs simultâneos instalam e apagam o mesmo
