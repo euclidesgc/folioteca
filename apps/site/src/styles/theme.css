@@ -1,0 +1,221 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Fraunces";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(/fonts/fraunces-latin-opsz-normal.woff2) format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(/fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2)
+    format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts/ibm-plex-mono-latin-400-normal.woff2) format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(/fonts/ibm-plex-mono-latin-600-normal.woff2) format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}
+
+@theme {
+  --color-papel: #f4f4f1;
+  --color-tinta: #15191b;
+  --color-grafite: #5a6165;
+  --color-verdete: #1e4b43;
+  --color-carimbo: #8e1b5b;
+  --color-fio: #dbdcd6;
+
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-body: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --spacing: 0.25rem;
+
+  --radius-sutil: 0.125rem;
+  --radius-padrao: 0.375rem;
+  --radius-amplo: 0.75rem;
+
+  --shadow-repouso: 0 1px 2px 0 rgb(21 25 27 / 0.06);
+  --shadow-eleva: 0 8px 24px -8px rgb(21 25 27 / 0.24);
+
+  --breakpoint-desde-tablet: 768px;
+  --breakpoint-desde-laptop: 1024px;
+  --breakpoint-desde-monitor: 1280px;
+
+  --duracao-rapida: 120ms;
+  --duracao-padrao: 220ms;
+  --curva-padrao: cubic-bezier(0.2, 0, 0.13, 1);
+
+  --text-titulo-home: clamp(2.25rem, 7vw, 3.75rem);
+
+  --tracking-titulo: -0.02em;
+  --tracking-marca: -0.01em;
+  --tracking-chapeu: 0.08em;
+
+  --leading-titulo: 1.05;
+  --leading-fecho: 1.15;
+  --leading-corpo: 1.6;
+
+  --text-xs--line-height: var(--leading-corpo);
+  --text-sm--line-height: var(--leading-corpo);
+  --text-base--line-height: var(--leading-corpo);
+  --text-lg--line-height: var(--leading-corpo);
+  --text-xl--line-height: var(--leading-corpo);
+  --text-2xl--line-height: var(--leading-corpo);
+  --text-3xl--line-height: var(--leading-corpo);
+  --text-4xl--line-height: var(--leading-corpo);
+
+  --container-pagina: 72rem;
+  --container-titulo: 34ch;
+  --container-fecho: 30ch;
+  --container-tabela: 34rem;
+}
+
+:root {
+  --color-papel: #f4f4f1;
+  --color-tinta: #15191b;
+  --color-grafite: #5a6165;
+  --color-verdete: #1e4b43;
+  --color-carimbo: #8e1b5b;
+  --color-fio: #dbdcd6;
+
+  --superficie: var(--color-papel);
+  --texto: var(--color-tinta);
+  --texto-suave: var(--color-grafite);
+  --acao: var(--color-verdete);
+  --divisoria: var(--color-fio);
+  --lombada-canal: var(--color-verdete);
+  --lombada-pessoa: var(--color-carimbo);
+  --lombada-privado: var(--color-grafite);
+
+  color-scheme: light;
+}
+
+/* Os seis nomes são os mesmos do bloco claro, e é isso que dispensa `dark:`
+   dentro do componente. Os valores não são: a régua da casa é contraste AA nos
+   dois temas, e o único lugar onde o tema escuro pode acertá-lo é o valor do
+   token. Herdar os valores do claro daria grafite a 2,81 e verdete a 1,81 sobre
+   esta superfície, os dois abaixo do mínimo AA. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) {
+    --color-papel: #14181a;
+    --color-tinta: #ebebe7;
+    --color-grafite: #8a9397;
+    --color-verdete: #48b3a0;
+    --color-carimbo: #e781ba;
+    --color-fio: #2b3235;
+
+    color-scheme: dark;
+  }
+}
+
+:root[data-tema="escuro"] {
+  --color-papel: #14181a;
+  --color-tinta: #ebebe7;
+  --color-grafite: #8a9397;
+  --color-verdete: #48b3a0;
+  --color-carimbo: #e781ba;
+  --color-fio: #2b3235;
+
+  color-scheme: dark;
+}
+
+/* decisão: entre o cálculo do tema e a primeira pintura do corpo, o navegador
+   desenha o quadro nativo do color-scheme — sem esta regra ele nasce claro
+   mesmo com o tema escuro já resolvido. */
+:root {
+  background-color: var(--superficie);
+}
+
+:where(body) {
+  background-color: var(--superficie);
+  color: var(--texto);
+  font-family: var(--font-body);
+  line-height: var(--leading-corpo);
+}
+
+:focus-visible {
+  outline: 2px solid var(--acao);
+  outline-offset: 2px;
+  border-radius: var(--radius-sutil);
+  z-index: 1;
+}
+
+/* O rótulo do alternador diz o destino — em tema claro, "Tema escuro". Quem
+   sabe o tema efetivo antes da hidratação é o CSS, não o JavaScript: decidir no
+   cliente imprimiria o rótulo errado no primeiro quadro, e escolher no servidor
+   é impossível, porque a preferência é do navegador. As duas condições abaixo
+   são as mesmas dos blocos de tema, e mudam juntas com eles. */
+.no-escuro {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) .no-claro {
+    display: none;
+  }
+
+  :root:not([data-tema="claro"]) .no-escuro {
+    display: inline;
+  }
+}
+
+:root[data-tema="escuro"] .no-claro {
+  display: none;
+}
+
+:root[data-tema="escuro"] .no-escuro {
+  display: inline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Nenhuma utilidade do Tailwind exprime `repeat(auto-fit, minmax(...))`. Ela
+   serve à única grade cuja contagem de cartões não é fixa: onde a contagem é
+   conhecida, a coluna é declarada por ponto de quebra, senão o `auto-fit` abre
+   uma trilha a mais que ninguém preenche. */
+@utility grade-fluida {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+}

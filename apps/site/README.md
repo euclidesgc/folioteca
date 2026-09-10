@@ -35,19 +35,69 @@ ponha segredo atrás dela.
 ## Estrutura
 
 ```
-src/app/         rotas do App Router
-src/components/  componentes do site
-src/middleware.ts  gera o nonce e emite a política de conteúdo
-scripts/         verificação da política, com o teste da asserção que ela usa
-content/         a documentação
+src/app/            rotas do App Router, e o esqueleto do site no layout
+src/components/     cabeçalho, rodapé e as seções da home
+src/components/ui/  primitivos: botão, cartão, etiqueta e as marcas de origem
+src/lib/            utilitários, entre eles o `cn` que resolve conflito de classe
+src/styles/         o tema: tokens, faces tipográficas e as regras de base
+src/middleware.ts   gera o nonce e emite a política de conteúdo
+public/fonts/       as três faces em woff2, com as licenças
+scripts/            verificação da política, com o teste da asserção que ela usa
+content/            a documentação
 ```
+
+## Camada de estilo
+
+Tailwind 4 pelo plugin de PostCSS, com os tokens declarados em
+`src/styles/theme.css` — os mesmos seis nomes de cor, três faces, três raios e
+duas sombras que `apps/web` usa. O documento que diz o que cada número significa
+é `product/00-linguagem-visual.md`.
+
+As três faces são auto-hospedadas em `public/fonts/` e declaradas por
+`@font-face`. A política de conteúdo é `style-src 'self'` sob `default-src
+'self'`: folha ou arquivo de fonte servido por outra origem é bloqueado no
+navegador, e o sintoma aparece como texto na fonte de reserva, longe da causa.
+
+A moldura da página é uma só, em `src/lib/moldura.ts`, e vale para o cabeçalho,
+o conteúdo e o rodapé: largura máxima de `72rem`, centrada, com goteira que
+cresce de `1rem` para `1.5rem` a partir do tablet e `2rem` a partir do monitor.
+São três pontos de quebra — 768px, 1024px e 1280px —, um a mais que o produto
+usa, porque a home é uma página de leitura contínua e não uma aplicação com
+barra lateral.
+
+Grade de cartão em número conhecido declara a coluna por ponto de quebra: uma,
+duas e três. `auto-fit` só serve à lista cuja contagem varia, senão ele abre uma
+trilha a mais que ninguém preenche. Dentro do cartão da demonstração o documento
+fica na medida de leitura, centrado — que é como todo editor apresenta a página.
+
+O tema tem três estados, e o elemento raiz os distingue: sem `data-tema`, a
+página segue `prefers-color-scheme`; com `data-tema="claro"` ou
+`data-tema="escuro"`, a escolha do visitante vence o sistema. Os seis valores de
+cor são reescritos em cada estado, porque a régua da casa é contraste AA nos dois
+temas e herdar os valores do claro derruba grafite e verdete abaixo do mínimo.
+
+A escolha fica em `localStorage`, sob a chave `folioteca.tema` com valor `claro`
+ou `escuro` — a mesma chave e os mesmos valores que `apps/web` usa. Um script
+embutido no `<head>` aplica o atributo antes da primeira pintura, e por isso
+carrega o nonce da resposta: script embutido sem nonce é bloqueado por esta
+política. O rótulo do botão diz o destino — "Tema escuro" em tema claro — e quem
+o escolhe é o CSS, não o JavaScript: decidir no cliente imprimiria o rótulo
+errado no primeiro quadro.
 
 ## Estado
 
-Bootstrap feito: `src/app/layout.tsx` e `src/app/page.tsx` respondem a `GET /`
-com a apresentação do produto já no HTML, sem nenhuma diretiva `'use client'`
-sob `src/`. `pnpm --filter site dev` publica em `localhost:3001`; `build`,
-`typecheck` e `lint` verificam a frente.
+A home apresenta o produto a quem chega sem sessão: a tese na primeira dobra, um
+documento de exemplo dentro da moldura da demonstração, as três dores do PRD com
+a resposta do produto, o modelo de acesso em três momentos, a conversa com
+citação, as funcionalidades, os planos e o fechamento. Tudo chega renderizado no
+HTML.
+
+O único componente de cliente é o alternador de tema, em
+`src/components/theme-toggle.tsx`: ele existe porque a escolha é do visitante e
+mora no navegador dele. Todo o resto é servidor.
+
+`pnpm --filter site dev` publica em `localhost:3001`; `build`, `typecheck` e
+`lint` verificam a frente.
 
 O lint é `@next/eslint-plugin-next` sobre `typescript-eslint`, e não
 `eslint-config-next`: o preset arrasta `eslint-plugin-react`, que ainda não
@@ -91,5 +141,8 @@ por ela. O build de produção responde sem nenhum erro. Deixar o desenvolviment
 com política própria é o item `031-o-dev-do-hotsite-nao-afoga-o-console` do
 roadmap.
 
-O conteúdo definitivo — o editor rodando ao lado do texto e o botão de entrada
-— é o item `015-hotsite` do roadmap.
+O miolo da demonstração é um documento de exemplo estático. Trocá-lo pelo editor
+rodando de verdade, a partir de `packages/editor`, é o item `015-hotsite` do
+roadmap, e depende de o editor existir. A porta "Entrar" aponta para a seção de
+fechamento da própria página enquanto o cadastro de `002-conta-e-organizacao`
+não responde.
