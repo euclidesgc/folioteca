@@ -1,3 +1,5 @@
+declare module "*.css" {}
+
 interface ImportMetaEnv {
   readonly VITE_API_URL: string;
   readonly VITE_COOKIE_DOMAIN?: string;
