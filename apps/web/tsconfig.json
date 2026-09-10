@@ -15,9 +15,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "baseUrl": ".",
+    "allowImportingTsExtensions": true,
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src", "e2e", "*.config.ts", "vitest.setup.ts"]
