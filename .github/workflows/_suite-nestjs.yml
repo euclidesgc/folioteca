@@ -266,8 +266,23 @@ jobs:
             echo "::notice::Prisma ainda não existe neste repositório — nada a medir. Este portão passa a valer no item que introduzir o esquema."
             exit 0
           fi
+          # As migrations entram primeiro no banco do job: a comparação seguinte
+          # mede o que elas produzem, e contra um banco vazio ela acusaria o
+          # esquema inteiro como pendente.
+          pnpm --filter api run db:migrate
           codigo=0
-          pnpm --filter api exec prisma migrate diff --from-migrations ./prisma/migrations --to-schema-datamodel ./prisma/schema.prisma --exit-code || codigo=$?
+          # O binário é chamado direto porque `pnpm exec` achata todo código
+          # diferente de zero em 1, e este portão vive de distinguir 2 — há
+          # esquema sem migration — de 1, que é não ter conseguido medir. Pelo
+          # pnpm os dois chegavam iguais, e o portão acusava impossibilidade de
+          # medição toda vez que encontrava drift de verdade.
+          (
+            cd apps/api
+            ./node_modules/.bin/prisma migrate diff \
+              --from-config-datasource \
+              --to-schema ./prisma/schema.prisma \
+              --exit-code
+          ) || codigo=$?
           case "$codigo" in
             0) echo "medido: o esquema e as migrations dizem a mesma coisa." ;;
             2)
