@@ -217,7 +217,7 @@ principal() {
   exige_comando pnpm
   exige_comando setsid
   exige_caminho apps/site/next.config.ts "a configuração do hotsite"
-  exige_caminho apps/site/src/middleware.ts "o middleware que emite a política"
+  exige_caminho apps/site/src/proxy.ts "o proxy que emite a política"
   exige_pacote_pnpm site "o pacote do hotsite"
 
   cd "$_politica_raiz" || _reprova "não consegui entrar em $_politica_raiz"
@@ -325,7 +325,7 @@ principal() {
   fi
 
   # O ícone tem de sair pela própria origem: a política é `default-src 'self'`,
-  # e o `matcher` do middleware nem passa por `_next/static`. `scripts/gates/
+  # e o `matcher` do proxy nem passa por `_next/static`. `scripts/gates/
   # icone_unico.sh` já prova que o arquivo existe e que o layout o declara —
   # o que só uma requisição responde é se o servidor o entrega, porque o
   # `standalone` do Next deixa `public/` de fora e o Dockerfile a copia à parte.

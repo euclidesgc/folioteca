@@ -16,7 +16,7 @@ function gerarNonce(): string {
   return btoa(String.fromCharCode(...bytes));
 }
 
-export function middleware(request: NextRequest): NextResponse {
+export function proxy(request: NextRequest): NextResponse {
   const nonce = gerarNonce();
   const politica = [
     `script-src 'self' 'nonce-${nonce}'`,

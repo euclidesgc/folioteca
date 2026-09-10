@@ -40,7 +40,7 @@ src/components/     cabeçalho, rodapé e as seções da home
 src/components/ui/  primitivos: botão, cartão, etiqueta e as marcas de origem
 src/lib/            utilitários, entre eles o `cn` que resolve conflito de classe
 src/styles/         o tema: tokens, faces tipográficas e as regras de base
-src/middleware.ts   gera o nonce e emite a política de conteúdo
+src/proxy.ts        gera o nonce e emite a política de conteúdo
 public/fonts/       as três faces em woff2, com as licenças
 scripts/            verificação da política, com o teste da asserção que ela usa
 content/            a documentação
@@ -114,7 +114,7 @@ persiste em cache.
 
 A `Content-Security-Policy` não cabe ali, porque não é constante. O App Router
 hidrata a página por `<script>` embutidos, e uma política estática sem nonce
-bloqueia justamente esses. Por isso `src/middleware.ts` gera um nonce por
+bloqueia justamente esses. Por isso `src/proxy.ts` gera um nonce por
 requisição e grava a política **duas vezes**: nos cabeçalhos de requisição, que
 é como o Next estampa o atributo `nonce` nas tags que ele mesmo emite, e na
 resposta, que é o que o navegador aplica. Daí `src/app/layout.tsx` declarar
