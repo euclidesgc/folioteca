@@ -797,7 +797,7 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       some do build e da suíte — a medição é a ausência da linha, não a leitura
       do arquivo.
 
-- [ ] `066-a-politica-do-artefato-para-de-declarar-o-que-o-meta-nao-impoe` — a
+- [x] `066-a-politica-do-artefato-para-de-declarar-o-que-o-meta-nao-impoe` — a
       diretiva que o navegador ignora sai da política, e o portão para de cobrar
       a presença dela
       **Depende de:** nada. É uma diretiva em `apps/web/vite.config.ts`, a
@@ -826,8 +826,12 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       existir, "console sem erro nenhum" reprova por um erro que não é da fase; o
       contorno, até este item fechar, é o critério nomear as linhas que importam
       — `Refused to load` e `Applying inline style violates`.
+      **Fechado em 10/09/2026**, no commit `1d6d83d`. A política do `<meta>` tem
+      oito diretivas, e `verificar-politica.sh` cobra as oito, a ausência de
+      `frame-ancestors` e o `X-Frame-Options: DENY` do nginx. O requisito que
+      ainda nomeava nove é reconciliado em `D-014` do `023`.
 
-- [ ] `085-rf-11-1-volta-a-descrever-a-politica-que-o-app-entrega` — o requisito
+- [x] `085-rf-11-1-volta-a-descrever-a-politica-que-o-app-entrega` — o requisito
       escrito e a política servida dizem a mesma coisa, e o portão do contrato
       mede uma só verdade
       **Depende de:** `066-a-politica-do-artefato-para-de-declarar-o-que-o-meta-nao-impoe`
@@ -850,8 +854,11 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       **Não vale para o hotsite:** `RF-24.1` também nomeia `frame-ancestors`, e
       ali está certo — `apps/site` entrega a política por cabeçalho HTTP no
       proxy, onde a diretiva tem efeito.
+      **Fechado em 10/09/2026** pela divergência `D-014` do `023`: RF-11 nomeia as
+      oito diretivas do app, RF-11.4 exige a ausência de `frame-ancestors` e
+      RF-11.5 exige o `X-Frame-Options: DENY` por cabeçalho.
 
-- [ ] `086-rf-08-1-volta-a-nomear-o-arquivo-que-emite-a-politica-do-hotsite` — o
+- [x] `086-rf-08-1-volta-a-nomear-o-arquivo-que-emite-a-politica-do-hotsite` — o
       requisito escrito e o arquivo que emite a política do hotsite dizem o mesmo
       nome
       **Depende de:** `030-o-hotsite-emite-a-politica-pela-convencao-atual` — é a
@@ -868,6 +875,9 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       o requisito protege não muda — nonce por requisição, política gravada no
       cabeçalho de requisição e no de resposta —, e
       `apps/site/scripts/verificar-politica.sh` já exige o caminho novo.
+      **Fechado em 10/09/2026** pela divergência `D-013` do `023`: o PRD e RF-08.1
+      nomeiam `apps/site/src/proxy.ts`. O plano da fase 2 fica como o veredito
+      dela o mediu.
 
 - [ ] `067-a-violacao-de-acessibilidade-e-pega-na-escrita-e-nao-so-depois-de-renderizar` —
       quem escreve um componente descobre a violação no editor, e não no relatório

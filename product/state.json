@@ -503,6 +503,20 @@
           "aprovada_at": "2026-09-03T18:14:25Z",
           "ratificada_por": "humano",
           "ratificacao_humana_at": "2026-09-03T19:23:49Z"
+        },
+        "D-013": {
+          "status": "RECONCILIADA",
+          "kind": "normal",
+          "phase": 2,
+          "detected_at": "2026-09-10T22:19:01Z",
+          "reconciliada_at": "2026-09-10T22:19:01Z"
+        },
+        "D-014": {
+          "status": "RECONCILIADA",
+          "kind": "normal",
+          "phase": 3,
+          "detected_at": "2026-09-10T22:21:04Z",
+          "reconciliada_at": "2026-09-10T22:21:04Z"
         }
       },
       "criteria_exception": null
