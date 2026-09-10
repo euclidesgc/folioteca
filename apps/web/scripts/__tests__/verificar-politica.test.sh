@@ -14,6 +14,7 @@ alvo="$raiz/apps/web/scripts/verificar-politica.sh"
 # executado. Os corpos referenciam $ALVO sem expandi-lo aqui — só o `eval`/
 # `bash -c` de cada caso o lê, e só do ambiente, nunca reconstruindo código.
 export ALVO="$alvo"
+export NGINX_CONF="$raiz/apps/web/nginx.conf"
 falhas=0
 
 caso() { # caso <nome> <esperado 0|1> <corpo>
@@ -47,18 +48,19 @@ caso_fala() { # caso_fala <nome> <trecho esperado> <corpo>
 caso "carregar o script não executa o corpo" 0 \
   "source \"\$ALVO\""
 
-politica_canonica_localhost="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' http://localhost:3000; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
-politica_dez_diretivas="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' http://localhost:3000; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
-politica_unsafe_inline="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self'; img-src 'self' data:; connect-src 'self' http://localhost:3000; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
-politica_unsafe_eval="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self'; img-src 'self' data:; connect-src 'self' http://localhost:3000; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
-politica_origem_errada="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://outra-origem.exemplo; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+politica_canonica_localhost="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' http://localhost:3000; object-src 'none'; base-uri 'self'; form-action 'self'"
+politica_nove_diretivas="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' http://localhost:3000; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
+politica_unsafe_inline="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self'; img-src 'self' data:; connect-src 'self' http://localhost:3000; object-src 'none'; base-uri 'self'; form-action 'self'"
+politica_unsafe_eval="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self'; img-src 'self' data:; connect-src 'self' http://localhost:3000; object-src 'none'; base-uri 'self'; form-action 'self'"
+politica_origem_errada="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://outra-origem.exemplo; object-src 'none'; base-uri 'self'; form-action 'self'"
+politica_com_frame_ancestors="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' http://localhost:3000; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
-# Uma política com dez diretivas — e não nove — é o caso central desta
-# fase: uma décima diretiva não declarada em lugar nenhum do plano.
-caso "exige_politica_com_nove_diretivas REPROVA dez diretivas" 1 \
-  "source \"\$ALVO\"; exige_politica_com_nove_diretivas \"$politica_dez_diretivas\""
-caso "exige_politica_com_nove_diretivas passa com nove diretivas" 0 \
-  "source \"\$ALVO\"; exige_politica_com_nove_diretivas \"$politica_canonica_localhost\""
+# Uma política com nove diretivas — e não oito — é o caso central desta
+# fase: uma nona diretiva não declarada em lugar nenhum do plano.
+caso "exige_politica_com_oito_diretivas REPROVA nove diretivas" 1 \
+  "source \"\$ALVO\"; exige_politica_com_oito_diretivas \"$politica_nove_diretivas\""
+caso "exige_politica_com_oito_diretivas passa com oito diretivas" 0 \
+  "source \"\$ALVO\"; exige_politica_com_oito_diretivas \"$politica_canonica_localhost\""
 
 # A política inteira contra a canônica é o que distingue "as nove diretivas
 # estão lá" de "a política é esta": nove buscas de substring aprovariam
@@ -79,6 +81,28 @@ caso "exige_politica_sem_termo REPROVA 'unsafe-eval'" 1 \
   "source \"\$ALVO\"; exige_politica_sem_termo \"$politica_unsafe_eval\" 'unsafe-eval'"
 caso "exige_politica_sem_termo passa sem o termo perigoso" 0 \
   "source \"\$ALVO\"; exige_politica_sem_termo \"$politica_canonica_localhost\" 'unsafe-inline'"
+
+# `frame-ancestors` de volta na política é o caso que esta fase precisa ver
+# reprovar: a diretiva é inerte em <meta>, e quem a reintroduzir devolve o
+# aviso ao console de toda carga sem que nada mais o denuncie.
+caso "exige_politica_sem_termo REPROVA 'frame-ancestors' de volta na política" 1 \
+  "source \"\$ALVO\"; exige_politica_sem_termo \"$politica_com_frame_ancestors\" 'frame-ancestors'"
+caso "exige_politica_sem_termo passa sem 'frame-ancestors'" 0 \
+  "source \"\$ALVO\"; exige_politica_sem_termo \"$politica_canonica_localhost\" 'frame-ancestors'"
+
+# A proteção que substitui a diretiva removida. Sem estes casos, a asserção que
+# a mede poderia aprovar um nginx que não emite cabeçalho nenhum.
+caso "exige_enquadramento_barrado_por_cabecalho REPROVA configuração sem X-Frame-Options" 1 \
+  "source \"\$ALVO\"; c=\$(mktemp); printf 'add_header X-Content-Type-Options \"nosniff\" always;\n' > \"\$c\"; exige_enquadramento_barrado_por_cabecalho \"\$c\""
+caso "exige_enquadramento_barrado_por_cabecalho REPROVA X-Frame-Options que não é DENY" 1 \
+  "source \"\$ALVO\"; c=\$(mktemp); printf 'add_header X-Frame-Options \"SAMEORIGIN\" always;\n' > \"\$c\"; exige_enquadramento_barrado_por_cabecalho \"\$c\""
+caso "exige_enquadramento_barrado_por_cabecalho passa com DENY por cabeçalho" 0 \
+  "source \"\$ALVO\"; c=\$(mktemp); printf 'add_header X-Frame-Options \"DENY\" always;\n' > \"\$c\"; exige_enquadramento_barrado_por_cabecalho \"\$c\""
+
+# A configuração real, e não só um arquivo de mentira: se o nginx que produção
+# usa parar de emitir o cabeçalho, este caso é o que percebe.
+caso "exige_enquadramento_barrado_por_cabecalho passa contra apps/web/nginx.conf" 0 \
+  "source \"\$ALVO\"; exige_enquadramento_barrado_por_cabecalho \"\$NGINX_CONF\""
 
 # A tag de política ausente, ou duplicada, é medição impossível do ponto de
 # vista do navegador: sem ela ele não aplica política nenhuma; com duas, ele
@@ -121,8 +145,8 @@ caso "exige_html_sem_meta_csp passa quando a tag está ausente" 0 \
 # errado.
 caso_fala "exige_politica_canonica nomeia a política esperada e a obtida" "esperada:" \
   "source \"\$ALVO\"; exige_politica_canonica \"$politica_origem_errada\" 'http://localhost:3000'"
-caso_fala "exige_politica_com_nove_diretivas diz o que mediu" "medido: 10 diretiva(s)" \
-  "source \"\$ALVO\"; exige_politica_com_nove_diretivas \"$politica_dez_diretivas\""
+caso_fala "exige_politica_com_oito_diretivas diz o que mediu" "medido: 9 diretiva(s)" \
+  "source \"\$ALVO\"; exige_politica_com_oito_diretivas \"$politica_nove_diretivas\""
 caso_fala "exige_connect_src nomeia a origem obtida" "outra-origem.exemplo" \
   "source \"\$ALVO\"; exige_connect_src \"$politica_origem_errada\" 'http://localhost:3000'"
 caso_fala "exige_cabecalhos_constantes nomeia o cabeçalho ausente" "referrer-policy" \

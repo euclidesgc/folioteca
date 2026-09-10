@@ -24,7 +24,7 @@
 #   2. perguntar "contém" em vez de "é" — `object-src 'none'` está contido em
 #      `object-src 'none' *`, então uma política alargada passa por completa.
 #      Por isso a comparação é da política inteira contra a canônica, não
-#      nove buscas de substring;
+#      oito buscas de substring;
 #   3. `pnpm --filter web exec vite ...` bifurca: `$!` é o pid do `pnpm`, não
 #      o do `vite` que de fato escuta a porta. Matar só o `pnpm` deixa o
 #      `vite` vivo, órfão, ainda atendendo a porta na medição seguinte — por
@@ -46,6 +46,7 @@ source "$_politica_raiz/scripts/gates/medir.sh"
 
 readonly DIST_REL="apps/web/dist"
 readonly INDEX_REL="apps/web/dist/index.html"
+readonly NGINX_REL="apps/web/nginx.conf"
 
 # Os mesmos quatro pares que apps/web/vite.config.ts declara em
 # SECURITY_HEADERS. Duplicar a lista aqui é intencional: o portão não lê a
@@ -63,7 +64,7 @@ _politica_trabalho=""
 _politica_registro=""
 
 _politica_canonica() { # <origem>
-  printf "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' %s; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" "$1"
+  printf "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' %s; object-src 'none'; base-uri 'self'; form-action 'self'" "$1"
 }
 
 _conta_diretivas() { # <política>
@@ -124,15 +125,15 @@ exige_origem_de_forma_valida() {
   return 0
 }
 
-# exige_politica_com_nove_diretivas <política>
-exige_politica_com_nove_diretivas() {
+# exige_politica_com_oito_diretivas <política>
+exige_politica_com_oito_diretivas() {
   local politica="$1" quantidade
   quantidade="$(_conta_diretivas "$politica")"
   echo "medido: $quantidade diretiva(s) na política"
-  if [ "$quantidade" = "9" ]; then
+  if [ "$quantidade" = "8" ]; then
     return 0
   fi
-  printf '::error::a política tem %s diretiva(s) — esperava exatamente 9\n' "$quantidade" >&2
+  printf '::error::a política tem %s diretiva(s) — esperava exatamente 8\n' "$quantidade" >&2
   return 1
 }
 
@@ -144,7 +145,7 @@ exige_politica_canonica() {
   local obtida="$1" origem="$2" esperada
   esperada="$(_politica_canonica "$origem")"
   if [ "$obtida" = "$esperada" ]; then
-    echo "medido: a política é exatamente a declarada — nove diretivas, e nada além delas"
+    echo "medido: a política é exatamente a declarada — oito diretivas, e nada além delas"
     return 0
   fi
   printf '::error::a política não é a declarada\n   esperada: %s\n   obtida:   %s\n' "$esperada" "$obtida" >&2
@@ -188,6 +189,26 @@ exige_dist_sem_cabecalhos_constantes() {
   fi
   echo "medido: nenhum arquivo sob $diretorio declara os quatro cabeçalhos constantes"
   return 0
+}
+
+# exige_enquadramento_barrado_por_cabecalho <arquivo de configuração do host>
+# `frame-ancestors` não está na política porque o navegador a ignora quando
+# entregue por <meta>. O que barra enquadramento é X-Frame-Options, e quem o
+# emite em produção é o nginx deste arquivo — o único elo da cadeia que
+# nenhuma outra asserção alcança: os dois servidores locais são medidos por
+# exige_cabecalhos_constantes, e a resposta do preview, pela suíte de
+# Playwright. Sem esta asserção, tirar a diretiva inerte teria trocado uma
+# declaração inócua por nenhuma declaração.
+exige_enquadramento_barrado_por_cabecalho() {
+  local arquivo="$1" obtido
+  obtido="$(grep -iE '^[[:space:]]*add_header[[:space:]]+X-Frame-Options' "$arquivo" 2>/dev/null |
+    head -1 | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+  echo "medido: X-Frame-Options em $arquivo = '${obtido:-<ausente>}'"
+  if printf '%s' "$obtido" | grep -qiE '(^|[[:space:]"])DENY([[:space:]";]|$)'; then
+    return 0
+  fi
+  printf '::error::%s não emite X-Frame-Options: DENY por cabeçalho — sem ele nada barra enquadramento, porque frame-ancestors entregue por <meta> é inerte\n' "$arquivo" >&2
+  return 1
 }
 
 # exige_cabecalhos_constantes <arquivo de cabeçalhos> <rótulo>
@@ -327,14 +348,21 @@ _verificar_artefato() { # <origem esperada do connect-src>
     local politica
     politica="$(_politica_do_html "$arquivo")"
 
-    exige_politica_com_nove_diretivas "$politica" || _politica_falhas=$((_politica_falhas + 1))
+    exige_politica_com_oito_diretivas "$politica" || _politica_falhas=$((_politica_falhas + 1))
     exige_politica_canonica "$politica" "$origem" || _politica_falhas=$((_politica_falhas + 1))
     exige_connect_src "$politica" "$origem" || _politica_falhas=$((_politica_falhas + 1))
     exige_politica_sem_termo "$politica" "unsafe-inline" || _politica_falhas=$((_politica_falhas + 1))
     exige_politica_sem_termo "$politica" "unsafe-eval" || _politica_falhas=$((_politica_falhas + 1))
+    exige_politica_sem_termo "$politica" "frame-ancestors" || _politica_falhas=$((_politica_falhas + 1))
   fi
 
   exige_dist_sem_cabecalhos_constantes "$_politica_raiz/$DIST_REL" || _politica_falhas=$((_politica_falhas + 1))
+}
+
+_verificar_host_de_producao() {
+  echo "== host de produção: $NGINX_REL =="
+  exige_enquadramento_barrado_por_cabecalho "$_politica_raiz/$NGINX_REL" ||
+    _politica_falhas=$((_politica_falhas + 1))
 }
 
 _verificar_servidor_dev() {
@@ -385,6 +413,7 @@ principal() {
   exige_pacote_pnpm web "o pacote da web"
   exige_caminho "$DIST_REL" "o artefato de build de apps/web — rode 'VITE_API_URL=$origem pnpm --filter web build' antes deste portão"
   exige_caminho "$INDEX_REL" "o index.html do artefato de build"
+  exige_caminho "$NGINX_REL" "a configuração do nginx que serve apps/web em produção"
 
   cd "$_politica_raiz" || _reprova "não consegui entrar em $_politica_raiz"
 
@@ -394,6 +423,7 @@ principal() {
   trap _derrubar EXIT INT TERM
 
   _verificar_artefato "$origem"
+  _verificar_host_de_producao
   _verificar_servidor_dev
   _verificar_servidor_preview
 

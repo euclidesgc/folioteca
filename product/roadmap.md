@@ -826,6 +826,31 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       existir, "console sem erro nenhum" reprova por um erro que não é da fase; o
       contorno, até este item fechar, é o critério nomear as linhas que importam
       — `Refused to load` e `Applying inline style violates`.
+
+- [ ] `085-rf-11-1-volta-a-descrever-a-politica-que-o-app-entrega` — o requisito
+      escrito e a política servida dizem a mesma coisa, e o portão do contrato
+      mede uma só verdade
+      **Depende de:** `066-a-politica-do-artefato-para-de-declarar-o-que-o-meta-nao-impoe`
+      — é a mudança dele que abre a distância.
+      **Origem:** implementação de `066`, 10/09/2026. `RF-11.1` da spec de
+      `023-endurecimento-antes-da-sessao` diz "exatamente estas nove diretivas" e
+      nomeia `frame-ancestors 'none'` entre elas; a política entregue passa a ter
+      oito. A decisão `D57` daquele item registra que a diretiva ficou por causa
+      desse requisito — "tirar uma é mudar documento aprovado para melhorar um
+      log" —, e o `066` autorizou tirá-la depois, sem dizer o que fazer com o
+      requisito. A spec é documento aprovado e o guard recusa edição direta: a
+      correção passa por divergência registrada e ratificação humana, não por
+      edição.
+      Fechar é `RF-11` passar a nomear as oito diretivas, ganhar o requisito de
+      que a política **não** contém `frame-ancestors` — porque a ausência é
+      deliberada e sem requisito ela volta —, e o requisito de que o host de
+      produção emite `X-Frame-Options: DENY`, que é onde a proteção mora. As três
+      asserções correspondentes já existem em `apps/web/scripts/verificar-politica.sh`;
+      o que falta é o requisito que elas cobrem.
+      **Não vale para o hotsite:** `RF-24.1` também nomeia `frame-ancestors`, e
+      ali está certo — `apps/site` entrega a política por cabeçalho HTTP no
+      middleware, onde a diretiva tem efeito.
+
 - [ ] `067-a-violacao-de-acessibilidade-e-pega-na-escrita-e-nao-so-depois-de-renderizar` —
       quem escreve um componente descobre a violação no editor, e não no relatório
       do axe de uma fase inteira depois

@@ -57,6 +57,10 @@ function injectContentSecurityPolicyOnBuild(): Plugin {
         return html;
       }
 
+      // decisão: sem `frame-ancestors` — o navegador a ignora quando entregue
+      // por <meta> e registra o aviso em toda carga. Quem protege contra
+      // enquadramento é `X-Frame-Options: DENY`, emitido por cabeçalho em
+      // apps/web/nginx.conf, e é lá que o portão o mede.
       const policy = [
         "default-src 'self'",
         "script-src 'self'",
@@ -66,7 +70,6 @@ function injectContentSecurityPolicyOnBuild(): Plugin {
         "object-src 'none'",
         "base-uri 'self'",
         "form-action 'self'",
-        "frame-ancestors 'none'",
       ].join("; ");
 
       // decisão: a serialização de HtmlTagDescriptor do Vite escapa aspas
