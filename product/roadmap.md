@@ -294,21 +294,29 @@ PR e commit já escritos.
       aplicação vê o ícone da Folioteca na aba e nos favoritos, em vez do ícone
       genérico do navegador, e o console para de registrar a busca frustrada
       **Depende de:** `050-linguagem-visual-e-sistema-de-design` — o ícone deriva
-      da paleta e da metáfora da lombada que o `050` fixa; desenhado antes, ele
+      da paleta e da direção Lombada que o `050` fixa; desenhado antes, ele
       vira a segunda marca que o `051` teria de reconciliar.
-      **Origem:** fase 2 de `050`, medido em 09/09/2026 no navegador, contra o
-      artefato construído servido na origem de pré-visualização. `apps/web/index.html`
-      não declara `<link rel="icon">`, então o navegador busca `/favicon.ico` por
-      conta própria e recebe `404` — a mensagem aparece no console de **toda**
-      página da aplicação, e é ruído permanente em cima do coletor de console que
-      os critérios comportamentais desta linguagem visual usam para provar que
-      nenhum estilo foi recusado.
+      **Origem:** fases 2 e 3 de `050`, medido em 09/09/2026 no navegador, contra
+      o artefato construído servido na origem de pré-visualização.
+      `apps/web/index.html` não declara `<link rel="icon">`, então o navegador
+      busca `/favicon.ico` por conta própria e toda carga traz `Failed to load
+      resource: the server responded with a status of 404 (Not Found)
+      @ /favicon.ico`. Não há ícone no repositório, e o navegador pede um sempre
+      — a mensagem aparece no console de **toda** página da aplicação, e é ruído
+      permanente em cima do coletor de console que os critérios comportamentais
+      desta linguagem visual usam para provar que nenhum estilo foi recusado.
       Fechar é desenhar o ícone a partir dos tokens do `050`, servi-lo pela
       própria origem — a política de conteúdo do artefato é `default-src 'self'`,
       e ícone de outra origem é bloqueado do mesmo jeito que folha e fonte —,
-      declará-lo em `index.html` nos tamanhos que a aba e o atalho de tela usam, e
-      cobrir `apps/site` pela mesma decisão, para que a empresa não tenha um ícone
-      no produto e outro no hotsite.
+      pô-lo em `apps/web/public/` com a linha que o declara em `index.html`, nos
+      tamanhos que a aba e o atalho de tela usam, e cobrir `apps/site` pelo mesmo
+      arquivo, para que a empresa não tenha um ícone no produto e outro no
+      hotsite.
+      **Anda junto de `066`.** Os dois são erro de console em toda carga, os dois
+      moram em arquivos que nenhuma fase de `050` pode tocar, e enquanto os dois
+      existirem nenhum critério consegue exigir "console sem erro" sem nomear
+      exceção. Fechá-los na mesma passagem é o que devolve o console como
+      instrumento de medida.
 
 - [ ] `051-identidade-e-hotsite` — o hotsite deixa de ser a página do bootstrap e
       passa a apresentar o produto a quem chega sem sessão: a tese na primeira
@@ -359,6 +367,24 @@ PR e commit já escritos.
       política não reserva nonce para estilo, então a fase que trouxer a primeira
       folha reverifica a diretiva no navegador junto, em vez de descobrir o
       bloqueio depois de publicar.
+
+- [ ] `084-o-plano-empresa-tem-um-canal-de-contato-que-responde` — quem clica em
+      "Falar com vendas" no hotsite alcança um canal que existe e que alguém lê
+      **Depende de:** nada técnico. Depende de uma decisão do dono: qual é o
+      canal, e em que endereço ele atende.
+      **Origem:** implementação do hotsite, 10/09/2026. O botão do plano Empresa
+      em `apps/site/src/components/sections/pricing.tsx` aponta para
+      `mailto:contato@folioteca.com`, endereço escolhido pela sessão que escreveu
+      a seção por não haver nenhum no repositório. Não há mesmo: a varredura não
+      encontra caixa de entrada, telefone nem formulário real em lugar nenhum, e
+      `00-visao-de-produto.md` registra que `folioteca.com` e `folioteca.com.br`
+      estavam sem registro em 02/09/2026. O link não é um endereço errado — é um
+      endereço num domínio que a empresa ainda não tem.
+      **Precede a publicação do hotsite**, na mesma precedência em que o depósito
+      da marca já a precede: página no ar com canal de vendas que não responde
+      custa exatamente o visitante que se deu ao trabalho de escrever.
+      Fechar é o dono decidir o canal — caixa de entrada no domínio registrado,
+      formulário que grava, ou fila de conversa —, e a página apontar para ele.
 
 - [ ] `008-registro-de-auditoria` — todo ato sensível sobre acesso vira uma linha
       consultável, com quem fez, o quê, quando e por quê: proposta, aceite,
@@ -924,21 +950,6 @@ corretamente pela régua local, e nenhuma tela pronta de manhã.
       escrito e a data em que foi escolhido; e (b) separar por rota o que não é
       preciso na primeira pintura. O teto vem antes da divisão: sem ele, a divisão
       não tem como provar que resolveu.
-
-- [ ] `073-o-artefato-da-web-responde-pelo-icone-que-o-navegador-pede` — quem abre
-      a aplicação vê o ícone dela na aba, e o console não traz um 404 a cada carga
-      **Depende de:** nada. É um arquivo em `apps/web/public/` e a linha que o
-      declara em `apps/web/index.html`.
-      **Origem:** fase 3 de `050`, medido em 09/09/2026 no navegador contra o
-      artefato servido em 4173. Toda carga de `/design` traz
-      `Failed to load resource: the server responded with a status of 404
-      (Not Found) @ /favicon.ico`. Não há favicon no repositório, e o navegador
-      pede um sempre.
-      **Anda junto de `066`.** Os dois são erro de console em toda carga, os dois
-      moram em arquivos que nenhuma fase de `050` pode tocar, e enquanto os dois
-      existirem nenhum critério consegue exigir "console sem erro" sem nomear
-      exceção. Fechá-los na mesma passagem é o que devolve o console como
-      instrumento de medida.
 
 - [ ] `074-a-interacao-nos-testes-de-unidade-passa-pelo-ponteiro-de-verdade` — o
       teste unitário que clica um controle exercita o mesmo caminho que a pessoa

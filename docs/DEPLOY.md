@@ -34,8 +34,9 @@ Repositório `euclidesgc/folioteca` nas três de homologação.
 
 ⚠️ **`dockerfile_location` não é `/Dockerfile`.** Esse é o default do Coolify e
 está errado para este monorepo: o arquivo está dentro do workspace, e o
-**contexto** continua sendo a raiz (`base_directory: /`), porque os três apps
-resolvem `@folioteca/editor` por `workspace:*`.
+**contexto** continua sendo a raiz (`base_directory: /`), porque é lá que estão
+o `pnpm-workspace.yaml` e o `pnpm-lock.yaml` de que os três builds dependem — e
+porque `apps/web` e `apps/site` resolvem `@folioteca/tema` por `workspace:*`.
 
 ## O nome
 

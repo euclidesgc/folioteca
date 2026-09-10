@@ -76,13 +76,15 @@ página segue `prefers-color-scheme`; com `data-tema="claro"` ou
 cor são reescritos em cada estado, porque a régua da casa é contraste AA nos dois
 temas e herdar os valores do claro derruba grafite e verdete abaixo do mínimo.
 
-A escolha fica em `localStorage`, sob a chave `folioteca.tema` com valor `claro`
-ou `escuro` — a mesma chave e os mesmos valores que `apps/web` usa. Um script
-embutido no `<head>` aplica o atributo antes da primeira pintura, e por isso
-carrega o nonce da resposta: script embutido sem nonce é bloqueado por esta
-política. O rótulo do botão diz o destino — "Tema escuro" em tema claro — e quem
-o escolhe é o CSS, não o JavaScript: decidir no cliente imprimiria o rótulo
-errado no primeiro quadro.
+A escolha fica num cookie, sob a chave `folioteca.tema` com valor `claro` ou
+`escuro` — a mesma chave e os mesmos valores que `apps/web` usa. É cookie, e não
+`localStorage`, porque a aplicação vive noutra origem: armazenamento local não
+atravessa, cookie de domínio pai sim. Quem o lê é o servidor, em `layout.tsx`, e
+o atributo já chega estampado no HTML — não há janela entre a primeira pintura e
+a decisão, e o hotsite não tem nenhum script embutido escrito à mão. O rótulo do
+botão diz o destino — "Tema escuro" em tema claro — e quem o escolhe é o CSS, não
+o JavaScript: decidir no cliente imprimiria o rótulo errado no primeiro quadro, e
+sem cookie quem sabe o tema é a folha de estilo.
 
 ## Estado
 

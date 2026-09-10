@@ -6,10 +6,11 @@
 #
 # ## Por que o contexto é a raiz do repositório
 #
-# `apps/api` participa de um workspace pnpm e resolve `@folioteca/editor` por
-# `workspace:*`. Com o contexto em `apps/api`, o `pnpm install` não enxerga o
-# pacote irmão e o build quebra no primeiro import. No Coolify isto aparece como
-# `base_directory: /` mais `dockerfile_location: /apps/api/Dockerfile`.
+# `apps/api` participa de um workspace pnpm, e o `pnpm-workspace.yaml` e o
+# `pnpm-lock.yaml` que descrevem esse workspace moram na raiz. Com o contexto em
+# `apps/api`, o `pnpm install --frozen-lockfile` não alcança nenhum dos dois e o
+# build morre antes de compilar. No Coolify isto aparece como `base_directory: /`
+# mais `dockerfile_location: /apps/api/Dockerfile`.
 #
 # ## As variáveis são de RUNTIME, e duas derrubam o processo se faltarem
 #
