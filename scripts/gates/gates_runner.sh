@@ -28,7 +28,7 @@
 # saída propagado.
 #
 # Modos:
-#   gates_runner.sh                  roda os gates e os nove portões diretos
+#   gates_runner.sh                  roda os gates e os dez portões diretos
 #   gates_runner.sh --diff-only      força avaliação apenas do diff
 #   gates_runner.sh --all            força avaliação da árvore inteira
 #   gates_runner.sh --count-json     imprime a contagem por gate/arquivo (baseline)
@@ -276,6 +276,7 @@ bash "$ROOT/scripts/gates/concorrencia.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/portas_de_servico.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/atalho.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/e2e_uma_subida.sh" || VEREDICTO=1
+bash "$ROOT/scripts/gates/icone_unico.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/plano.sh" || VEREDICTO=1
 
 if [ "$SEM_ARTEFATOS" -eq 1 ]; then

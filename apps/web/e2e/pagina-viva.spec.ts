@@ -1,4 +1,5 @@
 import { expect, test, type Request } from "@playwright/test";
+import { coletarConsole } from "./apoio/console";
 
 const ORIGEM_DA_API = "http://localhost:3000";
 
@@ -27,10 +28,9 @@ test("a página viva não busca nada fora do próprio artefato", async ({
   page,
 }) => {
   const requisicoes: Request[] = [];
-  const mensagensDoConsole: string[] = [];
+  const consoleDaPagina = coletarConsole(page);
 
   page.on("request", (requisicao) => requisicoes.push(requisicao));
-  page.on("console", (mensagem) => mensagensDoConsole.push(mensagem.text()));
 
   await page.goto("/design");
   await page.waitForLoadState("networkidle");
@@ -47,21 +47,38 @@ test("a página viva não busca nada fora do próprio artefato", async ({
     )
     .filter((requisicao) => new URL(requisicao.url()).origin !== origemServida)
     .map((requisicao) => requisicao.url());
-  expect(deFora, `estilo ou fonte de outra origem: ${deFora.join(", ")}`)
-    .toEqual([]);
+  expect(
+    deFora,
+    `estilo ou fonte de outra origem: ${deFora.join(", ")}`,
+  ).toEqual([]);
 
   const paraApi = requisicoes
     .map((requisicao) => requisicao.url())
     .filter((url) => url.startsWith(ORIGEM_DA_API));
-  expect(paraApi, `a página viva consultou a API: ${paraApi.join(", ")}`)
-    .toEqual([]);
+  expect(
+    paraApi,
+    `a página viva consultou a API: ${paraApi.join(", ")}`,
+  ).toEqual([]);
 
-  const bloqueios = mensagensDoConsole.filter(
-    (mensagem) =>
-      mensagem.includes("Refused to load the stylesheet") ||
-      mensagem.includes("Applying inline style violates"),
-  );
-  expect(bloqueios, `console: ${mensagensDoConsole.join(" | ")}`).toEqual([]);
+  expect(
+    consoleDaPagina.erros(),
+    `console: ${consoleDaPagina.tudo().join(" | ")}`,
+  ).toEqual([]);
+});
+
+test("a rota de entrada carrega sem um erro sequer no console", async ({
+  page,
+}) => {
+  const consoleDaPagina = coletarConsole(page);
+
+  await page.goto("/entrar");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await page.waitForLoadState("networkidle");
+
+  expect(
+    consoleDaPagina.erros(),
+    `console: ${consoleDaPagina.tudo().join(" | ")}`,
+  ).toEqual([]);
 });
 
 test("a rota /design sobrevive à abertura direta e à recarga", async ({

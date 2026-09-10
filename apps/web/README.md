@@ -20,7 +20,24 @@ interior e interior não se importa de fora.
 src/shared/     código sem dono: api, components, hooks, lib, config
 src/features/   uma pasta por feature, com api/, components/, hooks/, types/, index.ts
 src/app/        routes/, providers/, main.tsx
+public/         o que o Vite copia verbatim para o dist: o ícone
 ```
+
+## O ícone
+
+`public/icone.svg` é a fonte, e sai dos tokens de
+[`00-linguagem-visual.md`](../../product/00-linguagem-visual.md): quatro lombadas
+numa prateleira, uma delas no `verdete` que é a cor de ação. `public/icone-180.png`
+é derivado dele para o atalho de tela, que não aceita SVG. Os dois arquivos são
+os mesmos que `apps/site/public/` serve — cada app o entrega pela própria origem,
+porque a política de conteúdo dos dois é `default-src 'self'` —, e
+`scripts/gates/icone_unico.sh` reprova se um deles for retocado sozinho.
+
+Quem mudar o desenho regera o PNG a partir do SVG. Não há dependência de
+rasterização no repositório: o Chromium do Playwright, que já está aqui,
+renderiza o SVG num viewport de 180×180 sobre `#15191b` — a mesma cor do
+retângulo de fundo, para o atalho de tela do iOS não arredondar duas vezes — e
+salva a captura.
 
 ## Contrato com a API
 

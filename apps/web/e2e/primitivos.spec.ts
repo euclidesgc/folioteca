@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { coletarConsole } from "./apoio/console";
 
 const TEXTO_DA_DICA = "Use o nome que aparece na lista";
 
@@ -54,8 +55,7 @@ async function duracaoEmSegundos(
 }
 
 test("o menu e a dica flutuam sem estilo recusado", async ({ page }) => {
-  const mensagensDoConsole: string[] = [];
-  page.on("console", (mensagem) => mensagensDoConsole.push(mensagem.text()));
+  const consoleDaPagina = coletarConsole(page);
 
   await page.goto("/design");
   await expect(
@@ -69,7 +69,7 @@ test("o menu e a dica flutuam sem estilo recusado", async ({ page }) => {
   const janela = page.viewportSize();
   expect(
     caixaMenu,
-    `mensagens do console: ${mensagensDoConsole.join(" | ")}`,
+    `mensagens do console: ${consoleDaPagina.tudo().join(" | ")}`,
   ).not.toBeNull();
   expect(janela).not.toBeNull();
   expect(caixaMenu!.width).toBeGreaterThan(0);
@@ -90,17 +90,14 @@ test("o menu e a dica flutuam sem estilo recusado", async ({ page }) => {
   const caixaDica = await dica.boundingBox();
   expect(
     caixaDica,
-    `mensagens do console: ${mensagensDoConsole.join(" | ")}`,
+    `mensagens do console: ${consoleDaPagina.tudo().join(" | ")}`,
   ).not.toBeNull();
   expect(caixaDica!.width).toBeGreaterThan(0);
   expect(caixaDica!.height).toBeGreaterThan(0);
 
-  const recusas = mensagensDoConsole.filter((mensagem) =>
-    mensagem.includes("Applying inline style violates"),
-  );
   expect(
-    recusas,
-    `mensagens do console: ${mensagensDoConsole.join(" | ")}`,
+    consoleDaPagina.erros(),
+    `mensagens do console: ${consoleDaPagina.tudo().join(" | ")}`,
   ).toEqual([]);
 });
 

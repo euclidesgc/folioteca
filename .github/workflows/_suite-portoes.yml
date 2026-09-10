@@ -132,6 +132,13 @@ jobs:
       - name: A suíte comportamental sobe a aplicação uma vez e mede tudo nela
         run: bash scripts/gates/e2e_uma_subida.sh
 
+      # Os dois apps servem cópias do mesmo ícone, porque cada um o serve pela
+      # própria origem. Cópia que ninguém compara envelhece num app só.
+      - name: O ícone é um arquivo só nos dois apps, e declarado nos dois
+        run: bash scripts/gates/icone_unico.sh
+      - name: A comparação do ícone morde
+        run: bash scripts/gates/__tests__/icone-unico.test.sh
+
       # A partir daqui o job constrói: o portão de segredo varre os três
       # artefatos de build além das fontes rastreadas, e artefato que não existe
       # é medição impossível, não árvore limpa.

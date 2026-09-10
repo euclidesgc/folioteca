@@ -167,6 +167,33 @@ _aguardar_porta() { # <segundos>
   _reprova "o hotsite não respondeu em http://localhost:$PORTA_HOTSITE em ${limite}s — a saída dele está acima"
 }
 
+# exige_icone_servido <caminho> <tipo de conteúdo esperado>
+# Mede o que só a resposta diz: que o arquivo chega, e chega com o tipo certo.
+# Um 404 aqui devolve ao console o mesmo erro em toda carga que motivou o item,
+# e um SVG servido como `text/html` não é aceito como ícone pelo navegador.
+exige_icone_servido() {
+  local caminho="$1" tipo="$2" codigo obtido
+  codigo="$(curl -s -o "$_politica_trabalho/icone.bin" \
+    -D "$_politica_trabalho/icone.headers" \
+    -w '%{http_code}' "http://localhost:$PORTA_HOTSITE$caminho")"
+  obtido="$(grep -i '^content-type:' "$_politica_trabalho/icone.headers" |
+    head -1 | tr -d '\r' | sed -E 's/^[Cc]ontent-[Tt]ype:[[:space:]]*//')"
+  echo "medido: GET $caminho respondeu $codigo, content-type '${obtido:-<ausente>}'"
+  if [ "$codigo" != "200" ]; then
+    printf '::error::GET %s respondeu %s — o navegador registraria o erro em toda carga, que é o defeito que este ícone existe para fechar\n' "$caminho" "$codigo" >&2
+    return 1
+  fi
+  if ! printf '%s' "$obtido" | grep -qiF "$tipo"; then
+    printf "::error::GET %s respondeu com content-type '%s' — esperava '%s', e o navegador recusa o ícone servido com outro tipo\n" "$caminho" "$obtido" "$tipo" >&2
+    return 1
+  fi
+  [ -s "$_politica_trabalho/icone.bin" ] || {
+    printf '::error::GET %s respondeu 200 com corpo vazio\n' "$caminho" >&2
+    return 1
+  }
+  return 0
+}
+
 _medir_resposta() { # <número da requisição>
   local n="$1" codigo
   codigo="$(curl -s -o "$_politica_trabalho/corpo-$n.html" -D "$_politica_trabalho/cabecalho-$n.txt" \
@@ -296,6 +323,14 @@ principal() {
   if [ "$estampados" -lt 1 ]; then
     _reprova_resultado "nenhum <script> do corpo carrega o nonce do cabeçalho da mesma resposta — a página não hidrataria"
   fi
+
+  # O ícone tem de sair pela própria origem: a política é `default-src 'self'`,
+  # e o `matcher` do middleware nem passa por `_next/static`. `scripts/gates/
+  # icone_unico.sh` já prova que o arquivo existe e que o layout o declara —
+  # o que só uma requisição responde é se o servidor o entrega, porque o
+  # `standalone` do Next deixa `public/` de fora e o Dockerfile a copia à parte.
+  exige_icone_servido "/icone.svg" "image/svg+xml" || _politica_falhas=$((_politica_falhas + 1))
+  exige_icone_servido "/icone-180.png" "image/png" || _politica_falhas=$((_politica_falhas + 1))
 
   if [ "$_politica_falhas" -gt 0 ]; then
     printf 'REPROVADO: %s verificação(ões) da política falharam no modo %s.\n' "$_politica_falhas" "$modo" >&2

@@ -14,6 +14,13 @@ export const metadata: Metadata = {
   title: "Folioteca — a biblioteca de fólios da empresa",
   description:
     "A plataforma onde a empresa escreve, guarda e distribui documentos, com o acesso derivado de onde a pessoa está na organização — e revogado quando ela sai de lá.",
+  // decisão: os mesmos dois arquivos que `apps/web` serve, e não um ícone do
+  // hotsite — a empresa tem uma marca só, e quem clica em "entrar" não pode
+  // trocar de ícone no caminho.
+  icons: {
+    icon: { url: "/icone.svg", type: "image/svg+xml" },
+    apple: "/icone-180.png",
+  },
 };
 
 export default async function RootLayout({
