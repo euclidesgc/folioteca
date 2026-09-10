@@ -10,6 +10,7 @@ import {
   CAMINHO_REDEFINIR_SENHA,
   RotaProtegida,
 } from "@/features/auth";
+import { CAMINHO_PERFIL } from "@/features/conta";
 import { PaginaViva } from "./design";
 import { DocumentosRoute } from "./documentos";
 import { CanaisRoute } from "./canais";
@@ -20,6 +21,7 @@ import { CriarContaRoute } from "./criar-conta";
 import { RecuperarSenhaRoute } from "./recuperar-senha";
 import { RedefinirSenhaRoute } from "./redefinir-senha";
 import { ErroInesperadoRoute, NaoEncontradaRoute } from "./nao-encontrada";
+import { PerfilRoute } from "./perfil";
 
 export const router = createBrowserRouter([
   {
@@ -76,6 +78,11 @@ export const router = createBrowserRouter([
                 path: "/organizacao",
                 element: <SecaoLayout />,
                 children: [{ index: true, element: <OrganizacaoRoute /> }],
+              },
+              {
+                path: CAMINHO_PERFIL,
+                element: <SecaoLayout />,
+                children: [{ index: true, element: <PerfilRoute /> }],
               },
             ],
           },

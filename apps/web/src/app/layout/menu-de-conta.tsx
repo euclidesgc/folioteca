@@ -4,6 +4,7 @@ import { useNavigate } from "react-router";
 import { Menu } from "@/shared/components/ui/menu";
 import { useTema } from "@/shared/theme";
 import { signOut, useSession } from "@/features/auth";
+import { CAMINHO_PERFIL } from "@/features/conta";
 
 export function MenuDeConta(): ReactElement {
   const { tema, alternarTema } = useTema();
@@ -30,6 +31,10 @@ export function MenuDeConta(): ReactElement {
           alternarTema();
           return;
         }
+        if (detalhe.value === "perfil") {
+          void navigate(CAMINHO_PERFIL);
+          return;
+        }
         if (detalhe.value === "sair") {
           void sair();
         }
@@ -46,6 +51,9 @@ export function MenuDeConta(): ReactElement {
               <p className="text-sm text-grafite">{pessoa.email}</p>
             </div>
           ) : null}
+          <Menu.Item value="perfil">
+            <Menu.ItemText>Sua conta</Menu.ItemText>
+          </Menu.Item>
           <Menu.Item value="alternar-tema">
             <Menu.ItemText>{rotuloAlternador}</Menu.ItemText>
           </Menu.Item>

@@ -66,13 +66,20 @@ export function createAuth(
           text: [
             `Olá, ${user.name}.`,
             "",
-            "Confirme este endereço para entrar na Folioteca. O link abaixo vale uma vez e vence em 24 horas:",
+            "Confirme este endereço para usá-lo na Folioteca. O link abaixo vale uma vez e vence em 24 horas:",
             url,
             "",
             "Se você não criou esta conta, ignore esta mensagem.",
           ].join("\n"),
         });
       },
+    },
+    user: {
+      // motivo: trocar o endereço não vale por si. O endereço novo recebe um
+      // pedido de confirmação e só passa a valer quando ele é aberto — sem
+      // isso, um erro de digitação mudaria a conta para uma caixa que ninguém
+      // lê, e quem tomasse uma sessão levaria a conta junto.
+      changeEmail: { enabled: true },
     },
     session: {
       expiresIn: CATORZE_DIAS_EM_SEGUNDOS,

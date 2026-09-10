@@ -1,4 +1,14 @@
-export { authClient, useSession, signOut } from "./api/auth-client";
+export {
+  authClient,
+  changeEmail,
+  changePassword,
+  listSessions,
+  revokeOtherSessions,
+  revokeSession,
+  signOut,
+  updateUser,
+  useSession,
+} from "./api/auth-client";
 export {
   CAMINHO_ENTRAR,
   CAMINHO_RECUPERAR_SENHA,
