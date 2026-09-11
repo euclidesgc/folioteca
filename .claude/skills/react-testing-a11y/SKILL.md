@@ -8,13 +8,13 @@ user-invocable: false
 
 ## Quando esta skill vale
 
-Vale ao fechar qualquer fase que toque interface, e ao revisar um componente
+Vale ao fechar qualquer etapa que toque interface, e ao revisar um componente
 novo. A verificação é parte da Definition of Done global: **violação de
 severidade crítica ou séria reprova**.
 
 O `e2e/a11y.spec.ts` roda na mesma suíte de Playwright dos critérios
 comportamentais, e é a exceção declarada lá: ele é verificação de DoD, não
-critério de fase.
+critério do plano.
 
 ## A regra
 

@@ -8,11 +8,11 @@ user-invocable: false
 
 ## Quando esta skill vale
 
-Vale para os critérios marcados `[comportamental]` no `03-plan.md` desta fase —
-e só para eles. O manifesto deste pack declara `playwright test` como o executor
-do tipo `comportamental` e `vitest` como o executor de unidade; o
-`phase-validator` consulta essa configuração para saber com o que verificar cada
-critério.
+Vale para os critérios marcados `[comportamental]` no `PLANO.md` do plano em
+execução (`docs/refactor/NN-slug/PLANO.md`) desta etapa — e só para eles. Um
+critério `comportamental` se confere rodando
+`pnpm --filter web exec playwright test -g "<nome do teste>"`; um critério de
+unidade se confere com `pnpm --filter web exec vitest run -t "<nome>"`.
 
 ## A regra
 
@@ -51,7 +51,7 @@ Testing Library, e mais rápido.
 
 **Isto não é suíte de regressão.** A suíte não cresce por precaução: ela tem
 exatamente os casos dos critérios `comportamental` dos planos aprovados — a
-exceção é `e2e/a11y.spec.ts`, que é verificação de DoD e não critério de fase.
+exceção é `e2e/a11y.spec.ts`, que é verificação de DoD e não critério do plano.
 Uma suíte de Playwright que tenta cobrir tudo fica lenta, fica instável, e o
 time passa a reexecutá-la até passar — que é o mesmo que não tê-la.
 
@@ -144,6 +144,6 @@ export default defineConfig({
 
 - `templates/behavioral.spec.ts` — caso em Given-When-Then com estado por API.
 - `templates/playwright.config.ts` — projetos, setup de sessão e reexecução.
-- Como o critério é escrito no plano: skill `acceptance-criteria`.
+- Como o critério é escrito no plano: `docs/refactor/00-fundamentos/convencoes-dos-planos.md`, seção "Critérios de aceite: as regras".
 - O que fica no Vitest: skill `react-testing-unit`.
 - Verificação de acessibilidade no mesmo navegador: skill `react-testing-a11y`.

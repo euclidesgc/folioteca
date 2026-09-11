@@ -137,6 +137,6 @@ que encerra a sessão — e ele fica no interceptador, não espalhado por telas.
 
 - `templates/api-client.ts` — cliente com interceptadores e erro normalizado.
 - `templates/feature-api.ts` — funções de requisição de uma feature.
-- Contrato primeiro, e regeneração no mesmo PR: skill `contract-first-openapi`.
+- Contrato primeiro, e regeneração no mesmo PR: skill `nest-contract-openapi`.
 - Como o erro chega à tela: skill `react-error-handling`.
 - Como o teste substitui a rede: skill `react-testing-unit`.

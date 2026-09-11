@@ -155,4 +155,4 @@ export const listOrdersFails = (status: number) =>
 - `templates/component.test.tsx` — conjunto com as três naturezas.
 - Console limpo durante os testes: skill `react-error-handling`.
 - Verificação automatizada de acessibilidade: skill `react-testing-a11y`.
-- A Definition of Done global: skill `quality-baseline`.
+- A Definition of Done global: o CI e `bash scripts/gates/gates_runner.sh` (regra 6 do `CLAUDE.md`).

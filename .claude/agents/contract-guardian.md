@@ -40,9 +40,10 @@ opinião que ninguém pediu.
 5. Compare o gerado com o commitado:
    `git diff --exit-code -- packages/api-client`. Diferença significa cliente
    desatualizado no PR — reprove.
-6. Quando houver quebra, procure a coordenação: uma divergência de contrato
-   registrada, uma nota de versionamento ou um item declarando os consumidores
-   afetados. Quebra **sem** coordenação registrada é reprovação.
+6. Quando houver quebra, procure a coordenação: uma decisão registrada em
+   "Riscos e decisões em aberto" do `PLANO.md`, uma nota de versionamento ou um
+   registro no retorno da sessão declarando os consumidores afetados. Quebra
+   **sem** coordenação registrada é reprovação.
 
 ## Como devolve
 

@@ -10,7 +10,8 @@ user-invocable: false
 
 Vale quando o que precisa ser provado atravessa camadas: rota, pipe, guard,
 filtro, serviço, repositório e banco. **É aqui que os critérios do tipo
-`comportamental` do `03-plan.md` são verificados** — o Given-When-Then vira um
+`comportamental` do `PLANO.md` do plano em execução
+(`docs/refactor/NN-slug/PLANO.md`) são verificados** — o Given-When-Then vira um
 `it` com requisição real e asserção sobre a resposta e sobre o banco.
 
 ## As regras
@@ -126,4 +127,4 @@ beforeEach(async () => {
 - `templates/test-app.ts`, `templates/feature.e2e-spec.ts` e
   `templates/jest-e2e.json`.
 - Regra isolada e barata: skill `nest-testing-unit`.
-- Forma dos critérios tipados: skill `acceptance-criteria` do núcleo.
+- Forma dos critérios tipados: `docs/refactor/00-fundamentos/convencoes-dos-planos.md`, seção "Critérios de aceite: as regras".

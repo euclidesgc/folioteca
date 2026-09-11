@@ -13,7 +13,7 @@ classificação: ela não escolhe biblioteca nem escreve código, ela responde
 **qual dos cinco tipos** o dado é. Escolhida a classe, a skill da classe diz
 como fazer.
 
-Classificação errada é o defeito mais caro deste pack, porque não quebra nada
+Classificação errada é o defeito mais caro deste projeto, porque não quebra nada
 no dia em que acontece. Ela só cobra depois: dado de servidor guardado como
 estado de aplicação vira cache escrito à mão, com invalidação escrita à mão, com
 dois componentes mostrando números diferentes da mesma coisa.

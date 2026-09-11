@@ -8,7 +8,7 @@ user-invocable: false
 
 ## Quando esta skill vale
 
-Vale quando a fase introduz qualquer valor que muda entre ambientes: URL de
+Vale quando a etapa introduz qualquer valor que muda entre ambientes: URL de
 banco, segredo de assinatura, chave de terceiro, limite, porta, feature flag.
 
 ## As regras

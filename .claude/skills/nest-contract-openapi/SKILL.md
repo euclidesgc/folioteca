@@ -8,7 +8,7 @@ user-invocable: false
 
 ## Quando esta skill vale
 
-Vale em toda fase que cria, altera ou remove endpoint, campo, código de erro,
+Vale em toda etapa que cria, altera ou remove endpoint, campo, código de erro,
 código de status ou formato de resposta. Se algum consumidor percebe a mudança,
 ela é mudança de contrato.
 
@@ -22,7 +22,7 @@ ela é mudança de contrato.
 3. **`oasdiff` classifica a mudança** entre aditiva e quebra, no CI.
 4. **Os clientes são regenerados no mesmo PR.** Contrato, clientes e servidor
    entram juntos ou não entram.
-5. **Divergência que toca contrato é do tipo `contrato` e PARA a fase na hora.**
+5. **Contrato que não bate com o plano PARA a etapa na hora**, até o dono decidir.
 
 ## Por quê
 
@@ -40,16 +40,17 @@ O passo 4 é o que faz os anteriores valerem algo. Sem o CI regenerando a partir
 do contrato commitado e comparando com o repositório, a ordem é recomendação — e
 recomendação de ordem é a primeira coisa que cai sob pressão.
 
-## Por que a divergência de contrato para a fase
+## Por que o contrato PARA a etapa
 
-Premissa errada de contrato **se espalha para todos os consumidores**. Enquanto
-uma divergência normal afeta o código daquela fase e pode seguir na opção
-recomendada travando só o merge, uma divergência de contrato já produziu tipos
-gerados, chamadas e telas no cliente. Continuar implementando multiplica o
-retrabalho por consumidor: o custo de parar são minutos, o de seguir são
-os arquivos de todo mundo que já consumiu o formato errado.
+Premissa errada de contrato **se espalha para todos os consumidores**. Quando o
+plano contraria a realidade em outro ponto qualquer, dá para seguir pela opção
+recomendada e travar só o merge; contrato é diferente, porque a mudança errada
+já produziu tipos gerados, chamadas e telas no cliente. Continuar implementando
+multiplica o retrabalho por consumidor: o custo de parar são minutos, o de
+seguir são os arquivos de todo mundo que já consumiu o formato errado.
 
-Ao detectar, registre com `--kind contrato` e devolva o controle à thread
+Ao detectar, pare, descreva no retorno o que o `PLANO.md` pede, o que o
+contrato exige, e a opção recomendada, e devolva o controle à thread
 principal. Não decida sozinho qual formato é o certo.
 
 ## Exemplo
@@ -122,7 +123,5 @@ parte. O que ele não infere e precisa ser explícito:
 
 - `templates/swagger.ts`, `templates/generate-openapi.ts` e
   `templates/contract-check.sh`.
-- Ciclo genérico e política de versionamento: skill `contract-first-openapi` do
-  núcleo.
-- Registro da divergência de contrato: skill `divergence-protocol` do núcleo.
+- Quando o plano contraria a realidade: seção "Processo" do `CLAUDE.md` da raiz.
 - Códigos de erro devolvidos: skill `nest-errors-filters`.

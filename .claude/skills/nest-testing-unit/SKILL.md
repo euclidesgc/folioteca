@@ -8,7 +8,7 @@ user-invocable: false
 
 ## Quando esta skill vale
 
-Vale para o alvo natural do teste unitário neste pack: o **serviço**. Controller
+Vale para o alvo natural do teste unitário neste projeto: o **serviço**. Controller
 quase não tem o que testar isolado — ele delega — e repositório só é testado
 contra banco real (`nest-testing-integration`).
 
@@ -142,4 +142,4 @@ Fora disso, o container é setup caro sem garantia adicional.
 - `templates/feature.service.spec.ts` e
   `templates/feature.repository.mock.ts`.
 - Banco real, rota real e Given-When-Then: skill `nest-testing-integration`.
-- As três naturezas e a DoD: skill `quality-baseline` do núcleo.
+- A DoD global: o CI e `bash scripts/gates/gates_runner.sh` (regra 6 do `CLAUDE.md`).

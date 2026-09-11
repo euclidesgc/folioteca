@@ -8,7 +8,7 @@ user-invocable: false
 
 ## Quando esta skill vale
 
-Vale sempre que a fase acrescenta um caminho de execução que alguém vai precisar
+Vale sempre que a etapa acrescenta um caminho de execução que alguém vai precisar
 diagnosticar em produção — e vale na revisão de qualquer diff, porque
 `console.log` esquecido é apontamento.
 

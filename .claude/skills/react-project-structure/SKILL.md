@@ -10,7 +10,7 @@ user-invocable: false
 
 Vale ao criar um arquivo novo, ao decidir onde um código já existente deveria
 morar, ao escrever um `import` que atravessa pastas e ao revisar um diff que
-mexeu em mais de uma feature. Este pack é **Vite + TypeScript, SPA**: não há
+mexeu em mais de uma feature. Este projeto é **Vite + TypeScript, SPA**: não há
 componente de servidor nem ação de servidor, então toda a organização abaixo é
 de código que roda no navegador.
 
