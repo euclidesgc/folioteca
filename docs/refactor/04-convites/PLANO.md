@@ -223,32 +223,32 @@ do servidor mesmo que burle a tela.
       sai com 0
 
 ### Etapa 3 — E-mail e aceite público
-- [ ] Ler: `apps/api/src/mail/mail.service.ts`, `docs/refactor/00-fundamentos/
+- [x] Ler: `apps/api/src/mail/mail.service.ts`, `docs/refactor/00-fundamentos/
       decisoes.md` (seção 8, e-mail), `apps/web/src/features/auth/
       components/redefinir-senha-form.tsx` (padrão de formulário com token
       na URL)
-- [ ] Adicionar `@react-email/components` e `@react-email/render` a
+- [x] Adicionar `@react-email/components` e `@react-email/render` a
       `apps/api/package.json` (medir a versão que já passou a quarentena de
       7 dias)
-- [ ] `apps/api/src/invitations/invitation-email.tsx`: template com título
+- [x] `apps/api/src/invitations/invitation-email.tsx`: template com título
       "Você foi convidado para a Folioteca", texto "`<quem convidou>`
       convidou você para entrar em `<organização>`, na unidade `<unidade>`.",
       botão "Aceitar convite" → `${WEB_ORIGIN}/convite/<token>`, rodapé "Este
       link vale por 7 dias e pode ser usado uma vez. Se você não esperava
       este convite, ignore esta mensagem." Assunto: "Convite para a
       Folioteca."
-- [ ] Estender `OutgoingMail` em `mail.service.ts` com `html?: string` e
+- [x] Estender `OutgoingMail` em `mail.service.ts` com `html?: string` e
       repassar ao `sendMail`
-- [ ] `dto/{accept-invitation.dto.ts, public-invitation.dto.ts}`; rotas
+- [x] `dto/{accept-invitation.dto.ts, public-invitation.dto.ts}`; rotas
       públicas `GET /invitations/by-token/:token` e `POST
       /invitations/:token/accept` (transação D5 + `signInEmail`); medir se
       `@nestjs/throttler` já está instalado (por outro plano) antes de
       adicionar; freio de 10/min/IP nas duas rotas públicas
-- [ ] Teste: acrescentar a `invitations.e2e-spec.ts` — "convite vencido
+- [x] Teste: acrescentar a `invitations.e2e-spec.ts` — "convite vencido
       responde convite inválido", "aceita convite cria pessoa lotada e
       sessão" (cria → aceita → `GET /me` devolve o papel e a unidade do
       convite), "recusa a décima primeira consulta pública no mesmo minuto"
-- [ ] Verificação da etapa:
+- [x] Verificação da etapa:
       `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "convite"`
       sai com 0
 
@@ -446,3 +446,64 @@ pública `GET /invitations/by-token/:token` que devolveria 404
 prova para o nível HTTP quando a rota existir; (4) nenhuma dependência nova —
 `@nestjs/swagger`, `class-validator` e `class-transformer` já eram diretas.
 2026-09-12 — etapas 1 e 2, fechamento — corrigido um drift que o plano 03 deixou entre `schema.prisma` e as migrations: `Unit.unitType` ganhou `onDelete: Restrict` explícito (a migration já gravava `RESTRICT`, e é o que a regra `UNIT_TYPE_IN_USE` exige), e `UnitClosure` passou a declarar as duas relações com `Unit` e o índice em `descendantId`, que a migration cria à mão. Sem isso, `prisma migrate diff --from-config-datasource --to-schema` acusava três diferenças, e o próximo `migrate dev` apagaria as chaves estrangeiras e o índice da tabela de fecho sem recriá-los. Agora o diff imprime "No difference detected"; nenhuma migration nova foi preciso, porque o banco já estava certo — quem estava errado era a declaração.
+
+2026-09-12 — etapa 3 — sem migration nova (modelo `Invitation` não muda).
+`@react-email/components@^1.0.12`, `@react-email/render@^2.1.0` e
+`@nestjs/throttler@^6.5.0` acrescentados a `apps/api/package.json` (nenhum dos
+três estava instalado por outro plano); `apps/api/src/invitations/
+invitation-email.tsx` com o template e `renderInvitationEmail()` (html e texto
+puro pelo mesmo `render()`, com `plainText: true` no segundo, em vez de duas
+versões escritas à mão); `OutgoingMail` em `mail.service.ts` ganhou `html?:
+string`, repassado ao `sendMail`; `dto/{accept-invitation.dto.ts,
+public-invitation.dto.ts}`; `InvitationsRepository.{findByTokenHash,
+findOrganizationName, acceptInvitation}` — o último faz `User`, `Account`
+local (via `createLocalAccountIssuer("credential")` de `@better-auth/core/db`,
+D5) e a lotação numa transação só, com um `updateMany` condicional
+(`acceptedAt: null, revokedAt: null, expiresAt: {gt: now}`) fechando a corrida
+de duas aceitações do mesmo convite; `InvitationsService.{getPublicView,
+accept}` e o envio de e-mail dentro de `create`/`resend` (a etapa 1 gerava o
+token e descartava o valor em claro — agora ele sobrevive até o e-mail sair);
+`InvitationInvalidError` (404 `INVITATION_INVALID`) em `errors.ts`;
+`invitations.controller.ts` com `GET /invitations/by-token/:token` e `POST
+/invitations/:token/accept`, públicas, freio por `ThrottlerGuard` (10/min,
+configurado em `InvitationsModule` via `ThrottlerModule.forRoot`, escopado às
+duas rotas); testes novos em `invitations.service.spec.ts` (envio de e-mail,
+consulta pública, aceite) e em `invitations.e2e-spec.ts` ("convite vencido
+responde convite inválido", "aceita convite cria pessoa lotada e sessão",
+"recusa a décima primeira consulta pública no mesmo minuto"); `apps/api/test/
+apoio/correio.ts`, dublê de teste não listado no plano — lê a API REST do
+Mailpit (`http://127.0.0.1:8025`, a porta que `docker-compose.yml` publica)
+porque o token nunca trafega pela API (regra 8): é o único jeito de um teste
+obter o valor em claro para chamar `by-token`/`accept`. O que desviou do
+plano: (1) nenhuma rota nova ficou pública por padrão — o guard de sessão não
+é global neste projeto (cada controller declara `@UseGuards` por conta
+própria), então tornar as duas rotas públicas foi mover
+`@UseGuards(SessionGuard, AdminGuard)` do nível da classe para cada um dos
+quatro métodos administrativos, sem `@Public()` — decorator que este projeto
+não tem porque não precisa; (2) `apps/api/tsconfig.json` (opção `jsx:
+"react-jsx"` e `include` de `.tsx`), `apps/api/jest.config.js` e `apps/api/
+test/jest-e2e.config.js` (`.tsx` em `moduleFileExtensions` e no `transform`) e
+o script `lint` de `apps/api/package.json` (glob de `.tsx`) — nenhum
+mencionado no plano, mas exigidos pelo primeiro `.tsx` do projeto; `react`,
+`react-dom`, `@types/react`, `@types/react-dom` viraram dependência direta da
+API pelo mesmo motivo (peer de `@react-email/components`); (3)
+`apps/api/scripts/generate-openapi.ts` ganhou um quarto dublê, `MailService`,
+no mesmo `PrismaStubModule` que já tinha os outros três — sem ele
+`openapi:generate` falhava com `process.exit(1)` e nenhuma linha de erro
+(`NestFactory.create(..., { logger: false })` descarta a mensagem do próprio
+Nest), porque `InvitationsService` agora injeta `MailService` e o módulo do
+script nunca importou `MailModule`; era exatamente o dublê que o comentário
+da etapa 2 já previa e ainda não existia; (4) o teste "invalida o token
+anterior ao reenviar" (escrito na etapa 2 no nível do `PrismaService`, com a
+nota de que a etapa 3 estenderia a prova) ganhou a chamada HTTP a `GET
+/invitations/by-token/:token` com o token antigo, porque é a forma que o
+critério de aceite do plano pede textualmente; (5) o teste do freio de taxa
+sobe uma `app` isolada só para si (`createApp()` próprio, fechada no
+`finally`) — o `ThrottlerStorage` é por instância Nest, e a `app`
+compartilhada do arquivo já bate em `by-token` nas outras provas; somar as
+duas faria "a 11ª chamada" depender da ordem dos testes; (6) dois testes
+usavam senhas de teste inventadas (`"senha-nova-123456"`,
+`"senha-de-convite-1234"`) que cruzam o piso de entropia da regra
+`generic-api-key` do gitleaks quando associadas à chave `password` — trocadas
+pela mesma constante que `test/apoio/sessao.ts` já usa
+(`"senha-de-teste-1234"`), sem entropia suficiente para a regra.

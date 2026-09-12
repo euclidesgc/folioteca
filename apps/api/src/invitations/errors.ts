@@ -42,3 +42,14 @@ export class InvitationNotPendingError extends ConflictError {
     super("Este convite já foi aceito ou revogado.");
   }
 }
+
+// motivo (regra 8): a página pública nunca diferencia token errado, vencido,
+// usado ou revogado — sempre o mesmo 404, para que tentar tokens não revele
+// se um convite específico já foi aceito.
+export class InvitationInvalidError extends NotFoundError {
+  readonly code = "INVITATION_INVALID";
+
+  constructor() {
+    super("Este link não vale mais.");
+  }
+}

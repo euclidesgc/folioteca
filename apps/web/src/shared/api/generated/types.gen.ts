@@ -218,6 +218,33 @@ export type InvitationResponseDto = {
     createdAt: string;
 };
 
+export type PublicInvitationDto = {
+    /**
+     * Nome da organização que convidou.
+     */
+    organizationName: string;
+    /**
+     * Nome da unidade de lotação inicial.
+     */
+    unitName: string;
+    /**
+     * E-mail do convite, com o meio mascarado.
+     */
+    maskedEmail: string;
+    expiresAt: string;
+};
+
+export type AcceptInvitationDto = {
+    /**
+     * Nome de quem aceita o convite.
+     */
+    name: string;
+    /**
+     * Senha de 12 a 128 caracteres, sem regra de composição.
+     */
+    password: string;
+};
+
 export type GetHealthData = {
     body?: never;
     path?: never;
@@ -694,3 +721,31 @@ export type RevokeInvitationResponses = {
 };
 
 export type RevokeInvitationResponse = RevokeInvitationResponses[keyof RevokeInvitationResponses];
+
+export type GetInvitationByTokenData = {
+    body?: never;
+    path: {
+        token: string;
+    };
+    query?: never;
+    url: '/invitations/by-token/{token}';
+};
+
+export type GetInvitationByTokenResponses = {
+    200: PublicInvitationDto;
+};
+
+export type GetInvitationByTokenResponse = GetInvitationByTokenResponses[keyof GetInvitationByTokenResponses];
+
+export type AcceptInvitationData = {
+    body: AcceptInvitationDto;
+    path: {
+        token: string;
+    };
+    query?: never;
+    url: '/invitations/{token}/accept';
+};
+
+export type AcceptInvitationResponses = {
+    200: unknown;
+};

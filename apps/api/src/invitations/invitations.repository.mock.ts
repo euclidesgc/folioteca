@@ -11,6 +11,9 @@ export function createInvitationsRepositoryMock(): jest.Mocked<InvitationsReposi
     findById: jest.fn().mockResolvedValue(null),
     resend: jest.fn(),
     revoke: jest.fn(),
+    findByTokenHash: jest.fn().mockResolvedValue(null),
+    findOrganizationName: jest.fn().mockResolvedValue("Organização de Teste"),
+    acceptInvitation: jest.fn(),
   } as unknown as jest.Mocked<InvitationsRepository>;
 }
 
@@ -25,6 +28,7 @@ export function anInvitationRecord(overrides: Partial<InvitationRecord> = {}): I
     acceptedAt: null,
     revokedAt: null,
     createdAt: new Date("2026-01-02T00:00:00.000Z"),
+    invitedByName: "Administradora de Teste",
     ...overrides,
   };
 }

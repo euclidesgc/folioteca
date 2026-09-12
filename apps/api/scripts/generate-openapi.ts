@@ -6,19 +6,21 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { AUTH_INSTANCE } from '../src/auth/auth.constants';
 import { HealthModule } from '../src/health/health.module';
+import { MailService } from '../src/mail/mail.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { ROUTE_MODULES } from '../src/route-modules';
 import { buildOpenApiDocument } from '../src/swagger';
 
-// contorno: o PrismaService real injeta ConfigService e exigiria DATABASE_URL só para o documento ser escrito; o AUTH_INSTANCE real dependeria das mesmas três infraestruturas (Prisma, Config, Mail); o InstallationService lê INSTALLATION_CODE do mesmo ConfigService. Os três dublês entram pelo mesmo módulo global de onde os verdadeiros viriam, porque quem os injeta é provider ou guard de algum módulo de rota e resolve no escopo dele.
+// contorno: o PrismaService real injeta ConfigService e exigiria DATABASE_URL só para o documento ser escrito; o AUTH_INSTANCE real dependeria das mesmas três infraestruturas (Prisma, Config, Mail); o InstallationService lê INSTALLATION_CODE do mesmo ConfigService; o MailService real abriria uma conexão SMTP. Os quatro dublês entram pelo mesmo módulo global de onde os verdadeiros viriam, porque quem os injeta é provider ou guard de algum módulo de rota e resolve no escopo dele.
 @Global()
 @Module({
   providers: [
     { provide: PrismaService, useValue: {} },
     { provide: AUTH_INSTANCE, useValue: {} },
     { provide: ConfigService, useValue: {} },
+    { provide: MailService, useValue: {} },
   ],
-  exports: [PrismaService, AUTH_INSTANCE, ConfigService],
+  exports: [PrismaService, AUTH_INSTANCE, ConfigService, MailService],
 })
 class PrismaStubModule {}
 

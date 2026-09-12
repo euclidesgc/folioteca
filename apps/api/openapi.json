@@ -1007,6 +1007,71 @@
           "invitations"
         ]
       }
+    },
+    "/invitations/by-token/{token}": {
+      "get": {
+        "operationId": "getInvitationByToken",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicInvitationDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/invitations/{token}/accept": {
+      "post": {
+        "operationId": "acceptInvitation",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptInvitationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "",
+        "tags": [
+          "invitations"
+        ]
+      }
     }
   },
   "info": {
@@ -1610,6 +1675,50 @@
           "role",
           "expiresAt",
           "createdAt"
+        ]
+      },
+      "PublicInvitationDto": {
+        "type": "object",
+        "properties": {
+          "organizationName": {
+            "type": "string",
+            "description": "Nome da organização que convidou."
+          },
+          "unitName": {
+            "type": "string",
+            "description": "Nome da unidade de lotação inicial."
+          },
+          "maskedEmail": {
+            "type": "string",
+            "description": "E-mail do convite, com o meio mascarado."
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organizationName",
+          "unitName",
+          "maskedEmail",
+          "expiresAt"
+        ]
+      },
+      "AcceptInvitationDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Nome de quem aceita o convite."
+          },
+          "password": {
+            "type": "string",
+            "description": "Senha de 12 a 128 caracteres, sem regra de composição."
+          }
+        },
+        "required": [
+          "name",
+          "password"
         ]
       }
     }

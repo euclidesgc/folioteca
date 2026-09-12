@@ -1,6 +1,9 @@
 import { Injectable } from "@nestjs/common";
+import { createLocalAccountIssuer } from "@better-auth/core/db";
 import { UserRole } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+
+const LOCAL_CREDENTIAL_PROVIDER_ID = "credential";
 
 export type InvitationRecord = {
   id: string;
@@ -12,6 +15,7 @@ export type InvitationRecord = {
   acceptedAt: Date | null;
   revokedAt: Date | null;
   createdAt: Date;
+  invitedByName: string;
 };
 
 export type CreateInvitationInput = {
@@ -21,6 +25,19 @@ export type CreateInvitationInput = {
   tokenHash: string;
   expiresAt: Date;
   invitedById: string;
+};
+
+export type AcceptInvitationInput = {
+  invitationId: string;
+  unitId: string;
+  role: UserRole;
+  email: string;
+  name: string;
+  passwordHash: string;
+};
+
+export type AcceptInvitationResult = {
+  userId: string;
 };
 
 const INVITATION_SELECT = {
@@ -33,6 +50,7 @@ const INVITATION_SELECT = {
   revokedAt: true,
   createdAt: true,
   unit: { select: { name: true } },
+  invitedBy: { select: { name: true } },
 } as const;
 
 type InvitationRow = {
@@ -45,6 +63,7 @@ type InvitationRow = {
   revokedAt: Date | null;
   createdAt: Date;
   unit: { name: string };
+  invitedBy: { name: string };
 };
 
 function toRecord(row: InvitationRow): InvitationRecord {
@@ -58,6 +77,7 @@ function toRecord(row: InvitationRow): InvitationRecord {
     acceptedAt: row.acceptedAt,
     revokedAt: row.revokedAt,
     createdAt: row.createdAt,
+    invitedByName: row.invitedBy.name,
   };
 }
 
@@ -119,6 +139,73 @@ export class InvitationsRepository {
     await this.prisma.invitation.update({
       where: { id },
       data: { revokedAt: new Date() },
+    });
+  }
+
+  async findByTokenHash(tokenHash: string): Promise<InvitationRecord | null> {
+    const row = await this.prisma.invitation.findUnique({
+      where: { tokenHash },
+      select: INVITATION_SELECT,
+    });
+    return row ? toRecord(row) : null;
+  }
+
+  // motivo (D8): a organização não tem nome próprio — o nome nasce na
+  // unidade raiz, única por instância (M1).
+  async findOrganizationName(): Promise<string> {
+    const root = await this.prisma.unit.findFirstOrThrow({
+      where: { isRoot: true },
+      select: { name: true },
+    });
+    return root.name;
+  }
+
+  // motivo (D5/regra 9): convite aceito cria `User`, `Account` local e a
+  // lotação na unidade do convite numa transação só; a checagem de
+  // `acceptedAt`/`revokedAt`/`expiresAt` dentro do `updateMany` fecha a
+  // corrida de duas requisições aceitando o mesmo convite ao mesmo tempo —
+  // só a primeira marca a linha e segue para criar a pessoa.
+  async acceptInvitation(
+    input: AcceptInvitationInput,
+  ): Promise<AcceptInvitationResult | null> {
+    return this.prisma.$transaction(async (tx) => {
+      const accepted = await tx.invitation.updateMany({
+        where: {
+          id: input.invitationId,
+          acceptedAt: null,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        data: { acceptedAt: new Date() },
+      });
+      if (accepted.count === 0) {
+        return null;
+      }
+
+      const user = await tx.user.create({
+        data: {
+          name: input.name,
+          email: input.email,
+          emailVerified: true,
+          role: input.role,
+        },
+      });
+
+      await tx.account.create({
+        data: {
+          issuer: createLocalAccountIssuer(LOCAL_CREDENTIAL_PROVIDER_ID),
+          providerId: LOCAL_CREDENTIAL_PROVIDER_ID,
+          accountId: user.id,
+          password: input.passwordHash,
+          userId: user.id,
+        },
+      });
+
+      await tx.unitMembership.create({
+        data: { unitId: input.unitId, userId: user.id },
+      });
+
+      return { userId: user.id };
     });
   }
 }
