@@ -488,6 +488,29 @@ e o editor; quem prova o acesso é sempre `GET /documents/:id`.
   ("presença e robustez do tempo real") é o lugar natural para isolar
   `collaboration.e2e-spec.ts` num processo Jest próprio, se a ordem fixa um
   dia deixar de bastar.
+- **O chunk do editor continua na lista de pré-carregamento do HTML, mesmo
+  isolado em arquivo próprio.** A correção pós-entrega de 2026-09-12 separou
+  as dependências do editor (BlockNote, Yjs, Hocuspocus, `@base-ui`,
+  `lucide-react`) do chunk `vendor` por um grupo `editor` em
+  `vite.config.ts` (`codeSplitting.groups`), e a importação do componente
+  ficou `lazy()` + `Suspense` — o código só *executa* quando a rota do
+  documento monta, medido sem regressão no console da suíte e2e. Mas pelo
+  menos um módulo pequeno, não identificado com certeza (a evidência aponta
+  para algo ligado a `oniguruma-to-es`/Shiki, do realce de sintaxe de
+  `@blocknote/code-block`), continua sendo compartilhado entre o chunk
+  `editor` e o chunk `vendor` de um jeito que faz o agrupador hospedar o
+  módulo compartilhado no grupo de maior prioridade (`editor`) e o `vendor`
+  importar dali — e isso é o bastante para o Vite manter `editor-*.js` no
+  `<link rel="modulepreload">` do HTML, buscando os ~380 KB gzip do editor
+  em toda página, não só na do documento. Duas rodadas de regex já tiraram
+  `clsx`/`class-variance-authority`/`tailwind-merge`/`path-to-regexp` desse
+  mesmo problema (descoberto medindo o artefato, não lendo código fonte);
+  seguir caçando pacote por pacote não tem fim garantido, e o comportamento
+  de hospedagem de módulo compartilhado do Rolldown não está documentado
+  localmente. Padrão: aceitar o ganho medido (cache por família, chunk
+  isolado, execução sob demanda) e tratar o número exato da decisão 3 —
+  bytes buscados pela rede, não só execução — como investigação própria,
+  com ferramenta de análise de bundle, se o dono quiser perseguir.
 
 ## Andamento
 
@@ -931,3 +954,65 @@ cada abertura), e o navegador não reporta violação nenhuma. O motivo: CSP
 sessão anterior não tinha verificado. A pendência não se confirmou; a
 política continua `style-src 'self' <hashes>`, sem nenhum afrouxamento, e o
 item correspondente saiu de "Riscos e decisões em aberto".
+
+2026-09-12 — correção pós-entrega — o CI reprovava
+`apps/web/src/app/layout/barra-lateral.test.tsx` ("o link de Organização
+fica fora do nav de Destinos do produto") com "Test timed out in 5000ms";
+local, o mesmo caso levava 3668ms (suíte: 5.74s). Causa medida: `barra-
+lateral.tsx` importa `NewDocumentButton` de `@/features/documents`, cujo
+barril reexportava `PaginaDoDocumento` de forma estática — e essa reexportam
+arrasta `@folioteca/editor` (BlockNote inteiro) para dentro do grafo de
+módulos só por importar o barril; como o teste chama `vi.resetModules()` e
+reimporta por `import()` dinâmico antes de cada caso, cada um dos seis casos
+recarregava o BlockNote do zero. O `pnpm run build` confirmou o mesmo defeito
+do lado do artefato: só havia um `vendor-*.js` (990,06 KB gzip) com BlockNote
+dentro, pré-carregado no HTML — contra a decisão 3 ("carregado sob demanda,
+não no esqueleto").
+
+Correção na raiz: `apps/web/src/features/documents/components/pagina-do-
+documento-lazy.tsx` (novo) exporta `PaginaDoDocumento` como
+`lazy(() => import("./pagina-do-documento"))`; o barril
+(`features/documents/index.ts`) passou a reexportar esse módulo preguiçoso,
+não o componente pesado; `apps/web/src/app/routes/documento.tsx` envolve o
+uso num `<Suspense fallback={<EsqueletoDoDocumento />}>` (novo componente
+local, `Skeleton` de `shared/components/ui/`, mesmo padrão de
+`sessoes-lista.tsx`). `DocumentoNaoEncontrado` não importa o editor
+(confirmado por leitura — só usa `EmptyState`).
+
+Medido depois: o caso crítico caiu para 956ms (suíte: 1.91s) — a causa do
+timeout do CI está corrigida, com folga. No artefato, a reexportação estática
+sozinha não bastou: o chunk `vendor` continuou com 990 KB gzip, porque o
+grupo "vendor" de `codeSplitting.groups` (`vite.config.ts`) casa qualquer
+coisa em `node_modules`, estático ou só alcançável por `import()` dinâmico.
+Acrescentado um grupo "editor" (prioridade maior que "vendor") isolando
+BlockNote/Yjs/Hocuspocus/`@base-ui`/`lucide-react`: `vendor` caiu para 593 KB
+gzip, `editor-*.js` saiu com 380 KB gzip — e um grupo
+"compartilhado-com-editor" (prioridade maior que "editor") para `clsx`/
+`class-variance-authority`/`tailwind-merge`/`path-to-regexp`, que o
+agrupador hospedava dentro do chunk do editor por serem compartilhados com
+código eager (`cn()` da aplicação, `better-auth`) — descoberto medindo o
+artefato gerado, não lendo o código fonte dessas dependências. Mesmo assim
+o chunk do editor continua no `<link rel="modulepreload">` do HTML por pelo
+menos mais um módulo pequeno não identificado com certeza; registrado em
+"Riscos e decisões em aberto", não perseguido além disso.
+
+Achado fora do pedido, corrigido: a suíte e2e completa (52 casos, subida
+única) reprovava de forma reprodutível em
+`documentos.spec.ts` ("cria, escreve título e dois blocos…") — "Salvando…"
+nunca virava "Salvo". Bisseccionado por `git stash`: o código anterior a
+esta correção passa; só a troca para `lazy()`/`Suspense` (sem as mudanças de
+`vite.config.ts`) já reproduz a falha em 100% das repetições. Causa: `use-
+sync-status.ts` lia `provider.isSynced` como estado inicial e só assinava o
+evento `"synced"` dentro de um `useEffect` posterior — uma sincronização que
+terminasse na janela entre a renderização e a assinatura era perdida para
+sempre. No caminho síncrono anterior essa janela nunca era vencida pelo lado
+errado; o novo limite assíncrono (`import()` + resolução do `Suspense`)
+passou a perdê-la de forma consistente, confirmado com log temporário
+(`provider.isSynced` virava `true` entre a renderização e a assinatura, sem
+o evento `"synced"` disparar o handler nenhuma vez). Corrigido relendo
+`provider.isSynced` de forma síncrona dentro do próprio `useEffect`, antes de
+assinar — fecha a janela.
+
+Portões: `typecheck`, `lint`, `test` (218 testes), `build` e
+`gates_runner.sh` limpos. Suíte e2e completa, numa subida só: 52 aprovados
+(0 reprovado), incluindo o caso de sincronização acima, já corrigido.
