@@ -1,7 +1,7 @@
 # 02 — Documento e editor
 
 **Status:** [ ] não iniciado · [ ] em andamento · [x] entregue
-**Branch:** `feat/02-documento-e-editor` a partir de `develop` · **PR:** —
+**Branch:** `feat/02-documento-e-editor`, empilhada sobre `feat/01-layout-e-navegacao` · **PR:** [#86](https://github.com/euclidesgc/folioteca/pull/86)
 **Depende de:** 01 — Layout e navegação (a barra lateral única e o esqueleto de `/documentos`)
 **Desbloqueia:** 06 — Compartilhamento, 07 — Pesquisa, 08 — Comentários, 09 — Histórico de versões, 10 — Anexos e imagens, 11 — Presença e robustez do tempo real
 
