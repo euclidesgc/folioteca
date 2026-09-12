@@ -294,24 +294,26 @@ exigem `AdminGuard`, como as outras rotas de configuração da instância (M3).
 - [x] Verificação da etapa: `pnpm --filter api run test:integration -t "spaces"` sai com 0
 
 ### Etapa 2 — Leitura: árvore, detalhe e membros
-- [ ] Ler: `apps/api/src/units/**` (padrão module/controller/service/repository
+- [x] Ler: `apps/api/src/units/**` (padrão module/controller/service/repository
       e `units.errors.ts` do plano 03), `apps/api/src/common/errors/domain-error.ts`,
       `apps/api/scripts/generate-openapi.ts`, `apps/web/src/features/spaces/`
       (dados de exemplo do plano 01)
-- [ ] Cria `apps/api/src/spaces/{spaces.module.ts,spaces.controller.ts,
+- [x] Cria `apps/api/src/spaces/{spaces.module.ts,spaces.controller.ts,
       spaces.service.ts,spaces.repository.ts,spaces.errors.ts,dto/space.dto.ts,
       dto/space-member.dto.ts}` com `GET /spaces` (árvore podada por
       visibilidade, Regra 6), `GET /spaces/:id`, `GET /spaces/:id/members`;
       `SpaceNotFoundError extends NotFoundError` (`SPACE_NOT_FOUND`)
-- [ ] Registra `SpacesModule` em `ROUTE_MODULES` e no `AppModule`
-- [ ] Roda `pnpm --filter api run openapi:generate` e `pnpm --filter web run api:generate`
-- [ ] Troca a `queryFn` de `apps/web/src/features/spaces/hooks/{use-space-tree,use-space}.ts`
+- [x] Registra `SpacesModule` em `ROUTE_MODULES` e no `AppModule`
+- [x] Roda `pnpm --filter api run openapi:generate` e `pnpm --filter web run api:generate`
+- [x] Troca a `queryFn` de `apps/web/src/features/spaces/hooks/{use-space-tree,use-space}.ts`
       de `EXEMPLO_ESPACOS` para `GET /spaces`/`GET /spaces/:id` (a assinatura
       dos hooks não muda, só a origem do dado — como o plano 01 já previu)
-- [ ] Teste: `apps/api/test/spaces.e2e-spec.ts` — "hides a restricted space
+- [x] Teste: `apps/api/test/spaces.e2e-spec.ts` — "hides a restricted space
       from someone outside its audience", "shows a restricted space to a
-      member and to someone with inherited access"
-- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t "spaces"` sai com 0
+      member and to someone with inherited access". **Somado**: "counts only
+      direct staffing as unit space membership" (reagendado da etapa 1 — ver
+      Andamento da etapa 1).
+- [x] Verificação da etapa: `pnpm --filter api run test:integration -t "spaces"` sai com 0
 
 ### Etapa 3 — Escrita: criar, editar, herança, membros, apagar, e o padrão da organização
 - [ ] Ler: `apps/api/src/spaces/*` (etapa 2), `apps/api/src/units/units.service.ts`
@@ -421,12 +423,12 @@ exigem `AdminGuard`, como as outras rotas de configuração da instância (M3).
 - [x] `estrutural` — `user_audience_spaces` só é chamada, fora da migration,
       em `apps/api/src/access/access.repository.ts`. Prova: `rg -l
       "user_audience_spaces" apps/api/src` imprime só esse caminho.
-- [ ] `comportamental` — Dado um espaço livre restrito do qual a pessoa não é
+- [x] `comportamental` — Dado um espaço livre restrito do qual a pessoa não é
       membro nem descende por herança, quando ela chama `GET /spaces/:id`,
       então a resposta é 404 `SPACE_NOT_FOUND`. Prova:
       `apps/api/test/spaces.e2e-spec.ts`, teste "hides a restricted space
       from someone outside its audience".
-- [ ] `comportamental` — Dado um espaço restrito do qual a pessoa é membro
+- [x] `comportamental` — Dado um espaço restrito do qual a pessoa é membro
       direto, e outro que ela só alcança por estar lotada num espaço de
       unidade que herda até ele, quando ela chama `GET /spaces/:id` para
       cada um, então as duas respostas são 200. Prova:
@@ -436,8 +438,9 @@ exigem `AdminGuard`, como as outras rotas de configuração da instância (M3).
       quando uma pessoa cria um espaço livre por `POST /spaces`, então ele
       nasce com `inheritsFromParent: true`. Prova:
       `apps/api/test/spaces.e2e-spec.ts`, teste "copies the organization
-      default onto a newly created space".
-- [ ] `comportamental` — Dado alguém lotado numa subunidade mas não na
+      default onto a newly created space". **Pendente** — depende de `POST
+      /spaces` (etapa 3), fora do escopo da sessão que entregou as etapas 1 e 2.
+- [x] `comportamental` — Dado alguém lotado numa subunidade mas não na
       unidade pai, quando se chama `GET /spaces/:id/members` do espaço da
       unidade pai, então essa pessoa não está na lista. Prova:
       `apps/api/test/spaces.e2e-spec.ts`, teste "counts only direct staffing
@@ -530,3 +533,28 @@ space membership" para a etapa 2 (a prova nos critérios de aceite é `GET
 default onto a newly created space" para a etapa 3 (a prova é `POST
 /spaces`, fora do escopo desta sessão). `pnpm --filter api run
 test:integration -t "spaces"`: 2 testes, 0 falhas.
+
+2026-09-12 — etapa 2 — `apps/api/src/spaces/{spaces.module.ts,
+spaces.controller.ts, spaces.service.ts, spaces.repository.ts,
+spaces.errors.ts, dto/space.dto.ts, dto/space-member.dto.ts}` com `GET
+/spaces`, `GET /spaces/:id` e `GET /spaces/:id/members`; `SpacesModule`
+somado a `ROUTE_MODULES` (e, por tabela, ao `AppModule`, que já espalha esse
+array). `pnpm run contract` gravou as três rotas em `apps/api/openapi.json`
+e regenerou `apps/web/src/shared/api/generated/`, reexportado em
+`apps/web/src/shared/api/index.ts` (`SpaceDto`, `SpaceDetailDto`,
+`SpaceMemberDto`, `SpacePathEntryDto`). `use-space-tree.ts`/`use-space.ts`
+passaram a chamar `GET /spaces`/`GET /spaces/:id`, achatando a árvore (que a
+API devolve aninhada em `children`) para a forma plana com `parentId` que
+`EspacosRoute`/`EspacoRoute`/`ArvoreDeEspacos`/`ConteudoDaBarraLateral` ainda
+esperam — a assinatura dos hooks não mudou, só a origem; a troca desses
+quatro consumidores para o formato novo (e a remoção da etiqueta "Dados de
+exemplo") é a etapa 4. Somei "counts only direct staffing as unit space
+membership" aqui (reagendado da etapa 1, ver acima), mais as duas da lista
+original da etapa 2. `pnpm --filter api run test:integration -t "spaces"`: 5
+testes, 0 falhas; suíte de integração inteira: 12 suítes, 49 testes, 0
+falhas; suíte de unidade: 6 suítes, 75 testes, 0 falhas; `pnpm --filter web
+run typecheck`, `pnpm --filter web run lint` e `pnpm --filter web exec
+vitest run -t "spaces tree"` (4 testes) verdes — nenhum arquivo de
+`apps/web/src/app/` tocado, só os dois hooks e o barril de `shared/api`.
+`prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma`:
+"No difference detected." `bash scripts/gates/gates_runner.sh`: 0.

@@ -1072,6 +1072,96 @@
           "invitations"
         ]
       }
+    },
+    "/spaces": {
+      "get": {
+        "operationId": "getSpacesTree",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SpaceDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "spaces"
+        ]
+      }
+    },
+    "/spaces/{id}": {
+      "get": {
+        "operationId": "getSpace",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpaceDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "spaces"
+        ]
+      }
+    },
+    "/spaces/{id}/members": {
+      "get": {
+        "operationId": "getSpaceMembers",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SpaceMemberDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "spaces"
+        ]
+      }
     }
   },
   "info": {
@@ -1719,6 +1809,150 @@
         "required": [
           "name",
           "password"
+        ]
+      },
+      "SpaceDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "UNIT",
+              "FREE"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "unitId": {
+            "type": "string",
+            "nullable": true
+          },
+          "restricted": {
+            "type": "boolean"
+          },
+          "inheritsFromParent": {
+            "type": "boolean"
+          },
+          "managerId": {
+            "type": "string",
+            "nullable": true
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpaceDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "unitId",
+          "restricted",
+          "inheritsFromParent",
+          "managerId",
+          "children"
+        ]
+      },
+      "SpacePathEntryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "SpaceDetailDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "UNIT",
+              "FREE"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "unitId": {
+            "type": "string",
+            "nullable": true
+          },
+          "parentId": {
+            "type": "string",
+            "nullable": true
+          },
+          "restricted": {
+            "type": "boolean"
+          },
+          "inheritsFromParent": {
+            "type": "boolean"
+          },
+          "managerId": {
+            "type": "string",
+            "nullable": true
+          },
+          "path": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpacePathEntryDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "unitId",
+          "parentId",
+          "restricted",
+          "inheritsFromParent",
+          "managerId",
+          "path"
+        ]
+      },
+      "SpaceMemberDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string",
+            "nullable": true
+          },
+          "isManager": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "userId",
+          "name",
+          "email",
+          "image",
+          "isManager"
         ]
       }
     }

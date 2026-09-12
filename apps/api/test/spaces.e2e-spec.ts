@@ -162,4 +162,113 @@ describe("API de espaços (spaces)", () => {
     expect(audiencia).not.toContain(filho.id);
     expect(audiencia).not.toContain(neto.id);
   });
+
+  it("hides a restricted space from someone outside its audience", async () => {
+    const gestor = await criarSessao(app);
+    const estranha = await criarSessao(app);
+
+    const espaco = await prisma.space.create({
+      data: {
+        kind: "FREE",
+        name: `Orçamento ${Date.now()}`,
+        parentId: null,
+        inheritsFromParent: false,
+        restricted: true,
+        managerId: gestor.user.id,
+      },
+    });
+
+    const resposta = await request(app.getHttpServer())
+      .get(`/spaces/${espaco.id}`)
+      .set("Cookie", estranha.cookie);
+
+    expect(resposta.status).toBe(404);
+    expect(resposta.body.code).toBe("SPACE_NOT_FOUND");
+  });
+
+  it("shows a restricted space to a member and to someone with inherited access", async () => {
+    const admin = await criarSessao(app, { role: "ADMIN" });
+    const gestor = await criarSessao(app);
+    const membro = await criarSessao(app);
+    const lotada = await criarSessao(app);
+
+    const membroDireto = await prisma.space.create({
+      data: {
+        kind: "FREE",
+        name: `Comitê ${Date.now()}`,
+        parentId: null,
+        inheritsFromParent: false,
+        restricted: true,
+        managerId: gestor.user.id,
+      },
+    });
+    await prisma.spaceMember.create({
+      data: { spaceId: membroDireto.id, userId: membro.user.id },
+    });
+
+    const unitTypeId = await criarTipoDeUnidade(admin);
+    const raizId = await obterRaiz(admin);
+    const unidadeId = await criarUnidade(admin, `Financeiro ${Date.now()}`, raizId, unitTypeId);
+    const espacoDaUnidadeFinanceiro = await espacoDaUnidade(unidadeId);
+    await request(app.getHttpServer())
+      .put(`/units/${unidadeId}/members/${lotada.user.id}`)
+      .set("Cookie", admin.cookie);
+
+    const herdado = await prisma.space.create({
+      data: {
+        kind: "FREE",
+        name: `Orçamento 2027 ${Date.now()}`,
+        parentId: espacoDaUnidadeFinanceiro?.id,
+        inheritsFromParent: true,
+        restricted: true,
+        managerId: gestor.user.id,
+      },
+    });
+
+    const [respostaMembro, respostaHerdada] = await Promise.all([
+      request(app.getHttpServer())
+        .get(`/spaces/${membroDireto.id}`)
+        .set("Cookie", membro.cookie),
+      request(app.getHttpServer())
+        .get(`/spaces/${herdado.id}`)
+        .set("Cookie", lotada.cookie),
+    ]);
+
+    expect(respostaMembro.status).toBe(200);
+    expect(respostaHerdada.status).toBe(200);
+  });
+
+  it("counts only direct staffing as unit space membership", async () => {
+    const admin = await criarSessao(app, { role: "ADMIN" });
+    const lotadaNaUnidade = await criarSessao(app);
+    const lotadaNaSubunidade = await criarSessao(app);
+
+    const unitTypeId = await criarTipoDeUnidade(admin);
+    const raizId = await obterRaiz(admin);
+    const unidadeId = await criarUnidade(admin, `Operações ${Date.now()}`, raizId, unitTypeId);
+    const subunidadeId = await criarUnidade(
+      admin,
+      `Logística ${Date.now()}`,
+      unidadeId,
+      unitTypeId,
+    );
+
+    await request(app.getHttpServer())
+      .put(`/units/${unidadeId}/members/${lotadaNaUnidade.user.id}`)
+      .set("Cookie", admin.cookie);
+    await request(app.getHttpServer())
+      .put(`/units/${subunidadeId}/members/${lotadaNaSubunidade.user.id}`)
+      .set("Cookie", admin.cookie);
+
+    const espacoDaUnidadeOperacoes = await espacoDaUnidade(unidadeId);
+
+    const resposta = await request(app.getHttpServer())
+      .get(`/spaces/${espacoDaUnidadeOperacoes?.id}/members`)
+      .set("Cookie", admin.cookie);
+
+    expect(resposta.status).toBe(200);
+    const ids = (resposta.body as { userId: string }[]).map((member) => member.userId);
+    expect(ids).toContain(lotadaNaUnidade.user.id);
+    expect(ids).not.toContain(lotadaNaSubunidade.user.id);
+  });
 });

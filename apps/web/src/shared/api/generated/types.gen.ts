@@ -245,6 +245,42 @@ export type AcceptInvitationDto = {
     password: string;
 };
 
+export type SpaceDto = {
+    id: string;
+    kind: 'UNIT' | 'FREE';
+    name: string;
+    unitId: string | null;
+    restricted: boolean;
+    inheritsFromParent: boolean;
+    managerId: string | null;
+    children: Array<SpaceDto>;
+};
+
+export type SpacePathEntryDto = {
+    id: string;
+    name: string;
+};
+
+export type SpaceDetailDto = {
+    id: string;
+    kind: 'UNIT' | 'FREE';
+    name: string;
+    unitId: string | null;
+    parentId: string | null;
+    restricted: boolean;
+    inheritsFromParent: boolean;
+    managerId: string | null;
+    path: Array<SpacePathEntryDto>;
+};
+
+export type SpaceMemberDto = {
+    userId: string;
+    name: string;
+    email: string;
+    image: string | null;
+    isManager: boolean;
+};
+
 export type GetHealthData = {
     body?: never;
     path?: never;
@@ -749,3 +785,46 @@ export type AcceptInvitationData = {
 export type AcceptInvitationResponses = {
     200: unknown;
 };
+
+export type GetSpacesTreeData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/spaces';
+};
+
+export type GetSpacesTreeResponses = {
+    200: Array<SpaceDto>;
+};
+
+export type GetSpacesTreeResponse = GetSpacesTreeResponses[keyof GetSpacesTreeResponses];
+
+export type GetSpaceData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/spaces/{id}';
+};
+
+export type GetSpaceResponses = {
+    200: SpaceDetailDto;
+};
+
+export type GetSpaceResponse = GetSpaceResponses[keyof GetSpaceResponses];
+
+export type GetSpaceMembersData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/spaces/{id}/members';
+};
+
+export type GetSpaceMembersResponses = {
+    200: Array<SpaceMemberDto>;
+};
+
+export type GetSpaceMembersResponse = GetSpaceMembersResponses[keyof GetSpaceMembersResponses];
