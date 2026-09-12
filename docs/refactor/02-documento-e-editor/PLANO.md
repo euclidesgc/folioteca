@@ -474,7 +474,7 @@ declarado no compose (nenhuma dependência nova) em vez de trocar o caminho de
 criação de conta. `pnpm contract` comitado junto (`openapi.json` e o cliente
 gerado de `apps/web`), porque `GET /me` é rota nova.
 
-2026-09-12 — etapa 2 — `packages/editor` ganhou dependências, esquema e tema.
+2026-09-12 — etapa 2 — `packages/editor` ganhou dependências, esquema e tema. Fechamento da etapa: `audio` e `video` saíram do `documentSchema` junto com `image` e `file` — os quatro dependem de envio de arquivo, que só nasce no plano 10, e deixá-los no menu de barra entregaria bloco que não sobe nada.
 Versões resolvidas pela quarentena (10080 min): `@blocknote/core`,
 `@blocknote/react`, `@blocknote/shadcn`, `@blocknote/code-block`,
 `@blocknote/server-util` em `0.54.0` (0.54.1 e 0.54.2 saíram em 2026-09-09,
