@@ -275,19 +275,19 @@ do servidor mesmo que burle a tela.
       sai com 0
 
 ### Etapa 5 — Ponta a ponta com sessão real
-- [ ] Ler: `apps/web/e2e/apoio/sessao.ts`, `docker-compose.yml` (Mailpit,
+- [x] Ler: `apps/web/e2e/apoio/sessao.ts`, `docker-compose.yml` (Mailpit,
       porta 8025), `apps/web/e2e/apoio/axe.ts`
-- [ ] `apps/web/e2e/apoio/correio.ts`: lê `GET
+- [x] `apps/web/e2e/apoio/correio.ts`: lê `GET
       http://localhost:8025/api/v1/messages`, filtra pelo destinatário, abre
       a mensagem mais recente e extrai o link `/convite/<token>` do corpo
-- [ ] `apps/web/e2e/convites.spec.ts`: administração (sessão real, do
+- [x] `apps/web/e2e/convites.spec.ts`: administração (sessão real, do
       projeto de setup que os planos 02/03 deixarem; sem ele, login direto
       em `/api/auth/sign-in/email` dentro do teste) convida, o teste lê o
       link no Mailpit, abre `/convite/<token>` sem sessão, aceita, e chega em
       `/inicio` autenticada; axe em `/convite/<token>` nos dois temas
-- [ ] Teste: o próprio `convites.spec.ts` — "convite aceito autentica e leva
+- [x] Teste: o próprio `convites.spec.ts` — "convite aceito autentica e leva
       a /inicio"
-- [ ] Verificação da etapa: `pnpm --filter web exec playwright test -g "convite"`
+- [x] Verificação da etapa: `pnpm --filter web exec playwright test -g "convite"`
       sai com 0
 
 ### Etapa final — Ver na tela
@@ -550,3 +550,27 @@ provam; (6) o rótulo de papel na lista de convites pendentes usa os mesmos
 textos do `Select` ("Administrador(a)"/"Membro"), não o `rotuloDoPapel` de
 `unidade-no.tsx` ("Administração"/"Membro"), porque são o mesmo conceito
 dentro desta etapa e a função de `organization` não está no barril público.
+
+2026-09-12 — etapa 5 — `apps/web/e2e/apoio/correio.ts` (`linkDoConvite(email)`,
+`GET http://localhost:8025/api/v1/messages` filtrado pelo destinatário no
+cliente, mensagem mais recente, link completo extraído do corpo por
+`expect.poll`); `apps/web/e2e/convites.spec.ts` — "convite aceito autentica e
+leva a /inicio": administração com sessão real (`ARQUIVO_ADMIN`) convida,
+o teste lê o link no Mailpit, abre `/convite/<token>` sem sessão, roda o axe
+nos dois temas, aceita definindo nome e senha, e confirma `/inicio` com a
+sessão autenticada. O que desviou do plano: (1) `apps/web/e2e/apoio/sessao.ts`
+ganhou o dublê `GET /invitations → []` — o bloco "Pessoas" (etapa 4) lê essa
+rota com `role="status"` enquanto carrega, e sem o dublê a resposta 401 da API
+real levava as tentativas padrão do TanStack Query além do tempo de espera de
+`health.spec.ts` (suíte do plano 03); (2) mesmo com o dublê,
+`health.spec.ts` ainda reprovava por `getByRole("status")` bater em dois
+elementos na mesma página (o da seção "Instância" e o do bloco "Pessoas") —
+o caso passou a escopar o seletor à seção "Instância", já que a suíte inteira
+das etapas anteriores tinha de continuar verde; (3) o axe em
+"convite no tema escuro" reprovava de forma instável por `color-contrast` em
+`#_r_0_-control` (o campo "Nome") — `Field.Control` anima a cor ao trocar de
+tema (`transition-colors`, `--duracao-rapida`) e o axe por vezes mediu a cor a
+meio da transição; `convites.spec.ts` liga `reducedMotion: "reduce"` antes de
+navegar (mesmo recurso que `primitivos.spec.ts` já usa), o que elimina a
+transição sem mexer no componente. Suíte e2e inteira: 56 casos, 56 passaram,
+numa subida só.

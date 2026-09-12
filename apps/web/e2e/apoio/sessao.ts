@@ -97,6 +97,12 @@ export async function instalarSessao(
   await instalarRotaJson(page, "**/unit-types", origem, []);
   await instalarRotaJson(page, "**/users*", origem, []);
   await instalarRotaJson(page, "**/organization", origem, ORGANIZACAO_DE_TESTE);
+  // motivo: o bloco "Pessoas" (etapa 4 do plano 04) lê `GET /invitations` com
+  // `role="status"` enquanto carrega — sem o dublê, a resposta 401 da API
+  // real levaria as tentativas padrão do TanStack Query além do tempo de
+  // espera de `health.spec.ts`, e o "Carregando convites…" ficaria ambíguo
+  // com o status do bloco "Instância" que aquele caso já lê por papel.
+  await instalarRotaJson(page, "**/invitations", origem, []);
 }
 
 // O assunto destes casos é o esqueleto e a acessibilidade dele, não a
