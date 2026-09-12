@@ -291,11 +291,11 @@ do servidor mesmo que burle a tela.
       sai com 0
 
 ### Etapa final — Ver na tela
-- [ ] Capturas em `docs/refactor/04-convites/capturas/`: `/organizacao`
+- [x] Capturas em `docs/refactor/04-convites/capturas/`: `/organizacao`
       (bloco Pessoas vazio e com um convite pendente) e `/convite/:token`
       (formulário e inválido), larguras 1440 e 375, temas claro e escuro,
       geradas pelo Playwright
-- [ ] Roteiro manual: (1) como administradora, abra Organização → Pessoas →
+- [x] Roteiro manual: (1) como administradora, abra Organização → Pessoas →
       "Convidar pessoa", preencha um e-mail seu, escolha uma unidade e
       "Membro", envie; (2) abra `http://localhost:8025`, ache o e-mail
       "Convite para a Folioteca", copie o link; (3) abra o link numa aba
@@ -303,67 +303,76 @@ do servidor mesmo que burle a tela.
       nome e senha; (4) confirme que caiu em `/inicio` já autenticado; (5)
       volte a Organização → Pessoas e confirme a pessoa lotada na unidade
       escolhida
-- [ ] `bash scripts/gates/gates_runner.sh` sai com 0
-- [ ] PR aberto com: o que entrega, como testar à mão, capturas
+- [x] `bash scripts/gates/gates_runner.sh` sai com 0
+- [ ] PR aberto com: o que entrega, como testar à mão, capturas — a abertura
+      do PR é da sessão principal, fora deste escopo.
 
 ## Critérios de aceite
 
-- [ ] `estrutural` — Existe `apps/api/prisma/schema.prisma` com o modelo
+- [x] `estrutural` — Existe `apps/api/prisma/schema.prisma` com o modelo
       `Invitation` contendo os campos `tokenHash`, `expiresAt`, `acceptedAt`
       e `revokedAt`.
-- [ ] `comportamental` — Dado um e-mail, quando
+- [x] `comportamental` — Dado um e-mail, quando
       `apps/api/src/invitations/mask-email.ts` o mascara, então o primeiro
       caractere e o domínio continuam visíveis. Prova:
       `apps/api/src/invitations/mask-email.spec.ts`, teste "mascara o e-mail
       mantendo o primeiro caractere e o domínio", por `pnpm --filter api exec
-      jest -t "mascara o e-mail mantendo o primeiro caractere e o domínio"`.
-- [ ] `comportamental` — Dado um e-mail que já tem conta na Folioteca,
+      jest -t "mascara o e-mail mantendo o primeiro caractere e o domínio"`
+      (rodado como `pnpm --filter api run test -t "..."` — ver divergência
+      em Andamento).
+- [x] `comportamental` — Dado um e-mail que já tem conta na Folioteca,
       quando a administração faz `POST /invitations` para esse e-mail, então
       a API responde 409 com `code: "USER_ALREADY_EXISTS"`. Prova:
       `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "recusa
       convite para e-mail que já tem conta"` (`apps/api/test/
-      invitations.e2e-spec.ts`).
-- [ ] `comportamental` — Dado um convite pendente e válido para um e-mail,
+      invitations.e2e-spec.ts`; rodado como `pnpm --filter api run
+      test:integration -t "..."`).
+- [x] `comportamental` — Dado um convite pendente e válido para um e-mail,
       quando a administração cria um segundo convite para o mesmo e-mail,
       então a API responde 409 com `code: "INVITATION_PENDING"`. Prova:
       `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "recusa
       segundo convite pendente para o mesmo e-mail"` (`apps/api/test/
-      invitations.e2e-spec.ts`).
-- [ ] `comportamental` — Dado um convite reenviado, quando alguém consulta
+      invitations.e2e-spec.ts`; rodado como `pnpm --filter api run
+      test:integration -t "..."`).
+- [x] `comportamental` — Dado um convite reenviado, quando alguém consulta
       `GET /invitations/by-token/:token` com o token antigo, então a API
       responde 404 com `code: "INVITATION_INVALID"`. Prova:
       `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "invalida
-      o token anterior ao reenviar"` (`apps/api/test/invitations.e2e-spec.ts`).
-- [ ] `comportamental` — Dado um convite com `expiresAt` no passado, quando
+      o token anterior ao reenviar"` (`apps/api/test/invitations.e2e-spec.ts`;
+      rodado como `pnpm --filter api run test:integration -t "..."`).
+- [x] `comportamental` — Dado um convite com `expiresAt` no passado, quando
       alguém consulta `GET /invitations/by-token/:token`, então a API
       responde 404 com `code: "INVITATION_INVALID"`. Prova:
       `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "convite
       vencido responde convite inválido"` (`apps/api/test/
-      invitations.e2e-spec.ts`).
-- [ ] `comportamental` — Dado um convite válido para uma unidade e um papel,
+      invitations.e2e-spec.ts`; rodado como `pnpm --filter api run
+      test:integration -t "..."`).
+- [x] `comportamental` — Dado um convite válido para uma unidade e um papel,
       quando alguém faz `POST /invitations/:token/accept` com nome e senha,
       então a API cria a pessoa, a lotação na unidade do convite e a sessão
       na mesma resposta, e `GET /me` devolve o papel do convite. Prova:
       `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "aceita
       convite cria pessoa lotada e sessão"` (`apps/api/test/
-      invitations.e2e-spec.ts`).
-- [ ] `comportamental` — Dado 10 pedidos a `GET /invitations/by-token/:token`
+      invitations.e2e-spec.ts`; rodado como `pnpm --filter api run
+      test:integration -t "..."`).
+- [x] `comportamental` — Dado 10 pedidos a `GET /invitations/by-token/:token`
       do mesmo IP no mesmo minuto, quando o 11º pedido chega, então a API
       responde 429. Prova: `pnpm --filter api exec jest --config
       test/jest-e2e.config.js -t "recusa a décima primeira consulta pública
-      no mesmo minuto"` (`apps/api/test/invitations.e2e-spec.ts`).
-- [ ] `comando` — `cp apps/api/openapi.json /tmp/openapi-antes.json && pnpm
+      no mesmo minuto"` (`apps/api/test/invitations.e2e-spec.ts`; rodado como
+      `pnpm --filter api run test:integration -t "..."`).
+- [x] `comando` — `cp apps/api/openapi.json /tmp/openapi-antes.json && pnpm
       --filter api run openapi:generate && cmp /tmp/openapi-antes.json
       apps/api/openapi.json` sai com 0.
-- [ ] `estrutural` — Existe `apps/web/src/shared/api/generated/types.gen.ts`
+- [x] `estrutural` — Existe `apps/web/src/shared/api/generated/types.gen.ts`
       exportando o tipo `InvitationResponseDto`.
-- [ ] `comportamental` — Dado um link de convite vencido ou inexistente,
+- [x] `comportamental` — Dado um link de convite vencido ou inexistente,
       quando `/convite/:token` termina de carregar, então a tela mostra o
       texto "Convite inválido" e não mostra os campos "Nome" e "Senha nova".
       Prova: `pnpm --filter web exec vitest run -t "mostra convite inválido
       quando o link não vale mais"` (`apps/web/src/features/invitations/
       components/convite-form.test.tsx`).
-- [ ] `comportamental` — Dado que a administração convidou uma pessoa para
+- [x] `comportamental` — Dado que a administração convidou uma pessoa para
       uma unidade, quando o teste lê o link no Mailpit, abre `/convite/
       :token`, preenche nome e senha e envia, então a página leva a
       `/inicio` com a sessão autenticada. Prova: `pnpm --filter web exec
@@ -574,3 +583,35 @@ meio da transição; `convites.spec.ts` liga `reducedMotion: "reduce"` antes de
 navegar (mesmo recurso que `primitivos.spec.ts` já usa), o que elimina a
 transição sem mexer no componente. Suíte e2e inteira: 56 casos, 56 passaram,
 numa subida só.
+
+2026-09-12 — etapa final — 16 capturas novas em
+`docs/refactor/04-convites/capturas/` (`organizacao-pessoas-vazio`,
+`organizacao-pessoas-convite-pendente`, `convite-formulario`,
+`convite-invalido`, cada uma em 1440/375 × claro/escuro), estendendo
+`apps/web/scripts/capturas.ts` com `capturarConvites()` (convida pela API como
+administradora, lê o link pelo mesmo `apoio/correio.ts` da etapa 5); roteiro
+manual em `docs/refactor/04-convites/roteiro-manual.md`, nos cinco passos que
+o plano descreve mais o que também vale conferir (link inválido, e-mail
+duplicado, convite pendente duplicado, reenviar, revogar). O que desviou do
+plano: (1) `capturarOrganizacao` (plano 03) reprovava em `esperarArvore` — o
+`<select>` nativo de `Select.HiddenSelect` no diálogo "Convidar pessoa" (etapa
+4 deste plano) fica no DOM mesmo com o diálogo fechado, com uma opção
+"— Produto" por unidade, e `getByText("Produto")` sem `exact` também batia
+nela; a espera passou a pedir `exact: true`, que distingue o nó da árvore
+(texto exato) das opções do combobox (prefixadas) — sem tocar em nenhum
+componente; (2) `pnpm --filter api exec jest`/`jest --config
+test/jest-e2e.config.js`, a forma que os critérios de aceite citam
+literalmente, morre com "Cannot use import statement outside a module" em
+`@better-auth/core/db` e em `better-auth/node` — as duas ficam puramente ESM
+(sem build CommonJS) e a suíte de integração só carrega esses módulos sob
+`NODE_OPTIONS=--experimental-vm-modules`; o commit `9eaabc7` (plano diferente,
+Hocuspocus) trocou `apps/api/test/jest-e2e.config.js` e, na troca, perdeu a
+linha `transformIgnorePatterns: []` que `eebed8a` tinha acrescentado para o
+mesmo problema — o `NODE_OPTIONS` já ficou como a forma suportada
+(`apps/api/package.json`, scripts `test`/`test:integration`), e não foi
+mexido: achado fora deste plano, registrado para o dono decidir se
+`apps/api/test/jest-e2e.config.js`/`apps/api/jest.config.js` merecem a
+correção à parte. Todos os critérios de aceite de API foram verificados por
+`pnpm --filter api run test -t "..."`/`run test:integration -t "..."` (a
+forma que de fato roda), não pela invocação literal do plano — ver critérios
+de aceite acima. `bash scripts/gates/gates_runner.sh`: limpo, 0.

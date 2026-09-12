@@ -1,5 +1,5 @@
 // Capturas de tela da etapa final dos planos `01-layout-e-navegacao`,
-// `02-documento-e-editor` e `03-estrutura-organizacional`.
+// `02-documento-e-editor`, `03-estrutura-organizacional` e `04-convites`.
 //
 // decisão: isto é Playwright de verdade — `chromium.launch()` e a sessão
 // dublê de `e2e/apoio/sessao.ts`, a mesma que autentica a suíte e2e —, e não
@@ -23,6 +23,7 @@ import {
   type Page,
 } from "@playwright/test";
 import { ARQUIVO_ADMIN, ARQUIVO_DONA_DO_DOCUMENTO, ARQUIVO_MEMBRO } from "../e2e/apoio/contas.ts";
+import { linkDoConvite } from "../e2e/apoio/correio.ts";
 import { PESSOA_MEMBRO } from "../e2e/apoio/pessoas.ts";
 import { instalarSessao } from "../e2e/apoio/sessao.ts";
 
@@ -39,6 +40,10 @@ const PASTA_DE_SAIDA_DOCUMENTOS = path.join(
 const PASTA_DE_SAIDA_ORGANIZACAO = path.join(
   RAIZ_DO_REPOSITORIO,
   "docs/refactor/03-estrutura-organizacional/capturas",
+);
+const PASTA_DE_SAIDA_CONVITES = path.join(
+  RAIZ_DO_REPOSITORIO,
+  "docs/refactor/04-convites/capturas",
 );
 
 const BASE_URL = process.env.CAPTURAS_BASE_URL ?? "http://localhost:4173";
@@ -442,12 +447,16 @@ async function capturarOrganizacao(navegador: Browser): Promise<string[]> {
   // por quê: a gaveta de navegação mobile tem um título `sr-only` ("Destinos
   // do produto") escondido no DOM mesmo fechada — `getByText("Produto")`
   // também o acha (a busca por texto não diferencia caixa), e sem escopar ao
-  // `<main>` a espera nunca vê o nome da unidade de verdade.
+  // `<main>` a espera nunca vê o nome da unidade de verdade. Desde o bloco
+  // "Pessoas" (plano 04), o `<select>` nativo do `Select.HiddenSelect` do
+  // diálogo "Convidar pessoa" também fica no DOM fechado, com uma opção
+  // "— Produto" por unidade — `exact` é o que distingue o nó da árvore
+  // (`unidade-no.tsx`, texto exato) das opções do combobox (prefixadas).
   const esperarArvore = async (pagina: Page): Promise<void> => {
     await pagina.getByRole("heading", { level: 1, name: "Organização" }).waitFor();
     await pagina
       .getByRole("main")
-      .getByText(NOME_DA_UNIDADE_DE_CAPTURA)
+      .getByText(NOME_DA_UNIDADE_DE_CAPTURA, { exact: true })
       .waitFor();
   };
 
@@ -487,10 +496,110 @@ async function capturarOrganizacao(navegador: Browser): Promise<string[]> {
   ];
 }
 
+async function convidarPessoaDeCaptura(
+  contexto: BrowserContext,
+  email: string,
+  unitId: string,
+): Promise<void> {
+  const resposta = await contexto.request.post(`${API_URL}/invitations`, {
+    data: { email, unitId, role: "MEMBER" },
+  });
+  if (!resposta.ok()) {
+    throw new Error(
+      `POST /invitations devolveu ${resposta.status()}: ${await resposta.text()}`,
+    );
+  }
+}
+
+// decisão: o bloco "Pessoas" vazio é a PRIMEIRA captura desta função — a
+// única forma de mostrar "Nenhum convite pendente" é antes de este mesmo
+// script convidar alguém. Rodar o script duas vezes contra o mesmo banco sem
+// `scripts/e2e/banco-limpo.sh` entre as execuções faz o "vazio" mostrar o
+// convite da execução anterior; é a mesma suposição de instalação fresca que
+// `capturarCriarConta` já faz.
+async function capturarConvites(navegador: Browser): Promise<string[]> {
+  const arquivos: string[] = [];
+
+  arquivos.push(
+    ...(await capturarRotaComSessao(
+      navegador,
+      PASTA_DE_SAIDA_CONVITES,
+      "organizacao-pessoas-vazio",
+      "/organizacao",
+      ARQUIVO_ADMIN,
+      async (pagina) => {
+        await pagina.getByRole("heading", { level: 1, name: "Organização" }).waitFor();
+        await pagina
+          .getByRole("heading", { level: 3, name: "Nenhum convite pendente" })
+          .waitFor();
+      },
+    )),
+  );
+
+  const contextoAdmin = await navegador.newContext({
+    storageState: ARQUIVO_ADMIN,
+    baseURL: BASE_URL,
+  });
+  const unidadeId = await idDaRaiz(contextoAdmin);
+  const email = `convite-de-captura-${Date.now()}@teste.folioteca`;
+  await convidarPessoaDeCaptura(contextoAdmin, email, unidadeId);
+  await contextoAdmin.close();
+
+  arquivos.push(
+    ...(await capturarRotaComSessao(
+      navegador,
+      PASTA_DE_SAIDA_CONVITES,
+      "organizacao-pessoas-convite-pendente",
+      "/organizacao",
+      ARQUIVO_ADMIN,
+      async (pagina) => {
+        await pagina.getByRole("heading", { level: 1, name: "Organização" }).waitFor();
+        await pagina.getByRole("main").getByText(email).waitFor();
+      },
+    )),
+  );
+
+  // motivo: a API nunca devolve o token em claro (regra 8 do plano) — o link
+  // só existe no corpo do e-mail que `MailService` entrega ao Mailpit, a
+  // mesma leitura que a suíte e2e faz em `e2e/apoio/correio.ts`.
+  const link = await linkDoConvite(email);
+
+  arquivos.push(
+    ...(await capturarRotaComSessao(
+      navegador,
+      PASTA_DE_SAIDA_CONVITES,
+      "convite-formulario",
+      link,
+      undefined,
+      async (pagina) => {
+        await pagina.getByRole("heading", { level: 2 }).waitFor();
+      },
+    )),
+  );
+
+  arquivos.push(
+    ...(await capturarRotaComSessao(
+      navegador,
+      PASTA_DE_SAIDA_CONVITES,
+      "convite-invalido",
+      "/convite/0000000000000000000000000000000000000000000000000000000000000000",
+      undefined,
+      async (pagina) => {
+        await pagina
+          .getByRole("heading", { level: 2, name: "Convite inválido" })
+          .waitFor();
+      },
+    )),
+  );
+
+  return arquivos;
+}
+
 async function main(): Promise<void> {
   await mkdir(PASTA_DE_SAIDA, { recursive: true });
   await mkdir(PASTA_DE_SAIDA_DOCUMENTOS, { recursive: true });
   await mkdir(PASTA_DE_SAIDA_ORGANIZACAO, { recursive: true });
+  await mkdir(PASTA_DE_SAIDA_CONVITES, { recursive: true });
   const navegador = await chromium.launch();
   try {
     const arquivos = [
@@ -511,6 +620,7 @@ async function main(): Promise<void> {
       ...(await capturarDocumentos(navegador)),
       ...(await capturarCriarConta(navegador)),
       ...(await capturarOrganizacao(navegador)),
+      ...(await capturarConvites(navegador)),
     ];
     for (const arquivo of arquivos) {
       console.log(arquivo);
