@@ -226,13 +226,13 @@ vai aparecer quando os planos 03, 05 e 06 a trouxerem.
 - [x] Verificação da etapa: `pnpm --filter web typecheck && pnpm --filter web exec vitest run -t "names each origin in Portuguese, one label per value it receives"` sai com 0
 
 ### Etapa 2 — Organização e árvore de espaços (dados e hooks)
-- [ ] Ler: `apps/web/src/shared/example-data/folioteca.ts` (etapa 1), `apps/web/src/features/health/index.ts` e `apps/web/src/features/health/hooks/use-health.ts` (padrão de barril e de `useQuery`), `docs/refactor/00-fundamentos/estado-atual.md` §11 (convenções de React em vigor)
-- [ ] Criar `apps/web/src/features/spaces/model/tree.ts` (puro): `listTopLevelSpaces()`, `findSpace(id)`, `spaceAncestry(id)`
-- [ ] Criar `apps/web/src/features/spaces/hooks/use-space-tree.ts` (`useSpaceTree()`) e `use-space.ts` (`useSpace(id)`), `useQuery` sobre `EXEMPLO_ESPACOS`
-- [ ] Criar `apps/web/src/features/spaces/index.ts` (barril de `useSpaceTree`, `useSpace`, `listTopLevelSpaces`, `findSpace`, `spaceAncestry`)
-- [ ] Criar `apps/web/src/features/organization/hooks/use-organization.ts` (`useOrganization()`, `useQuery` sobre `EXEMPLO_ORGANIZACAO`) e `apps/web/src/features/organization/index.ts`
-- [ ] Teste: `apps/web/src/features/spaces/model/tree.test.ts` — "monta a trilha de ancestrais até a raiz" e "devolve undefined para um espaço que não existe"
-- [ ] Verificação da etapa: `pnpm --filter web typecheck && pnpm --filter web exec vitest run -t "monta a trilha de ancestrais até a raiz"` sai com 0
+- [x] Ler: `apps/web/src/shared/example-data/folioteca.ts` (etapa 1), `apps/web/src/features/health/index.ts` e `apps/web/src/features/health/hooks/use-health.ts` (padrão de barril e de `useQuery`), `docs/refactor/00-fundamentos/estado-atual.md` §11 (convenções de React em vigor)
+- [x] Criar `apps/web/src/features/spaces/model/tree.ts` (puro): `listTopLevelSpaces()`, `findSpace(id)`, `spaceAncestry(id)`
+- [x] Criar `apps/web/src/features/spaces/hooks/use-space-tree.ts` (`useSpaceTree()`) e `use-space.ts` (`useSpace(id)`), `useQuery` sobre `EXEMPLO_ESPACOS`
+- [x] Criar `apps/web/src/features/spaces/index.ts` (barril de `useSpaceTree`, `useSpace`, `listTopLevelSpaces`, `findSpace`, `spaceAncestry`)
+- [x] Criar `apps/web/src/features/organization/hooks/use-organization.ts` (`useOrganization()`, `useQuery` sobre `EXEMPLO_ORGANIZACAO`) e `apps/web/src/features/organization/index.ts`
+- [x] Teste: `apps/web/src/features/spaces/model/tree.test.ts` — "monta a trilha de ancestrais até a raiz" e "devolve undefined para um espaço que não existe"
+- [x] Verificação da etapa: `pnpm --filter web typecheck && pnpm --filter web exec vitest run -t "monta a trilha de ancestrais até a raiz"` sai com 0
 
 ### Etapa 3 — Documentos: listas, leitura e sumário
 - [ ] Ler: `apps/web/src/features/spaces/` (etapa 2), `product/00-linguagem-visual.md` (Tipografia), `apps/web/src/shared/components/ui/empty-state.tsx`
@@ -312,3 +312,4 @@ vai aparecer quando os planos 03, 05 e 06 a trouxerem.
 ## Andamento
 
 2026-09-12 — etapa 1 — criados `shared/example-data/folioteca.ts` (tipos `ExampleBlock`/`ExampleSpace`/`ExampleDocument`/`ExampleOrganization` e os três `EXEMPLO_*`, com os sete documentos fora do guia de onboarding escritos nesta sessão, um `heading` por seção) e `app/layout/marcas.tsx` (`HomeMark`, `SearchMark`, `StructureMark`); `ROTULOS.canal` trocado para "Espaço" em `access-badge.tsx` — sem desvio.
+2026-09-12 — etapa 2 — criados `features/spaces/model/tree.ts` (`listTopLevelSpaces`, `findSpace`, `spaceAncestry`), os hooks `useSpaceTree`/`useSpace` sobre `EXEMPLO_ESPACOS`, `features/organization` com `useOrganization`, e os dois barris — sem desvio.
