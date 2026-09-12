@@ -16,7 +16,8 @@ export {
 } from "./auth-rotas";
 export { AuthLayout } from "./components/auth-layout";
 export { EntrarForm } from "./components/entrar-form";
-export { CriarContaForm } from "./components/criar-conta-form";
+export { InstalacaoForm } from "./components/instalacao-form";
 export { RecuperarSenhaForm } from "./components/recuperar-senha-form";
 export { RedefinirSenhaForm } from "./components/redefinir-senha-form";
 export { RotaProtegida } from "./components/rota-protegida";
+export { useOrganizacaoStatus } from "./hooks/use-organizacao-status";

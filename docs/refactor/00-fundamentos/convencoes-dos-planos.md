@@ -131,8 +131,15 @@ verificação, feita por **uma** ferramenta que o repositório já tem:
 
 Comandos que existem no repositório e servem de prova:
 
-- API, integração: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "<nome>"`
-- API, unidade: `pnpm --filter api exec jest -t "<nome>"`
+- API, integração: `pnpm --filter api run test:integration -t "<nome>"`
+- API, unidade: `pnpm --filter api run test -t "<nome>"`
+
+  Os dois são `run <script>`, nunca `exec jest`: o Jest desta API precisa de
+  `NODE_OPTIONS=--experimental-vm-modules` para carregar os pacotes que só
+  publicam ESM, e esse é um sinalizador do Node, que não cabe em
+  `jest.config.js` — ele vive no script do `package.json`. `run test:integration`
+  ainda passa `--runInBand`, sem o qual dois arquivos de teste disputam a mesma
+  instância única e um filtro `-t` largo casa testes de arquivos diferentes.
 - Web, unidade: `pnpm --filter web exec vitest run -t "<nome>"`
 - Web, ponta a ponta: `pnpm --filter web exec playwright test -g "<nome>"`
 - Tipos e lint: `pnpm --filter <app> typecheck`, `pnpm --filter <app> lint`

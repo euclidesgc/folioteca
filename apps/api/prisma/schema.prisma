@@ -12,12 +12,14 @@ enum UserRole {
 }
 
 model Organization {
-  id        String   @id @default(uuid())
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  members User[]
+  // motivo: uma organização por instância (M1/D8) — `singleton` é sempre
+  // `true` e a unicidade sobre ela impede uma segunda linha; a CHECK que
+  // reforça o valor fixo é escrita à mão na migration.
+  id                     String   @id @default(uuid())
+  singleton              Boolean  @unique @default(true)
+  spacesInheritByDefault Boolean  @default(false)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 }
 
 model User {
@@ -29,9 +31,7 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  role           UserRole      @default(MEMBER)
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id])
+  role UserRole @default(MEMBER)
 
   sessions Session[]
   accounts Account[]
@@ -41,8 +41,102 @@ model User {
   ownedDocuments    Document[]         @relation("DocumentOwner")
   createdDocuments  Document[]         @relation("DocumentCreatedBy")
   favoriteDocuments DocumentFavorite[]
+  memberships       UnitMembership[]
+  invitationsSent   Invitation[]       @relation("InvitationsSent")
+}
 
-  @@index([organizationId])
+model UnitType {
+  id             String   @id @default(uuid())
+  name           String
+  normalizedName String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  units Unit[]
+}
+
+model Unit {
+  // motivo: CHECK escrita à mão na migration garante o par — raiz sem pai nem
+  // tipo, toda outra unidade com os dois (M5/D2).
+  id             String   @id @default(uuid())
+  name           String
+  normalizedName String
+  isRoot         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  parentId String?
+  // motivo: `onDelete: Restrict` — apagar uma unidade com filha é recusado
+  // pelo banco antes mesmo da checagem do serviço (M7).
+  parent   Unit?   @relation("UnitParent", fields: [parentId], references: [id], onDelete: Restrict)
+  children Unit[]  @relation("UnitParent")
+
+  unitTypeId String?
+  unitType   UnitType? @relation(fields: [unitTypeId], references: [id], onDelete: Restrict)
+
+  memberships UnitMembership[]
+  invitations Invitation[]
+
+  closureAsAncestor   UnitClosure[] @relation("UnitClosureAncestor")
+  closureAsDescendant UnitClosure[] @relation("UnitClosureDescendant")
+
+  @@unique([parentId, normalizedName])
+}
+
+model UnitClosure {
+  // motivo: mantida por gatilho `AFTER INSERT ON "Unit"` — grava a própria
+  // linha (depth 0) e uma por ancestral do pai (depth+1); nada escreve aqui
+  // pelo Prisma Client. As relações abaixo existem para o esquema declarar as
+  // chaves estrangeiras que a migration criou: sem elas, o próximo
+  // `migrate dev` propõe apagá-las junto com o índice. Gatilho
+  // `BEFORE UPDATE OF "parentId" ON "Unit"` recusa a troca — mover unidade
+  // está fora deste plano (D2).
+  ancestorId   String
+  descendantId String
+  depth        Int
+  createdAt    DateTime @default(now())
+
+  ancestor   Unit @relation("UnitClosureAncestor", fields: [ancestorId], references: [id], onDelete: Cascade)
+  descendant Unit @relation("UnitClosureDescendant", fields: [descendantId], references: [id], onDelete: Cascade)
+
+  @@id([ancestorId, descendantId])
+  @@index([descendantId])
+}
+
+model UnitMembership {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  unitId String
+  // motivo: `onDelete: Restrict` — a lotação direta é o que torna uma
+  // unidade "não vazia"; apagá-la sem antes desalojar quebraria M7 em
+  // silêncio.
+  unit   Unit   @relation(fields: [unitId], references: [id], onDelete: Restrict)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([unitId, userId])
+}
+
+model Invitation {
+  id          String    @id @default(uuid())
+  email       String
+  unitId      String
+  role        UserRole  @default(MEMBER)
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  invitedById String
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  unit      Unit @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  invitedBy User @relation("InvitationsSent", fields: [invitedById], references: [id])
+
+  @@index([email])
+  @@index([unitId])
 }
 
 model Session {

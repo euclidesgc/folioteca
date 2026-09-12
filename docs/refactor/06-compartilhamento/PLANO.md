@@ -251,7 +251,7 @@ editor — forçar a URL dá o mesmo 403/404 do servidor.
       compartilhamento"; "a cadeia para no primeiro espaço que não herda"; "unidade criada
       depois entra na subárvore compartilhada"; "espaço livre nunca entra pela subárvore"
       (contra o `AccessRepository` e o Postgres do Testcontainers, sem HTTP)
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t
       "acesso"` sai com 0
 
 ### Etapa 2 — API: ler e escrever o compartilhamento
@@ -272,7 +272,7 @@ editor — forçar a URL dá o mesmo 403/404 do servidor.
       EDITAR sobre espaço com VER resulta em editar"; "pessoa com VER sob espaço com EDITAR
       resulta em ver"; "o maior nível entre dois alvos de espaço vence"; "alvo repetido no
       mesmo PUT recusa com SHARE_TARGET_DUPLICATED"
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t
       "acesso"` sai com 0
 
 ### Etapa 3 — API: os pontos de verificação decidem por `document_access`
@@ -291,7 +291,7 @@ editor — forçar a URL dá o mesmo 403/404 do servidor.
       sobrevive"; "lista do espaço sem rastro do que foi compartilhado fora dele"; "restrito
       que herda funciona para o supervisor da unidade pai"; "unidade e espaço com
       compartilhamento não apagam"
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t
       "acesso"` sai com 0
 
 ### Etapa 4 — Hocuspocus: `onAuthenticate` por `document_access`
@@ -302,7 +302,7 @@ editor — forçar a URL dá o mesmo 403/404 do servidor.
       `data.connection.readOnly = true`; `EDIT`/dono aceita com escrita
 - [ ] Teste: `apps/api/test/access.e2e-spec.ts` — "onAuthenticate recusa sem acesso e dá só
       leitura com nível ver" (conecta com `@hocuspocus/provider` contra o servidor de teste)
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t
       "colaboração"` sai com 0
 
 ### Etapa 5 — Web: árvore própria e o modelo puro de seleção

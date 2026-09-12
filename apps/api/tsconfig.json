@@ -10,6 +10,11 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
+    // motivo: o único `.tsx` do projeto é o template de e-mail de convite
+    // (decisão 8, `@react-email/components`) — `react-jsx` dispensa o
+    // `import React` que o runtime do e-mail, renderizado só no servidor,
+    // não precisa.
+    "jsx": "react-jsx",
     "rootDir": "./src",
     "outDir": "./dist",
     "incremental": true,
@@ -24,6 +29,6 @@
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["node_modules", "dist", "test", "scripts", "**/*.spec.ts"]
 }

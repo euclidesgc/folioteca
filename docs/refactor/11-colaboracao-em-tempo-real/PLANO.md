@@ -186,7 +186,7 @@ aplicada à conexão que já estava aberta.
       plano 06, envia uma mudança, confere `Document.plainText` inalterado
       depois do `store`), "recusa atualização que estoura o limite de 5 MB",
       "recusa a sexta conexão da mesma pessoa no mesmo documento"
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "collaboration-limits"` sai com 0
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t "collaboration-limits"` sai com 0
 
 ### Etapa 2 — Revogação ao vivo: `AccessChangedEvent` e o registro de conexões
 - [ ] Ler: `apps/api/src/access/access.repository.ts` (plano 06),
@@ -210,7 +210,7 @@ aplicada à conexão que já estava aberta.
       `AccessChangedEvent` depois do commit (regra 2)
 - [ ] Teste: `apps/api/test/collaboration-revocation.e2e-spec.ts` — "revogar
       o compartilhamento fecha a conexão aberta em até 2 segundos"
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "collaboration-revocation"` sai com 0
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t "collaboration-revocation"` sai com 0
 
 ### Etapa 3 — Web: presença no cabeçalho e nos cursores
 - [ ] Ler: `packages/tema/src/tema.ts`, `apps/web/src/shared/styles/theme.css`,

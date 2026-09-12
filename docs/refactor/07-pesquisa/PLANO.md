@@ -267,14 +267,14 @@ acesso a um documento não o vê em `items`, nem ele conta em `total`.
 - [ ] Criar `apps/api/src/search/search.module.ts`, importar em `apps/api/src/app.module.ts` e acrescentar `SearchModule` aos imports do `OpenApiModule` em `apps/api/scripts/generate-openapi.ts`
 - [ ] Rodar `pnpm --filter api run openapi:generate` e `pnpm --filter web run api:generate`
 - [ ] Teste: `apps/api/src/search/search.repository.spec.ts` — unidade com `PrismaService` dublê, confirma que os filtros viram parâmetros da consulta
-- [ ] Verificação da etapa: `pnpm --filter api exec jest -t "search.repository"` sai com 0
+- [ ] Verificação da etapa: `pnpm --filter api run test -t "search.repository"` sai com 0
 
 ### Etapa 3 — Matriz de integração
 - [ ] Ler: `apps/api/test/health.e2e-spec.ts` (padrão de subida da app), `apps/api/test/jest-e2e.config.js`, `docs/refactor/00-fundamentos/modelo-de-acesso.md` (M16, M18)
 - [ ] Montar a massa de teste (pessoas, espaços e documentos com acesso diferente) pelos repositórios que os planos 02/05/06 já deixam prontos para teste
 - [ ] Criar `apps/api/test/search.e2e-spec.ts` cobrindo: acento e plural, filtro por acesso, trecho realçado, filtro por espaço e por dono, cursor
 - [ ] Teste: `apps/api/test/search.e2e-spec.ts` — "não lista nem conta documento de quem não tem acesso", "encontra por termo sem acento e no singular", "devolve o trecho com marcadores ao redor do termo", "filtra por espaço e por dono ao mesmo tempo", "pagina por cursor sem repetir documentos"
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "search"` sai com 0
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t "search"` sai com 0
 
 ### Etapa 4 — Camada de dados da pesquisa na web
 - [ ] Ler: `apps/web/src/features/health/*` (padrão de `api/`/`hooks/`/dublês MSW), `apps/web/src/shared/api/client.ts`, `apps/web/src/shared/config/env.ts`
@@ -312,7 +312,7 @@ acesso a um documento não o vê em `items`, nem ele conta em `total`.
 - [ ] `comando` — `pnpm --filter api exec prisma migrate diff --from-migrations ./apps/api/prisma/migrations --to-schema-datamodel ./apps/api/prisma/schema.prisma --exit-code` sai com 0.
 - [ ] `estrutural` — `apps/api/src/search/search.controller.ts` exporta `SearchController` com os `operationId` `searchDocuments` e `quickSearchDocuments`.
 - [ ] `comando` — `pnpm --filter api run openapi:generate && rg -q '"/search":' apps/api/openapi.json` sai com 0.
-- [ ] `comportamental` — Dado um documento visível só para quem o criou, quando outra pessoa da mesma organização pesquisa pelo título dele em `GET /search`, então `items` não o contém e `total` não o conta. Prova: `apps/api/test/search.e2e-spec.ts`, teste "não lista nem conta documento de quem não tem acesso", por `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "não lista nem conta documento de quem não tem acesso"`.
+- [ ] `comportamental` — Dado um documento visível só para quem o criou, quando outra pessoa da mesma organização pesquisa pelo título dele em `GET /search`, então `items` não o contém e `total` não o conta. Prova: `apps/api/test/search.e2e-spec.ts`, teste "não lista nem conta documento de quem não tem acesso", por `pnpm --filter api run test:integration -t "não lista nem conta documento de quem não tem acesso"`.
 - [ ] `comportamental` — Dado um documento com "Organização" e "documentos" no título, quando `GET /search?q=organizacao%20documento`, então ele aparece em `items`. Prova: `apps/api/test/search.e2e-spec.ts`, teste "encontra por termo sem acento e no singular", mesmo comando com `-t`.
 - [ ] `comportamental` — Dado um documento cujo texto contém o termo pesquisado, quando `GET /search?q=<termo>`, então `highlight` do item traz o termo entre os bytes 0x01 e 0x02. Prova: `apps/api/test/search.e2e-spec.ts`, teste "devolve o trecho com marcadores ao redor do termo".
 - [ ] `comportamental` — Dado três documentos acessíveis à mesma pessoa, em espaços e donos diferentes, quando `GET /search` recebe o `spaceId` e o `ownerId` de só um deles, então `items` tem exatamente esse um. Prova: `apps/api/test/search.e2e-spec.ts`, teste "filtra por espaço e por dono ao mesmo tempo".

@@ -21,6 +21,10 @@ export const environmentSchema = Joi.object({
   // isso ela é obrigatória em todo ambiente, e o piso de 32 caracteres barra o
   // valor de brincadeira que passaria despercebido até a produção.
   BETTER_AUTH_SECRET: Joi.string().min(32).required(),
+  // motivo: o portão da primeira instalação (M2) — sem o valor certo,
+  // `POST /installation` nunca cria a organização. Gerado no provisionamento,
+  // uma vez por instância, nunca reaproveitado entre `hml` e `prod`.
+  INSTALLATION_CODE: Joi.string().min(16).required(),
   SMTP_HOST: Joi.string().default("localhost"),
   SMTP_PORT: Joi.number().port().default(1025),
   SMTP_USER: Joi.string().allow("").default(""),

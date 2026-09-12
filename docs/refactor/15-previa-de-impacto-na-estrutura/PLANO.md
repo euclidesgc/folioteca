@@ -218,7 +218,7 @@ permissão devolve o mesmo 403 do servidor.
       unidade vazia não afeta ninguém"; "a prévia não desaloja de verdade —
       a lotação continua depois de chamar a rota"; "membro comum recebe 403
       na prévia de uma mudança de unidade"
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "structure preview"` sai com 0
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t "structure preview"` sai com 0
 
 ### Etapa 2 — As cinco mudanças restantes e o contrato
 - [ ] Ler: `apps/api/src/spaces/{spaces.service,spaces.errors}.ts` (05),
@@ -240,7 +240,7 @@ permissão devolve o mesmo 403 do servidor.
       prévia do desligamento aponta só a pessoa desligada perdendo acesso,
       sem desativar a conta"; "o número da prévia bate com quem realmente
       perde acesso depois de confirmar a mudança real"
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "structure preview"` sai com 0
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t "structure preview"` sai com 0
 
 ### Etapa 3 — Web: o bloco `PreviaDeImpacto`
 - [ ] Ler: `apps/web/src/shared/components/ui/{dialog,avatar,skeleton,

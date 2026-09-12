@@ -1,5 +1,6 @@
 export { CAMINHO_PERFIL } from "./conta-rotas";
 export { EmailForm } from "./components/email-form";
+export { LotacoesLista } from "./components/lotacoes-lista";
 export { NomeForm } from "./components/nome-form";
 export { PerfilSecao } from "./components/perfil-secao";
 export { SenhaForm } from "./components/senha-form";

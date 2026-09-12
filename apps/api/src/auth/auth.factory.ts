@@ -25,10 +25,11 @@ export function createAuth(
     basePath: AUTH_BASE_PATH,
     secret: config.get("BETTER_AUTH_SECRET", { infer: true }),
     trustedOrigins: parseWebOrigins(config.get("WEB_ORIGIN", { infer: true })),
-    // motivo: o cadastro entra pela rota própria da API, que cria a conta e a
-    // organização no mesmo ato. Aberto, este caminho criaria pessoa sem
-    // organização — que não alcança nada no produto. O bloqueio é da requisição
-    // HTTP; a chamada interna que a nossa rota faz continua valendo.
+    // motivo: o cadastro acontece só na instalação (uma vez, plano 03) e no
+    // aceite de convite (plano 04), os dois por escrita direta no banco — o
+    // cadastro público fecha depois da primeira instalação (M2). O bloqueio é
+    // da requisição HTTP; a chamada interna que esses fluxos fazem a
+    // `auth.$context`/`auth.api.signInEmail` continua valendo.
     disabledPaths: ["/sign-up/email"],
     emailAndPassword: {
       enabled: true,

@@ -109,6 +109,7 @@ ambiente publicado.
 | `PORT` | `3000` |
 | `DATABASE_URL` | a URL interna de `folioteca-db-hml` — o host é o uuid do banco |
 | `WEB_ORIGIN` | `https://hml.folioteca.duckdns.org,https://site-hml.folioteca.duckdns.org` |
+| `INSTALLATION_CODE` | variável de runtime da API, como `BETTER_AUTH_SECRET`: gerada no provisionamento, uma vez por instância, e nunca a mesma entre `hml` e `prod` — reaproveitar o valor deixaria quem sabe o código de um ambiente instalar o outro |
 
 `WEB_ORIGIN` é **lista**, e as duas origens estão nela porque tanto a SPA quanto
 o hotsite chamam a API. `apps/api/src/config/web-origins.ts` faz a leitura.

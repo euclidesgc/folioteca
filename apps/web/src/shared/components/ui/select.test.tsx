@@ -20,9 +20,9 @@ const origens = createListCollection({
   ],
 });
 
-function ExemploSelecao() {
+function ExemploSelecao({ invalido = false }: { invalido?: boolean }) {
   return (
-    <Select.Root collection={origens}>
+    <Select.Root collection={origens} invalid={invalido}>
       <Select.Label>Origem do acesso</Select.Label>
       <Select.Control>
         <Select.Trigger>
@@ -39,6 +39,7 @@ function ExemploSelecao() {
         </Select.Content>
       </Select.Positioner>
       <Select.HiddenSelect />
+      {invalido ? <Select.Error>Selecione uma origem.</Select.Error> : null}
     </Select.Root>
   );
 }
@@ -88,5 +89,24 @@ describe("Select", () => {
         screen.getByRole("combobox", { name: "Origem do acesso" }),
       ).toHaveTextContent("Pessoa"),
     );
+  });
+
+  it("leaves a resting select undescribed, rather than pointing at an absent element", () => {
+    render(<ExemploSelecao />);
+    const combobox = screen.getByRole("combobox", { name: "Origem do acesso" });
+    expect(combobox).not.toHaveAttribute("aria-invalid", "true");
+    expect(combobox).not.toHaveAttribute("aria-describedby");
+  });
+
+  it("o erro do select é anunciado pelo campo, não só pintado ao lado", () => {
+    render(<ExemploSelecao invalido />);
+    const combobox = screen.getByRole("combobox", { name: "Origem do acesso" });
+    expect(combobox).toHaveAttribute("aria-invalid", "true");
+    expect(combobox).toHaveAccessibleDescription("Selecione uma origem.");
+    expect(screen.getByText("Selecione uma origem.")).toBeInTheDocument();
+  });
+
+  it("throws when Select.Error renders outside of Select.Root, instead of silently losing its wiring", () => {
+    expect(() => render(<Select.Error>Solto</Select.Error>)).toThrow();
   });
 });

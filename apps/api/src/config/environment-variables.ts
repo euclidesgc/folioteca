@@ -5,6 +5,7 @@ export type EnvironmentVariables = {
   WEB_ORIGIN: string;
   API_URL: string;
   BETTER_AUTH_SECRET: string;
+  INSTALLATION_CODE: string;
   SMTP_HOST: string;
   SMTP_PORT: number;
   SMTP_USER: string;

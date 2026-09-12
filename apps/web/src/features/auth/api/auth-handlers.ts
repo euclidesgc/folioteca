@@ -66,14 +66,6 @@ export const comSessao = http.get("*/api/auth/get-session", () =>
   HttpResponse.json(SESSAO),
 );
 
-export const cadastroAceito = http.post("*/auth/register", () =>
-  HttpResponse.json(null, { status: 202 }),
-);
-
-export const cadastroFreado = http.post("*/auth/register", () =>
-  HttpResponse.json({ message: "Too many requests" }, { status: 429 }),
-);
-
 export const recuperacaoAceita = http.post(
   "*/api/auth/request-password-reset",
   () => HttpResponse.json({ status: true }),

@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import {
   EmailForm,
+  LotacoesLista,
   NomeForm,
   PerfilSecao,
   SenhaForm,
@@ -45,6 +46,13 @@ export function PerfilRoute(): ReactElement {
         descricao="Cada navegador onde esta conta entrou. Encerrar uma delas obriga a entrar de novo naquele lugar."
       >
         <SessoesLista />
+      </PerfilSecao>
+
+      <PerfilSecao
+        titulo="Onde você está lotada"
+        descricao="O caminho até a raiz de cada unidade em que a administração te lotou."
+      >
+        <LotacoesLista />
       </PerfilSecao>
     </div>
   );

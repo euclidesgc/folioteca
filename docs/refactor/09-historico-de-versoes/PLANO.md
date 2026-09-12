@@ -235,7 +235,7 @@ rota deste plano muda de forma.
 - [ ] Teste: `apps/api/test/document-versions.e2e-spec.ts` — "cria versão
       automática depois de 10 minutos sem versão" e "cria versão automática
       quando outra pessoa edita depois da última versão"
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "versão automática"` sai com 0
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t "versão automática"` sai com 0
 
 ### Etapa 2 — API: manual, restauro e contribuintes
 - [ ] Ler: `apps/api/src/account/account.controller.ts`,
@@ -254,7 +254,7 @@ rota deste plano muda de forma.
       manual com rótulo", "restaura versão e reescreve o conteúdo do
       documento", "recusa restauro de quem não é dono com NOT_OWNER", "lista
       contribuintes sem duplicar pessoas"
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "versão"` sai com 0
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t "versão"` sai com 0
 
 ### Etapa 3 — Contrato OpenAPI e cliente web
 - [ ] Ler: `apps/api/src/swagger.ts`; `apps/api/scripts/generate-openapi.ts`;
@@ -324,11 +324,11 @@ rota deste plano muda de forma.
       minutos e sem edição nova, quando alguém edita o conteúdo e o `store`
       do Hocuspocus roda, então uma `DocumentVersion` de `kind` `AUTO` nasce
       para esse documento. Prova: `apps/api/test/document-versions.e2e-
-      spec.ts`, `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "cria versão automática depois de 10 minutos sem versão"`.
+      spec.ts`, `pnpm --filter api run test:integration -t "cria versão automática depois de 10 minutos sem versão"`.
 - [ ] `comportamental` — Dado um documento editado por duas pessoas
       diferentes desde a última versão, quando o `store` roda, então a nova
       `DocumentVersion` `AUTO` grava as duas em `savedByIds`. Prova:
-      `apps/api/test/document-versions.e2e-spec.ts`, `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "cria versão automática quando outra pessoa edita depois da última versão"`.
+      `apps/api/test/document-versions.e2e-spec.ts`, `pnpm --filter api run test:integration -t "cria versão automática quando outra pessoa edita depois da última versão"`.
 - [ ] `comportamental` — Dado um documento e um `label` "Antes da revisão",
       quando `POST /documents/:id/versions` é chamado por quem tem nível
       `EDIT`, então a resposta é 201 com `kind MANUAL` e o `label` enviado.
@@ -339,11 +339,11 @@ rota deste plano muda de forma.
       restore`, então o `content`/`plainText` atuais do `Document` voltam a
       ser os da versão antiga e uma `DocumentVersion` `RESTORE` com `label`
       "Restaurado da versão {number}" é criada. Prova: `apps/api/test/
-      document-versions.e2e-spec.ts`, `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "restaura versão e reescreve o conteúdo do documento"`.
+      document-versions.e2e-spec.ts`, `pnpm --filter api run test:integration -t "restaura versão e reescreve o conteúdo do documento"`.
 - [ ] `comportamental` — Dado um documento e uma pessoa que não é a dona,
       quando ela chama a rota de restauro, então a resposta é 403 com `code
       NOT_OWNER`. Prova: `apps/api/test/document-versions.e2e-spec.ts`,
-      `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "recusa restauro de quem não é dono com NOT_OWNER"`.
+      `pnpm --filter api run test:integration -t "recusa restauro de quem não é dono com NOT_OWNER"`.
 - [ ] `comportamental` — Dado um documento com versões manuais salvas por
       duas pessoas diferentes, quando `GET /documents/:id/contributors` é
       chamado, então a resposta traz as duas pessoas, cada uma uma vez só.

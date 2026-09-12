@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { EXEMPLO_ORGANIZACAO } from "@/shared/example-data/folioteca";
+import { http, HttpResponse } from "msw";
+import { setupServer } from "msw/node";
 import { ThemeProvider } from "@/shared/theme";
 import { useSession } from "@/features/auth/api/auth-client";
 import { BarraLateral } from "./barra-lateral";
@@ -16,6 +17,23 @@ const PESSOA = {
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
 };
+
+const ME = {
+  id: "org-1",
+  name: PESSOA.name,
+  email: PESSOA.email,
+  role: "ADMIN",
+  organization: { id: "org-1", name: "Arcabouço Tecnologia" },
+  units: [{ id: "raiz", name: "Arcabouço Tecnologia", path: ["Arcabouço Tecnologia"] }],
+};
+
+const comOrganizacao = http.get("*/me", () => HttpResponse.json(ME));
+
+const server = setupServer(comOrganizacao);
+
+beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
 
 const SESSAO_RESOLVIDA = {
   data: {
@@ -126,13 +144,15 @@ describe("BarraLateral — caminho feliz", () => {
     ).toBeInTheDocument();
   });
 
-  it("mostra o nome da organização de exemplo ao lado da etiqueta Dados de exemplo", async () => {
+  it("mostra o nome real da organização, sem a etiqueta de dados de exemplo ao lado", async () => {
     await renderBarraLateral();
 
-    expect(
-      await screen.findByText(EXEMPLO_ORGANIZACAO.name),
-    ).toBeInTheDocument();
-    expect(screen.getAllByText("Dados de exemplo").length).toBeGreaterThan(0);
+    const nomeDaOrganizacao = await screen.findByText(ME.organization.name);
+    expect(nomeDaOrganizacao).toBeInTheDocument();
+    // decisão: a árvore de espaços continua exemplo (plano 05); só o nome da
+    // organização passou a vir de `GET /me` — a etiqueta ao lado dele deixou
+    // de fazer sentido, e sobra só a que marca os espaços.
+    expect(screen.getAllByText("Dados de exemplo")).toHaveLength(1);
   });
 });
 

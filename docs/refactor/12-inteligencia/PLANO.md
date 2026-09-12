@@ -279,7 +279,7 @@ CREATE INDEX document_block_embedding_hnsw ON "DocumentBlock" USING hnsw (embedd
 - [ ] Teste: `apps/api/src/ai/crypto/secret-cipher.spec.ts` — "deve devolver o texto original ao
       cifrar e decifrar com a mesma chave", "deve rejeitar a decifragem com uma chave diferente da
       que cifrou"
-- [ ] Verificação da etapa: `pnpm --filter api exec jest -t "cifra"` sai com 0
+- [ ] Verificação da etapa: `pnpm --filter api run test -t "cifra"` sai com 0
 
 ### Etapa 2 — Indexação por bloco
 - [ ] Ler: o gancho `store` da `@hocuspocus/extension-database` que o plano 02 grava (arquivo
@@ -300,7 +300,7 @@ CREATE INDEX document_block_embedding_hnsw ON "DocumentBlock" USING hnsw (embedd
 - [ ] Teste: `apps/api/test/ai-indexing.e2e-spec.ts` — "deve criar um DocumentBlock por bloco do
       documento depois do store" (Testcontainers, `pgvector/pgvector:pg16`, conforme D1/D7 de
       `modelo-de-acesso.md`)
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "DocumentBlock"` sai com 0
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t "DocumentBlock"` sai com 0
 
 ### Etapa 3 — Recuperação híbrida (RRF) e cliente Anthropic
 - [ ] Ler: `modelo-de-acesso.md` (D1, as funções SQL), skill `claude-api` (Citations, streaming),
@@ -331,7 +331,7 @@ CREATE INDEX document_block_embedding_hnsw ON "DocumentBlock" USING hnsw (embedd
 - [ ] Teste: `apps/api/src/ai/retrieval/rrf.spec.ts` — "deve pontuar mais alto o bloco encontrado
       nas duas listas"; `apps/api/src/ai/citations/citation-mapper.spec.ts` — "deve traduzir
       document_index e start_block_index para o documentId e blockId enviados"
-- [ ] Verificação da etapa: `pnpm --filter api exec jest -t "RRF"` sai com 0
+- [ ] Verificação da etapa: `pnpm --filter api run test -t "RRF"` sai com 0
 
 ### Etapa 4 — API: rotas, streaming SSE e freio de taxa
 - [ ] Ler: `apps/api/src/account/*` (o padrão module/controller/service/repository da casa),

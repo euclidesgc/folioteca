@@ -266,7 +266,7 @@ exigem `AdminGuard`, como as outras rotas de configuração da instância (M3).
       the parent's space as parent", "stops the inheritance chain at the
       first space that does not inherit" (via `AccessRepository` e Prisma
       direto contra o Postgres do Testcontainers, sem HTTP)
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "spaces"` sai com 0
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t "spaces"` sai com 0
 
 ### Etapa 2 — Leitura: árvore, detalhe e membros
 - [ ] Ler: `apps/api/src/units/**` (padrão module/controller/service/repository
@@ -286,7 +286,7 @@ exigem `AdminGuard`, como as outras rotas de configuração da instância (M3).
 - [ ] Teste: `apps/api/test/spaces.e2e-spec.ts` — "hides a restricted space
       from someone outside its audience", "shows a restricted space to a
       member and to someone with inherited access"
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "spaces"` sai com 0
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t "spaces"` sai com 0
 
 ### Etapa 3 — Escrita: criar, editar, herança, membros, apagar, e o padrão da organização
 - [ ] Ler: `apps/api/src/spaces/*` (etapa 2), `apps/api/src/units/units.service.ts`
@@ -315,7 +315,7 @@ exigem `AdminGuard`, como as outras rotas de configuração da instância (M3).
       leave their own space", "refuses to delete a space that still has
       children"; `apps/api/test/organization-settings.e2e-spec.ts` —
       "keeps the inheritance default only for the administration role"
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "spaces"` sai com 0
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t "spaces"` sai com 0
 
 ### Etapa 4 — Tela do espaço e renome canal → espaço
 - [ ] Ler: `apps/web/src/app/routes/{espacos,espaco}.tsx`,

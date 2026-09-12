@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { ButtonLink } from "@/components/ui/button";
-import { ROTA_DE_CADASTRO } from "@/lib/app-url";
+import { ROTA_DE_ENTRADA } from "@/lib/app-url";
 
 export function Closing(): ReactElement {
   return (
@@ -15,7 +15,7 @@ export function Closing(): ReactElement {
         Crie a conta da sua empresa, publique o primeiro documento em um canal e
         convide o time. O plano Grátis não pede cartão.
       </p>
-      <ButtonLink href={ROTA_DE_CADASTRO} size="lg">
+      <ButtonLink href={ROTA_DE_ENTRADA} size="lg">
         Começar grátis
       </ButtonLink>
     </section>

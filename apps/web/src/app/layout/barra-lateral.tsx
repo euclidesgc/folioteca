@@ -36,15 +36,12 @@ export function ConteudoDaBarraLateral(): ReactElement {
       <NewDocumentButton variant="primary" size="sm" />
 
       <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-2">
-          <Link
-            to="/inicio"
-            className="truncate font-display text-base font-semibold text-tinta no-underline hover:underline"
-          >
-            {organizacao?.name}
-          </Link>
-          <Badge size="reduzida">Dados de exemplo</Badge>
-        </div>
+        <Link
+          to="/inicio"
+          className="truncate font-display text-base font-semibold text-tinta no-underline hover:underline"
+        >
+          {organizacao?.name}
+        </Link>
         <MenuDeConta />
       </div>
 

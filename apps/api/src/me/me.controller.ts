@@ -14,7 +14,7 @@ export class MeController {
   @UseGuards(SessionGuard)
   @ApiOperation({ operationId: "getMe" })
   @ApiOkResponse({ type: MeResponse })
-  getMe(@CurrentUser() user: SessionUser): MeResponse {
+  getMe(@CurrentUser() user: SessionUser): Promise<MeResponse> {
     return this.service.fromSession(user);
   }
 }

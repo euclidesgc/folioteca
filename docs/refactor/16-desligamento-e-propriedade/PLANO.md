@@ -237,7 +237,7 @@ botões por papel ou por dono.
       `COLLABORATION_INSTANCE`, `onAuthenticate` devolve `{ userId: user.id }`
 - [ ] Teste: `apps/api/test/offboarding.e2e-spec.ts` — `"refuses sign-in for a deactivated
       account"`
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t
       "deactivated account"` sai com 0
 
 ### Etapa 2 — API de desligamento e reativação
@@ -256,7 +256,7 @@ botões por papel ou por dono.
       administrator"`, `"puts the person's documents under administration without touching
       existing shares, and reactivating does not restore past staffing"`, `"promotes the free
       space's oldest member to manager when the manager is deactivated"`
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t
       "deactivat"` sai com 0
 
 ### Etapa 3 — API de transferência de propriedade
@@ -275,7 +275,7 @@ botões por papel ou por dono.
       the proposed person accepts, keeping the original creator"`, `"refuses to propose a
       transfer to someone without access to the document"`, `"refuses a second pending proposal
       for the same document"`
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t
       "ownership transfer"` sai com 0
 
 ### Etapa 4 — Web: Pessoas, documentos sob administração, propostas

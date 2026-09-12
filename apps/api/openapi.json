@@ -493,6 +493,585 @@
           "documents"
         ]
       }
+    },
+    "/organization": {
+      "get": {
+        "operationId": "getOrganization",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationStatusDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "installation"
+        ]
+      }
+    },
+    "/installation": {
+      "post": {
+        "operationId": "install",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstallationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "",
+        "tags": [
+          "installation"
+        ]
+      }
+    },
+    "/unit-types": {
+      "get": {
+        "operationId": "listUnitTypes",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UnitTypeDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "unit-types"
+        ]
+      },
+      "post": {
+        "operationId": "createUnitType",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUnitTypeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnitTypeDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "unit-types"
+        ]
+      }
+    },
+    "/unit-types/{id}": {
+      "patch": {
+        "operationId": "updateUnitType",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUnitTypeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnitTypeDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "unit-types"
+        ]
+      },
+      "delete": {
+        "operationId": "deleteUnitType",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "",
+        "tags": [
+          "unit-types"
+        ]
+      }
+    },
+    "/units": {
+      "get": {
+        "operationId": "getUnitsTree",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnitDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "units"
+        ]
+      },
+      "post": {
+        "operationId": "createUnit",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUnitDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "",
+        "tags": [
+          "units"
+        ]
+      }
+    },
+    "/units/{id}": {
+      "patch": {
+        "operationId": "renameUnit",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUnitDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "",
+        "tags": [
+          "units"
+        ]
+      },
+      "delete": {
+        "operationId": "deleteUnit",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "",
+        "tags": [
+          "units"
+        ]
+      }
+    },
+    "/units/{id}/members/{userId}": {
+      "put": {
+        "operationId": "addUnitMember",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "",
+        "tags": [
+          "units"
+        ]
+      },
+      "delete": {
+        "operationId": "removeUnitMember",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "",
+        "tags": [
+          "units"
+        ]
+      }
+    },
+    "/users": {
+      "get": {
+        "operationId": "listUsers",
+        "parameters": [
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Filtro por nome ou e-mail (ILIKE).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UserDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/{id}/role": {
+      "patch": {
+        "operationId": "updateUserRole",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserRoleDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/invitations": {
+      "post": {
+        "operationId": "createInvitation",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInvitationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "invitations"
+        ]
+      },
+      "get": {
+        "operationId": "listInvitations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InvitationResponseDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/invitations/{id}/resend": {
+      "post": {
+        "operationId": "resendInvitation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/invitations/{id}": {
+      "delete": {
+        "operationId": "revokeInvitation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/invitations/by-token/{token}": {
+      "get": {
+        "operationId": "getInvitationByToken",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicInvitationDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "invitations"
+        ]
+      }
+    },
+    "/invitations/{token}/accept": {
+      "post": {
+        "operationId": "acceptInvitation",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptInvitationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "",
+        "tags": [
+          "invitations"
+        ]
+      }
     }
   },
   "info": {
@@ -516,6 +1095,43 @@
           "status"
         ]
       },
+      "MeOrganizationDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "MeUnitDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "path"
+        ]
+      },
       "MeResponse": {
         "type": "object",
         "properties": {
@@ -530,13 +1146,24 @@
           },
           "role": {
             "type": "string"
+          },
+          "organization": {
+            "$ref": "#/components/schemas/MeOrganizationDto"
+          },
+          "units": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MeUnitDto"
+            }
           }
         },
         "required": [
           "id",
           "name",
           "email",
-          "role"
+          "role",
+          "organization",
+          "units"
         ]
       },
       "CreateDocumentDto": {
@@ -715,6 +1342,383 @@
         "required": [
           "id",
           "favorited"
+        ]
+      },
+      "OrganizationStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "SETUP_PENDING",
+              "READY"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "Nome da unidade raiz, quando já instalada."
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "InstallationDto": {
+        "type": "object",
+        "properties": {
+          "installationCode": {
+            "type": "string",
+            "description": "Código de instalação gerado no provisionamento."
+          },
+          "name": {
+            "type": "string",
+            "description": "Nome de quem instala e se torna a primeira administradora."
+          },
+          "organizationName": {
+            "type": "string",
+            "description": "Nome da empresa, que nomeia a unidade raiz."
+          },
+          "email": {
+            "type": "string",
+            "description": "Endereço de e-mail, único no produto."
+          },
+          "password": {
+            "type": "string",
+            "description": "Senha de 12 a 128 caracteres, sem regra de composição."
+          }
+        },
+        "required": [
+          "installationCode",
+          "name",
+          "organizationName",
+          "email",
+          "password"
+        ]
+      },
+      "UnitTypeDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "CreateUnitTypeDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Nome do tipo de unidade, único por instância."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateUnitTypeDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Novo nome do tipo de unidade."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UnitTypeRefDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "UnitMemberDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "role"
+        ]
+      },
+      "UnitDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "isRoot": {
+            "type": "boolean"
+          },
+          "unitType": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UnitTypeRefDto"
+              }
+            ]
+          },
+          "directMembers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnitMemberDto"
+            }
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnitDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "isRoot",
+          "unitType",
+          "directMembers",
+          "children"
+        ]
+      },
+      "CreateUnitDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Nome da unidade, único entre as filhas do mesmo pai."
+          },
+          "parentId": {
+            "type": "string",
+            "description": "Id da unidade pai."
+          },
+          "unitTypeId": {
+            "type": "string",
+            "description": "Id do tipo desta unidade."
+          }
+        },
+        "required": [
+          "name",
+          "parentId",
+          "unitTypeId"
+        ]
+      },
+      "UpdateUnitDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Novo nome da unidade."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UserDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "ADMIN",
+              "MEMBER"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "role"
+        ]
+      },
+      "UpdateUserRoleDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "ADMIN",
+              "MEMBER"
+            ]
+          }
+        },
+        "required": [
+          "role"
+        ]
+      },
+      "UserRoleDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "ADMIN",
+              "MEMBER"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "role"
+        ]
+      },
+      "CreateInvitationDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Endereço de e-mail de quem recebe o convite."
+          },
+          "unitId": {
+            "type": "string",
+            "description": "Id da unidade de lotação inicial de quem aceitar."
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "ADMIN",
+              "MEMBER"
+            ],
+            "description": "Papel que a pessoa recebe ao aceitar."
+          }
+        },
+        "required": [
+          "email",
+          "unitId",
+          "role"
+        ]
+      },
+      "InvitationResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "unitId": {
+            "type": "string"
+          },
+          "unitName": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "ADMIN",
+              "MEMBER"
+            ]
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "unitId",
+          "unitName",
+          "role",
+          "expiresAt",
+          "createdAt"
+        ]
+      },
+      "PublicInvitationDto": {
+        "type": "object",
+        "properties": {
+          "organizationName": {
+            "type": "string",
+            "description": "Nome da organização que convidou."
+          },
+          "unitName": {
+            "type": "string",
+            "description": "Nome da unidade de lotação inicial."
+          },
+          "maskedEmail": {
+            "type": "string",
+            "description": "E-mail do convite, com o meio mascarado."
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "organizationName",
+          "unitName",
+          "maskedEmail",
+          "expiresAt"
+        ]
+      },
+      "AcceptInvitationDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Nome de quem aceita o convite."
+          },
+          "password": {
+            "type": "string",
+            "description": "Senha de 12 a 128 caracteres, sem regra de composição."
+          }
+        },
+        "required": [
+          "name",
+          "password"
         ]
       }
     }

@@ -1,22 +1,37 @@
 import type { ReactElement } from "react";
-import { Link } from "react-router";
-import { AuthLayout, CriarContaForm } from "@/features/auth";
+import { Navigate } from "react-router";
+import {
+  AuthLayout,
+  CAMINHO_ENTRAR,
+  InstalacaoForm,
+  useOrganizacaoStatus,
+} from "@/features/auth";
 
-export function CriarContaRoute(): ReactElement {
+export function CriarContaRoute(): ReactElement | null {
+  const { data, isPending } = useOrganizacaoStatus();
+
+  // por quê: evita pisca-pisca — enquanto o status da organização não chegou,
+  // não há como saber se mostra o formulário ou redireciona para `/entrar`.
+  if (isPending) {
+    return null;
+  }
+
+  if (data?.status === "READY") {
+    return (
+      <Navigate
+        to={CAMINHO_ENTRAR}
+        replace
+        state={{ mensagem: "O cadastro é por convite." }}
+      />
+    );
+  }
+
   return (
     <AuthLayout
-      titulo="Criar a conta da sua empresa"
-      descricao="Quem cria a conta cria a organização e passa a administrá-la."
-      rodape={
-        <p>
-          Já tem conta?{" "}
-          <Link to="/entrar" className="font-semibold text-verdete underline">
-            Entrar
-          </Link>
-        </p>
-      }
+      titulo="Instalar a Folioteca"
+      descricao="Informe o código de instalação, gerado no provisionamento, para criar a organização e a primeira administradora."
     >
-      <CriarContaForm />
+      <InstalacaoForm />
     </AuthLayout>
   );
 }
