@@ -1016,3 +1016,31 @@ assinar — fecha a janela.
 Portões: `typecheck`, `lint`, `test` (218 testes), `build` e
 `gates_runner.sh` limpos. Suíte e2e completa, numa subida só: 52 aprovados
 (0 reprovado), incluindo o caso de sincronização acima, já corrigido.
+
+2026-09-12 — correção pós-entrega — dois defeitos que o CI reprovava,
+corrigidos onde nasceram. (1) `barra-lateral.test.tsx` estourava o tempo
+limite no CI: a causa era o próprio teste, com `vi.resetModules()` num
+`beforeEach` e `import()` dinâmico de `./barra-lateral` e `@/shared/theme`
+em cada caso, reanalisando o grafo de módulos inteiro para contornar o store
+de sessão global do cliente Better Auth. Troquei a reciclagem do grafo por um
+dublê no limite certo: `vi.mock("@/features/auth/api/auth-client")` — onde o
+`createAuthClient` de fato guarda o store —, com `useSession` controlado por
+caso via `vi.mocked(useSession).mockReturnValue(...)`; os imports de
+`BarraLateral`/`ThemeProvider` voltaram a ser estáticos, e a MSW que só
+existia para responder `/api/auth/get-session` saiu do arquivo (nenhum outro
+pedido de rede acontece nesta árvore). Casos e nomes não mudaram (são prova
+de critério dos planos 01 e 03). Medido
+(`pnpm --filter web exec vitest run src/app/layout/barra-lateral.test.tsx`):
+o caso crítico caiu de 960ms para 159ms; a fase de execução dos testes do
+arquivo, de 1.17s para 342ms. (2) `e2e/apoio/mailpit.ts` fixava
+`http://localhost:8025/api/v1`; no CI o Mailpit sobe com porta dinâmica,
+publicada em `MAILPIT_HTTP_PORT` (`.github/workflows/_suite-react.yml`), e
+com a porta fixa a leitura de e-mail nunca achava a mensagem. O ajudante
+agora lê `process.env.MAILPIT_HTTP_PORT`, caindo em `8025` quando a variável
+não existe — o caso da máquina de desenvolvimento, onde o
+`docker-compose.yml` publica a porta fixa.
+
+Portões: `typecheck`, `lint`, `test` (218 testes), `build` e
+`gates_runner.sh` limpos. Suíte e2e completa, numa subida só: 52 aprovados
+(0 reprovado), incluindo `documentos.spec.ts` e o setup de autenticação, que
+dependem do Mailpit.
