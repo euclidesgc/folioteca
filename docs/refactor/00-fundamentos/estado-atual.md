@@ -407,11 +407,11 @@ variável, se é segredo e onde obter.
   existem**, e `/confirmar-email`, que não existe (o link cai em `/documentos` pelo
   `callbackURL`); 3 (Google) e 4 (SSO) pendentes; tema por cookie; esqueleto com barra
   superior; **harness suspenso** (`active_item: null` em `product/state.json`).
-- **`docs/estrutura-espacos-e-compartilhamento.md`** (476 linhas, **não rastreado**):
-  plano em dez fases (0–9) de estrutura organizacional, espaços, convites,
-  compartilhamento e editor Plate mínimo. O modelo está copiado em
-  `docs/refactor/00-fundamentos/modelo-de-acesso.md` (também não rastreado), que
-  renomeia "Canais" para **Espaços**. Outro documento o resume.
+- **`docs/estrutura-espacos-e-compartilhamento.md`** (485 linhas): plano em dez
+  fases (0–9) de estrutura organizacional, espaços, convites, compartilhamento e
+  editor Plate mínimo. O modelo está copiado em
+  `docs/refactor/00-fundamentos/modelo-de-acesso.md`, que renomeia "Canais" para
+  **Espaços**. Outro documento o resume.
 
 ## 10. Lacunas medidas
 

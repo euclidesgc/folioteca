@@ -1,9 +1,9 @@
 # Modelo de acesso da Folioteca
 
 Fonte única do que a plataforma faz com estrutura organizacional, espaços,
-documentos e acesso. Fechado pelo dono em conversa em 10/09/2026 e copiado de
-`docs/estrutura-espacos-e-compartilhamento.md` para que o refactor não dependa
-de um arquivo fora do git. **Os planos em `docs/refactor/` obedecem a este
+documentos e acesso. Fechado pelo dono em conversa em 10/09/2026 e copiado do
+rascunho que o originou, `docs/estrutura-espacos-e-compartilhamento.md`, para
+que os planos tenham uma fonte só, no vocabulário novo. **Os planos em `docs/refactor/` obedecem a este
 documento; onde um plano precisar desviar, ele diz qual regra e por quê, e a
 regra é reescrita aqui no mesmo PR.**
 
