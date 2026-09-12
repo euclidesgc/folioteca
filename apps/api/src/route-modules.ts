@@ -3,6 +3,7 @@ import { InstallationModule } from "./installation/installation.module";
 import { MeModule } from "./me/me.module";
 import { UnitTypesModule } from "./unit-types/unit-types.module";
 import { UnitsModule } from "./units/units.module";
+import { UsersModule } from "./users/users.module";
 
 export const ROUTE_MODULES = [
   MeModule,
@@ -10,4 +11,5 @@ export const ROUTE_MODULES = [
   InstallationModule,
   UnitTypesModule,
   UnitsModule,
+  UsersModule,
 ];

@@ -284,24 +284,24 @@ administra recebe 403 do servidor, nunca só um botão escondido (M20).
 - [x] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "unidade"` sai com 0
 
 ### Etapa 3 — Papéis e pessoas (API)
-- [ ] Ler: `apps/api/prisma/schema.prisma` (`UserRole`), `modelo-de-acesso.md` (M3, D6)
-- [ ] `apps/api/src/users/{users.module,controller,service,repository}.ts`;
+- [x] Ler: `apps/api/prisma/schema.prisma` (`UserRole`), `modelo-de-acesso.md` (M3, D6)
+- [x] `apps/api/src/users/{users.module,controller,service,repository}.ts`;
       `GET /users?search=` (`ILIKE` em `name`/`email`); `PATCH /users/:id/role`
       com `SELECT ... FOR UPDATE` nas linhas `role = 'ADMIN'` antes de aceitar
       uma despromoção
-- [ ] `users.errors.ts`: `LastAdminError extends ConflictError`
-- [ ] Ajusta a consulta de `GET /me` (plano 02) para buscar o nome da
+- [x] `users.errors.ts`: `LastAdminError extends ConflictError`
+- [x] Ajusta a consulta de `GET /me` (plano 02) para buscar o nome da
       organização na unidade raiz e somar `units` (id, nome, caminho) a partir
       de `UnitMembership` + `UnitClosure`
-- [ ] Registra `UsersModule` em `ROUTE_MODULES`
-- [ ] Contrato: com os quatro módulos das etapas 1–3 em `ROUTE_MODULES`,
+- [x] Registra `UsersModule` em `ROUTE_MODULES`
+- [x] Contrato: com os quatro módulos das etapas 1–3 em `ROUTE_MODULES`,
       `pnpm --filter api run openapi:generate` grava `installation`,
       `unit-types`, `units` e `users` em `apps/api/openapi.json`; `pnpm
       --filter web run api:generate` regenera
       `apps/web/src/shared/api/generated/`
-- [ ] Teste: `apps/api/test/users.e2e-spec.ts` — "despromove um administrador
+- [x] Teste: `apps/api/test/users.e2e-spec.ts` — "despromove um administrador
       quando há mais de um", "recusa despromover o último administrador"
-- [ ] Verificação da etapa: `pnpm --filter api run openapi:generate && pnpm --filter api exec jest --config test/jest-e2e.config.js -t "administrador"` sai com 0
+- [x] Verificação da etapa: `pnpm --filter api run openapi:generate && pnpm --filter api exec jest --config test/jest-e2e.config.js -t "administrador"` sai com 0
 
 ### Etapa 4 — Tela de Organização e fechamento do cadastro (web)
 - [ ] Ler: `apps/web/src/app/routes/{organizacao,criar-conta,entrar,perfil}.tsx`,
@@ -503,3 +503,35 @@ instala a instância no próprio `beforeAll` quando ainda não está pronta — 
 suíte completa já instala em `installation.e2e-spec.ts`, mas a verificação da
 etapa roda só este arquivo (`-t "unidade"`), e sem isso `GET /units` não
 teria raiz para montar.
+
+2026-09-12 — etapa 3 — `UsersModule` (`GET /users?search=` por `ILIKE` em
+`name`/`email`, `PATCH /users/:id/role`) registrado em `ROUTE_MODULES`;
+`UsersRepository.demote` decide sob `SELECT ... FOR UPDATE` nas linhas `role =
+'ADMIN'` antes de aceitar uma despromoção, e `LastAdminError` (409) é o que
+ela produz quando a despromoção zeraria a administração (M3/D6); `GET /me`
+ganhou `organization: { id, name }` (nome buscado na unidade raiz, já que
+`Organization` não guarda nome desde a etapa 1) e `units: { id, name, path
+}[]` a partir de `UnitMembership` + `UnitClosure`, por um `MeRepository` novo
+— `MeController`/`MeService` não tocavam banco antes e passam a depender dele
+só para isso; contrato regenerado com os quatro módulos das etapas 1–3 em
+`apps/api/openapi.json` e no cliente de `apps/web/src/shared/api/generated/`
+— o que foi diferente do texto do plano: (1) a prosa da seção "API" descreve
+`GET /me` trocando um campo `organization: { id, name }` que esta base nunca
+teve (o `/me` da etapa 2 já nasceu só com `{ id, name, email, role }`, sem
+organização) — sem tabela para essa rota arbitrar o contrato, mantive o
+formato `{ id, name }` descrito na prosa e decidi que `id` seguisse sendo o
+`id` de `Organization` (inalterado) e só a fonte do `name` mudasse para a
+unidade raiz, que é a única leitura possível da frase "troca organization:
+{ id, name } para buscar name na unidade raiz"; (2) a verificação da etapa,
+como o plano escreve, derruba `installation.e2e-spec.ts` por corrida: `-t
+"administrador"` também bate no teste "abre sessão do primeiro administrador"
+daquele arquivo, e sem `--runInBand` os dois arquivos sobem em workers
+paralelos e disputam a mesma instalação única (D8); com
+`NODE_OPTIONS=--experimental-vm-modules` (mesmo motivo da etapa 1) e
+`--runInBand` acrescentados, o comando sai 0; (3) `apps/api/test/users.e2e-spec.ts`
+drena todas as outras administradoras antes de testar `LAST_ADMIN` — a regra
+é da instância inteira (M3), e os outros arquivos da suíte também criam
+administradoras, então o teste precisa zerar as que não é a sua para o
+cenário ficar determinístico; (4) `apps/api/test/me.e2e-spec.ts` (etapa 2)
+comparava `GET /me` por igualdade estrita com o formato antigo — ajustado ao
+novo, porque `GET /me` agora depende da instalação já ter ocorrido.

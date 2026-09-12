@@ -24,12 +24,13 @@ describe("GET /me", () => {
     expect(response.body.code).toBe("UNAUTHENTICATED");
   });
 
-  it("devolve o papel de quem está autenticado", async () => {
+  it("devolve o papel de quem está autenticado, a organização e as lotações", async () => {
     const sessao = await criarSessao(app);
 
     const response = await request(app.getHttpServer())
       .get("/me")
       .set("Cookie", sessao.cookie);
+    const organizationStatus = await request(app.getHttpServer()).get("/organization");
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
@@ -37,6 +38,8 @@ describe("GET /me", () => {
       name: sessao.user.name,
       email: sessao.user.email,
       role: sessao.user.role,
+      organization: { id: expect.any(String), name: organizationStatus.body.name },
+      units: [],
     });
   });
 });

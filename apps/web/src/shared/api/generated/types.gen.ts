@@ -8,11 +8,24 @@ export type HealthResponse = {
     status: string;
 };
 
+export type MeOrganizationDto = {
+    id: string;
+    name: string;
+};
+
+export type MeUnitDto = {
+    id: string;
+    name: string;
+    path: Array<string>;
+};
+
 export type MeResponse = {
     id: string;
     name: string;
     email: string;
     role: string;
+    organization: MeOrganizationDto;
+    units: Array<MeUnitDto>;
 };
 
 export type CreateDocumentDto = {
@@ -69,6 +82,115 @@ export type DocumentTrashStateDto = {
 export type DocumentFavoriteStateDto = {
     id: string;
     favorited: boolean;
+};
+
+export type OrganizationStatusDto = {
+    status: 'SETUP_PENDING' | 'READY';
+    /**
+     * Nome da unidade raiz, quando já instalada.
+     */
+    name?: string;
+};
+
+export type InstallationDto = {
+    /**
+     * Código de instalação gerado no provisionamento.
+     */
+    installationCode: string;
+    /**
+     * Nome de quem instala e se torna a primeira administradora.
+     */
+    name: string;
+    /**
+     * Nome da empresa, que nomeia a unidade raiz.
+     */
+    organizationName: string;
+    /**
+     * Endereço de e-mail, único no produto.
+     */
+    email: string;
+    /**
+     * Senha de 12 a 128 caracteres, sem regra de composição.
+     */
+    password: string;
+};
+
+export type UnitTypeDto = {
+    id: string;
+    name: string;
+};
+
+export type CreateUnitTypeDto = {
+    /**
+     * Nome do tipo de unidade, único por instância.
+     */
+    name: string;
+};
+
+export type UpdateUnitTypeDto = {
+    /**
+     * Novo nome do tipo de unidade.
+     */
+    name: string;
+};
+
+export type UnitTypeRefDto = {
+    id: string;
+    name: string;
+};
+
+export type UnitMemberDto = {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+};
+
+export type UnitDto = {
+    id: string;
+    name: string;
+    isRoot: boolean;
+    unitType: UnitTypeRefDto | null;
+    directMembers: Array<UnitMemberDto>;
+    children: Array<UnitDto>;
+};
+
+export type CreateUnitDto = {
+    /**
+     * Nome da unidade, único entre as filhas do mesmo pai.
+     */
+    name: string;
+    /**
+     * Id da unidade pai.
+     */
+    parentId: string;
+    /**
+     * Id do tipo desta unidade.
+     */
+    unitTypeId: string;
+};
+
+export type UpdateUnitDto = {
+    /**
+     * Novo nome da unidade.
+     */
+    name: string;
+};
+
+export type UserDto = {
+    id: string;
+    name: string;
+    email: string;
+    role: 'ADMIN' | 'MEMBER';
+};
+
+export type UpdateUserRoleDto = {
+    role: 'ADMIN' | 'MEMBER';
+};
+
+export type UserRoleDto = {
+    id: string;
+    role: 'ADMIN' | 'MEMBER';
 };
 
 export type GetHealthData = {
@@ -294,3 +416,200 @@ export type FavoriteDocumentResponses = {
 };
 
 export type FavoriteDocumentResponse = FavoriteDocumentResponses[keyof FavoriteDocumentResponses];
+
+export type GetOrganizationData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/organization';
+};
+
+export type GetOrganizationResponses = {
+    200: OrganizationStatusDto;
+};
+
+export type GetOrganizationResponse = GetOrganizationResponses[keyof GetOrganizationResponses];
+
+export type InstallData = {
+    body: InstallationDto;
+    path?: never;
+    query?: never;
+    url: '/installation';
+};
+
+export type InstallResponses = {
+    201: unknown;
+};
+
+export type ListUnitTypesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/unit-types';
+};
+
+export type ListUnitTypesResponses = {
+    200: Array<UnitTypeDto>;
+};
+
+export type ListUnitTypesResponse = ListUnitTypesResponses[keyof ListUnitTypesResponses];
+
+export type CreateUnitTypeData = {
+    body: CreateUnitTypeDto;
+    path?: never;
+    query?: never;
+    url: '/unit-types';
+};
+
+export type CreateUnitTypeResponses = {
+    200: UnitTypeDto;
+};
+
+export type CreateUnitTypeResponse = CreateUnitTypeResponses[keyof CreateUnitTypeResponses];
+
+export type DeleteUnitTypeData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/unit-types/{id}';
+};
+
+export type DeleteUnitTypeResponses = {
+    204: void;
+};
+
+export type DeleteUnitTypeResponse = DeleteUnitTypeResponses[keyof DeleteUnitTypeResponses];
+
+export type UpdateUnitTypeData = {
+    body: UpdateUnitTypeDto;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/unit-types/{id}';
+};
+
+export type UpdateUnitTypeResponses = {
+    200: UnitTypeDto;
+};
+
+export type UpdateUnitTypeResponse = UpdateUnitTypeResponses[keyof UpdateUnitTypeResponses];
+
+export type GetUnitsTreeData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/units';
+};
+
+export type GetUnitsTreeResponses = {
+    200: UnitDto;
+};
+
+export type GetUnitsTreeResponse = GetUnitsTreeResponses[keyof GetUnitsTreeResponses];
+
+export type CreateUnitData = {
+    body: CreateUnitDto;
+    path?: never;
+    query?: never;
+    url: '/units';
+};
+
+export type CreateUnitResponses = {
+    201: unknown;
+};
+
+export type DeleteUnitData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/units/{id}';
+};
+
+export type DeleteUnitResponses = {
+    204: void;
+};
+
+export type DeleteUnitResponse = DeleteUnitResponses[keyof DeleteUnitResponses];
+
+export type RenameUnitData = {
+    body: UpdateUnitDto;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/units/{id}';
+};
+
+export type RenameUnitResponses = {
+    200: unknown;
+};
+
+export type RemoveUnitMemberData = {
+    body?: never;
+    path: {
+        id: string;
+        userId: string;
+    };
+    query?: never;
+    url: '/units/{id}/members/{userId}';
+};
+
+export type RemoveUnitMemberResponses = {
+    204: void;
+};
+
+export type RemoveUnitMemberResponse = RemoveUnitMemberResponses[keyof RemoveUnitMemberResponses];
+
+export type AddUnitMemberData = {
+    body?: never;
+    path: {
+        id: string;
+        userId: string;
+    };
+    query?: never;
+    url: '/units/{id}/members/{userId}';
+};
+
+export type AddUnitMemberResponses = {
+    204: void;
+};
+
+export type AddUnitMemberResponse = AddUnitMemberResponses[keyof AddUnitMemberResponses];
+
+export type ListUsersData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Filtro por nome ou e-mail (ILIKE).
+         */
+        search?: string;
+    };
+    url: '/users';
+};
+
+export type ListUsersResponses = {
+    200: Array<UserDto>;
+};
+
+export type ListUsersResponse = ListUsersResponses[keyof ListUsersResponses];
+
+export type UpdateUserRoleData = {
+    body: UpdateUserRoleDto;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/role';
+};
+
+export type UpdateUserRoleResponses = {
+    200: UserRoleDto;
+};
+
+export type UpdateUserRoleResponse = UpdateUserRoleResponses[keyof UpdateUserRoleResponses];
