@@ -1,8 +1,17 @@
 import { Injectable } from "@nestjs/common";
 import type { SpaceKind } from "@prisma/client";
 import { AccessRepository } from "../access/access.repository";
-import { SpaceNotFoundError } from "./spaces.errors";
-import type { SpaceRow } from "./spaces.repository";
+import type { SessionUser } from "../common/auth/session.guard";
+import {
+  ManagerCannotLeaveError,
+  SpaceHasChildrenError,
+  SpaceInheritanceForbiddenError,
+  SpaceNotFoundError,
+  SpaceNotManagedError,
+  SpaceParentNotAllowedError,
+  SpaceUserNotFoundError,
+} from "./spaces.errors";
+import type { CreateSpaceInput, SpaceRow, UpdateSpaceInput } from "./spaces.repository";
 import { SpacesRepository } from "./spaces.repository";
 
 export type SpaceTreeView = {
@@ -106,6 +115,20 @@ function buildPath(byId: Map<string, SpaceRow>, id: string): SpacePathEntryView[
   return path;
 }
 
+function toDetailView(row: SpaceRow, path: SpacePathEntryView[]): SpaceDetailView {
+  return {
+    id: row.id,
+    kind: row.kind,
+    name: row.name,
+    unitId: row.unitId,
+    parentId: row.parentId,
+    restricted: row.restricted,
+    inheritsFromParent: row.inheritsFromParent,
+    managerId: row.managerId,
+    path,
+  };
+}
+
 @Injectable()
 export class SpacesService {
   constructor(
@@ -123,17 +146,116 @@ export class SpacesService {
 
   async getById(userId: string, id: string): Promise<SpaceDetailView> {
     const { row, byId } = await this.findVisible(userId, id);
-    return {
-      id: row.id,
-      kind: row.kind,
-      name: row.name,
-      unitId: row.unitId,
-      parentId: row.parentId,
-      restricted: row.restricted,
-      inheritsFromParent: row.inheritsFromParent,
-      managerId: row.managerId,
-      path: buildPath(byId, row.id),
-    };
+    return toDetailView(row, buildPath(byId, row.id));
+  }
+
+  // motivo (Regra 2/M10): a pessoa só pendura um espaço livre sob uma unidade
+  // onde está lotada diretamente, sob um livre onde já é membro, ou no topo.
+  async create(
+    userId: string,
+    input: { name: string; parentId: string | null; restricted?: boolean },
+  ): Promise<SpaceDetailView> {
+    if (input.parentId !== null) {
+      const parent = await this.repository.findById(input.parentId);
+      if (!parent) {
+        throw new SpaceParentNotAllowedError();
+      }
+      const eligible =
+        parent.kind === "UNIT"
+          ? await this.repository.isUnitStaffedDirectly(parent.unitId as string, userId)
+          : await this.repository.isFreeSpaceMember(parent.id, userId);
+      if (!eligible) {
+        throw new SpaceParentNotAllowedError();
+      }
+    }
+
+    const inheritsFromParent = await this.repository.getDefaultInheritance();
+    const created = await this.repository.create({
+      name: input.name,
+      parentId: input.parentId,
+      restricted: input.restricted ?? false,
+      managerId: userId,
+      inheritsFromParent,
+    } satisfies CreateSpaceInput);
+    return toDetailView(created, await this.pathFor(created));
+  }
+
+  async update(userId: string, id: string, input: UpdateSpaceInput): Promise<SpaceDetailView> {
+    const row = await this.requireManaged(userId, id);
+    const updated = await this.repository.update(row.id, input);
+    return toDetailView(updated, await this.pathFor(updated));
+  }
+
+  // motivo (Regra 7): a mesma rota serve a herança do espaço de unidade
+  // (decisão da administração) e do livre (decisão do gestor) — quem decide
+  // depende do `kind` do espaço encontrado, não de um guard estático.
+  async updateInheritance(
+    user: SessionUser,
+    id: string,
+    inheritsFromParent: boolean,
+  ): Promise<SpaceDetailView> {
+    const row = await this.repository.findById(id);
+    if (!row) {
+      throw new SpaceNotFoundError();
+    }
+    const allowed = row.kind === "UNIT" ? user.role === "ADMIN" : row.managerId === user.id;
+    if (!allowed) {
+      throw new SpaceInheritanceForbiddenError();
+    }
+    const updated = await this.repository.updateInheritance(id, inheritsFromParent);
+    return toDetailView(updated, await this.pathFor(updated));
+  }
+
+  async addMember(userId: string, spaceId: string, memberUserId: string): Promise<void> {
+    await this.requireManaged(userId, spaceId);
+    if (!(await this.repository.userExists(memberUserId))) {
+      throw new SpaceUserNotFoundError();
+    }
+    await this.repository.addMember(spaceId, memberUserId);
+  }
+
+  // motivo (D3/"Fora deste plano"): sem troca de gestão ainda, o gestor que
+  // sai deixaria o espaço sem ninguém que possa geri-lo.
+  async removeMember(userId: string, spaceId: string, memberUserId: string): Promise<void> {
+    const row = await this.requireManaged(userId, spaceId);
+    if (memberUserId === row.managerId) {
+      throw new ManagerCannotLeaveError();
+    }
+    await this.repository.removeMember(spaceId, memberUserId);
+  }
+
+  async delete(userId: string, id: string): Promise<void> {
+    const row = await this.requireManaged(userId, id);
+    const children = await this.repository.countChildren(row.id);
+    if (children > 0) {
+      throw new SpaceHasChildrenError();
+    }
+    await this.repository.delete(row.id);
+  }
+
+  private async requireManaged(userId: string, id: string): Promise<SpaceRow> {
+    const row = await this.repository.findById(id);
+    if (!row) {
+      throw new SpaceNotFoundError();
+    }
+    if (row.managerId !== userId) {
+      throw new SpaceNotManagedError();
+    }
+    return row;
+  }
+
+  private async pathFor(row: SpaceRow): Promise<SpacePathEntryView[]> {
+    const path: SpacePathEntryView[] = [{ id: row.id, name: row.name }];
+    let parentId = row.parentId;
+    while (parentId) {
+      const parent = await this.repository.findById(parentId);
+      if (!parent) {
+        break;
+      }
+      path.unshift({ id: parent.id, name: parent.name });
+      parentId = parent.parentId;
+    }
+    return path;
   }
 
   async getMembers(userId: string, id: string): Promise<SpaceMemberView[]> {

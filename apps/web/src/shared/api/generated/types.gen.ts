@@ -281,6 +281,53 @@ export type SpaceMemberDto = {
     isManager: boolean;
 };
 
+export type CreateSpaceDto = {
+    /**
+     * Nome do espaço livre.
+     */
+    name: string;
+    /**
+     * Id do espaço pai (unidade ou livre), ou null para criar no topo.
+     */
+    parentId: string | null;
+    /**
+     * Restrito — só quem for convidado vê este espaço.
+     */
+    restricted?: boolean;
+};
+
+export type UpdateSpaceDto = {
+    /**
+     * Novo nome do espaço.
+     */
+    name?: string;
+    /**
+     * Restrito — só quem for convidado vê este espaço.
+     */
+    restricted?: boolean;
+};
+
+export type UpdateSpaceInheritanceDto = {
+    /**
+     * Liga ou desliga a herança do compartilhamento do espaço acima (M11).
+     */
+    inheritsFromParent: boolean;
+};
+
+export type OrganizationSettingsDto = {
+    /**
+     * Se um espaço criado sem escolha explícita nasce herdando do espaço acima.
+     */
+    spacesInheritByDefault: boolean;
+};
+
+export type UpdateOrganizationSettingsDto = {
+    /**
+     * Se um espaço criado sem escolha explícita nasce herdando do espaço acima.
+     */
+    spacesInheritByDefault: boolean;
+};
+
 export type GetHealthData = {
     body?: never;
     path?: never;
@@ -799,6 +846,34 @@ export type GetSpacesTreeResponses = {
 
 export type GetSpacesTreeResponse = GetSpacesTreeResponses[keyof GetSpacesTreeResponses];
 
+export type CreateSpaceData = {
+    body: CreateSpaceDto;
+    path?: never;
+    query?: never;
+    url: '/spaces';
+};
+
+export type CreateSpaceResponses = {
+    201: SpaceDetailDto;
+};
+
+export type CreateSpaceResponse = CreateSpaceResponses[keyof CreateSpaceResponses];
+
+export type DeleteSpaceData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/spaces/{id}';
+};
+
+export type DeleteSpaceResponses = {
+    204: void;
+};
+
+export type DeleteSpaceResponse = DeleteSpaceResponses[keyof DeleteSpaceResponses];
+
 export type GetSpaceData = {
     body?: never;
     path: {
@@ -814,6 +889,21 @@ export type GetSpaceResponses = {
 
 export type GetSpaceResponse = GetSpaceResponses[keyof GetSpaceResponses];
 
+export type UpdateSpaceData = {
+    body: UpdateSpaceDto;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/spaces/{id}';
+};
+
+export type UpdateSpaceResponses = {
+    200: SpaceDetailDto;
+};
+
+export type UpdateSpaceResponse = UpdateSpaceResponses[keyof UpdateSpaceResponses];
+
 export type GetSpaceMembersData = {
     body?: never;
     path: {
@@ -828,3 +918,76 @@ export type GetSpaceMembersResponses = {
 };
 
 export type GetSpaceMembersResponse = GetSpaceMembersResponses[keyof GetSpaceMembersResponses];
+
+export type UpdateSpaceInheritanceData = {
+    body: UpdateSpaceInheritanceDto;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/spaces/{id}/inheritance';
+};
+
+export type UpdateSpaceInheritanceResponses = {
+    200: SpaceDetailDto;
+};
+
+export type UpdateSpaceInheritanceResponse = UpdateSpaceInheritanceResponses[keyof UpdateSpaceInheritanceResponses];
+
+export type RemoveSpaceMemberData = {
+    body?: never;
+    path: {
+        id: string;
+        userId: string;
+    };
+    query?: never;
+    url: '/spaces/{id}/members/{userId}';
+};
+
+export type RemoveSpaceMemberResponses = {
+    204: void;
+};
+
+export type RemoveSpaceMemberResponse = RemoveSpaceMemberResponses[keyof RemoveSpaceMemberResponses];
+
+export type AddSpaceMemberData = {
+    body?: never;
+    path: {
+        id: string;
+        userId: string;
+    };
+    query?: never;
+    url: '/spaces/{id}/members/{userId}';
+};
+
+export type AddSpaceMemberResponses = {
+    204: void;
+};
+
+export type AddSpaceMemberResponse = AddSpaceMemberResponses[keyof AddSpaceMemberResponses];
+
+export type GetOrganizationSettingsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/organization/settings';
+};
+
+export type GetOrganizationSettingsResponses = {
+    200: OrganizationSettingsDto;
+};
+
+export type GetOrganizationSettingsResponse = GetOrganizationSettingsResponses[keyof GetOrganizationSettingsResponses];
+
+export type UpdateOrganizationSettingsData = {
+    body: UpdateOrganizationSettingsDto;
+    path?: never;
+    query?: never;
+    url: '/organization/settings';
+};
+
+export type UpdateOrganizationSettingsResponses = {
+    200: OrganizationSettingsDto;
+};
+
+export type UpdateOrganizationSettingsResponse = UpdateOrganizationSettingsResponses[keyof UpdateOrganizationSettingsResponses];

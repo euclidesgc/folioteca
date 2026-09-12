@@ -1096,6 +1096,36 @@
         "tags": [
           "spaces"
         ]
+      },
+      "post": {
+        "operationId": "createSpace",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSpaceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpaceDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "spaces"
+        ]
       }
     },
     "/spaces/{id}": {
@@ -1121,6 +1151,67 @@
                 }
               }
             }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "spaces"
+        ]
+      },
+      "patch": {
+        "operationId": "updateSpace",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSpaceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpaceDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "spaces"
+        ]
+      },
+      "delete": {
+        "operationId": "deleteSpace",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
           }
         },
         "summary": "",
@@ -1160,6 +1251,161 @@
         "summary": "",
         "tags": [
           "spaces"
+        ]
+      }
+    },
+    "/spaces/{id}/inheritance": {
+      "put": {
+        "operationId": "updateSpaceInheritance",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSpaceInheritanceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpaceDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "spaces"
+        ]
+      }
+    },
+    "/spaces/{id}/members/{userId}": {
+      "put": {
+        "operationId": "addSpaceMember",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "",
+        "tags": [
+          "spaces"
+        ]
+      },
+      "delete": {
+        "operationId": "removeSpaceMember",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "",
+        "tags": [
+          "spaces"
+        ]
+      }
+    },
+    "/organization/settings": {
+      "get": {
+        "operationId": "getOrganizationSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationSettingsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "organization-settings"
+        ]
+      },
+      "patch": {
+        "operationId": "updateOrganizationSettings",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrganizationSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationSettingsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "organization-settings"
         ]
       }
     }
@@ -1953,6 +2199,77 @@
           "email",
           "image",
           "isManager"
+        ]
+      },
+      "CreateSpaceDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Nome do espaço livre."
+          },
+          "parentId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Id do espaço pai (unidade ou livre), ou null para criar no topo."
+          },
+          "restricted": {
+            "type": "boolean",
+            "description": "Restrito — só quem for convidado vê este espaço."
+          }
+        },
+        "required": [
+          "name",
+          "parentId"
+        ]
+      },
+      "UpdateSpaceDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Novo nome do espaço."
+          },
+          "restricted": {
+            "type": "boolean",
+            "description": "Restrito — só quem for convidado vê este espaço."
+          }
+        }
+      },
+      "UpdateSpaceInheritanceDto": {
+        "type": "object",
+        "properties": {
+          "inheritsFromParent": {
+            "type": "boolean",
+            "description": "Liga ou desliga a herança do compartilhamento do espaço acima (M11)."
+          }
+        },
+        "required": [
+          "inheritsFromParent"
+        ]
+      },
+      "OrganizationSettingsDto": {
+        "type": "object",
+        "properties": {
+          "spacesInheritByDefault": {
+            "type": "boolean",
+            "description": "Se um espaço criado sem escolha explícita nasce herdando do espaço acima."
+          }
+        },
+        "required": [
+          "spacesInheritByDefault"
+        ]
+      },
+      "UpdateOrganizationSettingsDto": {
+        "type": "object",
+        "properties": {
+          "spacesInheritByDefault": {
+            "type": "boolean",
+            "description": "Se um espaço criado sem escolha explícita nasce herdando do espaço acima."
+          }
+        },
+        "required": [
+          "spacesInheritByDefault"
         ]
       }
     }

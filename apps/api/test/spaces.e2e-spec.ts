@@ -271,4 +271,119 @@ describe("API de espaços (spaces)", () => {
     expect(ids).toContain(lotadaNaUnidade.user.id);
     expect(ids).not.toContain(lotadaNaSubunidade.user.id);
   });
+
+  // contorno: reagendado da etapa 1 (ver Andamento) — só é exercitável com
+  // `POST /spaces`, que nasce nesta etapa. Muda o padrão da instância, usa, e
+  // devolve, para não atravessar nas outras suítes que leem o mesmo singleton.
+  it("copies the organization default onto a newly created space", async () => {
+    await prisma.organization.update({
+      where: { singleton: true },
+      data: { spacesInheritByDefault: true },
+    });
+    try {
+      const admin = await criarSessao(app, { role: "ADMIN" });
+
+      const resposta = await request(app.getHttpServer())
+        .post("/spaces")
+        .set("Cookie", admin.cookie)
+        .send({ name: `Espaço com herança ${Date.now()}`, parentId: null });
+
+      expect(resposta.status).toBe(201);
+      expect(resposta.body.inheritsFromParent).toBe(true);
+    } finally {
+      await prisma.organization.update({
+        where: { singleton: true },
+        data: { spacesInheritByDefault: false },
+      });
+    }
+  });
+
+  it("refuses to let the manager leave their own space", async () => {
+    const gestor = await criarSessao(app);
+
+    const espaco = await request(app.getHttpServer())
+      .post("/spaces")
+      .set("Cookie", gestor.cookie)
+      .send({ name: `Orçamento ${Date.now()}`, parentId: null });
+    expect(espaco.status).toBe(201);
+
+    const resposta = await request(app.getHttpServer())
+      .delete(`/spaces/${espaco.body.id}/members/${gestor.user.id}`)
+      .set("Cookie", gestor.cookie);
+
+    expect(resposta.status).toBe(409);
+    expect(resposta.body.code).toBe("MANAGER_CANNOT_LEAVE");
+  });
+
+  it("refuses to delete a space that still has children", async () => {
+    const gestor = await criarSessao(app);
+
+    const pai = await request(app.getHttpServer())
+      .post("/spaces")
+      .set("Cookie", gestor.cookie)
+      .send({ name: `Pai ${Date.now()}`, parentId: null });
+    expect(pai.status).toBe(201);
+
+    const filho = await request(app.getHttpServer())
+      .post("/spaces")
+      .set("Cookie", gestor.cookie)
+      .send({ name: `Filho ${Date.now()}`, parentId: pai.body.id });
+    expect(filho.status).toBe(201);
+
+    const resposta = await request(app.getHttpServer())
+      .delete(`/spaces/${pai.body.id}`)
+      .set("Cookie", gestor.cookie);
+
+    expect(resposta.status).toBe(409);
+    expect(resposta.body.code).toBe("SPACE_HAS_CHILDREN");
+  });
+
+  it("refuses to create a free space under a unit where the person is not staffed", async () => {
+    const admin = await criarSessao(app, { role: "ADMIN" });
+    const estranho = await criarSessao(app);
+    const unitTypeId = await criarTipoDeUnidade(admin);
+    const raizId = await obterRaiz(admin);
+    const unidadeId = await criarUnidade(admin, `Jurídico ${Date.now()}`, raizId, unitTypeId);
+    const espacoDaUnidadeJuridico = await espacoDaUnidade(unidadeId);
+
+    const resposta = await request(app.getHttpServer())
+      .post("/spaces")
+      .set("Cookie", estranho.cookie)
+      .send({ name: `Tentativa ${Date.now()}`, parentId: espacoDaUnidadeJuridico?.id });
+
+    expect(resposta.status).toBe(422);
+    expect(resposta.body.code).toBe("SPACE_PARENT_NOT_ALLOWED");
+  });
+
+  it("blocks deleting a unit whose space still has a free child space", async () => {
+    const admin = await criarSessao(app, { role: "ADMIN" });
+    const unitTypeId = await criarTipoDeUnidade(admin);
+    const raizId = await obterRaiz(admin);
+    const unidadeId = await criarUnidade(admin, `Sem Destino ${Date.now()}`, raizId, unitTypeId);
+    const espacoDaUnidadeSemDestino = await espacoDaUnidade(unidadeId);
+    // contorno: só quem está lotado diretamente na unidade pode pendurar um
+    // espaço livre sob o espaço dela (Regra 2); a lotação some de novo antes
+    // da tentativa de apagar, para a unidade falhar só por `UNIT_HAS_FREE_SPACES`,
+    // não por `UNIT_NOT_EMPTY`.
+    await request(app.getHttpServer())
+      .put(`/units/${unidadeId}/members/${admin.user.id}`)
+      .set("Cookie", admin.cookie);
+
+    const filhoLivre = await request(app.getHttpServer())
+      .post("/spaces")
+      .set("Cookie", admin.cookie)
+      .send({ name: `Livre ${Date.now()}`, parentId: espacoDaUnidadeSemDestino?.id });
+    expect(filhoLivre.status).toBe(201);
+
+    await request(app.getHttpServer())
+      .delete(`/units/${unidadeId}/members/${admin.user.id}`)
+      .set("Cookie", admin.cookie);
+
+    const resposta = await request(app.getHttpServer())
+      .delete(`/units/${unidadeId}`)
+      .set("Cookie", admin.cookie);
+
+    expect(resposta.status).toBe(409);
+    expect(resposta.body.code).toBe("UNIT_HAS_FREE_SPACES");
+  });
 });

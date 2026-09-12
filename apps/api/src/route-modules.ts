@@ -2,6 +2,7 @@ import { DocumentsModule } from "./documents/documents.module";
 import { InstallationModule } from "./installation/installation.module";
 import { InvitationsModule } from "./invitations/invitations.module";
 import { MeModule } from "./me/me.module";
+import { OrganizationSettingsModule } from "./organization-settings/organization-settings.module";
 import { SpacesModule } from "./spaces/spaces.module";
 import { UnitTypesModule } from "./unit-types/unit-types.module";
 import { UnitsModule } from "./units/units.module";
@@ -16,4 +17,5 @@ export const ROUTE_MODULES = [
   UsersModule,
   InvitationsModule,
   SpacesModule,
+  OrganizationSettingsModule,
 ];
