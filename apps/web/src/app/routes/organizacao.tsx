@@ -5,6 +5,8 @@ import {
   TiposDeUnidadeDialog,
   useMe,
 } from "@/features/organization";
+import { ConvidarPessoaDialog, ListaDeConvitesPendentes } from "@/features/invitations";
+import { Card } from "@/shared/components/ui/card";
 
 export function OrganizacaoRoute(): ReactElement {
   const { data: me } = useMe();
@@ -20,6 +22,18 @@ export function OrganizacaoRoute(): ReactElement {
       </div>
 
       <ArvoreDeUnidades isAdmin={isAdmin} />
+
+      {isAdmin ? (
+        <Card as="section" className="flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="font-display text-lg font-semibold text-tinta">
+              Pessoas
+            </h2>
+            <ConvidarPessoaDialog />
+          </div>
+          <ListaDeConvitesPendentes />
+        </Card>
+      ) : null}
 
       {isAdmin ? <BlocoInstancia /> : null}
     </div>

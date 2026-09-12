@@ -20,3 +20,9 @@ export type {
   UserDto,
   UserRoleDto,
 } from "./generated/types.gen";
+export type {
+  AcceptInvitationDto,
+  CreateInvitationDto,
+  InvitationResponseDto,
+  PublicInvitationDto,
+} from "./generated/types.gen";

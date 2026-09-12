@@ -253,25 +253,25 @@ do servidor mesmo que burle a tela.
       sai com 0
 
 ### Etapa 4 — Tela
-- [ ] Ler: `apps/web/src/app/routes/organizacao.tsx` (hoje `EmptyState` com
+- [x] Ler: `apps/web/src/app/routes/organizacao.tsx` (hoje `EmptyState` com
       botão inerte "Convidar um membro" — confirmar se o plano 03 já mudou a
       estrutura da tela), `apps/web/src/features/conta/components/
       email-form.test.tsx` (padrão de teste com MSW), `apps/web/src/shared/
       components/ui/{dialog.tsx, select.tsx, field.tsx}`
-- [ ] `apps/web/src/features/invitations/api/{convites-api.ts,
+- [x] `apps/web/src/features/invitations/api/{convites-api.ts,
       convite-publico-api.ts, convite-handlers.ts}`
-- [ ] `apps/web/src/features/invitations/components/{convidar-pessoa-dialog.tsx,
+- [x] `apps/web/src/features/invitations/components/{convidar-pessoa-dialog.tsx,
       lista-de-convites-pendentes.tsx, convite-form.tsx}` com os textos da
       seção Telas
-- [ ] `apps/web/src/app/routes/convite.tsx` (`ConviteRoute`, dentro de
+- [x] `apps/web/src/app/routes/convite.tsx` (`ConviteRoute`, dentro de
       `AuthLayout`) e a rota `/convite/:token` em `app/routes/index.tsx`,
       fora de `RotaProtegida`
-- [ ] Trocar o `EmptyState` inerte de `organizacao.tsx` pelo bloco "Pessoas"
+- [x] Trocar o `EmptyState` inerte de `organizacao.tsx` pelo bloco "Pessoas"
       de verdade
-- [ ] Teste: `apps/web/src/features/invitations/components/
+- [x] Teste: `apps/web/src/features/invitations/components/
       convidar-pessoa-dialog.test.tsx` e `convite-form.test.tsx` — "mostra
       convite inválido quando o link não vale mais"
-- [ ] Verificação da etapa: `pnpm --filter web exec vitest run -t "convite"`
+- [x] Verificação da etapa: `pnpm --filter web exec vitest run -t "convite"`
       sai com 0
 
 ### Etapa 5 — Ponta a ponta com sessão real
@@ -507,3 +507,46 @@ usavam senhas de teste inventadas (`"senha-nova-123456"`,
 `generic-api-key` do gitleaks quando associadas à chave `password` — trocadas
 pela mesma constante que `test/apoio/sessao.ts` já usa
 (`"senha-de-teste-1234"`), sem entropia suficiente para a regra.
+
+2026-09-12 — etapa 4 — confirmado que `organizacao.tsx` já não tem o
+`EmptyState` inerte (o plano 03 já havia trocado a tela por
+`ArvoreDeUnidades`/`BlocoInstancia`); acrescentado um bloco "Pessoas" (`Card`
+com `h2`, `ConvidarPessoaDialog` e `ListaDeConvitesPendentes`), visível só
+quando `useMe().role === "ADMIN"`, como a seção Acesso pede.
+`apps/web/src/features/invitations/{api/{chaves.ts, erros.ts, convites-api.ts,
+convite-publico-api.ts, convite-handlers.ts}, hooks/{use-convites.ts,
+use-convite-publico.ts}, components/{convidar-pessoa-dialog.tsx,
+lista-de-convites-pendentes.tsx, convite-form.tsx}, index.ts}`;
+`apps/web/src/app/routes/convite.tsx` (`ConviteRoute`) e a rota
+`/convite/:token` em `app/routes/index.tsx`, fora de `RotaProtegida`, junto das
+demais rotas públicas de `auth`. Testes com as três naturezas em
+`convidar-pessoa-dialog.test.tsx` (5 casos) e `convite-form.test.tsx` (5
+casos), incluindo o caso pedido literalmente pelo critério de aceite. O que
+desviou do plano: (1) `hooks/` e `api/chaves.ts`/`api/erros.ts` não estão na
+lista de arquivos da tarefa, mas repetem o padrão já usado por
+`features/organization` (consulta do servidor é `useQuery` próprio, chave de
+cache central, extração do `code` de `ApiError`) — sem eles a tela buscaria
+dado de servidor fora do TanStack Query; `erros.ts` duplica (não importa do
+barril de `organization`) porque é um utilitário genérico sobre `ApiError`,
+não um conceito do domínio de organização; (2) `organization/index.ts` ganhou
+a exportação de `useUnitsTree`, que já existia mas não era pública — o
+`Select` de "Unidade" do diálogo de convite precisa da mesma árvore que
+`ArvoreDeUnidades` já mostra, e a fronteira de import exige o barril público,
+nunca o interior da feature; (3) `shared/api/index.ts` ganhou os tipos
+`AcceptInvitationDto`, `CreateInvitationDto`, `InvitationResponseDto` e
+`PublicInvitationDto` do gerado — a etapa 2 os gerou, mas nenhum PR ainda os
+tinha exposto no barril que as features consomem; (4) o título/descrição do
+estado "Verificando seu convite…"/"Conta criada…" não usa o par
+`titulo`/`descricao` de `AuthLayout` (que exige string obrigatória e não
+muda por estado) — `ConviteForm` é um componente único e autocontido, testado
+sem `AuthLayout`, nos quatro estados (igual a `RedefinirSenhaForm`); a rota
+envolve com `AuthLayout titulo="Convite" descricao="Responda ao convite para
+entrar na Folioteca."`, texto genérico criado para o enquadramento, que não
+aparece na seção Telas; (5) o atraso antes de navegar para `/inicio` depois do
+aceite (1200ms) e o fechamento automático do diálogo de convite (2000ms, já
+escrito no plano) não têm teste de tempo — sem precedente de `vi.useFakeTimers`
+nesta suíte, e a confirmação visível (texto de sucesso) é o que os testes
+provam; (6) o rótulo de papel na lista de convites pendentes usa os mesmos
+textos do `Select` ("Administrador(a)"/"Membro"), não o `rotuloDoPapel` de
+`unidade-no.tsx` ("Administração"/"Membro"), porque são o mesmo conceito
+dentro desta etapa e a função de `organization` não está no barril público.
