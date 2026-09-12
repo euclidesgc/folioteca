@@ -324,36 +324,36 @@ e o editor; quem prova o acesso é sempre `GET /documents/:id`.
 
 ### Etapa 5 — Web: `features/documents` e as quatro telas
 
-- [ ] Ler: `apps/web/src/features/health/*` (padrão `api/`+`hooks/`+
+- [x] Ler: `apps/web/src/features/health/*` (padrão `api/`+`hooks/`+
       `index.ts`), `apps/web/src/features/conta/api/chaves.ts` (padrão de
       chave de query), `apps/web/src/features/documents/` (o que o plano 01
       já deixou lá: `model/blocks.ts`, os hooks e `DocumentList`/
       `TableOfContents`/`DocumentView`), `apps/web/src/app/routes/index.tsx`,
       `apps/web/src/app/layout/` (o que o plano 01 deixou lá),
       `shared/components/ui/{button,empty-state,dialog}.tsx`
-- [ ] `features/documents/api/` (novo): uma função por ação de escrita —
+- [x] `features/documents/api/` (novo): uma função por ação de escrita —
       criar, atualizar título, favoritar/desfavoritar, mover para a lixeira,
       restaurar, apagar em definitivo; `chaves.ts` com as `queryKey`. Os
       hooks de leitura que o plano 01 já criou
       (`use-owned-documents.ts`, `use-shared-with-me.ts`, `use-document.ts`,
       `use-recent-documents.ts`) trocam só a `queryFn` de `EXEMPLO_DOCUMENTOS`
       para a API real — a assinatura não muda (01 já previu essa troca)
-- [ ] `features/documents/components/`: `PaginaDoDocumento` (novo — título
+- [x] `features/documents/components/`: `PaginaDoDocumento` (novo — título
       editável + `Editor` de `@folioteca/editor` sobre o que
       `DocumentView`/01 já renderiza em leitura + indicador Salvando/Salvo
       via `useSyncStatus(provider)`) e `DocumentoNaoEncontrado` (novo);
       `DocumentList` (01) ganha os três estados vazios que ainda não tem
-- [ ] Rotas em `apps/web/src/app/routes/`: `documentos.tsx`
+- [x] Rotas em `apps/web/src/app/routes/`: `documentos.tsx`
       (`filter=OWNED`), `documento.tsx` (`/documentos/:id`),
       `favoritos.tsx`, `lixeira.tsx`; somar em `app/routes/index.tsx`
-- [ ] Barra lateral (no que o plano 01 tiver montado em `app/layout/`):
+- [x] Barra lateral (no que o plano 01 tiver montado em `app/layout/`):
       ligar "Novo documento" a `useCriarDocumento` e "Favoritos" à rota
       nova; substituir `ArvoreDeDocumentos` (hoje `EmptyState` fixo em
       `listas-da-sublateral.tsx`) pela lista real via
       `useDocumentos("OWNED")`
-- [ ] Teste: `features/documents/**/*.test.{ts,tsx}` com MSW — lista,
+- [x] Teste: `features/documents/**/*.test.{ts,tsx}` com MSW — lista,
       criação e favoritar
-- [ ] Verificação da etapa: `pnpm --filter web run typecheck` e `pnpm --filter web run test` saem com 0
+- [x] Verificação da etapa: `pnpm --filter web run typecheck` e `pnpm --filter web run test` saem com 0
 
 ### Etapa 6 — Ponta a ponta com sessão real
 
@@ -682,3 +682,95 @@ explícita de `apps/api` — já resolvia por ser transitiva de `jest`, mas
 da `extension-database` ficaram no padrão do pacote, não configurados — ver
 "Riscos e decisões em aberto".
 2026-09-12 — etapas 3 e 4, fechamento — o `documentSchema` ficou declarado duas vezes (no editor e em `document-sync.service.ts`), porque `packages/editor` não tem build e o caminho ESM do servidor só resolve pacote publicado. Para a divergência não ficar silenciosa, entrou o portão `scripts/gates/esquema_de_blocos_unico.sh`, somado ao `gates_runner.sh`: ele compara as duas listas de blocos e reprova se elas se afastarem (provado removendo `heading` de um lado). O comentário da regra 2 em `collaboration.factory.ts` passou para o escape nomeado `gate3-ok`, com o motivo na própria linha.
+
+2026-09-12 — etapa 5 — Web: `features/documents` e as quatro telas.
+`features/documents/api/` ganhou uma função por ação
+(`create-document.ts`, `update-document-title.ts`, `favorite-document.ts`
+com as duas pontas, `trash-document.ts`, `restore-document.ts`,
+`delete-document-permanently.ts`, mais as duas de leitura
+`list-documents.ts`/`get-document.ts` — o padrão de `features/health/api/`
+também vale para leitura, não só escrita), `chaves.ts`
+(`chavesDeDocumentos`) e `documents-handlers.ts` para os testes. Os quatro
+hooks do plano 01 trocaram a `queryFn` sem mudar assinatura; `useDocument`
+traduz o 404 `DOCUMENT_NOT_FOUND` em `null` (mesmo padrão do comentário que
+já estava lá, agora contra a API real); dois hooks novos,
+`use-favorite-documents.ts`/`use-trashed-documents.ts`, para os filtros
+`FAVORITES`/`TRASH` que o plano 01 nunca teve. `DocumentList` foi reescrito
+sobre `DocumentSummaryDto` (nunca mais `ExampleDocument`): variante `ativos`
+(Favoritar/Remover dos favoritos, "Atualizado há X") e `lixeira` (Restaurar,
+Excluir definitivamente por trás de `Dialog` de confirmação — texto "Excluir
+para sempre? Esta ação não pode ser desfeita." — "Excluído há X"); estado
+vazio parametrizado por `emptyState`, com um padrão genérico que preserva o
+que `/compartilhados` e a página de espaço já mostravam. `PaginaDoDocumento`
+(novo) decide entre `DocumentoAtivo` (título editável, `Editor` de
+`@folioteca/editor`, indicador Salvando/Salvo/Reconectando via
+`useSyncStatus(provider)`) e `DocumentoNaLixeira` (sem `HocuspocusProvider`
+nenhum, aviso "Este documento está na lixeira.", Restaurar/Excluir
+definitivamente) segundo `deletedAt`; `DocumentoNaoEncontrado` (novo)
+substitui o antigo comportamento de `DocumentView`. Rotas
+`favoritos.tsx`/`lixeira.tsx` criadas, `documentos.tsx`/`documento.tsx`
+reescritas, as duas somadas a `app/routes/index.tsx`. Barra lateral:
+`NewDocumentButton` no topo (cria e navega para `/documentos/:id`),
+"Favoritos" ao lado de "Meus documentos", "Lixeira" junto de "Organização"
+no rodapé — os dois ícones novos (`StarMark`, `TrashMark`) seguem o
+desenho em linha já usado pelos outros. `apps/web/package.json` ganhou
+`@folioteca/editor` (workspace) e `@hocuspocus/provider` como dependências
+diretas — a primeira nunca tinha sido consumida por `apps/web`, a segunda
+entra só pelo tipo `WebSocketStatus` que `useSyncStatus` lê.
+
+Decisão sobre os dados de exemplo (não escrita no plano, tomada aqui):
+`EXEMPLO_DOCUMENTOS` e os tipos `Example{Block,Document,...}` saíram por
+inteiro de `shared/example-data/folioteca.ts`; `EXEMPLO_ESPACOS` e
+`EXEMPLO_ORGANIZACAO` ficam, com a etiqueta "Dados de exemplo" onde já
+estavam. `useSharedWithMe`/`useDocumentsBySpace` devolvem `[]` sem chamar a
+API (compartilhamento e espaço não têm rota nesta etapa); `useRecentDocuments`
+passou a ser literalmente `useOwnedDocuments` (mesmo filtro `OWNED`, mesma
+`queryKey` — o servidor já ordena por `updatedAt desc`, então não havia mais
+nada para `/inicio` fazer sozinho).
+
+O que a API real do BlockNote e do `HocuspocusProvider` contrariou no
+pseudocódigo do plano — achado central da etapa: (1) o pseudocódigo de
+`PaginaDoDocumento` nunca nomeia o fragmento do `Y.Doc` que o `Editor`
+recebe; a API real (`yDocToBlocks`/`ServerBlockNoteEditor.yDocToBlocks`, lidas
+no `.cjs` compilado, porque o `.d.ts` omite o valor do parâmetro default)
+usa `"prosemirror"` quando chamada sem um terceiro argumento — exatamente
+como `document-sync.service.ts` a chama. Cliente e servidor precisam
+apontar para o mesmo fragmento; um nome diferente não erraria em lugar
+nenhum, só faria `content`/`plainText` nunca acompanharem o que a pessoa
+escreveu. `packages/editor/src/provider.ts` ganhou
+`fragmentoColaborativo(doc)`, que fixa `"prosemirror"` num só lugar, com o
+porquê anotado ali. (2) "já na lixeira, o corpo abre em leitura (sem conexão
+de colaboração)" não é algo que o `Editor` atual sabe fazer — sua assinatura
+exige `provider`/`fragment` sempre. Em vez de reimplementar um leitor de
+blocos à mão em `apps/web` (perdendo table/codeBlock/quote/toggleListItem,
+que o renderizador manual do plano 01 nunca cobriu), `packages/editor`
+ganhou `StaticEditor`, um `useCreateBlockNote` sem colaboração, `editable`
+fixo em `false` — mesma fidelidade visual do editor de verdade, sem abrir
+WebSocket nenhum. Isto tira `DocumentView`/`TableOfContents`/`model/blocks.ts`
+de uso (e seus testes, que liam `EXEMPLO_DOCUMENTOS`): os três foram
+apagados em vez de adaptados, porque nada mais os referenciava fora de
+`documento.tsx`, e a rota de `/documentos/:id` do plano 01 (trilha de
+espaço, `AccessSpine` por origem) não se aplica a um documento que só existe
+no espaço pessoal (M13) — reescrita por completo, não adaptada.
+
+Outras divergências: (3) o botão "Excluir definitivamente" da página do
+documento (na lixeira) reaproveita o mesmo `Dialog` de confirmação que o
+plano só escreveu para a linha da lista em `/lixeira` — mesma ação
+destrutiva, mesmo texto; sem isso a página teria um jeito de apagar para
+sempre sem a confirmação que a lista exige ao lado. (4) `DocumentList`
+passou a decidir o rótulo "Favoritar"/"Remover dos favoritos" por um estado
+local por linha, sincronizado pela resposta da própria mutação — não pela
+lista que a rota buscou — porque a lista é uma prop, e invalidar a consulta
+no `queryClient` não reflete de volta numa prop já recebida; é o mesmo
+motivo por que favoritar num teste isolado do componente (sem a rota em
+volta) precisa ser observável sem depender de um refetch. (5) sem teste de
+Vitest para o ramo `DocumentoAtivo` de `PaginaDoDocumento` (o que a etapa
+pede é "lista, criação e favoritar"): `criarProvider` abre um
+`HocuspocusProvider` de verdade, que tenta um `WebSocket` real ao ser
+construído — sem servidor nem polyfill no ambiente de teste, e nenhum
+critério desta etapa pede essa cobertura (o `Y.Doc`/colaboração já tem prova
+própria nos testes da etapa 4, e a ponta a ponta do editor é a etapa 6,
+contra a aplicação de verdade). `DocumentoNaoEncontrado`, a troca de
+`queryFn` (`useDocument`, incluindo a tradução do 404) e a barra lateral
+(botão novo, itens novos) têm teste; a renderização do `Editor`
+colaborativo em si não.

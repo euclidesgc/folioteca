@@ -105,6 +105,24 @@ describe("BarraLateral — caminho feliz", () => {
     );
   });
 
+  it("soma Favoritos ao lado de Meus documentos e Lixeira junto das ações de rodapé", async () => {
+    await renderBarraLateral();
+
+    const nav = await screen.findByRole("navigation", {
+      name: "Destinos do produto",
+    });
+    expect(within(nav).getByRole("link", { name: "Favoritos" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Lixeira" })).toBeInTheDocument();
+  });
+
+  it("mostra o botão Novo documento antes de qualquer destino", async () => {
+    await renderBarraLateral();
+
+    expect(
+      await screen.findByRole("button", { name: "Novo documento" }),
+    ).toBeInTheDocument();
+  });
+
   it("mostra o nome da organização de exemplo ao lado da etiqueta Dados de exemplo", async () => {
     await renderBarraLateral();
 

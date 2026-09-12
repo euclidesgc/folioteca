@@ -24,3 +24,8 @@ export const documentSchema = BlockNoteSchema.create({
 });
 
 export type DocumentSchema = typeof documentSchema;
+
+// decisão: `documentSchema.PartialBlock` já é o tipo de bloco com os
+// parâmetros genéricos deste esquema aplicados — evita reconstruir
+// `PartialBlock<BSchema, ISchema, SSchema>` à mão a partir de `DocumentSchema`.
+export type DocumentBlock = (typeof documentSchema)["PartialBlock"];

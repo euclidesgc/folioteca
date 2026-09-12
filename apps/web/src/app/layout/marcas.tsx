@@ -59,3 +59,41 @@ export function StructureMark(props: SVGProps<SVGSVGElement>): ReactElement {
     </svg>
   );
 }
+
+export function StarMark(props: SVGProps<SVGSVGElement>): ReactElement {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      width="1em"
+      height="1em"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M8 1.5 9.8 5.6l4.5.4-3.4 3 1 4.4L8 11.1l-3.9 2.3 1-4.4-3.4-3 4.5-.4Z" />
+    </svg>
+  );
+}
+
+export function TrashMark(props: SVGProps<SVGSVGElement>): ReactElement {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      width="1em"
+      height="1em"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M2.5 4h11M6 4V2.5h4V4M6.5 7v4M9.5 7v4" />
+      <path d="M3.5 4 4.2 13.5h7.6L12.5 4" />
+    </svg>
+  );
+}
