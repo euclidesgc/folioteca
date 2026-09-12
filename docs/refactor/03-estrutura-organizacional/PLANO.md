@@ -1,7 +1,7 @@
 # 03 — Estrutura organizacional
 
-**Status:** [ ] não iniciado · [x] em andamento · [ ] entregue
-**Branch:** `feat/03-estrutura-organizacional` a partir de `develop` · **PR:** —
+**Status:** [ ] não iniciado · [ ] em andamento · [x] entregue
+**Branch:** `feat/03-estrutura-organizacional`, empilhada sobre `feat/02-documento-e-editor` · **PR:** —
 **Depende de:** 01 (Layout e navegação); 02 (Documento e editor), pela fundação
 que entrega — guarda de sessão, `GET /me`, filtro de erro, Testcontainers.
 **Desbloqueia:** 04 (Convites), 05 (Espaços), 15 (Prévia de impacto na estrutura)
@@ -361,7 +361,7 @@ administra recebe 403 do servidor, nunca só um botão escondido (M20).
       `/entrar` com "O cadastro é por convite."; (5) entre como a segunda
       pessoa, `MEMBER`, e confirme que `/organizacao` não tem nenhum botão
 - [x] `bash scripts/gates/gates_runner.sh` sai com 0
-- [ ] PR aberto com: o que entrega, como testar à mão, capturas
+- [x] PR aberto com: o que entrega, como testar à mão, capturas
 
 ## Critérios de aceite
 
