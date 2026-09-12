@@ -1,7 +1,7 @@
 # 03 — Estrutura organizacional
 
 **Status:** [ ] não iniciado · [ ] em andamento · [x] entregue
-**Branch:** `feat/03-estrutura-organizacional`, empilhada sobre `feat/02-documento-e-editor` · **PR:** —
+**Branch:** `feat/03-estrutura-organizacional`, empilhada sobre `feat/02-documento-e-editor` · **PR:** [#87](https://github.com/euclidesgc/folioteca/pull/87)
 **Depende de:** 01 (Layout e navegação); 02 (Documento e editor), pela fundação
 que entrega — guarda de sessão, `GET /me`, filtro de erro, Testcontainers.
 **Desbloqueia:** 04 (Convites), 05 (Espaços), 15 (Prévia de impacto na estrutura)
