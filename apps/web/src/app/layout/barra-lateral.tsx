@@ -6,8 +6,9 @@ import { PersonMark } from "@/shared/components/access/marks/person";
 import { PrivateMark } from "@/shared/components/access/marks/private";
 import { useOrganization } from "@/features/organization";
 import { useSpaceTree } from "@/features/spaces";
+import { NewDocumentButton } from "@/features/documents";
 import { ArvoreDeEspacos } from "./arvore-de-espacos";
-import { HomeMark, SearchMark, StructureMark } from "./marcas";
+import { HomeMark, SearchMark, StarMark, StructureMark, TrashMark } from "./marcas";
 import { MenuDeConta } from "./menu-de-conta";
 
 const DESTINOS: {
@@ -18,6 +19,7 @@ const DESTINOS: {
   { rotulo: "Início", para: "/inicio", Marca: HomeMark },
   { rotulo: "Pesquisa", para: "/pesquisa", Marca: SearchMark },
   { rotulo: "Meus documentos", para: "/documentos", Marca: PrivateMark },
+  { rotulo: "Favoritos", para: "/favoritos", Marca: StarMark },
   {
     rotulo: "Compartilhados comigo",
     para: "/compartilhados",
@@ -31,6 +33,8 @@ export function ConteudoDaBarraLateral(): ReactElement {
 
   return (
     <div className="flex h-full flex-col gap-6 overflow-y-auto p-4">
+      <NewDocumentButton variant="primary" size="sm" />
+
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-2">
           <Link
@@ -81,6 +85,13 @@ export function ConteudoDaBarraLateral(): ReactElement {
       >
         <StructureMark aria-hidden="true" />
         Organização
+      </Link>
+      <Link
+        to="/lixeira"
+        className="flex items-center gap-2 rounded-padrao px-2 py-2 text-sm font-normal text-tinta no-underline hover:bg-fio"
+      >
+        <TrashMark aria-hidden="true" />
+        Lixeira
       </Link>
     </div>
   );

@@ -1,9 +1,18 @@
 import type { ReactElement } from "react";
+import type { DocumentBlock } from "@folioteca/editor";
 import { cn } from "@/shared/lib/cn";
-import type { ExampleBlock } from "@/shared/example-data/folioteca";
-import { listHeadings } from "../model/blocks";
+import { listHeadings, type DocumentHeading } from "../model/blocks";
 
-export function TableOfContents({ blocks }: { blocks: ExampleBlock[] }): ReactElement {
+const RECUO_POR_NIVEL: Record<DocumentHeading["level"], string> = {
+  1: "",
+  2: "pl-2",
+  3: "pl-4",
+  4: "pl-6",
+  5: "pl-8",
+  6: "pl-10",
+};
+
+export function TableOfContents({ blocks }: { blocks: DocumentBlock[] }): ReactElement {
   const headings = listHeadings(blocks);
 
   return (
@@ -12,10 +21,10 @@ export function TableOfContents({ blocks }: { blocks: ExampleBlock[] }): ReactEl
         {headings.map((heading) => (
           <li key={heading.id}>
             <a
-              href={`#bloco-${heading.id}`}
+              href={`#${heading.id}`}
               className={cn(
                 "block rounded-padrao px-2 py-1 text-sm text-grafite hover:bg-fio",
-                heading.level === 3 && "pl-4",
+                RECUO_POR_NIVEL[heading.level],
               )}
             >
               {heading.text}

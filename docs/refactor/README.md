@@ -33,7 +33,7 @@ arquivos.
 | # | Plano | Entrega visível | Depende de | Status |
 |---|---|---|---|---|
 | 01 | [Layout e navegação](01-layout-e-navegacao/PLANO.md) | A aplicação com barra lateral única, início, árvore de espaços e página de documento, com dados de exemplo | — | [[x] |
-| 02 | [Documento e editor](02-documento-e-editor/PLANO.md) | Criar, escrever em blocos com salvamento colaborativo (Yjs), favoritar, lixeira; "Meus documentos" de verdade | 01 | [ ] |
+| 02 | [Documento e editor](02-documento-e-editor/PLANO.md) | Criar, escrever em blocos com salvamento colaborativo (Yjs), favoritar, lixeira; "Meus documentos" de verdade | 01 | [[x] |
 | 03 | [Estrutura organizacional](03-estrutura-organizacional/PLANO.md) | Instalação com código, unidades em árvore, lotação de pessoas, tela de Organização, papéis | 01, 02 | [ ] |
 | 04 | [Convites](04-convites/PLANO.md) | Convidar por e-mail, aceite com senha, cadastro público fechado | 03 | [ ] |
 | 05 | [Espaços](05-espacos/PLANO.md) | Espaço por unidade e espaço livre, membros, herança, restrito; a árvore da barra lateral de verdade | 01, 03 | [ ] |

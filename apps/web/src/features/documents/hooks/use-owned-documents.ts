@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { EXEMPLO_DOCUMENTOS } from "@/shared/example-data/folioteca";
+import { listDocuments } from "../api/list-documents";
+import { chavesDeDocumentos } from "../api/chaves";
 
 export function useOwnedDocuments() {
   return useQuery({
-    queryKey: ["documents", "owned"],
-    queryFn: () => EXEMPLO_DOCUMENTOS.filter((document) => document.origin === "privado"),
+    queryKey: chavesDeDocumentos.owned(),
+    queryFn: ({ signal }) => listDocuments("OWNED", signal),
   });
 }

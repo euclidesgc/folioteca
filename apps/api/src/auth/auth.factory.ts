@@ -80,6 +80,15 @@ export function createAuth(
       // isso, um erro de digitação mudaria a conta para uma caixa que ninguém
       // lê, e quem tomasse uma sessão levaria a conta junto.
       changeEmail: { enabled: true },
+      additionalFields: {
+        // motivo: expõe o papel na sessão sem consulta ao banco a cada
+        // requisição; `input: false` impede que `/update-user` o aceite do
+        // corpo — quem decide o papel é a administração, nunca quem está logado.
+        role: {
+          type: "string",
+          input: false,
+        },
+      },
     },
     session: {
       expiresIn: CATORZE_DIAS_EM_SEGUNDOS,

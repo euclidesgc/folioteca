@@ -14,6 +14,8 @@ import { EspacoRoute } from "./espaco";
 import { DocumentosRoute } from "./documentos";
 import { CompartilhadosRoute } from "./compartilhados";
 import { DocumentoRoute } from "./documento";
+import { FavoritosRoute } from "./favoritos";
+import { LixeiraRoute } from "./lixeira";
 import { PesquisaRoute } from "./pesquisa";
 import { OrganizacaoRoute } from "./organizacao";
 import { EntrarRoute } from "./entrar";
@@ -75,6 +77,16 @@ export const router = createBrowserRouter([
                 path: "/documentos/:id",
                 element: <SecaoLayout />,
                 children: [{ index: true, element: <DocumentoRoute /> }],
+              },
+              {
+                path: "/favoritos",
+                element: <SecaoLayout />,
+                children: [{ index: true, element: <FavoritosRoute /> }],
+              },
+              {
+                path: "/lixeira",
+                element: <SecaoLayout />,
+                children: [{ index: true, element: <LixeiraRoute /> }],
               },
               {
                 path: "/pesquisa",

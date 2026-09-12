@@ -118,19 +118,34 @@ test("o axe não acha violação séria em Início, num espaço e num documento"
 }) => {
   await page.emulateMedia({ colorScheme: "light" });
 
+  // motivo: a sessão aqui é o dublê de `apoio/sessao.ts` — sem cookie real
+  // para a API de documentos, `GET /documents/:id` nunca devolveria um
+  // documento de verdade. O estado de documento alcançável sem API real é
+  // sempre o de acesso negado (404 `DOCUMENT_NOT_FOUND`, o mesmo de um id
+  // inexistente — regra 2 do plano 02); o caminho feliz, com conteúdo, é
+  // medido contra sessão real em `documentos.spec.ts`.
+  await page.route("**/documents/*", async (rota) => {
+    await rota.fulfill({
+      status: 404,
+      contentType: "application/json",
+      body: JSON.stringify({ code: "DOCUMENT_NOT_FOUND" }),
+    });
+  });
+
   const estados = [
-    { rota: "/inicio", titulo: "Início" },
-    { rota: "/espacos/engenharia", titulo: "Engenharia" },
+    { rota: "/inicio", titulo: "Início", nivel: 1 as const },
+    { rota: "/espacos/engenharia", titulo: "Engenharia", nivel: 1 as const },
     {
-      rota: "/documentos/guia-onboarding-engenharia",
-      titulo: "Guia de onboarding de engenharia",
+      rota: "/documentos/inexistente",
+      titulo: "Documento não encontrado",
+      nivel: 2 as const,
     },
   ];
 
   for (const estado of estados) {
     await page.goto(estado.rota);
     await expect(
-      page.getByRole("heading", { level: 1, name: estado.titulo }),
+      page.getByRole("heading", { level: estado.nivel, name: estado.titulo }),
     ).toBeVisible();
     await analisar(page, `${estado.titulo} no tema claro`);
   }
@@ -140,7 +155,7 @@ test("o axe não acha violação séria em Início, num espaço e num documento"
   for (const estado of estados) {
     await page.goto(estado.rota);
     await expect(
-      page.getByRole("heading", { level: 1, name: estado.titulo }),
+      page.getByRole("heading", { level: estado.nivel, name: estado.titulo }),
     ).toBeVisible();
     await analisar(page, `${estado.titulo} no tema escuro`);
   }

@@ -8,5 +8,5 @@ export interface DadosDeCadastro {
 }
 
 export async function registrar(dados: DadosDeCadastro): Promise<void> {
-  await httpClient.post("/auth/register", dados, { withCredentials: true });
+  await httpClient.post("/auth/register", dados);
 }

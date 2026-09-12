@@ -33,3 +33,13 @@ export function validateApiUrlForBuild(
 
   return { ok: true, value };
 }
+
+// motivo: a mesma origem atende a API por HTTP e o handshake de colaboração
+// por WebSocket (`packages/editor/src/provider.ts`, `paraWebSocket`) — a
+// política de conteúdo precisa declarar as duas, porque o navegador não
+// trata `ws(s)` como incluído em `http(s)` dentro de `connect-src`.
+export function webSocketOriginForBuild(apiOrigin: string): string {
+  const url = new URL(apiOrigin);
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  return url.origin;
+}
