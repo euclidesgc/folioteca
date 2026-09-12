@@ -1,6 +1,6 @@
 # 02 — Documento e editor
 
-**Status:** [ ] não iniciado · [x] em andamento · [ ] entregue
+**Status:** [ ] não iniciado · [ ] em andamento · [x] entregue
 **Branch:** `feat/02-documento-e-editor` a partir de `develop` · **PR:** —
 **Depende de:** 01 — Layout e navegação (a barra lateral única e o esqueleto de `/documentos`)
 **Desbloqueia:** 06 — Compartilhamento, 07 — Pesquisa, 08 — Comentários, 09 — Histórico de versões, 10 — Anexos e imagens, 11 — Presença e robustez do tempo real
@@ -390,7 +390,7 @@ e o editor; quem prova o acesso é sempre `GET /documents/:id`.
       (outra pessoa), abrir o link do primeiro documento e conferir
       "Documento não encontrado"
 - [x] `bash scripts/gates/gates_runner.sh` sai com 0
-- [ ] PR aberto com: o que entrega, como testar à mão, capturas
+- [x] PR aberto com: o que entrega, como testar à mão, capturas
 
 ## Critérios de aceite
 
