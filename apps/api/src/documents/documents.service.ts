@@ -81,4 +81,28 @@ export class DocumentsService {
     await this.repository.removeFavorite(id, userId);
     return { id, favorited: false };
   }
+
+  // motivo: a regra 2 ("mesmo 404 de um id inexistente") é a que o
+  // `onAuthenticate` da colaboração (etapa 4) reaplica no handshake —
+  // sem o resto da forma de leitura (favorited, content) que `getById`
+  // monta para a rota HTTP.
+  async assertAccess(userId: string, id: string): Promise<void> {
+    const document = await this.repository.findByIdForOwner(id, userId);
+    if (!document) {
+      throw new DocumentNotFoundError();
+    }
+  }
+
+  getState(id: string): Promise<Uint8Array | null> {
+    return this.repository.getState(id);
+  }
+
+  saveDerivedState(
+    id: string,
+    state: Uint8Array,
+    content: unknown[],
+    plainText: string,
+  ): Promise<void> {
+    return this.repository.saveDerivedState(id, state, content, plainText);
+  }
 }

@@ -288,39 +288,39 @@ e o editor; quem prova o acesso é sempre `GET /documents/:id`.
 
 ### Etapa 4 — Tempo real: Hocuspocus no mesmo processo Nest
 
-- [ ] Ler: `pesquisa/tecnologias.md` §3, `apps/api/src/bootstrap.ts`,
+- [x] Ler: `pesquisa/tecnologias.md` §3, `apps/api/src/bootstrap.ts`,
       `apps/api/src/main.ts`, `decisoes.md` (decisão 4)
-- [ ] Confirmar (nada a mudar): `apps/api/Dockerfile`, o runner de CI
+- [x] Confirmar (nada a mudar): `apps/api/Dockerfile`, o runner de CI
       (`.github/workflows/_suite-nestjs.yml`) e `.nvmrc` já usam Node 24,
       acima do piso 22 do Hocuspocus 4
-- [ ] `document-sync.service.ts`: `deriveFromYDoc(state: Uint8Array)` com
+- [x] `document-sync.service.ts`: `deriveFromYDoc(state: Uint8Array)` com
       `ServerBlockNoteEditor.create({ schema: documentSchema })` de
       `@blocknote/server-util` — `yDocToBlocks` para `content`,
       `blocksToMarkdownLossy` para `plainText`
-- [ ] `collaboration.factory.ts`: conexão do `@hocuspocus/server` com
+- [x] `collaboration.factory.ts`: conexão do `@hocuspocus/server` com
       `extension-database` (`fetch` lê `Document.state`; `store` grava
       `state` e, na mesma transação, `content`/`plainText`, no
       `debounce`/`maxDebounce` padrão — conferir antes de fixar outro);
       `onAuthenticate` lê a sessão (`fromNodeHeaders` + `getSession`),
       busca o documento pelo `documentName` e aplica a regra 2; valida
       `Origin` contra `WEB_ORIGIN` (o handshake não passa pelo CORS)
-- [ ] `pnpm add --filter api crossws @hocuspocus/server @hocuspocus/
+- [x] `pnpm add --filter api crossws @hocuspocus/server @hocuspocus/
       extension-database yjs @blocknote/server-util`; ligar
       `app.getHttpServer().on("upgrade", …)` em `bootstrap.ts`, caminho
       `/collaboration`, antes de `app.listen` — exemplo em
       `playground/backend/src/express.ts`, `tecnologias.md` §3
-- [ ] `packages/editor/src/provider.ts`: `criarProvider(documentId)` →
+- [x] `packages/editor/src/provider.ts`: `criarProvider(documentId)` →
       `new HocuspocusProvider({ url: <VITE_API_URL trocando http por ws>,
       name: documentId, document: yDoc })`, sem `token` — `hml.folioteca.
       duckdns.org` e `api-hml.folioteca.duckdns.org` são o mesmo site
       (sufixo público `duckdns.org`, `docs/DEPLOY.md`), então
       `SameSite=Lax` entrega o cookie no handshake; em dev, `localhost`
       também é um site só
-- [ ] Teste: `document-sync.service.spec.ts` — `"deriva content e plainText
+- [x] Teste: `document-sync.service.spec.ts` — `"deriva content e plainText
       a partir do estado Yjs"`
-- [ ] Teste: `apps/api/test/collaboration.e2e-spec.ts` — conexão do dono é
+- [x] Teste: `apps/api/test/collaboration.e2e-spec.ts` — conexão do dono é
       aceita, de outra pessoa é recusada
-- [ ] Verificação da etapa: `pnpm --filter api run test` e `pnpm --filter api run test:integration -t "collaboration"` saem com 0
+- [x] Verificação da etapa: `pnpm --filter api run test` e `pnpm --filter api run test:integration -t "collaboration"` saem com 0
 
 ### Etapa 5 — Web: `features/documents` e as quatro telas
 
@@ -455,7 +455,39 @@ e o editor; quem prova o acesso é sempre `GET /documents/:id`.
   liberar, sem número de cabeça.
 - **Debounce do `store` da `extension-database`** sem valor medido. Padrão:
   usar o do pacote instalado; só fixar outro se a etapa 4 medir custo real
-  de escrita no Postgres.
+  de escrita no Postgres. Fechamento da etapa 4: ficou no padrão do pacote
+  (`debounce`/`maxDebounce` da `Configuration` default do `@hocuspocus/
+  server`, não sobrescritos) — nenhuma medida de custo de escrita rodou
+  ainda, porque não há carga real para medir antes da etapa 5 ligar o
+  editor de verdade.
+- **`documentSchema` duplicado entre `packages/editor/src/schema.ts` e
+  `apps/api/src/collaboration/document-sync.service.ts`.** O CJS publicado
+  de `@blocknote/core`/`@blocknote/server-util`/`@blocknote/code-block`
+  quebra em `require()` puro (ver Andamento da etapa 4), e a única forma
+  viável de consumi-los em `apps/api` é `import()` dinâmico resolvendo a
+  condição `import` do pacote — que nunca resolve `.ts` cru, só pacote
+  publicado. Como `packages/editor` não tem build, importar o schema de lá
+  não é opção; a lista de dez blocos foi copiada, não referenciada. Mudar um
+  lado sem o outro faz `yDocToBlocks`/`blocksToMarkdownLossy` tratar um tipo
+  de bloco como desconhecido — quem tocar a lista de blocos em
+  `packages/editor/src/schema.ts` precisa tocar a cópia em
+  `document-sync.service.ts` no mesmo PR.
+- **Jest com `--experimental-vm-modules` e múltiplos arquivos `.e2e-spec.ts`
+  que cruzam `import()` dinâmico real é instável por ordem de execução**
+  (não por código): um arquivo de teste que já encerrou seu contexto de VM
+  pode quebrar o `import()` de um arquivo seguinte com "trying to import a
+  file after the Jest environment has been torn down" — reproduzido mesmo
+  sob `--runInBand`, mesmo filtrando por `-t`. `apps/api/test/apoio/
+  sequenciador.js` fixa a ordem alfabética (`@jest/test-sequencer` com
+  ordenação própria) para `collaboration.e2e-spec.ts` ser sempre o primeiro
+  arquivo a tocar Hocuspocus/BlockNote, sem nenhum contexto anterior para
+  competir — verificado 12× sem falha (5 rodadas da suíte inteira + 7 da
+  verificação filtrada). Fora de Jest (via `.mjs`/`ts-node`, inclusive a
+  aplicação real), o mesmo código nunca apresentou esse sintoma. Continua
+  uma fragilidade de ferramenta, não corrigida na raiz; o plano 11
+  ("presença e robustez do tempo real") é o lugar natural para isolar
+  `collaboration.e2e-spec.ts` num processo Jest próprio, se a ordem fixa um
+  dia deixar de bastar.
 
 ## Andamento
 
@@ -569,3 +601,83 @@ e `DocumentListDto` em `document-summary.dto.ts`) — sem plugin do
 `@nestjs/swagger` no `nest-cli.json`, cada forma de resposta precisa de uma
 classe com `@ApiProperty` para entrar no `openapi.json`; nenhum arquivo novo
 fora dos dois que o plano já previa.
+
+2026-09-12 — etapa 4 — Tempo real: Hocuspocus no mesmo processo Nest.
+`apps/api/src/collaboration/document-sync.service.ts` (`DocumentSyncService.
+deriveFromYDoc`) e `collaboration.factory.ts` (`createCollaborationServer`,
+com a extensão `Database` do `@hocuspocus/extension-database` e
+`onAuthenticate` aplicando a regra 2 e a validação de `Origin`);
+`DocumentsRepository`/`DocumentsService` ganharam `getState`/
+`saveDerivedState`/`assertAccess` para o `fetch`/`store`/`onAuthenticate`
+chamarem sem o controller nem a rota REST no meio. `bootstrap.ts` liga
+`app.getHttpServer().on("upgrade", …)` filtrando `/collaboration`, criando o
+servidor de colaboração só no primeiro `upgrade` real (motivo no próprio
+arquivo). `packages/editor/src/provider.ts` com `criarProvider(documentId)`,
+somado ao barril `index.ts`. Testes: `document-sync.service.spec.ts` e
+`apps/api/test/collaboration.e2e-spec.ts` (dono aceito, outra pessoa
+recusada), este com `apoio/sequenciador.js` fixando a ordem alfabética da
+suíte e2e. Dependências (todas quarentena-ok, resolvidas 2026-09-12):
+`@blocknote/code-block@0.54.0`, `@blocknote/core@0.54.0` (dependências de
+`apps/api`, que já não tinha nenhum `@blocknote/*` antes); `@hocuspocus/
+server@4.6.0`, `@hocuspocus/extension-database@4.6.0`, `crossws@0.4.12`,
+`yjs@13.6.32` (dependências); `@hocuspocus/provider@4.6.0`, `ws@8.21.3`,
+`@types/ws@8.18.1`, `@jest/test-sequencer@30.4.1` (devDependencies, só para
+os testes).
+
+O que a API real do Hocuspocus 4 e do `@blocknote/server-util` contrariou no
+pseudocódigo do plano — achado central da etapa, não um detalhe: **o CJS
+publicado de `@blocknote/core`, `@blocknote/server-util`, `@blocknote/
+code-block`, `@hocuspocus/server`, `@hocuspocus/extension-database` e
+`crossws` não funciona sob `require()` puro**, em nenhum processo Node — não
+é particular de Jest nem de `ts-node`. Dois problemas distintos, confirmados
+isolando cada pacote via `.mjs`: (1) o bundle CJS de `@blocknote/core` força
+um `__toESM(mod, 1)` ao importar `@tiptap/extension-{bold,code,italic,
+strike,underline}`, desembrulhando o módulo inteiro em vez do `default`
+exportado — `Code.extend(...)` falha com `"te.default.extend is not a
+function"`; (2) uma dependência mais funda, `lib0` (via `lib0/decoding`,
+`lib0/encoding`, `lib0/random`), não publica build CommonJS nenhum para
+esses caminhos — só ESM. A build ESM dos seis pacotes (condição `import` do
+`package.json#exports`) não tem nenhum dos dois problemas. A correção
+adotada, em todo arquivo que toca esses pacotes em `apps/api`
+(`document-sync.service.ts`, `collaboration.factory.ts`,
+`document-sync.service.spec.ts`, `collaboration.e2e-spec.ts`): `const
+dynamicImport = new Function("specifier", "return import(specifier)")`,
+porque o TypeScript reescreve um `import()` literal para `require()` sob
+`module: "commonjs"` — o `Function` constrói o import dinâmico em tempo de
+execução, fora do alcance dessa reescrita. Cheguei a tentar (e revertido) um
+patch via `pnpm patch` no bundle CJS do `@blocknote/core`: corrige o primeiro
+problema, mas não o segundo (`lib0` sem CJS é inATINGÍVEL por um patch no
+pacote que o consome), então o caminho ESM via `import()` dinâmico
+permanece necessário de qualquer forma — o patch foi descartado por não
+resolver o problema por si, só complicar a manutenção em cada atualização do
+BlockNote.
+
+Efeito colateral do `import()` dinâmico sob Jest: `--experimental-vm-modules`
+entrou em `NODE_OPTIONS` dos dois scripts de teste (`test` e
+`test:integration`) porque o `Function` acima, dentro do sandbox de VM que o
+Jest cria por arquivo, exige a flag para o Node saber resolver o `import()`
+— sem ela, "A dynamic import callback was invoked without
+--experimental-vm-modules". Isso por sua vez expôs a instabilidade de ordem
+entre arquivos já registrada em "Riscos e decisões em aberto", corrigida com
+`apoio/sequenciador.js`.
+
+O que desviou do plano, e por quê: (1) o pseudocódigo do plano usa
+`fromNodeHeaders` dentro do `onAuthenticate`, mas `onAuthenticatePayload.
+requestHeaders` já chega como `Headers` (Fetch API) — `fromNodeHeaders` é
+para o Express, que nunca entra neste caminho; `better-auth` aceita
+`Headers` direto em `auth.api.getSession({ headers })`. (2) `documentSchema`
+não é importado de `packages/editor/src/schema.ts` — é uma cópia literal
+dentro de `document-sync.service.ts`, pela razão do `import()` dinâmico
+explicada acima (pacote sem build não resolve via condição `import`); risco
+de duplicação anotado em "Riscos e decisões em aberto". (3) `@blocknote/
+core` e `@blocknote/code-block` entraram como dependências diretas de
+`apps/api` (além de `@blocknote/server-util`, já prevista) — a cópia do
+schema precisa de `BlockNoteSchema`/`defaultBlockSpecs`/
+`createCodeBlockSpec` (de `@blocknote/core`) e `codeBlockOptions` (de
+`@blocknote/code-block`), e "sem dependência não declarada" pede essas duas
+explícitas em vez de alcançá-las só por serem transitivas de
+`server-util`. (4) `@jest/test-sequencer` entrou como devDependency
+explícita de `apps/api` — já resolvia por ser transitiva de `jest`, mas
+`apoio/sequenciador.js` o `require()` direto. (5) o `debounce`/`maxDebounce`
+da `extension-database` ficaram no padrão do pacote, não configurados — ver
+"Riscos e decisões em aberto".

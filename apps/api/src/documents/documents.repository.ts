@@ -179,4 +179,24 @@ export class DocumentsRepository {
   async removeFavorite(documentId: string, userId: string): Promise<void> {
     await this.prisma.documentFavorite.deleteMany({ where: { userId, documentId } });
   }
+
+  async getState(id: string): Promise<Uint8Array | null> {
+    const row = await this.prisma.document.findUnique({
+      where: { id },
+      select: { state: true },
+    });
+    return row?.state ?? null;
+  }
+
+  async saveDerivedState(
+    id: string,
+    state: Uint8Array,
+    content: unknown[],
+    plainText: string,
+  ): Promise<void> {
+    await this.prisma.document.update({
+      where: { id },
+      data: { state: Buffer.from(state), content: content as object[], plainText },
+    });
+  }
 }
