@@ -265,23 +265,23 @@ administra recebe 403 do servidor, nunca só um botão escondido (M20).
 - [x] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "instala"` sai com 0
 
 ### Etapa 2 — Árvore de unidades, tipos e lotação (API)
-- [ ] Ler: `apps/api/src/account/account.repository.ts` (padrão de transação),
+- [x] Ler: `apps/api/src/account/account.repository.ts` (padrão de transação),
       `modelo-de-acesso.md` (M4–M7, D2)
-- [ ] `apps/api/src/unit-types/**`, `apps/api/src/units/**` (module/
+- [x] `apps/api/src/unit-types/**`, `apps/api/src/units/**` (module/
       controller/service/repository/dto), `units.errors.ts` com
       `UnitNotEmptyError`, `RootUnitNotDeletableError`, `UnitNameTakenError`,
       `UnitTypeInUseError`, `UnitTypeNameTakenError`
       (`extends ConflictError`/`NotFoundError` conforme a família)
-- [ ] `GET /units` monta a árvore com uma consulta recursiva por `UnitClosure`
+- [x] `GET /units` monta a árvore com uma consulta recursiva por `UnitClosure`
       (profundidade a partir da raiz) e os `directMembers` por unidade
-- [ ] `DELETE /units/:id` confere zero filhas e zero `UnitMembership` antes de
+- [x] `DELETE /units/:id` confere zero filhas e zero `UnitMembership` antes de
       apagar; `POST/PATCH/DELETE /unit-types` e `PUT/DELETE
       /units/:id/members/:userId` atrás de `AdminGuard`
-- [ ] Registra os dois módulos em `ROUTE_MODULES`
-- [ ] Teste: `apps/api/test/units.e2e-spec.ts` — "mantém o fecho da árvore
+- [x] Registra os dois módulos em `ROUTE_MODULES`
+- [x] Teste: `apps/api/test/units.e2e-spec.ts` — "mantém o fecho da árvore
       depois de unidades aninhadas", "recusa apagar unidade com gente
       lotada", "recusa membro criando unidade"
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "unidade"` sai com 0
+- [x] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "unidade"` sai com 0
 
 ### Etapa 3 — Papéis e pessoas (API)
 - [ ] Ler: `apps/api/prisma/schema.prisma` (`UserRole`), `modelo-de-acesso.md` (M3, D6)
@@ -474,3 +474,32 @@ comando de verificação da etapa, como o plano escreve, só sai 0 com
 `NODE_OPTIONS=--experimental-vm-modules` (exigência pré-existente de
 `better-auth/node`, já presente nos scripts `test`/`test:integration` do
 `package.json`, mas ausente do comando literal do plano).
+
+2026-09-12 — etapa 2 — `UnitTypesModule` (`GET`/`POST`/`PATCH`/`DELETE
+/unit-types`) e `UnitsModule` (`GET`/`POST /units`, `PATCH`/`DELETE
+/units/:id`, `PUT`/`DELETE /units/:id/members/:userId`) com `AdminGuard` nas
+rotas de escrita (M20); `GET /units` monta a árvore por uma consulta sobre
+`UnitClosure` ordenada por profundidade a partir da raiz, com `directMembers`
+por unidade; `DELETE /units/:id` recusa com `ROOT_UNIT_NOT_DELETABLE` (422)
+para a raiz e `UNIT_NOT_EMPTY` (409) com filha ou lotado direto — o que foi
+diferente do texto do plano: (1) `ROOT_UNIT_NOT_DELETABLE` é 422 na tabela de
+API do próprio plano, não 409/404 como a frase "extends
+ConflictError/NotFoundError" da tarefa sugeria — `RootUnitNotDeletableError`
+estende a `UnprocessableError` nova (acrescentada a `common/errors/domain-
+error.ts` junto com `NotFoundError`), e a tabela é o contrato; (2)
+`UnitTypeInUseError`/`UnitTypeNameTakenError` moram em
+`unit-types/unit-types.errors.ts`, não em `units/units.errors.ts` como a
+frase da tarefa agrupava — mantém cada módulo autocontido, sem um importar
+erro do outro; por isso também existem dois `UnitTypeNotFoundError`
+(um em cada módulo, mesmo `code`); (3) `UnitNotFoundError` e
+`UserNotFoundError` não estavam nomeados na tarefa, mas a tabela de API exige
+os dois (`404 UNIT_NOT_FOUND`/`USER_NOT_FOUND`); acrescentados a
+`units.errors.ts`; `UsersModule` (etapa 3) ainda não existe, então
+`UnitsRepository` confere a existência do `userId` direto pelo Prisma, sem
+depender de outro módulo. Teste de fecho de árvore e de lotação usam
+`app.get(PrismaService)` para ler `UnitClosure` direto, como
+`nest-testing-integration` prevê para invariante de banco. `units.e2e-spec.ts`
+instala a instância no próprio `beforeAll` quando ainda não está pronta — a
+suíte completa já instala em `installation.e2e-spec.ts`, mas a verificação da
+etapa roda só este arquivo (`-t "unidade"`), e sem isso `GET /units` não
+teria raiz para montar.
