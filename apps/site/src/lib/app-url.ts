@@ -4,4 +4,3 @@
 const BASE_DO_APP = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:5173";
 
 export const ROTA_DE_ENTRADA = `${BASE_DO_APP}/entrar`;
-export const ROTA_DE_CADASTRO = `${BASE_DO_APP}/criar-conta`;

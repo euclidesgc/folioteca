@@ -20,6 +20,7 @@ Lidas no boot e validadas por `apps/api/src/config/environment.schema.ts`.
 | `DATABASE_URL` | sim | sim | string de conexão do Postgres; o compose local sobe o seu na porta 5433 |
 | `BETTER_AUTH_SECRET` | sim | sim | `openssl rand -hex 32`; assina o cookie de sessão, e trocá-lo invalida toda sessão em curso |
 | `API_URL` | não | não | endereço público desta API; é a base dos links que saem nos e-mails |
+| `INSTALLATION_CODE` | sim | sim | gerado no provisionamento, uma vez por instância, nunca reaproveitado entre `hml` e `prod`; é o que `POST /installation` confere antes de criar a organização |
 | `WEB_ORIGIN` | não | em produção | origens do navegador autorizadas (CORS), separadas por vírgula |
 | `SMTP_HOST` | não | não | servidor de e-mail; o Mailpit do compose recebe tudo em `localhost` |
 | `SMTP_PORT` | não | não | porta do servidor de e-mail; o padrão é 1025, do Mailpit |

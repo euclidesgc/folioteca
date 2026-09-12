@@ -7,6 +7,7 @@ export interface OutgoingMail {
   to: string;
   subject: string;
   text: string;
+  html?: string;
 }
 
 @Injectable()
@@ -29,8 +30,8 @@ export class MailService {
     });
   }
 
-  async send({ to, subject, text }: OutgoingMail): Promise<void> {
-    await this.transporter.sendMail({ from: this.from, to, subject, text });
+  async send({ to, subject, text, html }: OutgoingMail): Promise<void> {
+    await this.transporter.sendMail({ from: this.from, to, subject, text, html });
     // motivo: o endereço identifica a entrega sem revelar o conteúdo; assunto e
     // corpo carregam o link de autenticação e por isso ficam fora do log.
     this.logger.log({ event: "mail.sent", to });

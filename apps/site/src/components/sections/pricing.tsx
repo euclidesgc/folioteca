@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SectionHeading } from "@/components/section-heading";
-import { ROTA_DE_CADASTRO } from "@/lib/app-url";
+import { ROTA_DE_ENTRADA } from "@/lib/app-url";
 
 const inclusosNoGratis = [
   "Documentos e modelos ilimitados",
@@ -100,11 +100,11 @@ export function Pricing(): ReactElement {
             ))}
           </ul>
           <ButtonLink
-            href={ROTA_DE_CADASTRO}
+            href={ROTA_DE_ENTRADA}
             variant="secondary"
             className="mt-auto w-full"
           >
-            Criar conta
+            Entrar
           </ButtonLink>
         </Card>
 
@@ -137,7 +137,7 @@ export function Pricing(): ReactElement {
               <li key={item}>{item}</li>
             ))}
           </ul>
-          <ButtonLink href={ROTA_DE_CADASTRO} className="mt-auto w-full">
+          <ButtonLink href={ROTA_DE_ENTRADA} className="mt-auto w-full">
             Assinar o Time
           </ButtonLink>
         </Card>

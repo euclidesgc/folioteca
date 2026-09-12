@@ -1,7 +1,7 @@
 # 03 — Estrutura organizacional
 
-**Status:** [ ] não iniciado · [ ] em andamento · [ ] entregue
-**Branch:** `feat/03-estrutura-organizacional` a partir de `develop` · **PR:** —
+**Status:** [ ] não iniciado · [ ] em andamento · [x] entregue
+**Branch:** `feat/03-estrutura-organizacional`, empilhada sobre `feat/02-documento-e-editor` · **PR:** [#87](https://github.com/euclidesgc/folioteca/pull/87)
 **Depende de:** 01 (Layout e navegação); 02 (Documento e editor), pela fundação
 que entrega — guarda de sessão, `GET /me`, filtro de erro, Testcontainers.
 **Desbloqueia:** 04 (Convites), 05 (Espaços), 15 (Prévia de impacto na estrutura)
@@ -240,193 +240,198 @@ administra recebe 403 do servidor, nunca só um botão escondido (M20).
 ## Etapas
 
 ### Etapa 1 — Instalação: esquema, ambiente e a rota que substitui o cadastro
-- [ ] Ler: `apps/api/prisma/schema.prisma`, `apps/api/src/account/**`,
+- [x] Ler: `apps/api/prisma/schema.prisma`, `apps/api/src/account/**`,
       `apps/api/src/auth/auth.factory.ts`, `apps/api/src/config/environment.schema.ts`,
       `.claude/skills/nest-errors-filters/templates/*.ts`, `docs/setup-secrets.md`
-- [ ] Migration `estrutura_organizacional`: `Organization` singleton + CHECK,
+- [x] Migration `estrutura_organizacional`: `Organization` singleton + CHECK,
       `Unit` raiz, `UnitType`, `UnitClosure` com os dois gatilhos,
       `UnitMembership`; backfill descrito em "Modelo de dados"
-- [ ] `INSTALLATION_CODE` em `environment.schema.ts` (`Joi.string().min(16).required()`),
+- [x] `INSTALLATION_CODE` em `environment.schema.ts` (`Joi.string().min(16).required()`),
       `environment-variables.ts`, `.env.example` (com o comentário de onde vem:
       gerado no provisionamento, uma vez por instância, nunca reaproveitado
       entre `hml` e `prod`), `docs/setup-secrets.md` (linha nova, segredo: sim),
       e nota em `docs/DEPLOY.md` de que é variável de runtime da API no
       Coolify, como `BETTER_AUTH_SECRET`
-- [ ] `apps/api/src/installation/{installation.module,controller,service,repository}.ts`,
+- [x] `apps/api/src/installation/{installation.module,controller,service,repository}.ts`,
       `dto/installation.dto.ts`; apaga `apps/api/src/account/**`; comparação do
       código em tempo constante (`crypto.timingSafeEqual`)
-- [ ] Erros de domínio `apps/api/src/installation/installation.errors.ts`:
+- [x] Erros de domínio `apps/api/src/installation/installation.errors.ts`:
       `InstallationCodeInvalidError extends ForbiddenError`,
       `InstallationAlreadyDoneError extends ConflictError`
-- [ ] Registra `InstallationModule` em `ROUTE_MODULES`
-- [ ] Teste: `apps/api/test/installation.e2e-spec.ts` — "instala a instância com
+- [x] Registra `InstallationModule` em `ROUTE_MODULES`
+- [x] Teste: `apps/api/test/installation.e2e-spec.ts` — "instala a instância com
       o código certo e abre sessão do primeiro administrador", "recusa o
       código de instalação errado", "recusa a segunda instalação"
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "instala"` sai com 0
+- [x] Verificação da etapa: `pnpm --filter api run test:integration -t "instala"` sai com 0
 
 ### Etapa 2 — Árvore de unidades, tipos e lotação (API)
-- [ ] Ler: `apps/api/src/account/account.repository.ts` (padrão de transação),
+- [x] Ler: `apps/api/src/account/account.repository.ts` (padrão de transação),
       `modelo-de-acesso.md` (M4–M7, D2)
-- [ ] `apps/api/src/unit-types/**`, `apps/api/src/units/**` (module/
+- [x] `apps/api/src/unit-types/**`, `apps/api/src/units/**` (module/
       controller/service/repository/dto), `units.errors.ts` com
       `UnitNotEmptyError`, `RootUnitNotDeletableError`, `UnitNameTakenError`,
       `UnitTypeInUseError`, `UnitTypeNameTakenError`
       (`extends ConflictError`/`NotFoundError` conforme a família)
-- [ ] `GET /units` monta a árvore com uma consulta recursiva por `UnitClosure`
+- [x] `GET /units` monta a árvore com uma consulta recursiva por `UnitClosure`
       (profundidade a partir da raiz) e os `directMembers` por unidade
-- [ ] `DELETE /units/:id` confere zero filhas e zero `UnitMembership` antes de
+- [x] `DELETE /units/:id` confere zero filhas e zero `UnitMembership` antes de
       apagar; `POST/PATCH/DELETE /unit-types` e `PUT/DELETE
       /units/:id/members/:userId` atrás de `AdminGuard`
-- [ ] Registra os dois módulos em `ROUTE_MODULES`
-- [ ] Teste: `apps/api/test/units.e2e-spec.ts` — "mantém o fecho da árvore
+- [x] Registra os dois módulos em `ROUTE_MODULES`
+- [x] Teste: `apps/api/test/units.e2e-spec.ts` — "mantém o fecho da árvore
       depois de unidades aninhadas", "recusa apagar unidade com gente
       lotada", "recusa membro criando unidade"
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "unidade"` sai com 0
+- [x] Verificação da etapa: `pnpm --filter api run test:integration -t "unidade"` sai com 0
 
 ### Etapa 3 — Papéis e pessoas (API)
-- [ ] Ler: `apps/api/prisma/schema.prisma` (`UserRole`), `modelo-de-acesso.md` (M3, D6)
-- [ ] `apps/api/src/users/{users.module,controller,service,repository}.ts`;
+- [x] Ler: `apps/api/prisma/schema.prisma` (`UserRole`), `modelo-de-acesso.md` (M3, D6)
+- [x] `apps/api/src/users/{users.module,controller,service,repository}.ts`;
       `GET /users?search=` (`ILIKE` em `name`/`email`); `PATCH /users/:id/role`
       com `SELECT ... FOR UPDATE` nas linhas `role = 'ADMIN'` antes de aceitar
       uma despromoção
-- [ ] `users.errors.ts`: `LastAdminError extends ConflictError`
-- [ ] Ajusta a consulta de `GET /me` (plano 02) para buscar o nome da
+- [x] `users.errors.ts`: `LastAdminError extends ConflictError`
+- [x] Ajusta a consulta de `GET /me` (plano 02) para buscar o nome da
       organização na unidade raiz e somar `units` (id, nome, caminho) a partir
       de `UnitMembership` + `UnitClosure`
-- [ ] Registra `UsersModule` em `ROUTE_MODULES`
-- [ ] Contrato: com os quatro módulos das etapas 1–3 em `ROUTE_MODULES`,
+- [x] Registra `UsersModule` em `ROUTE_MODULES`
+- [x] Contrato: com os quatro módulos das etapas 1–3 em `ROUTE_MODULES`,
       `pnpm --filter api run openapi:generate` grava `installation`,
       `unit-types`, `units` e `users` em `apps/api/openapi.json`; `pnpm
       --filter web run api:generate` regenera
       `apps/web/src/shared/api/generated/`
-- [ ] Teste: `apps/api/test/users.e2e-spec.ts` — "despromove um administrador
+- [x] Teste: `apps/api/test/users.e2e-spec.ts` — "despromove um administrador
       quando há mais de um", "recusa despromover o último administrador"
-- [ ] Verificação da etapa: `pnpm --filter api run openapi:generate && pnpm --filter api exec jest --config test/jest-e2e.config.js -t "administrador"` sai com 0
+- [x] Verificação da etapa: `pnpm --filter api run openapi:generate && pnpm --filter api run test:integration -t "administrador"` sai com 0
 
 ### Etapa 4 — Tela de Organização e fechamento do cadastro (web)
-- [ ] Ler: `apps/web/src/app/routes/{organizacao,criar-conta,entrar,perfil}.tsx`,
+- [x] Ler: `apps/web/src/app/routes/{organizacao,criar-conta,entrar,perfil}.tsx`,
       `apps/web/src/features/{auth,conta,health}/index.ts`,
       `apps/web/src/shared/components/ui/{dialog,field,button,badge,card,empty-state}.tsx`
-- [ ] `apps/web/src/features/auth/`: troca `criar-conta-form.tsx` e
+- [x] `apps/web/src/features/auth/`: troca `criar-conta-form.tsx` e
       `api/registrar.ts` por `components/instalacao-form.tsx` e
       `api/{instalacao,get-organization}.ts` + `hooks/use-organizacao-status.ts`;
       `entrar-form`/`app/routes/entrar.tsx` ganham a faixa de mensagem e perdem
       o link de cadastro
-- [ ] `apps/web/src/features/organization/` (api, hooks, componentes):
+- [x] `apps/web/src/features/organization/` (api, hooks, componentes):
       `arvore-de-unidades.tsx`, `unidade-no.tsx` (com as ações de administração),
       `criar-unidade-dialog.tsx`, `lotar-pessoa-dialog.tsx`,
       `tipos-de-unidade-dialog.tsx`, `bloco-instancia.tsx` (com `HealthStatus`
       de `@/features/health`); `index.ts`
-- [ ] `apps/web/src/app/routes/organizacao.tsx` monta a árvore por `useMe().role`
-- [ ] `apps/web/src/features/conta/components/lotacoes-lista.tsx` +
+- [x] `apps/web/src/app/routes/organizacao.tsx` monta a árvore por `useMe().role`
+- [x] `apps/web/src/features/conta/components/lotacoes-lista.tsx` +
       `apps/web/src/app/routes/perfil.tsx` ganha a seção "Onde você está lotada"
-- [ ] `apps/site/src/components/sections/pricing.tsx` e
+- [x] `apps/site/src/components/sections/pricing.tsx` e
       `apps/site/src/lib/app-url.ts`: troca descrita em "Telas"
-- [ ] Teste: `apps/web/src/features/organization/components/unidade-no.test.tsx`
+- [x] Teste: `apps/web/src/features/organization/components/unidade-no.test.tsx`
       (papel por texto acessível, sem MSW real de todas as rotas — cobertura de
       unidade fica para os e2e da etapa 5)
-- [ ] Verificação da etapa: `pnpm --filter web exec vitest run -t "unidade-no"` sai com 0
+- [x] Verificação da etapa: `pnpm --filter web exec vitest run -t "UnidadeNo"` sai com 0
 
 ### Etapa 5 — Sessão real no Playwright e testes de ponta a ponta
-- [ ] Ler: `apps/web/playwright.config.ts`, `apps/web/e2e/apoio/sessao.ts`,
+- [x] Ler: `apps/web/playwright.config.ts`, `apps/web/e2e/apoio/sessao.ts`,
       `apps/web/e2e/health.spec.ts`
-- [ ] `scripts/e2e/banco-limpo.sh`: recria `folioteca_e2e` só quando `CI=true`
+- [x] `scripts/e2e/banco-limpo.sh`: recria `folioteca_e2e` só quando `CI=true`
       ou o nome do banco termina em `_e2e` (nunca contra o banco de
       desenvolvimento); `playwright.config.ts` ganha `projects` — `setup`
       (`e2e/instalacao.setup.ts`, que instala pelo `POST /installation` de
       verdade e semeia um `User` `MEMBER` direto no banco, sem convite) e os
       projetos que dependem dele, com `storageState` por pessoa em
       `e2e/.auth/{admin,membro}.json`
-- [ ] `e2e/apoio/pessoas.ts` (dados fixos de ADMIN e MEMBER de teste)
-- [ ] `e2e/apoio/sessao.ts` (dublê de esqueleto/visual) passa a responder
+- [x] `e2e/apoio/pessoas.ts` (dados fixos de ADMIN e MEMBER de teste)
+- [x] `e2e/apoio/sessao.ts` (dublê de esqueleto/visual) passa a responder
       também `/me`, `/units`, `/unit-types`, `/users`, `/organization`
-- [ ] Teste: `apps/web/e2e/organizacao-admin.spec.ts` — "administradora cria
+- [x] Teste: `apps/web/e2e/organizacao-admin.spec.ts` — "administradora cria
       unidade filha e lota uma pessoa"; `apps/web/e2e/organizacao-membro.spec.ts`
       — "mostra a árvore sem nenhum botão de administração para quem não
       administra"; `apps/web/e2e/cadastro-fechado.spec.ts` — "fecha o cadastro
       público depois da instalação"
-- [ ] Verificação da etapa: `pnpm --filter web exec playwright test -g "administradora cria unidade"` sai com 0
+- [x] Verificação da etapa: `pnpm --filter web exec playwright test -g "administradora cria unidade"` sai com 0
 
 ### Etapa final — Ver na tela
-- [ ] Capturas em `docs/refactor/03-estrutura-organizacional/capturas/`:
+- [x] Capturas em `docs/refactor/03-estrutura-organizacional/capturas/`:
       `/criar-conta` (instalação e fechado), `/entrar` (com a faixa de
       mensagem), `/organizacao` como administração e como membro, `/perfil`
       (lotações) — larguras 1440 e 375, temas claro e escuro, geradas pelo
       Playwright
-- [ ] Roteiro manual: (1) suba o compose com `INSTALLATION_CODE` definido; (2)
+- [x] Roteiro manual: (1) suba o compose com `INSTALLATION_CODE` definido; (2)
       abra `/criar-conta`, informe o código e os dados, confirme a chegada em
       `/organizacao` já lotada na raiz; (3) crie um tipo, uma unidade filha,
       lote uma segunda pessoa (via seed — convite ainda não existe) e
       promova-a; (4) abra `/criar-conta` de novo, confirme o redireciono para
       `/entrar` com "O cadastro é por convite."; (5) entre como a segunda
       pessoa, `MEMBER`, e confirme que `/organizacao` não tem nenhum botão
-- [ ] `bash scripts/gates/gates_runner.sh` sai com 0
-- [ ] PR aberto com: o que entrega, como testar à mão, capturas
+- [x] `bash scripts/gates/gates_runner.sh` sai com 0
+- [x] PR aberto com: o que entrega, como testar à mão, capturas
 
 ## Critérios de aceite
 
-- [ ] `comportamental` — Dado o código de instalação certo numa instância ainda
+- [x] `comportamental` — Dado o código de instalação certo numa instância ainda
       não instalada, quando `POST /installation` recebe nome, e-mail, senha e
       nome da empresa, então a resposta é 201, a sessão abre e `GET
       /organization` passa a responder `READY`. Prova:
       `apps/api/test/installation.e2e-spec.ts`, teste "instala a instância com
       o código certo e abre sessão do primeiro administrador".
-- [ ] `comportamental` — Dado o código de instalação errado, quando `POST
+- [x] `comportamental` — Dado o código de instalação errado, quando `POST
       /installation` é chamado, então a resposta é 403 com `code:
       "INSTALLATION_CODE_INVALID"`. Prova:
       `apps/api/test/installation.e2e-spec.ts`, teste "recusa o código de
       instalação errado".
-- [ ] `comportamental` — Dado que a instância já foi instalada, quando `POST
+- [x] `comportamental` — Dado que a instância já foi instalada, quando `POST
       /installation` é chamado de novo, então a resposta é 409 com `code:
       "INSTALLATION_ALREADY_DONE"`. Prova:
       `apps/api/test/installation.e2e-spec.ts`, teste "recusa a segunda
       instalação".
-- [ ] `comportamental` — Dado uma unidade com uma unidade filha e essa filha
+- [x] `comportamental` — Dado uma unidade com uma unidade filha e essa filha
       com uma neta, quando as três são criadas em sequência, então
       `UnitClosure` tem a linha entre a avó e a neta com `depth = 2`. Prova:
       `apps/api/test/units.e2e-spec.ts`, teste "mantém o fecho da árvore
       depois de unidades aninhadas".
-- [ ] `comportamental` — Dado uma unidade com uma pessoa lotada direto, quando
+- [x] `comportamental` — Dado uma unidade com uma pessoa lotada direto, quando
       `DELETE /units/:id` é chamado, então a resposta é 409 com `code:
       "UNIT_NOT_EMPTY"`. Prova: `apps/api/test/units.e2e-spec.ts`, teste
       "recusa apagar unidade com gente lotada".
-- [ ] `comportamental` — Dado um `MEMBER` autenticado, quando ele chama `POST
+- [x] `comportamental` — Dado um `MEMBER` autenticado, quando ele chama `POST
       /units`, então a resposta é 403. Prova:
       `apps/api/test/units.e2e-spec.ts`, teste "recusa membro criando
       unidade".
-- [ ] `comportamental` — Dado dois administradores, quando um despromove o
+- [x] `comportamental` — Dado dois administradores, quando um despromove o
       outro por `PATCH /users/:id/role` com `{ role: "MEMBER" }`, então a
       resposta é 200 e o papel muda. Prova: `apps/api/test/users.e2e-spec.ts`,
       teste "despromove um administrador quando há mais de um".
-- [ ] `comportamental` — Dado um único administrador, quando ele tenta
+- [x] `comportamental` — Dado um único administrador, quando ele tenta
       despromover a si mesmo por `PATCH /users/:id/role`, então a resposta é
       409 com `code: "LAST_ADMIN"`. Prova: `apps/api/test/users.e2e-spec.ts`,
       teste "recusa despromover o último administrador".
-- [ ] `comportamental` — Dado uma sessão real de administração, quando ela cria
+- [x] `comportamental` — Dado uma sessão real de administração, quando ela cria
       uma unidade filha na árvore de `/organizacao` e lota uma pessoa nessa
       unidade, então o nome da unidade e o da pessoa aparecem na árvore sem
       recarregar a página. Prova: `apps/web/e2e/organizacao-admin.spec.ts`,
       teste "administradora cria unidade filha e lota uma pessoa".
-- [ ] `comportamental` — Dado uma sessão real de `MEMBER`, quando a pessoa abre
+- [x] `comportamental` — Dado uma sessão real de `MEMBER`, quando a pessoa abre
       `/organizacao`, então a página não tem nenhum elemento com papel
       `button` de criar, renomear, apagar, lotar ou promover. Prova:
       `apps/web/e2e/organizacao-membro.spec.ts`, teste "mostra a árvore sem
       nenhum botão de administração para quem não administra".
-- [ ] `comportamental` — Dado que a instância já foi instalada, quando alguém
+- [x] `comportamental` — Dado que a instância já foi instalada, quando alguém
       abre `/criar-conta`, então é redirecionado para `/entrar` e a página
       mostra o texto "O cadastro é por convite.". Prova:
       `apps/web/e2e/cadastro-fechado.spec.ts`, teste "fecha o cadastro público
       depois da instalação".
-- [ ] `estrutural` — `apps/api/prisma/schema.prisma` declara `model
+- [x] `estrutural` — `apps/api/prisma/schema.prisma` declara `model
       UnitClosure` e não declara `organizationId` em `model User`. Prova: `rg
       -c "model UnitClosure" apps/api/prisma/schema.prisma` imprime `1`; `rg
-      -c "organizationId" apps/api/prisma/schema.prisma` imprime `0`.
-- [ ] `estrutural` — `apps/api/src/account/` não existe mais e
+      -c "organizationId" apps/api/prisma/schema.prisma` imprime `0`. — medido
+      com `rg` (norma do projeto, não `grep`): a primeira imprime `1`; a
+      segunda não imprime nada e sai com 1 — comportamento do `rg` em zero
+      ocorrências (`grep -c` imprimiria `0`; `rg -c` só imprime a contagem
+      quando ela é maior que zero). A ausência de saída confirma a mesma coisa
+      que "imprime 0": nenhuma ocorrência de `organizationId`.
+- [x] `estrutural` — `apps/api/src/account/` não existe mais e
       `apps/api/src/installation/installation.controller.ts` exporta
       `InstallationController`. Prova: `test ! -d apps/api/src/account` sai
       com 0; `rg -c "export class InstallationController"
       apps/api/src/installation/installation.controller.ts` imprime `1`.
-- [ ] `comando` — Contra o Postgres do `docker-compose.yml`, `pnpm --filter api
+- [x] `comando` — Contra o Postgres do `docker-compose.yml`, `pnpm --filter api
       exec prisma migrate deploy && pnpm --filter api exec prisma migrate
       status` sai com 0.
 
@@ -447,4 +452,225 @@ administra recebe 403 do servidor, nunca só um botão escondido (M20).
 
 ## Andamento
 
-_Sem execução ainda._
+2026-09-12 — etapa 1 — migration `20260912111419_estrutura_organizacional`
+(`Organization` singleton+CHECK, `UnitType`, `Unit` com CHECK de par
+raiz/pai/tipo e os dois gatilhos, `UnitClosure`, `UnitMembership`, backfill da
+organização mais antiga para a unidade raiz); `INSTALLATION_CODE` validado no
+boot; `InstallationModule` (`GET /organization`, `POST /installation`) com
+hash/issuer de conta local por `auth.$context`/`@better-auth/core` (D5), sem
+chamada a `signUpEmail`; `apps/api/src/account/**` apagado — o que foi
+diferente do texto do plano: (1) a família `ForbiddenError`/`ConflictError`
+não existia em `common/errors/domain-error.ts` (só havia `status` por
+classe); acrescentadas como classes abstratas com `status` fixo, sem alterar
+os erros já existentes; (2) `@better-auth/core` precisou virar dependência
+declarada de `apps/api/package.json` (estava só transitiva via `better-auth`,
+e `apps/api/node_modules` não a resolve sem isso) — versão `1.7.2`, a mesma já
+resolvida no lockfile, sem baixar pacote novo; (3) `apps/api/test/apoio/sessao.ts`
+não dependia mais de `AccountRepository` (apagado) — passou a criar a pessoa
+de teste sozinha, sem organização, com papel opcional (`ADMIN`/`MEMBER`),
+porque `Organization` virou singleton e instalar a cada sessão de teste
+colidiria com a própria instalação única; (4) `apps/api/scripts/generate-openapi.ts`
+precisou de um dublê de `ConfigService` no `PrismaStubModule` — sem ele,
+`InstallationService` (que lê `INSTALLATION_CODE`) derruba
+`pnpm --filter api run openapi:generate` em silêncio (`abortOnError`/`logger:
+false` do Nest escondem o erro), o que quebraria o job "Contrato" do CI na
+primeira vez que `InstallationModule` entrasse em `ROUTE_MODULES`; (5) o
+comando de verificação da etapa, como o plano escreve, só sai 0 com
+`NODE_OPTIONS=--experimental-vm-modules` (exigência pré-existente de
+`better-auth/node`, já presente nos scripts `test`/`test:integration` do
+`package.json`, mas ausente do comando literal do plano).
+
+2026-09-12 — etapa 2 — `UnitTypesModule` (`GET`/`POST`/`PATCH`/`DELETE
+/unit-types`) e `UnitsModule` (`GET`/`POST /units`, `PATCH`/`DELETE
+/units/:id`, `PUT`/`DELETE /units/:id/members/:userId`) com `AdminGuard` nas
+rotas de escrita (M20); `GET /units` monta a árvore por uma consulta sobre
+`UnitClosure` ordenada por profundidade a partir da raiz, com `directMembers`
+por unidade; `DELETE /units/:id` recusa com `ROOT_UNIT_NOT_DELETABLE` (422)
+para a raiz e `UNIT_NOT_EMPTY` (409) com filha ou lotado direto — o que foi
+diferente do texto do plano: (1) `ROOT_UNIT_NOT_DELETABLE` é 422 na tabela de
+API do próprio plano, não 409/404 como a frase "extends
+ConflictError/NotFoundError" da tarefa sugeria — `RootUnitNotDeletableError`
+estende a `UnprocessableError` nova (acrescentada a `common/errors/domain-
+error.ts` junto com `NotFoundError`), e a tabela é o contrato; (2)
+`UnitTypeInUseError`/`UnitTypeNameTakenError` moram em
+`unit-types/unit-types.errors.ts`, não em `units/units.errors.ts` como a
+frase da tarefa agrupava — mantém cada módulo autocontido, sem um importar
+erro do outro; por isso também existem dois `UnitTypeNotFoundError`
+(um em cada módulo, mesmo `code`); (3) `UnitNotFoundError` e
+`UserNotFoundError` não estavam nomeados na tarefa, mas a tabela de API exige
+os dois (`404 UNIT_NOT_FOUND`/`USER_NOT_FOUND`); acrescentados a
+`units.errors.ts`; `UsersModule` (etapa 3) ainda não existe, então
+`UnitsRepository` confere a existência do `userId` direto pelo Prisma, sem
+depender de outro módulo. Teste de fecho de árvore e de lotação usam
+`app.get(PrismaService)` para ler `UnitClosure` direto, como
+`nest-testing-integration` prevê para invariante de banco. `units.e2e-spec.ts`
+instala a instância no próprio `beforeAll` quando ainda não está pronta — a
+suíte completa já instala em `installation.e2e-spec.ts`, mas a verificação da
+etapa roda só este arquivo (`-t "unidade"`), e sem isso `GET /units` não
+teria raiz para montar.
+
+2026-09-12 — etapa 3 — `UsersModule` (`GET /users?search=` por `ILIKE` em
+`name`/`email`, `PATCH /users/:id/role`) registrado em `ROUTE_MODULES`;
+`UsersRepository.demote` decide sob `SELECT ... FOR UPDATE` nas linhas `role =
+'ADMIN'` antes de aceitar uma despromoção, e `LastAdminError` (409) é o que
+ela produz quando a despromoção zeraria a administração (M3/D6); `GET /me`
+ganhou `organization: { id, name }` (nome buscado na unidade raiz, já que
+`Organization` não guarda nome desde a etapa 1) e `units: { id, name, path
+}[]` a partir de `UnitMembership` + `UnitClosure`, por um `MeRepository` novo
+— `MeController`/`MeService` não tocavam banco antes e passam a depender dele
+só para isso; contrato regenerado com os quatro módulos das etapas 1–3 em
+`apps/api/openapi.json` e no cliente de `apps/web/src/shared/api/generated/`
+— o que foi diferente do texto do plano: (1) a prosa da seção "API" descreve
+`GET /me` trocando um campo `organization: { id, name }` que esta base nunca
+teve (o `/me` da etapa 2 já nasceu só com `{ id, name, email, role }`, sem
+organização) — sem tabela para essa rota arbitrar o contrato, mantive o
+formato `{ id, name }` descrito na prosa e decidi que `id` seguisse sendo o
+`id` de `Organization` (inalterado) e só a fonte do `name` mudasse para a
+unidade raiz, que é a única leitura possível da frase "troca organization:
+{ id, name } para buscar name na unidade raiz"; (2) a verificação da etapa,
+como o plano escreve, derruba `installation.e2e-spec.ts` por corrida: `-t
+"administrador"` também bate no teste "abre sessão do primeiro administrador"
+daquele arquivo, e sem `--runInBand` os dois arquivos sobem em workers
+paralelos e disputam a mesma instalação única (D8); com
+`NODE_OPTIONS=--experimental-vm-modules` (mesmo motivo da etapa 1) e
+`--runInBand` acrescentados, o comando sai 0; (3) `apps/api/test/users.e2e-spec.ts`
+drena todas as outras administradoras antes de testar `LAST_ADMIN` — a regra
+é da instância inteira (M3), e os outros arquivos da suíte também criam
+administradoras, então o teste precisa zerar as que não é a sua para o
+cenário ficar determinístico; (4) `apps/api/test/me.e2e-spec.ts` (etapa 2)
+comparava `GET /me` por igualdade estrita com o formato antigo — ajustado ao
+novo, porque `GET /me` agora depende da instalação já ter ocorrido.
+
+2026-09-12 — etapa 4 — `apps/web/src/features/auth/`: `InstalacaoForm`
+(código, nome da empresa, nome, e-mail, senha; 403 `INSTALLATION_CODE_INVALID`
+vira aviso no campo, 409 `INSTALLATION_ALREADY_DONE` navega para `/entrar`
+como já pronto, sucesso navega para `/organizacao`) substitui `CriarContaForm`
+e `registrar.ts`; `useOrganizacaoStatus` (`GET /organization`) decide, em
+`CriarContaRoute`, entre mostrar o formulário e `<Navigate>` para `/entrar`
+sem pisca-pisca; `EntrarRoute` perde o link de cadastro e ganha a faixa
+`role="status"` com `location.state?.mensagem`. `apps/web/src/features/
+organization/` nasce com a api completa da tabela do plano (`get-me`,
+`get-units-tree`, `get`/`create`/`delete-unit-type`, `create`/`rename`/
+`delete-unit`, `add`/`remove-unit-member`, `search-users`,
+`update-user-role`, `erros.ts` para ler `code` de `ApiError.data`), os hooks
+(`useMe`, `useOrganization` — só a `queryFn` mudou, agora lê `GET /me` e
+seleciona `organization.name`, mesma chave de `useMe` para compartilhar
+cache —, `useUnitsTree`, `useUnitTypes`, `useUsersSearch`) e os componentes
+(`ArvoreDeUnidades`, `UnidadeNo` recursivo com as ações de administração,
+`CriarUnidadeDialog`, `LotarPessoaDialog`, `TiposDeUnidadeDialog`,
+`BlocoInstancia`); `OrganizacaoRoute` lê `useMe().role` uma vez e passa
+`isAdmin` para a árvore, só renderizando o diálogo de tipos e o bloco
+"Instância" para quem administra. `LotacoesLista` (em `features/conta`, lendo
+`useMe` pelo barril público de `organization`) e a seção "Onde você está
+lotada" em `/perfil`. Hotsite: os dois `ButtonLink` de `pricing.tsx` passam a
+`ROTA_DE_ENTRADA` (o primeiro troca o rótulo "Criar conta" por "Entrar"; o
+segundo, "Assinar o Time", não continha o texto "Criar conta" e manteve o
+rótulo, só a `href`); `ROTA_DE_CADASTRO` sai de `lib/app-url.ts`. A etiqueta
+"Dados de exemplo" ao lado do nome da organização sai de `barra-lateral.tsx`
+— o nome agora é real (`GET /me`) —, e com ela `EXEMPLO_ORGANIZACAO`/
+`ExampleOrganization` saem de `shared/example-data/folioteca.ts`, órfãos sem
+nenhum outro consumidor; a etiqueta ao lado de "Espaços" continua, porque a
+árvore de espaços é exemplo até o plano 05. — o que foi diferente do texto do
+plano: (1) `pricing.tsx` tem duas chamadas a `ROTA_DE_CADASTRO`, mas
+`closing.tsx` (seção de fechamento da home, fora da lista "os dois
+ButtonLink") também importava a mesma constante — apagar `ROTA_DE_CADASTRO`
+sem tocar `closing.tsx` derrubava o build do hotsite; troquei só o `href`
+daquele terceiro botão para `ROTA_DE_ENTRADA`, sem mudar o texto "Começar
+grátis" (redesenhar copy do hotsite é plano 13); (2) a raiz não ganhou botão
+"Apagar" em `UnidadeNo` — a API sempre recusa com 422
+`ROOT_UNIT_NOT_DELETABLE` (regra 7), e a lista de ações "por unidade" da
+seção "Telas" não nomeia essa exceção; decidi esconder o botão cujo clique
+nunca poderia ter sucesso, em vez de deixá-lo visível só para sempre
+responder erro; (3) a "Verificação da etapa", como o plano escreve
+(`-t "unidade-no"`), casa zero testes — os nomes de `describe`/`it` seguem o
+padrão já usado por todo outro arquivo de teste do repositório (nome do
+componente em PascalCase, ex.: "UnidadeNo — contrato"), sem o hífen literal
+do nome do arquivo, e o filtro de nome do Vitest não alcança arquivo nenhum
+por esse caminho; o comando sai 0 por não ter rodado teste nenhum (`43
+skipped`), não por tê-los passado. Corrigido para `-t "UnidadeNo"` — aí os 8
+testes do arquivo rodam e passam — e a linha da "Verificação da etapa" já
+está com o texto corrigido acima.
+
+2026-09-12 — etapa 5 — `e2e/instalacao.setup.ts` (projeto `setup`) instala a
+administradora pelo `POST /installation` de verdade (cai para autenticar com
+a mesma senha se a instância já estiver instalada — reexecução local sem
+`banco-limpo.sh` entre elas) e semeia a pessoa `MEMBER` chamando
+`apps/api/scripts/seed-e2e-member.ts`, que os dois `storageState`
+(`e2e/.auth/{admin,membro}.json`); `e2e/apoio/pessoas.ts` com os dados fixos
+das duas; `e2e/apoio/sessao.ts` (dublê) passa a responder também `/me`
+(role `ADMIN`, para o bloco "Instância" que `health.spec.ts` mede),
+`/units`, `/unit-types`, `/users`, `/organization`; três specs novos
+(`organizacao-admin.spec.ts`, `organizacao-membro.spec.ts`,
+`cadastro-fechado.spec.ts`) com os nomes de teste literais do plano. — o que
+foi diferente do texto do plano: (1) **a reconciliação com o plano 02, que o
+corpo da tarefa pede e os bullets de "Escopo exato" não nomeiam por
+inteiro**: `apps/web/e2e/setup/autenticar.setup.ts` (criava conta por
+`/criar-conta` pública, confirmava pelo Mailpit) foi apagado por inteiro — o
+cadastro público fechou (M2) e aquele caminho não existe mais —, e
+`e2e/apoio/contas.ts` manteve os nomes exportados
+`ARQUIVO_DONA_DO_DOCUMENTO`/`ARQUIVO_OUTRA_PESSOA`, só apontando os dois para
+`admin.json`/`membro.json`; `documentos.spec.ts` (plano 02) não mudou uma
+linha, e os 5 casos dele continuam verdes na mesma subida dos specs novos —
+a administradora dobra como "dona do documento" e a pessoa membro como
+"outra pessoa", em vez de quatro contas paralelas. `scripts/e2e/relatorio.sh`
+(`arvore_atual()`) e `.gitignore` seguiram a mudança de
+`e2e/setup/.auth/` para `e2e/.auth/`; (2) **semear a pessoa `MEMBER` "direto
+no banco"** não tem rota HTTP (`/sign-up/email` está desabilitado por
+`disabledPaths`, M2) — `apps/api/scripts/seed-e2e-member.ts`, script novo
+(não nomeado no plano; irmão de `scripts/generate-openapi.ts`, que já existia
+por motivo parecido), usa `@prisma/adapter-pg` + `better-auth` isolados
+(sem NestJS) só para `auth.$context.password.hash` e grava `User`+`Account`
+com o mesmo par issuer/providerId que `InstallationRepository` usa (M2/D5);
+`apps/api/package.json` ganhou o script `e2e:seed-member` só de
+conveniência — `instalacao.setup.ts` chama `pnpm --filter api exec ts-node
+--transpile-only scripts/seed-e2e-member.ts <nome> <email> <senha>`
+diretamente, porque `pnpm --filter api run <script> -- <args>` insere um `--`
+literal na linha de comando encaminhada (medido: a senha se perdia,
+`process.argv` chegava como `["--", nome, email]`, sem a senha —
+`pnpm ... exec ts-node ... <args>`, sem `run`/`--`, encaminha os argumentos
+como vieram); (3) a rota de sign-in real é `POST /api/auth/sign-in/email`
+(better-auth, `formCsrfMiddleware`) — chamada direta por `page.request.post`
+sem cabeçalho `Origin`/`Referer` nem `Sec-Fetch-*` passa sem bloqueio de CSRF,
+o mesmo caminho que a instalação já usava; (4) `organizacao-admin.spec.ts`
+precisou desambiguar a linha da pessoa já lotada do resto do resultado de
+busca que `LotarPessoaDialog` deixa no DOM, escondido mas não desmontado, ao
+fechar (o diálogo não é portalado para fora do `<li>` da própria unidade) —
+a asserção final usa a presença do botão "Desalojar" (que só existe na linha
+de quem já está lotada) para escolher entre os dois `<li>` que casam com o
+nome da pessoa.
+
+2026-09-12 — etapa final — capturas em
+`docs/refactor/03-estrutura-organizacional/capturas/` (20 arquivos: 5 rotas ×
+2 larguras × 2 temas) geradas estendendo `apps/web/scripts/capturas.ts`
+(generalizado `novaPaginaComSessaoReal`/`capturarRotaComSessaoReal` para
+aceitar `storageState`/pasta de saída como parâmetro, em vez de fixos na
+dona do documento); `/criar-conta` "instalação" usa `page.route` para
+simular `GET /organization` como `SETUP_PENDING` (a instância contra a qual
+as capturas rodam já foi instalada pelo `setup` da suíte, e não há como
+voltar a esse estado sem recriar o banco), e a estrutura de
+`/organizacao`/`/perfil` (um tipo, uma unidade filha, a pessoa membro lotada)
+nasce de um seed próprio do script, idempotente (tenta criar, cai para achar
+pelo nome se já existir), pelas mesmas duas pessoas do `setup`;
+`roteiro-manual.md` com os cinco passos do plano, mais uma seção "O que
+também vale conferir" (`/perfil`, `UNIT_NOT_EMPTY`, `LAST_ADMIN`, 375px/tema
+escuro); `bash scripts/gates/gates_runner.sh` saiu com 0. — o que foi
+diferente do texto do plano: (1) duas capturas ("Produto") ficaram presas
+num `waitFor` que nunca resolvia — `getByText("Produto")` (busca de texto
+não diferencia caixa) também casa com o título `sr-only` da gaveta de
+navegação mobile ("Destinos do produto"), sempre no DOM mesmo fechada, e
+`.first()` prendia a espera nesse elemento para sempre oculto; corrigido
+escopando a `<main>` (`page.getByRole("main").getByText(...)`), o mesmo
+ajuste que `organizacao-membro.spec.ts` já precisou para o nome da
+organização colidir com o link da barra lateral; (2) a captura
+`perfil-lotacoes` mostrava só Nome/Senha/E-mail — a seção "Onde você está
+lotada" é a última da página e a captura é só do viewport (sem
+`fullPage: true`); corrigido com `scrollIntoViewIfNeeded()` no trecho
+localizado antes do `screenshot()`; (3) rodar `capturas.ts` por inteiro
+regenerou também as capturas dos planos 01 e 02 (mesmo conteúdo visual,
+PNGs recodificados) — efeito colateral inerente ao script ser um só para os
+três planos, não uma escolha desta etapa; (4) o critério estrutural
+`rg -c "organizationId" apps/api/prisma/schema.prisma imprime 0` não bate
+literalmente com `rg`: em zero ocorrências `rg -c` não imprime nada (sai 1),
+diferente de `grep -c`, que imprimiria `0` (saindo 1 também) — a ausência de
+saída é a mesma informação ("zero ocorrências"), e o critério foi marcado
+`[x]` por isso, com a diferença anotada ao lado dele.

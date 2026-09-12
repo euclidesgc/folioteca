@@ -221,6 +221,10 @@ jobs:
           # morre com o job — valor fixo aqui seria segredo versionado, e o
           # mesmo valor entre execuções daria a duas medições a mesma assinatura.
           echo "BETTER_AUTH_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          # O código de instalação segue a mesma razão da chave de sessão:
+          # exigido pelo schema em todo ambiente (M2), nasce por execução e
+          # morre com o job.
+          echo "INSTALLATION_CODE=$(openssl rand -hex 16)" >> "$GITHUB_ENV"
       # `dest` fora do HOME, e isto não é preferência: os runners desta casa são
       # quatro processos na MESMA máquina, com o MESMO `$HOME`. O padrão da ação é
       # `~/setup-pnpm`, então dois jobs simultâneos instalam e apagam o mesmo

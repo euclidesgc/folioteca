@@ -3,18 +3,40 @@ import {
   type CollectionItem,
   type SelectRootProps,
 } from "@ark-ui/react";
-import type { ComponentProps } from "react";
+import {
+  createContext,
+  useContext,
+  useId,
+  useMemo,
+  type ComponentProps,
+} from "react";
 import { cn } from "@/shared/lib/cn";
+
+interface SelectFieldContextValue {
+  errorId: string;
+  invalid: boolean;
+}
+
+const SelectFieldContext = createContext<SelectFieldContextValue | null>(null);
 
 function Root<T extends CollectionItem>({
   className,
+  invalid = false,
   ...props
 }: SelectRootProps<T>) {
+  const id = useId();
+  const value = useMemo<SelectFieldContextValue>(
+    () => ({ errorId: `${id}-error`, invalid: Boolean(invalid) }),
+    [id, invalid],
+  );
   return (
-    <ArkSelect.Root
-      className={cn("flex flex-col gap-2", className)}
-      {...props}
-    />
+    <SelectFieldContext.Provider value={value}>
+      <ArkSelect.Root
+        invalid={invalid}
+        className={cn("flex flex-col gap-2", className)}
+        {...props}
+      />
+    </SelectFieldContext.Provider>
   );
 }
 
@@ -41,8 +63,10 @@ function Trigger({
   className,
   ...props
 }: ComponentProps<typeof ArkSelect.Trigger>) {
+  const contexto = useContext(SelectFieldContext);
   return (
     <ArkSelect.Trigger
+      aria-describedby={contexto?.invalid ? contexto.errorId : undefined}
       className={cn(
         "flex h-10 w-full items-center justify-between gap-2 rounded-padrao border border-fio bg-papel px-4 text-base text-tinta hover:bg-fio",
         className,
@@ -98,6 +122,24 @@ function HiddenSelect(props: ComponentProps<typeof ArkSelect.HiddenSelect>) {
   return <ArkSelect.HiddenSelect {...props} />;
 }
 
+function ErrorText({
+  className,
+  ...props
+}: ComponentProps<"p">) {
+  const contexto = useContext(SelectFieldContext);
+  if (!contexto) {
+    throw new Error("Select.Error precisa estar dentro de Select.Root");
+  }
+  return (
+    <p
+      id={contexto.errorId}
+      role="alert"
+      className={cn("text-sm text-carimbo", className)}
+      {...props}
+    />
+  );
+}
+
 export const Select = {
   Root,
   Label,
@@ -109,4 +151,5 @@ export const Select = {
   Item,
   ItemText,
   HiddenSelect,
+  Error: ErrorText,
 };

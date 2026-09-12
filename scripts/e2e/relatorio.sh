@@ -36,7 +36,7 @@ _reprova() {
 # hash abaixo cobre o que a suíte enxerga — o app e os próprios casos —, e muda
 # a cada alteração deles, versionada ou não.
 #
-# motivo: `apps/web/e2e/setup/.auth/` é o `storageState` que o próprio projeto
+# motivo: `apps/web/e2e/.auth/` é o `storageState` que o próprio projeto
 # `setup` escreve a cada execução (token e validade de uma sessão nova, nunca
 # os mesmos dois bytes) — sem excluí-lo, a árvore "antes" e a árvore "depois"
 # da mesma subida nunca seriam iguais, e _exige_relatorio_da_arvore reprovaria
@@ -44,7 +44,7 @@ _reprova() {
 arvore_atual() {
   find apps/web/src apps/web/e2e apps/web/index.html apps/web/vite.config.ts \
        apps/web/playwright.config.ts packages/tema/src -type f \
-       -not -path '*/e2e/setup/.auth/*' 2>/dev/null |
+       -not -path '*/e2e/.auth/*' 2>/dev/null |
     LC_ALL=C sort |
     xargs -r sha256sum 2>/dev/null |
     sha256sum |

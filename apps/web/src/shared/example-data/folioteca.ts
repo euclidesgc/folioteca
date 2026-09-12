@@ -1,7 +1,3 @@
-export type ExampleOrganization = {
-  name: string;
-};
-
 export type ExampleSpaceKind = "unit" | "free";
 
 export type ExampleSpace = {
@@ -10,10 +6,6 @@ export type ExampleSpace = {
   parentId: string | null;
   kind: ExampleSpaceKind;
   restricted: boolean;
-};
-
-export const EXEMPLO_ORGANIZACAO: ExampleOrganization = {
-  name: "Arcabouço Tecnologia",
 };
 
 export const EXEMPLO_ESPACOS: ExampleSpace[] = [

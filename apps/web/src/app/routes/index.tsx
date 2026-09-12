@@ -18,6 +18,7 @@ import { FavoritosRoute } from "./favoritos";
 import { LixeiraRoute } from "./lixeira";
 import { PesquisaRoute } from "./pesquisa";
 import { OrganizacaoRoute } from "./organizacao";
+import { ConviteRoute } from "./convite";
 import { EntrarRoute } from "./entrar";
 import { CriarContaRoute } from "./criar-conta";
 import { RecuperarSenhaRoute } from "./recuperar-senha";
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
       { path: "/criar-conta", element: <CriarContaRoute /> },
       { path: CAMINHO_RECUPERAR_SENHA, element: <RecuperarSenhaRoute /> },
       { path: CAMINHO_REDEFINIR_SENHA, element: <RedefinirSenhaRoute /> },
+      { path: "/convite/:token", element: <ConviteRoute /> },
       // motivo: a página viva do sistema de design abre sem sessão e fora do
       // esqueleto — quem não entrou não pode ver a navegação com destinos que não
       // alcança, e a página é a referência visual do projeto.

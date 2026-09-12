@@ -8,3 +8,21 @@ export type {
   DocumentSummaryDto,
   DocumentTrashStateDto,
 } from "./generated/types.gen";
+export type {
+  CreateUnitDto,
+  CreateUnitTypeDto,
+  InstallationDto,
+  MeResponse,
+  MeUnitDto,
+  OrganizationStatusDto,
+  UnitDto,
+  UnitTypeDto,
+  UserDto,
+  UserRoleDto,
+} from "./generated/types.gen";
+export type {
+  AcceptInvitationDto,
+  CreateInvitationDto,
+  InvitationResponseDto,
+  PublicInvitationDto,
+} from "./generated/types.gen";
