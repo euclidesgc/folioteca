@@ -4,7 +4,6 @@ import { APP_FILTER, APP_PIPE } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { environmentSchema } from './config/environment.schema';
 import { HealthModule } from './health/health.module';
-import { AccountModule } from './account/account.module';
 import { AuthModule } from './auth/auth.module';
 import { DomainExceptionFilter } from './common/errors/domain-exception.filter';
 import { MailModule } from './mail/mail.module';
@@ -22,7 +21,6 @@ import { ROUTE_MODULES } from './route-modules';
     PrismaModule,
     MailModule,
     AuthModule,
-    AccountModule,
     HealthModule,
     ...ROUTE_MODULES,
   ],

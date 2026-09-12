@@ -1,6 +1,6 @@
 # 03 — Estrutura organizacional
 
-**Status:** [ ] não iniciado · [ ] em andamento · [ ] entregue
+**Status:** [ ] não iniciado · [x] em andamento · [ ] entregue
 **Branch:** `feat/03-estrutura-organizacional` a partir de `develop` · **PR:** —
 **Depende de:** 01 (Layout e navegação); 02 (Documento e editor), pela fundação
 que entrega — guarda de sessão, `GET /me`, filtro de erro, Testcontainers.
@@ -240,29 +240,29 @@ administra recebe 403 do servidor, nunca só um botão escondido (M20).
 ## Etapas
 
 ### Etapa 1 — Instalação: esquema, ambiente e a rota que substitui o cadastro
-- [ ] Ler: `apps/api/prisma/schema.prisma`, `apps/api/src/account/**`,
+- [x] Ler: `apps/api/prisma/schema.prisma`, `apps/api/src/account/**`,
       `apps/api/src/auth/auth.factory.ts`, `apps/api/src/config/environment.schema.ts`,
       `.claude/skills/nest-errors-filters/templates/*.ts`, `docs/setup-secrets.md`
-- [ ] Migration `estrutura_organizacional`: `Organization` singleton + CHECK,
+- [x] Migration `estrutura_organizacional`: `Organization` singleton + CHECK,
       `Unit` raiz, `UnitType`, `UnitClosure` com os dois gatilhos,
       `UnitMembership`; backfill descrito em "Modelo de dados"
-- [ ] `INSTALLATION_CODE` em `environment.schema.ts` (`Joi.string().min(16).required()`),
+- [x] `INSTALLATION_CODE` em `environment.schema.ts` (`Joi.string().min(16).required()`),
       `environment-variables.ts`, `.env.example` (com o comentário de onde vem:
       gerado no provisionamento, uma vez por instância, nunca reaproveitado
       entre `hml` e `prod`), `docs/setup-secrets.md` (linha nova, segredo: sim),
       e nota em `docs/DEPLOY.md` de que é variável de runtime da API no
       Coolify, como `BETTER_AUTH_SECRET`
-- [ ] `apps/api/src/installation/{installation.module,controller,service,repository}.ts`,
+- [x] `apps/api/src/installation/{installation.module,controller,service,repository}.ts`,
       `dto/installation.dto.ts`; apaga `apps/api/src/account/**`; comparação do
       código em tempo constante (`crypto.timingSafeEqual`)
-- [ ] Erros de domínio `apps/api/src/installation/installation.errors.ts`:
+- [x] Erros de domínio `apps/api/src/installation/installation.errors.ts`:
       `InstallationCodeInvalidError extends ForbiddenError`,
       `InstallationAlreadyDoneError extends ConflictError`
-- [ ] Registra `InstallationModule` em `ROUTE_MODULES`
-- [ ] Teste: `apps/api/test/installation.e2e-spec.ts` — "instala a instância com
+- [x] Registra `InstallationModule` em `ROUTE_MODULES`
+- [x] Teste: `apps/api/test/installation.e2e-spec.ts` — "instala a instância com
       o código certo e abre sessão do primeiro administrador", "recusa o
       código de instalação errado", "recusa a segunda instalação"
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "instala"` sai com 0
+- [x] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "instala"` sai com 0
 
 ### Etapa 2 — Árvore de unidades, tipos e lotação (API)
 - [ ] Ler: `apps/api/src/account/account.repository.ts` (padrão de transação),
@@ -447,4 +447,30 @@ administra recebe 403 do servidor, nunca só um botão escondido (M20).
 
 ## Andamento
 
-_Sem execução ainda._
+2026-09-12 — etapa 1 — migration `20260912111419_estrutura_organizacional`
+(`Organization` singleton+CHECK, `UnitType`, `Unit` com CHECK de par
+raiz/pai/tipo e os dois gatilhos, `UnitClosure`, `UnitMembership`, backfill da
+organização mais antiga para a unidade raiz); `INSTALLATION_CODE` validado no
+boot; `InstallationModule` (`GET /organization`, `POST /installation`) com
+hash/issuer de conta local por `auth.$context`/`@better-auth/core` (D5), sem
+chamada a `signUpEmail`; `apps/api/src/account/**` apagado — o que foi
+diferente do texto do plano: (1) a família `ForbiddenError`/`ConflictError`
+não existia em `common/errors/domain-error.ts` (só havia `status` por
+classe); acrescentadas como classes abstratas com `status` fixo, sem alterar
+os erros já existentes; (2) `@better-auth/core` precisou virar dependência
+declarada de `apps/api/package.json` (estava só transitiva via `better-auth`,
+e `apps/api/node_modules` não a resolve sem isso) — versão `1.7.2`, a mesma já
+resolvida no lockfile, sem baixar pacote novo; (3) `apps/api/test/apoio/sessao.ts`
+não dependia mais de `AccountRepository` (apagado) — passou a criar a pessoa
+de teste sozinha, sem organização, com papel opcional (`ADMIN`/`MEMBER`),
+porque `Organization` virou singleton e instalar a cada sessão de teste
+colidiria com a própria instalação única; (4) `apps/api/scripts/generate-openapi.ts`
+precisou de um dublê de `ConfigService` no `PrismaStubModule` — sem ele,
+`InstallationService` (que lê `INSTALLATION_CODE`) derruba
+`pnpm --filter api run openapi:generate` em silêncio (`abortOnError`/`logger:
+false` do Nest escondem o erro), o que quebraria o job "Contrato" do CI na
+primeira vez que `InstallationModule` entrasse em `ROUTE_MODULES`; (5) o
+comando de verificação da etapa, como o plano escreve, só sai 0 com
+`NODE_OPTIONS=--experimental-vm-modules` (exigência pré-existente de
+`better-auth/node`, já presente nos scripts `test`/`test:integration` do
+`package.json`, mas ausente do comando literal do plano).

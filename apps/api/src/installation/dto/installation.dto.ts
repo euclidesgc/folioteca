@@ -1,15 +1,19 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsEmail, IsString, Length, MaxLength, MinLength } from "class-validator";
 import { Transform } from "class-transformer";
+import { IsEmail, IsString, Length, MaxLength, MinLength } from "class-validator";
 
-export class RegisterDto {
-  @ApiProperty({ description: "Nome de quem se cadastra." })
+export class InstallationDto {
+  @ApiProperty({ description: "Código de instalação gerado no provisionamento." })
+  @IsString()
+  installationCode!: string;
+
+  @ApiProperty({ description: "Nome de quem instala e se torna a primeira administradora." })
   @IsString()
   @Transform(({ value }: { value: string }) => value?.trim())
   @Length(1, 120)
   name!: string;
 
-  @ApiProperty({ description: "Nome da empresa, que nomeia a organização criada." })
+  @ApiProperty({ description: "Nome da empresa, que nomeia a unidade raiz." })
   @IsString()
   @Transform(({ value }: { value: string }) => value?.trim())
   @Length(1, 120)

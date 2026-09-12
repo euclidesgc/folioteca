@@ -1,6 +1,7 @@
 import { environmentSchema } from "./environment.schema";
 
 const BETTER_AUTH_SECRET = "a".repeat(32);
+const INSTALLATION_CODE = "b".repeat(16);
 
 describe("environmentSchema", () => {
   it("deve reprovar NODE_ENV fora do domínio development, test ou production", () => {
@@ -9,6 +10,7 @@ describe("environmentSchema", () => {
         NODE_ENV: "staging",
         DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
         BETTER_AUTH_SECRET,
+        INSTALLATION_CODE,
       },
       { abortEarly: false, allowUnknown: true },
     );
@@ -24,6 +26,7 @@ describe("environmentSchema", () => {
           NODE_ENV: nodeEnv,
           DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
           BETTER_AUTH_SECRET,
+          INSTALLATION_CODE,
           WEB_ORIGIN: "https://app.folioteca.com",
         },
         { abortEarly: false, allowUnknown: true },
@@ -39,6 +42,7 @@ describe("environmentSchema", () => {
         NODE_ENV: "production",
         DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
         BETTER_AUTH_SECRET,
+        INSTALLATION_CODE,
       },
       { abortEarly: false, allowUnknown: true },
     );
@@ -55,6 +59,7 @@ describe("environmentSchema", () => {
         NODE_ENV: "production",
         DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
         BETTER_AUTH_SECRET,
+        INSTALLATION_CODE,
         WEB_ORIGIN: "https://app.folioteca.exemplo",
       },
       { abortEarly: false, allowUnknown: true },
@@ -71,6 +76,7 @@ describe("environmentSchema", () => {
           NODE_ENV: nodeEnv,
           DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
           BETTER_AUTH_SECRET,
+          INSTALLATION_CODE,
         },
         { abortEarly: false, allowUnknown: true },
       );
@@ -87,6 +93,7 @@ describe("environmentSchema", () => {
         PORT: "3000",
         DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
         BETTER_AUTH_SECRET,
+        INSTALLATION_CODE,
       },
       { abortEarly: false, allowUnknown: true },
     );
@@ -101,6 +108,7 @@ describe("environmentSchema", () => {
         NODE_ENV: "development",
         DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
         BETTER_AUTH_SECRET,
+        INSTALLATION_CODE,
       },
       { abortEarly: false, allowUnknown: true },
     );
@@ -115,6 +123,7 @@ describe("environmentSchema", () => {
         NODE_ENV: "development",
         DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
         BETTER_AUTH_SECRET,
+        INSTALLATION_CODE,
       },
       { abortEarly: false, allowUnknown: true },
     );
@@ -129,6 +138,7 @@ describe("environmentSchema", () => {
         NODE_ENV: "development",
         DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
         BETTER_AUTH_SECRET,
+        INSTALLATION_CODE,
         WEB_ORIGIN: "http://localhost:5173,https://app.folioteca.com",
       },
       { abortEarly: false, allowUnknown: true },
@@ -146,6 +156,7 @@ describe("environmentSchema", () => {
         NODE_ENV: "development",
         DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
         BETTER_AUTH_SECRET,
+        INSTALLATION_CODE,
         WEB_ORIGIN: "http://localhost:5173,not-a-uri",
       },
       { abortEarly: false, allowUnknown: true },
@@ -162,6 +173,7 @@ describe("environmentSchema", () => {
         NODE_ENV: "development",
         DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
         BETTER_AUTH_SECRET,
+        INSTALLATION_CODE,
         WEB_ORIGIN: "not-a-uri",
       },
       { abortEarly: false, allowUnknown: true },
@@ -178,6 +190,7 @@ describe("environmentSchema", () => {
         NODE_ENV: "development",
         DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
         BETTER_AUTH_SECRET,
+        INSTALLATION_CODE,
         WEB_ORIGIN: "https://app.folioteca.com/",
       },
       { abortEarly: false, allowUnknown: true },
@@ -193,6 +206,7 @@ describe("environmentSchema", () => {
         NODE_ENV: "development",
         DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
         BETTER_AUTH_SECRET,
+        INSTALLATION_CODE,
         WEB_ORIGIN: "https://app.folioteca.com/path",
       },
       { abortEarly: false, allowUnknown: true },
@@ -208,6 +222,7 @@ describe("environmentSchema", () => {
         NODE_ENV: "development",
         DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
         BETTER_AUTH_SECRET,
+        INSTALLATION_CODE,
         WEB_ORIGIN: "javascript:alert(1)",
       },
       { abortEarly: false, allowUnknown: true },
@@ -223,6 +238,7 @@ describe("environmentSchema", () => {
         NODE_ENV: "development",
         DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
         BETTER_AUTH_SECRET,
+        INSTALLATION_CODE,
         WEB_ORIGIN: " , ,",
       },
       { abortEarly: false, allowUnknown: true },
@@ -238,6 +254,7 @@ describe("environmentSchema", () => {
         NODE_ENV: "development",
         DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
         BETTER_AUTH_SECRET,
+        INSTALLATION_CODE,
         WEB_ORIGIN: "https://app.folioteca.com",
       },
       { abortEarly: false, allowUnknown: true },
@@ -248,7 +265,12 @@ describe("environmentSchema", () => {
 
   it('deve reprovar com a mensagem "DATABASE_URL is required" quando só DATABASE_URL falta', () => {
     const { error } = environmentSchema.validate(
-      { NODE_ENV: "development", PORT: "3000", BETTER_AUTH_SECRET },
+      {
+        NODE_ENV: "development",
+        PORT: "3000",
+        BETTER_AUTH_SECRET,
+        INSTALLATION_CODE,
+      },
       { abortEarly: false, allowUnknown: true },
     );
 
@@ -260,7 +282,7 @@ describe("environmentSchema", () => {
 
   it('deve reprovar com as mensagens "NODE_ENV is required" e "DATABASE_URL is required" quando as duas faltam', () => {
     const { error } = environmentSchema.validate(
-      { PORT: "3000", BETTER_AUTH_SECRET },
+      { PORT: "3000", BETTER_AUTH_SECRET, INSTALLATION_CODE },
       { abortEarly: false, allowUnknown: true },
     );
 
@@ -271,7 +293,7 @@ describe("environmentSchema", () => {
     expect(messages).toHaveLength(2);
   });
 
-  it("deve declarar exatamente as onze chaves de configuração", () => {
+  it("deve declarar exatamente as doze chaves de configuração", () => {
     const described = environmentSchema.describe() as {
       keys?: Record<string, unknown>;
     };
@@ -279,6 +301,7 @@ describe("environmentSchema", () => {
       "API_URL",
       "BETTER_AUTH_SECRET",
       "DATABASE_URL",
+      "INSTALLATION_CODE",
       "MAIL_FROM",
       "NODE_ENV",
       "PORT",
@@ -296,6 +319,7 @@ describe("environmentSchema", () => {
         NODE_ENV: "development",
         DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
         BETTER_AUTH_SECRET: "curto-demais",
+        INSTALLATION_CODE,
       },
       { abortEarly: false, allowUnknown: true },
     );
@@ -311,6 +335,7 @@ describe("environmentSchema", () => {
       {
         NODE_ENV: "development",
         DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
+        INSTALLATION_CODE,
       },
       { abortEarly: false, allowUnknown: true },
     );
@@ -318,6 +343,39 @@ describe("environmentSchema", () => {
     expect(error).toBeDefined();
     expect(error?.details.map((detail) => detail.message)).toContain(
       "BETTER_AUTH_SECRET is required",
+    );
+  });
+
+  it("deve reprovar INSTALLATION_CODE com menos de 16 caracteres", () => {
+    const { error } = environmentSchema.validate(
+      {
+        NODE_ENV: "development",
+        DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
+        BETTER_AUTH_SECRET,
+        INSTALLATION_CODE: "curto-demais",
+      },
+      { abortEarly: false, allowUnknown: true },
+    );
+
+    expect(error).toBeDefined();
+    expect(error?.details.map((detail) => detail.type)).toContain(
+      "string.min",
+    );
+  });
+
+  it("deve reprovar quando INSTALLATION_CODE não é informado", () => {
+    const { error } = environmentSchema.validate(
+      {
+        NODE_ENV: "development",
+        DATABASE_URL: "postgresql://user:pass@localhost:5433/db",
+        BETTER_AUTH_SECRET,
+      },
+      { abortEarly: false, allowUnknown: true },
+    );
+
+    expect(error).toBeDefined();
+    expect(error?.details.map((detail) => detail.message)).toContain(
+      "INSTALLATION_CODE is required",
     );
   });
 });
