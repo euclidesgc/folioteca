@@ -2,7 +2,10 @@
 // convite, nem para quem administra — só o e-mail o carrega. Esta é a única
 // porta de teste para obtê-lo, lendo o Mailpit que o `docker-compose.yml`
 // sobe na porta 8025.
-const MAILPIT_BASE_URL = "http://127.0.0.1:8025";
+// motivo: no CI o Mailpit sobe como serviço com porta dinâmica, publicada em
+// MAILPIT_HTTP_PORT; na máquina de desenvolvimento não há essa variável, e o
+// docker-compose.yml publica a porta fixa 8025.
+const MAILPIT_BASE_URL = `http://127.0.0.1:${process.env.MAILPIT_HTTP_PORT ?? 8025}`;
 
 type MailpitSearchResponse = {
   messages: Array<{ ID: string }>;

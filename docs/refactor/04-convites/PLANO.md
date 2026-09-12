@@ -631,3 +631,17 @@ nos dois pontos de chamada que a reproduziam. Teste novo em
 `apps/web/src/shared/components/ui/select.test.tsx`: "o erro do select é
 anunciado pelo campo, não só pintado ao lado" (mais dois casos de contrato —
 resting sem `aria-describedby`, e o `throw` fora de `Select.Root`).
+
+2026-09-12 — correção pós-entrega — `apps/web/e2e/convites.spec.ts` falhava no
+CI porque `apps/web/e2e/apoio/correio.ts` fixava o Mailpit em
+`http://localhost:8025`, e no CI o serviço sobe com porta dinâmica publicada
+em `MAILPIT_HTTP_PORT` (o mesmo defeito que `apps/web/e2e/apoio/mailpit.ts`,
+do plano 02, já resolvia para a confirmação de e-mail). Juntei `correio.ts`
+dentro de `mailpit.ts` — que passa a exportar também `linkDoConvite`, ao lado
+de `linkDeConfirmacao` — e apaguei `correio.ts`; `convites.spec.ts` e
+`apps/web/scripts/capturas.ts` (achado por `rg`, fora da pasta `e2e/`) agora
+importam de `./apoio/mailpit`. `apps/web/e2e/instalacao.setup.ts` não
+importava nenhum dos dois — não precisou de ajuste. `apps/api/test/apoio/
+correio.ts` (arquivo irmão, de nome igual mas pasta diferente, que fica onde
+está por ser da suíte da API) ganhou a mesma queda de `MAILPIT_HTTP_PORT`
+para 8025, comentada no mesmo formato que o arquivo já usava.

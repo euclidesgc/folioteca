@@ -23,7 +23,7 @@ import {
   type Page,
 } from "@playwright/test";
 import { ARQUIVO_ADMIN, ARQUIVO_DONA_DO_DOCUMENTO, ARQUIVO_MEMBRO } from "../e2e/apoio/contas.ts";
-import { linkDoConvite } from "../e2e/apoio/correio.ts";
+import { linkDoConvite } from "../e2e/apoio/mailpit.ts";
 import { PESSOA_MEMBRO } from "../e2e/apoio/pessoas.ts";
 import { instalarSessao } from "../e2e/apoio/sessao.ts";
 
@@ -561,7 +561,7 @@ async function capturarConvites(navegador: Browser): Promise<string[]> {
 
   // motivo: a API nunca devolve o token em claro (regra 8 do plano) — o link
   // só existe no corpo do e-mail que `MailService` entrega ao Mailpit, a
-  // mesma leitura que a suíte e2e faz em `e2e/apoio/correio.ts`.
+  // mesma leitura que a suíte e2e faz em `e2e/apoio/mailpit.ts`.
   const link = await linkDoConvite(email);
 
   arquivos.push(
