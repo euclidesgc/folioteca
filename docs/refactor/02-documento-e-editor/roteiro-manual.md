@@ -64,13 +64,16 @@ plano (compartilhamento é dos planos 05 e 06). Tudo que este roteiro cobre
 — documento, favorito, lixeira e o acesso negado — já é real: API de
 verdade, sessão de verdade, conteúdo persistido no Postgres pelo Hocuspocus.
 
-## Risco conhecido, sem correção nesta etapa
+## Risco investigado, não confirmado
 
-Abrir o menu de barra do editor (digitar "/"), a barra de formatação (ao
-selecionar texto) ou a alça de arrastar um bloco pode acusar erro no console
-do navegador — a posição desses elementos flutuantes é escrita em atributo
-de estilo, calculada a cada abertura, e a política de conteúdo do artefato
-(`style-src 'self'`, mais dois hashes para o CSS estático que o editor
-injeta) não cobre valor que muda. Nenhum passo deste roteiro nem nenhum
-teste automatizado desta etapa aciona esses menus; ver "Riscos e decisões em
-aberto" do `PLANO.md` para a decisão em aberto.
+Uma suspeita registrada nesta etapa era que abrir o menu de barra do editor
+(digitar "/"), a barra de formatação ou a alça de arrastar acusaria erro no
+console — os três posicionam-se escrevendo `style=""` com coordenada
+calculada a cada abertura, e a política de conteúdo do artefato (`style-src
+'self'`, mais dois hashes para o CSS estático que o editor injeta) não cobre
+valor que muda. Medido contra o artefato real em
+`apps/web/e2e/documentos.spec.ts` (teste "o menu de barra do editor abre no
+lugar certo, sem violar a política de conteúdo"): o menu abre na posição
+certa e o console fica limpo — React e floating-ui escrevem a posição via
+`CSSStyleDeclaration`, não via `setAttribute`/markup, e só esta última forma
+é o que `style-src` restringe. A política não mudou.

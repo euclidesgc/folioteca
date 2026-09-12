@@ -28,12 +28,14 @@ const SECURITY_HEADERS = {
 // bloqueia e reprova o console limpo da suíte em toda página com editor; o
 // hash é a forma de liberar exatamente este conteúdo conhecido, sem abrir
 // `'unsafe-inline'` — que o portão de política recusa e o CLAUDE.md da raiz
-// proíbe afrouxar. NÃO cobre a posição dos menus flutuantes do editor (menu de
-// barra, barra de formatação, alça de arrastar): esses escrevem `style=""` em
-// atributo, com valor que muda a cada abertura, e hash não alcança valor que
-// muda — nenhum teste hoje os aciona, mas uma interação futura que os abrir
-// volta a reprovar o console, e aí a pergunta é de novo do dono (ver
-// "Riscos e decisões em aberto" do PLANO.md).
+// proíbe afrouxar. Os menus flutuantes do editor (menu de barra, barra de
+// formatação, alça de arrastar) posicionam-se escrevendo `style=""` com
+// coordenada que muda a cada abertura — hash algum cobre isso —, mas medido
+// contra o artefato real (mesmo spec, teste "o menu de barra do editor abre
+// no lugar certo, sem violar a política de conteúdo") eles não violam esta
+// política: React e floating-ui escrevem a posição via propriedades do
+// `CSSStyleDeclaration` (`element.style.top = ...`), não via `setAttribute`
+// nem markup, e só esta última forma é o que `style-src` restringe.
 const ESTILOS_ESTATICOS_DO_EDITOR = [
   "'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU='",
   "'sha256-PlumsSlvJ7vvWzjqibGAYKq92O3y/4JTxWWsWJvyUYA='",

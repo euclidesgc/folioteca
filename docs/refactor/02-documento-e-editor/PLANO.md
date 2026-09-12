@@ -445,30 +445,6 @@ e o editor; quem prova o acesso é sempre `GET /documents/:id`.
 
 ## Riscos e decisões em aberto
 
-- **`style-src` só cobre o BlockNote estático; os menus flutuantes dele
-  continuam incompatíveis com a política.** Achado da etapa 6, medido contra
-  o artefato de verdade: o editor injeta duas folhas `<style>` estáticas a
-  cada montagem (liberadas por hash, sem `'unsafe-inline'`), mas o menu de
-  barra, a barra de formatação e a alça de arrastar escrevem `style=""` em
-  atributo com posição calculada em tempo real — valor que muda a cada
-  abertura, que hash nenhum cobre. Nenhum teste desta etapa os aciona (só
-  digitam texto simples); o plano 08 (comentários ancorados no editor) ou o
-  10 (imagens) são os primeiros candidatos a precisar de um menu flutuante
-  de verdade num teste, e aí a suíte reprova de novo. Não há correção que
-  não seja decisão do dono: **opção A** — `'unsafe-inline'` escopado a
-  `style-src` (nunca a `script-src`/`default-src`), ajustando
-  `scripts/gates/segredo.sh`/`verificar-politica.sh` para recusar o termo
-  só fora de `style-src` e o parágrafo do CLAUDE.md raiz sobre a política
-  (hoje só fala de origem externa de fonte/folha de estilo); custo: abre mão
-  de parte da proteção contra injeção de estilo, risco bem menor que
-  `'unsafe-inline'` em `script-src`, e é o padrão de facto de praticamente
-  todo editor de blocos em produção. **Opção B** — desligar todas as UIs
-  flutuantes do BlockNote (`formattingToolbar`/`linkToolbar`/`slashMenu`/
-  `sideMenu`/`tableHandles`: `false` em `BlockNoteDefaultUIProps`); custo:
-  perde menu de barra, barra de formatação ao selecionar, alça de arrastar —
-  a experiência de editor de blocos que a decisão 3 de `decisoes.md`
-  escolheu o BlockNote para ter. Recomendação: opção A, porque a B devolve
-  seis etapas de trabalho a um editor sem as interações que o justificam.
 - **Sessão no handshake do WebSocket depende de `hml`/`api-hml` continuarem
   sob o mesmo sufixo público (`duckdns.org`).** Um domínio próprio que quebre
   o mesmo-site tira o cookie do `upgrade`. Padrão: manter o cookie; se o
@@ -935,3 +911,23 @@ alcança; os 218 testes de unidade existentes continuam verdes (confirmado
 depois da troca de `client.ts`, já que toda chamada que passava por ele
 ganhou um cabeçalho novo de verdade no transporte real, ainda que invisível
 para o MSW).
+
+2026-09-12 — pendência do menu flutuante, medida — o item de "Riscos e
+decisões em aberto" sobre os menus flutuantes do BlockNote (menu de barra,
+barra de formatação, alça de arrastar) nunca tinha sido acionado por um
+teste; a recomendação de afrouxar `style-src` para `'unsafe-inline'` vinha
+sem medição, e por isso não valia. Caso novo em
+`apps/web/e2e/documentos.spec.ts` (`"o menu de barra do editor abre no lugar
+certo, sem violar a política de conteúdo"`): abre documento novo com a sessão
+real de `donaDoDocumento`, digita `/` no corpo, e mede o `boundingBox()` do
+`listbox` contra o do corpo e o console. Resultado: o menu abre 32px abaixo
+do cursor, na mesma coordenada X (não no canto da janela), e o console fica
+vazio — inclusive inspecionando o DOM diretamente, o wrapper flutuante *tem*
+`style=""` dinâmico (`transform: translate(544px, 125px)`, o valor mudando a
+cada abertura), e o navegador não reporta violação nenhuma. O motivo: CSP
+`style-src` restringe o atributo HTML `style=""` quando escrito por
+`setAttribute`/markup, não a mutação via propriedades do `CSSStyleDeclaration`
+(`element.style.top = ...`) que React e floating-ui usam — a distinção que a
+sessão anterior não tinha verificado. A pendência não se confirmou; a
+política continua `style-src 'self' <hashes>`, sem nenhum afrouxamento, e o
+item correspondente saiu de "Riscos e decisões em aberto".

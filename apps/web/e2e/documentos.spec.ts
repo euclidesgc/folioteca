@@ -174,3 +174,52 @@ test("restaura documento da lixeira", async ({ browser }) => {
   exigirConsoleLimpo(console_);
   await contexto.close();
 });
+
+// motivo: "Riscos e decisões em aberto" do PLANO.md presumia que o menu de
+// barra do BlockNote, posicionado por floating-ui via `style=""` dinâmico,
+// seria bloqueado pela política de conteúdo do artefato (ver vite.config.ts)
+// — sem nenhum teste ter acionado o menu para confirmar. Este caso mede
+// contra o build de verdade, em vez de presumir.
+test("o menu de barra do editor abre no lugar certo, sem violar a política de conteúdo", async ({
+  browser,
+}) => {
+  const contexto = await comoPessoa(browser, ARQUIVO_DONA_DO_DOCUMENTO);
+  const page = await contexto.newPage();
+  const console_ = coletarConsole(page);
+
+  await page.goto("/documentos");
+  await page
+    .getByRole("complementary")
+    .getByRole("button", { name: "Novo documento" })
+    .click();
+  await page.waitForURL(/\/documentos\/[^/]+$/);
+
+  const corpo = page.getByRole("textbox").last();
+  await corpo.click();
+  await page.keyboard.type("/");
+
+  const menuDeBarra = page.getByRole("listbox");
+  await expect(menuDeBarra).toBeVisible();
+
+  const caixaDoCorpo = await corpo.boundingBox();
+  const caixaDoMenu = await menuDeBarra.boundingBox();
+  expect(caixaDoCorpo).not.toBeNull();
+  expect(caixaDoMenu).not.toBeNull();
+
+  // folga generosa: o que importa é distinguir "perto do cursor" de "colado
+  // no canto superior esquerdo da janela", não a distância exata.
+  const FOLGA_PX = 400;
+  expect(
+    Math.abs((caixaDoMenu?.x ?? 0) - (caixaDoCorpo?.x ?? 0)),
+  ).toBeLessThan(FOLGA_PX);
+  expect(
+    Math.abs((caixaDoMenu?.y ?? 0) - (caixaDoCorpo?.y ?? 0)),
+  ).toBeLessThan(FOLGA_PX);
+
+  const violacoesDePolitica = console_
+    .tudo()
+    .filter((linha) => linha.includes("Content Security Policy"));
+  expect(violacoesDePolitica, violacoesDePolitica.join(" | ")).toEqual([]);
+
+  await contexto.close();
+});
