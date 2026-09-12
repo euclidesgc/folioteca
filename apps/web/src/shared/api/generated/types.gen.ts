@@ -193,6 +193,31 @@ export type UserRoleDto = {
     role: 'ADMIN' | 'MEMBER';
 };
 
+export type CreateInvitationDto = {
+    /**
+     * Endereço de e-mail de quem recebe o convite.
+     */
+    email: string;
+    /**
+     * Id da unidade de lotação inicial de quem aceitar.
+     */
+    unitId: string;
+    /**
+     * Papel que a pessoa recebe ao aceitar.
+     */
+    role: 'ADMIN' | 'MEMBER';
+};
+
+export type InvitationResponseDto = {
+    id: string;
+    email: string;
+    unitId: string;
+    unitName: string;
+    role: 'ADMIN' | 'MEMBER';
+    expiresAt: string;
+    createdAt: string;
+};
+
 export type GetHealthData = {
     body?: never;
     path?: never;
@@ -613,3 +638,59 @@ export type UpdateUserRoleResponses = {
 };
 
 export type UpdateUserRoleResponse = UpdateUserRoleResponses[keyof UpdateUserRoleResponses];
+
+export type ListInvitationsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/invitations';
+};
+
+export type ListInvitationsResponses = {
+    200: Array<InvitationResponseDto>;
+};
+
+export type ListInvitationsResponse = ListInvitationsResponses[keyof ListInvitationsResponses];
+
+export type CreateInvitationData = {
+    body: CreateInvitationDto;
+    path?: never;
+    query?: never;
+    url: '/invitations';
+};
+
+export type CreateInvitationResponses = {
+    200: InvitationResponseDto;
+};
+
+export type CreateInvitationResponse = CreateInvitationResponses[keyof CreateInvitationResponses];
+
+export type ResendInvitationData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/invitations/{id}/resend';
+};
+
+export type ResendInvitationResponses = {
+    200: InvitationResponseDto;
+};
+
+export type ResendInvitationResponse = ResendInvitationResponses[keyof ResendInvitationResponses];
+
+export type RevokeInvitationData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/invitations/{id}';
+};
+
+export type RevokeInvitationResponses = {
+    204: void;
+};
+
+export type RevokeInvitationResponse = RevokeInvitationResponses[keyof RevokeInvitationResponses];

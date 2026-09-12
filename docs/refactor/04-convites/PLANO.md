@@ -203,22 +203,22 @@ do servidor mesmo que burle a tela.
       com 0
 
 ### Etapa 2 — Rotas administrativas e contrato
-- [ ] Ler: `apps/api/src/health/health.controller.ts` (padrão de controller
+- [x] Ler: `apps/api/src/health/health.controller.ts` (padrão de controller
       fino), `apps/api/scripts/generate-openapi.ts`, `apps/api/src/
       app.module.ts`, o `DomainError` e o filtro global que os planos 02/03
       entregarem (confirmar caminho real em `apps/api/src/`)
-- [ ] `dto/{create-invitation.dto.ts, invitation-response.dto.ts}` com
+- [x] `dto/{create-invitation.dto.ts, invitation-response.dto.ts}` com
       `class-validator`
-- [ ] `invitations.controller.ts`: `POST/GET/PATCH/DELETE /invitations` e
+- [x] `invitations.controller.ts`: `POST/GET/PATCH/DELETE /invitations` e
       `/invitations/:id/resend`, guardadas por sessão + papel `ADMIN`
-- [ ] Registrar `InvitationsModule` em `app.module.ts` e em
+- [x] Registrar `InvitationsModule` em `app.module.ts` e em
       `generate-openapi.ts` (com os dublês de `AUTH_INSTANCE`, `PrismaService`,
       `MailService` que o script já usa para `HealthModule`)
-- [ ] Teste: `apps/api/test/invitations.e2e-spec.ts` — "recusa convite para
+- [x] Teste: `apps/api/test/invitations.e2e-spec.ts` — "recusa convite para
       e-mail que já tem conta", "recusa segundo convite pendente para o
       mesmo e-mail", "invalida o token anterior ao reenviar", membro (não
       admin) recebe 403
-- [ ] Verificação da etapa:
+- [x] Verificação da etapa:
       `pnpm --filter api run openapi:generate && pnpm --filter web run api:generate`
       sai com 0
 
@@ -418,3 +418,30 @@ apliquei só as três tabelas/índices/FKs do `Invitation` (migration gerada com
 banco de desenvolvimento ao estado exato de antes — achado registrado para o
 dono decidir se declara `onDelete: Restrict` explícito em `Unit.unitType`,
 fora deste PR.
+
+2026-09-12 — etapa 2 — `dto/{create-invitation.dto.ts,
+invitation-response.dto.ts}`; `invitations.controller.ts` com as quatro rotas
+administrativas, `@UseGuards(SessionGuard, AdminGuard)`; `InvitationsModule`
+acrescentado a `apps/api/src/route-modules.ts` — único ponto de registro, que
+`app.module.ts` e `apps/api/scripts/generate-openapi.ts` já espalham por
+`...ROUTE_MODULES`, então nenhum dos dois precisou de edição própria;
+`apps/api/test/invitations.e2e-spec.ts` com as quatro provas; `openapi.json` e
+`apps/web/src/shared/api/generated/{index.ts,types.gen.ts}` regenerados por
+`pnpm contract` — o que desviou do plano: (1) a tabela de "Desenho > API" tem
+só quatro rotas administrativas (`POST /invitations`, `GET /invitations`,
+`POST /invitations/:id/resend`, `DELETE /invitations/:id`); a prosa da tarefa
+e da seção "Acesso" fala em "`POST/GET/PATCH/DELETE /invitations`", mas não
+há `PATCH` nenhum na tabela nem função para ele — a tabela venceu, nenhuma
+rota `PATCH` foi criada; (2) o erro 403 das quatro rotas vem do `AdminGuard`
+já existente (`AdminOnlyError`, `code: "ADMIN_ONLY"`), reaproveitado como o
+plano pede; a tabela deste plano escreve "403 `FORBIDDEN`", mas o próprio
+plano 03 (que criou o guard) documenta esse mesmo 403 sem código nenhum na
+tabela, e `units.e2e-spec.ts`/`users.e2e-spec.ts` só verificam o status, nunca
+o `code`; segui a mesma convenção — nenhum código novo `FORBIDDEN` foi criado,
+e o teste "recusa membro (não admin) criando convite" também só verifica o
+status; (3) o teste "invalida o token anterior ao reenviar" prova a regra 6
+(hash antigo deixa de bater) consultando `PrismaService` direto — a rota
+pública `GET /invitations/by-token/:token` que devolveria 404
+`INVITATION_INVALID` é da etapa 3, fora deste escopo; a etapa 3 estende esta
+prova para o nível HTTP quando a rota existir; (4) nenhuma dependência nova —
+`@nestjs/swagger`, `class-validator` e `class-transformer` já eram diretas.
