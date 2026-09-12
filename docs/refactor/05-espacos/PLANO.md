@@ -1,6 +1,6 @@
 # 05 — Espaços
 
-**Status:** [ ] não iniciado · [ ] em andamento · [ ] entregue
+**Status:** [ ] não iniciado · [x] em andamento · [ ] entregue
 **Branch:** `feat/05-espacos` a partir de `develop` · **PR:** —
 **Depende de:** 03 — Estrutura organizacional (`Unit`, `UnitClosure`,
 `UnitMembership`, `ADMIN|MEMBER`, `AdminGuard`, Testcontainers,
@@ -228,12 +228,26 @@ SQL escrito à mão sobre o diff que o Prisma gera, no mesmo `migration.sql`:
   raiz), `name` da unidade, `inheritsFromParent` = `spacesInheritByDefault`
   atual da `Organization`. A ordem por profundidade garante que o pai já
   tem `Space` quando o filho é inserido.
-- `CREATE OR REPLACE FUNCTION user_audience_spaces(p_user_id uuid) RETURNS
-  TABLE(space_id uuid) LANGUAGE sql STABLE`: `WITH RECURSIVE` que parte de
+- `CREATE OR REPLACE FUNCTION user_audience_spaces(p_user_id text) RETURNS
+  TABLE(space_id text) LANGUAGE sql STABLE`: `WITH RECURSIVE` que parte de
   (a) todo `SpaceMember` da pessoa e (b) todo espaço `UNIT` com
   `UnitMembership` direto dela, e desce por `parentId` só para filhos com
   `inheritsFromParent = true` — a primeira função de acesso da casa (D1),
-  chamada só por `AccessRepository`.
+  chamada só por `AccessRepository`. **Corrigido em execução**: `text`, não
+  `uuid` — todo id desta base nasce `String @default(uuid())` e vira coluna
+  `TEXT` (nenhum modelo usa o tipo nativo `uuid` do Postgres); `p_user_id
+  uuid` exigiria cast em toda comparação contra as colunas reais.
+- Gatilho `space_for_unit_after_insert_trigger` (`AFTER INSERT ON "Unit"`,
+  função `space_for_unit_after_insert`), **não previsto na versão original
+  desta seção**: cria o `Space` `kind = 'UNIT'` de toda unidade nova, com o
+  mesmo formato do backfill (`parentId` = `Space` da unidade pai,
+  `inheritsFromParent` = `spacesInheritByDefault` atual). Sem ele M8 só
+  valeria para unidade que já existia quando esta migration rodou —
+  `POST /installation` e `POST /units` criam unidade em transação de
+  aplicação, não em migration, e por isso toda instância nova (inclusive o
+  Postgres do Testcontainers, que roda as migrations sobre um banco sempre
+  vazio) nasceria com unidade sem espaço. Espelha
+  `unit_closure_after_insert_trigger` (D2).
 
 ### Acesso
 
@@ -249,24 +263,35 @@ exigem `AdminGuard`, como as outras rotas de configuração da instância (M3).
 ## Etapas
 
 ### Etapa 1 — Modelo de dados e a primeira função de acesso
-- [ ] Ler: `apps/api/prisma/schema.prisma`, a migration `estrutura_organizacional`
+- [x] Ler: `apps/api/prisma/schema.prisma`, a migration `estrutura_organizacional`
       do plano 03 (`Unit`, `UnitClosure`, `UnitMembership`,
       `Organization.spacesInheritByDefault`), `docs/refactor/00-fundamentos/modelo-de-acesso.md`
       (M8–M12, D1, D2), `.claude/skills/nest-errors-filters/templates/*.ts`
-- [ ] Acrescenta ao schema `enum SpaceKind`, `model Space`, `model SpaceMember`
-- [ ] Gera a migration `spaces` e edita o `migration.sql`: `CHECK` por tipo,
+- [x] Acrescenta ao schema `enum SpaceKind`, `model Space`, `model SpaceMember`
+- [x] Gera a migration `spaces` e edita o `migration.sql`: `CHECK` por tipo,
       backfill por profundidade de `UnitClosure`, `CREATE OR REPLACE FUNCTION
-      user_audience_spaces`
-- [ ] Cria `apps/api/src/access/{access.module.ts,access.repository.ts}`
+      user_audience_spaces` — **e um quarto trecho não previsto na prosa
+      original desta seção**: gatilho `space_for_unit_after_insert_trigger`
+      (`AFTER INSERT ON "Unit"`, espelha `unit_closure_after_insert_trigger`
+      de D2). Sem ele M8 só valeria para unidade que já existia quando esta
+      migration rodou — `POST /installation` e `POST /units` criam unidade em
+      transação de aplicação, não em migration, e o Postgres do
+      Testcontainers roda as migrations sobre um banco sempre vazio; toda
+      instância nova (inclusive a de teste) nasceria com unidade sem espaço.
+      Ver Andamento.
+- [x] Cria `apps/api/src/access/{access.module.ts,access.repository.ts}`
       (módulo global) com `getAudienceSpaceIds(userId): Promise<string[]>` —
       único ponto que roda `SELECT * FROM user_audience_spaces($1)`
-- [ ] Teste: `apps/api/test/spaces.e2e-spec.ts` — "copies the organization
-      default onto a newly created space", "counts only direct staffing as
-      unit space membership", "backfills one space per existing unit with
-      the parent's space as parent", "stops the inheritance chain at the
-      first space that does not inherit" (via `AccessRepository` e Prisma
-      direto contra o Postgres do Testcontainers, sem HTTP)
-- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t "spaces"` sai com 0
+- [x] Teste: `apps/api/test/spaces.e2e-spec.ts` — "backfills one space per
+      existing unit with the parent's space as parent", "stops the
+      inheritance chain at the first space that does not inherit" (via
+      `AccessRepository` e Prisma direto contra o Postgres do Testcontainers,
+      sem HTTP). **Reagendado**: "counts only direct staffing as unit space
+      membership" foi para a etapa 2 (a prova nos critérios de aceite é `GET
+      /spaces/:id/members`, que só existe a partir dali) e "copies the
+      organization default onto a newly created space" foi para a etapa 3 (a
+      prova é `POST /spaces`). Ver Andamento.
+- [x] Verificação da etapa: `pnpm --filter api run test:integration -t "spaces"` sai com 0
 
 ### Etapa 2 — Leitura: árvore, detalhe e membros
 - [ ] Ler: `apps/api/src/units/**` (padrão module/controller/service/repository
@@ -390,10 +415,10 @@ exigem `AdminGuard`, como as outras rotas de configuração da instância (M3).
 
 ## Critérios de aceite
 
-- [ ] `estrutural` — `apps/api/prisma/schema.prisma` declara `enum SpaceKind`,
+- [x] `estrutural` — `apps/api/prisma/schema.prisma` declara `enum SpaceKind`,
       `model Space` e `model SpaceMember`. Prova: `rg -c "model Space
       |model SpaceMember|enum SpaceKind" apps/api/prisma/schema.prisma` imprime `3`.
-- [ ] `estrutural` — `user_audience_spaces` só é chamada, fora da migration,
+- [x] `estrutural` — `user_audience_spaces` só é chamada, fora da migration,
       em `apps/api/src/access/access.repository.ts`. Prova: `rg -l
       "user_audience_spaces" apps/api/src` imprime só esse caminho.
 - [ ] `comportamental` — Dado um espaço livre restrito do qual a pessoa não é
@@ -417,12 +442,12 @@ exigem `AdminGuard`, como as outras rotas de configuração da instância (M3).
       unidade pai, então essa pessoa não está na lista. Prova:
       `apps/api/test/spaces.e2e-spec.ts`, teste "counts only direct staffing
       as unit space membership".
-- [ ] `comportamental` — Dado o backfill da migration `spaces` sobre unidades
+- [x] `comportamental` — Dado o backfill da migration `spaces` sobre unidades
       pré-existentes, quando ele termina, então existe um `Space` por
       `Unit`, com `parentId` igual ao id do `Space` da unidade pai. Prova:
       `apps/api/test/spaces.e2e-spec.ts`, teste "backfills one space per
       existing unit with the parent's space as parent".
-- [ ] `comportamental` — Dado um espaço-filho que não herda e um espaço-neto
+- [x] `comportamental` — Dado um espaço-filho que não herda e um espaço-neto
       que herda abaixo dele, quando alguém com acesso só ao avô chama
       `user_audience_spaces`, então o neto não aparece no resultado. Prova:
       `apps/api/test/spaces.e2e-spec.ts`, teste "stops the inheritance chain
@@ -477,3 +502,31 @@ exigem `AdminGuard`, como as outras rotas de configuração da instância (M3).
   no banco, sem convite), registrado em Andamento.
 
 ## Andamento
+
+2026-09-12 — etapa 1 — schema (`enum SpaceKind`, `model Space`, `model
+SpaceMember`, com `space Space?` em `Unit` e `managedSpaces`/`spaceMemberships`
+em `User` para as relações reversas que o Prisma exige), migration
+`20260912161137_spaces` e `apps/api/src/access/{access.module.ts,
+access.repository.ts}` (`AccessModule` global, registrado em `AppModule` ao
+lado de `PrismaModule`/`MailModule`, não em `ROUTE_MODULES` — não tem
+controller). Desviou do plano em três pontos: (1) `user_audience_spaces` usa
+`text`, não `uuid` — todo id da base é `String @default(uuid())`, coluna
+`TEXT`, sem nenhum uso do tipo nativo `uuid` em nenhuma migration anterior;
+com `uuid` cada comparação contra as colunas reais exigiria cast; (2) a
+migration ganhou um gatilho `space_for_unit_after_insert_trigger` (`AFTER
+INSERT ON "Unit"`) não pedido pela prosa original de "Modelo de dados" —
+sem ele, M8 ("cada unidade tem um espaço") só valeria para unidade que já
+existia quando esta migration rodou, porque `POST /installation` e `POST
+/units` criam unidade em transação de aplicação, não em migration; o Postgres
+do Testcontainers roda as migrations sobre um banco sempre vazio, então toda
+instância nova — inclusive a de teste — nasceria com unidade sem espaço,
+quebrando a premissa de `GET /spaces` antes mesmo de ele existir. Confirmado
+por teste manual (`INSERT` direto numa transação revertida) e pelo teste de
+integração da etapa; (3) dos quatro testes que a lista de tarefas da etapa 1
+citava, escrevi dois aqui (backfill e cadeia de herança, que não dependem de
+rota nenhuma) e movi os outros dois: "counts only direct staffing as unit
+space membership" para a etapa 2 (a prova nos critérios de aceite é `GET
+/spaces/:id/members`, inexistente até a etapa 2) e "copies the organization
+default onto a newly created space" para a etapa 3 (a prova é `POST
+/spaces`, fora do escopo desta sessão). `pnpm --filter api run
+test:integration -t "spaces"`: 2 testes, 0 falhas.

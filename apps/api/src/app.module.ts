@@ -3,6 +3,7 @@ import { Module, ValidationPipe } from '@nestjs/common';
 import { APP_FILTER, APP_PIPE } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { environmentSchema } from './config/environment.schema';
+import { AccessModule } from './access/access.module';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { DomainExceptionFilter } from './common/errors/domain-exception.filter';
@@ -19,6 +20,7 @@ import { ROUTE_MODULES } from './route-modules';
       validationOptions: { abortEarly: false, allowUnknown: true },
     }),
     PrismaModule,
+    AccessModule,
     MailModule,
     AuthModule,
     HealthModule,
