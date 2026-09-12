@@ -165,16 +165,51 @@ export default defineConfig({
         // código da aplicação, eram um arquivo só acima de 500 kB cujo hash
         // mudava a cada deploy e descartava o cache de quem volta; separadas,
         // cada família só muda quando a própria dependência muda.
+        //
+        // decisão: o grupo "editor" isola as dependências exclusivas de
+        // `packages/editor` (BlockNote, Yjs, Hocuspocus, Base UI, lucide-react
+        // — ver decisão 3 em docs/refactor/00-fundamentos/decisoes.md) do
+        // grupo "vendor". Sem isto, mesmo com `PaginaDoDocumento` importada
+        // por `lazy()`, o regex de "vendor" (qualquer coisa em
+        // node_modules) continuaria juntando o BlockNote no mesmo arquivo
+        // físico de dependências usadas no esqueleto, e esse arquivo
+        // continuaria sendo pré-carregado no primeiro HTML independente de
+        // ninguém o importar de forma estática.
+        //
+        // decisão: o grupo "compartilhado-com-editor" existe porque algumas
+        // dependências pequenas — `clsx`/`class-variance-authority` (usadas
+        // pelo `cn()` da aplicação) e `path-to-regexp` (usada pelo
+        // `better-auth`) — são a mesma instalação consumida também por dentro
+        // de `packages/editor` (via `@blocknote/shadcn` e afins). Sem um
+        // grupo próprio, de prioridade maior que "editor", o agrupamento por
+        // módulo compartilhado escolhia o chunk "editor" como único dono, e
+        // código já eager (a entrada, o chunk "vendor") passava a importar
+        // dali — um import estático que arrastava o chunk inteiro do editor
+        // para o pré-carregamento do primeiro HTML, medido em
+        // apps/web/dist/index.html. A lista de pacotes abaixo foi descoberta
+        // por medição (grep no chunk gerado), não por inspeção do código
+        // fonte; uma dependência nova que crie o mesmo tipo de módulo
+        // compartilhado pode exigir entrar nesta lista de novo.
         codeSplitting: {
           groups: [
             {
               name: "react",
               test: /[\\/]node_modules[\\/](react|react-dom|scheduler|react-router)[\\/]/,
-              priority: 3,
+              priority: 5,
+            },
+            {
+              name: "compartilhado-com-editor",
+              test: /[\\/]node_modules[\\/](clsx|class-variance-authority|tailwind-merge|path-to-regexp)[\\/]/,
+              priority: 4,
             },
             {
               name: "ark",
               test: /[\\/]node_modules[\\/](@ark-ui|@zag-js)[\\/]/,
+              priority: 3,
+            },
+            {
+              name: "editor",
+              test: /[\\/]node_modules[\\/](@blocknote|@hocuspocus|yjs|y-prosemirror|y-protocols|lib0|@lifeomic|@base-ui|lucide-react|crossws)[\\/]/,
               priority: 2,
             },
             { name: "vendor", test: /[\\/]node_modules[\\/]/, priority: 1 },
