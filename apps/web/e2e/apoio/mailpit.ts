@@ -1,6 +1,9 @@
 import { expect } from "@playwright/test";
 
-const MAILPIT_URL = "http://localhost:8025/api/v1";
+// motivo: no CI o Mailpit sobe como serviço com porta dinâmica, publicada em
+// MAILPIT_HTTP_PORT; na máquina de desenvolvimento não há essa variável, e o
+// docker-compose.yml publica a porta fixa 8025.
+const MAILPIT_URL = `http://localhost:${process.env.MAILPIT_HTTP_PORT ?? 8025}/api/v1`;
 
 type MensagemResumida = { ID: string };
 type MensagemCompleta = { Text: string };

@@ -1,18 +1,12 @@
-import {
-  afterAll,
-  afterEach,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
+import { ThemeProvider } from "@/shared/theme";
+import { useSession } from "@/features/auth/api/auth-client";
+import { BarraLateral } from "./barra-lateral";
 
 const PESSOA = {
   id: "pessoa-1",
@@ -33,8 +27,16 @@ const ME = {
   units: [{ id: "raiz", name: "Arcabouço Tecnologia", path: ["Arcabouço Tecnologia"] }],
 };
 
-const comSessao = http.get("*/api/auth/get-session", () =>
-  HttpResponse.json({
+const comOrganizacao = http.get("*/me", () => HttpResponse.json(ME));
+
+const server = setupServer(comOrganizacao);
+
+beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
+
+const SESSAO_RESOLVIDA = {
+  data: {
     session: {
       id: "sessao-1",
       token: "token-1",
@@ -44,35 +46,44 @@ const comSessao = http.get("*/api/auth/get-session", () =>
       updatedAt: "2026-01-01T00:00:00.000Z",
     },
     user: PESSOA,
-  }),
-);
+  },
+  isPending: false,
+  isRefetching: false,
+  error: null,
+  refetch: vi.fn(),
+};
 
-const comOrganizacao = http.get("*/me", () => HttpResponse.json(ME));
-
-const server = setupServer(comSessao, comOrganizacao);
-
-beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+const SESSAO_PENDENTE = {
+  data: null,
+  isPending: true,
+  isRefetching: false,
+  error: null,
+  refetch: vi.fn(),
+};
 
 // motivo: o cliente do Better Auth guarda a sessão num store de módulo, global
-// e compartilhado; sem zerar os módulos entre os casos, a sessão que um deles
-// obteve continua valendo no caso seguinte, inclusive no que mede o estado
-// antes dela chegar.
+// e compartilhado entre casos. Em vez de zerar e reimportar o grafo de módulos
+// a cada teste — o que estourava o tempo limite no CI —, este dublê isola a
+// sessão no limite onde ela é lida, e cada caso a define sem recarregar nada.
+vi.mock("@/features/auth/api/auth-client", () => ({
+  authClient: {},
+  signOut: vi.fn(),
+  changeEmail: vi.fn(),
+  changePassword: vi.fn(),
+  listSessions: vi.fn(),
+  revokeOtherSessions: vi.fn(),
+  revokeSession: vi.fn(),
+  updateUser: vi.fn(),
+  useSession: vi.fn(),
+}));
+
 beforeEach(() => {
-  vi.resetModules();
-  server.use(comSessao, comOrganizacao);
+  vi.mocked(useSession).mockReturnValue(
+    SESSAO_RESOLVIDA as unknown as ReturnType<typeof useSession>,
+  );
 });
 
 async function renderBarraLateral(rota = "/inicio") {
-  // por quê: o `ThemeProvider` precisa vir do mesmo grafo de módulos recém-
-  // carregado que `BarraLateral` — importado à parte, seria um contexto React
-  // diferente do que `useTema` lê dentro do menu de conta, e o provedor não
-  // encontraria quem o consome.
-  const [{ BarraLateral }, { ThemeProvider }] = await Promise.all([
-    import("./barra-lateral"),
-    import("@/shared/theme"),
-  ]);
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -147,6 +158,10 @@ describe("BarraLateral — caminho feliz", () => {
 
 describe("BarraLateral — bordas", () => {
   it("antes da sessão carregar, o menu de conta ainda mostra o texto 'Menu de conta'", async () => {
+    vi.mocked(useSession).mockReturnValue(
+      SESSAO_PENDENTE as unknown as ReturnType<typeof useSession>,
+    );
+
     await renderBarraLateral();
 
     expect(
