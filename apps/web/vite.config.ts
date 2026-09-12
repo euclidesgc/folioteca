@@ -4,7 +4,10 @@ import tailwindcss from "@tailwindcss/vite";
 import type { Plugin } from "vite";
 // motivo: com a extensão escrita, o carregador nativo de configuração do Vite —
 // que vai virar o padrão — resolve o arquivo; sem ela, toda subida avisa.
-import { validateApiUrlForBuild } from "./src/shared/config/build-api-url.ts";
+import {
+  validateApiUrlForBuild,
+  webSocketOriginForBuild,
+} from "./src/shared/config/build-api-url.ts";
 
 // decisão: sem HSTS — os dois servidores deste arquivo respondem em http
 // local, e a HSTS emitida em localhost fixa no navegador de quem desenvolve
@@ -16,6 +19,25 @@ const SECURITY_HEADERS = {
   "X-Frame-Options": "DENY",
   "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
 };
+
+// decisão: o Tiptap/BlockNote injeta duas folhas <style> estáticas a cada
+// montagem do editor (`Editor`/`StaticEditor` de `@folioteca/editor`) — a
+// base do ProseMirror e o bloco de placeholder por tipo de bloco —, sempre
+// com o mesmo conteúdo para a mesma versão instalada, medido contra o
+// artefato real em `apps/web/e2e/documentos.spec.ts`. `'self'` sozinho as
+// bloqueia e reprova o console limpo da suíte em toda página com editor; o
+// hash é a forma de liberar exatamente este conteúdo conhecido, sem abrir
+// `'unsafe-inline'` — que o portão de política recusa e o CLAUDE.md da raiz
+// proíbe afrouxar. NÃO cobre a posição dos menus flutuantes do editor (menu de
+// barra, barra de formatação, alça de arrastar): esses escrevem `style=""` em
+// atributo, com valor que muda a cada abertura, e hash não alcança valor que
+// muda — nenhum teste hoje os aciona, mas uma interação futura que os abrir
+// volta a reprovar o console, e aí a pergunta é de novo do dono (ver
+// "Riscos e decisões em aberto" do PLANO.md).
+const ESTILOS_ESTATICOS_DO_EDITOR = [
+  "'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU='",
+  "'sha256-PlumsSlvJ7vvWzjqibGAYKq92O3y/4JTxWWsWJvyUYA='",
+].join(" ");
 
 function requireApiUrlOnBuild(): Plugin {
   let command: "build" | "serve" = "serve";
@@ -63,12 +85,16 @@ function injectContentSecurityPolicyOnBuild(): Plugin {
       // por <meta> e registra o aviso em toda carga. Quem protege contra
       // enquadramento é `X-Frame-Options: DENY`, emitido por cabeçalho em
       // apps/web/nginx.conf, e é lá que o portão o mede.
+      // motivo: o editor abre o handshake de colaboração por WebSocket contra
+      // a mesma origem da API (`packages/editor/src/provider.ts`) — sem o
+      // esquema ws(s) aqui, o navegador aceita a origem para HTTP e recusa a
+      // mesma origem para o WebSocket, e o sintoma é "Salvando…" para sempre.
       const policy = [
         "default-src 'self'",
         "script-src 'self'",
-        "style-src 'self'",
+        `style-src 'self' ${ESTILOS_ESTATICOS_DO_EDITOR}`,
         "img-src 'self' data:",
-        `connect-src 'self' ${apiUrl}`,
+        `connect-src 'self' ${apiUrl} ${webSocketOriginForBuild(apiUrl)}`,
         "object-src 'none'",
         "base-uri 'self'",
         "form-action 'self'",

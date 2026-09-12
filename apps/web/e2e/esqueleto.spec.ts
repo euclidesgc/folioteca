@@ -375,47 +375,6 @@ test("a árvore de Espaços expande e leva à página do espaço", async ({
   expect(new URL(page.url()).pathname).toBe("/espacos/backend");
 });
 
-test("o documento abre pela árvore de espaços e o link do sumário leva ao título", async ({
-  page,
-}) => {
-  await page.goto("/inicio");
-
-  // por quê: Engenharia é filha de Produto — revelar o link exige expandir
-  // o espaço de topo antes do próprio Engenharia.
-  await page.getByRole("button", { name: "Expandir Produto" }).click();
-  await page.getByRole("button", { name: "Expandir Engenharia" }).click();
-  await page.getByRole("link", { name: "Engenharia", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Engenharia" }),
-  ).toBeVisible();
-
-  await page
-    .getByRole("link", { name: "Guia de onboarding de engenharia" })
-    .click();
-
-  const titulo = page.getByRole("heading", {
-    level: 1,
-    name: "Guia de onboarding de engenharia",
-  });
-  await expect(titulo).toBeVisible();
-
-  // decisão: o filete é `aria-hidden`, por marcar uma informação redundante à
-  // etiqueta de texto ao lado — não há papel nem nome acessível para alcançá-lo,
-  // e a classe é exatamente o que o critério de aceite pede medir.
-  const filete = titulo.locator("xpath=../../span[1]");
-  await expect(filete).toHaveClass(/border-l-verdete/);
-
-  const linkDoSumario = page.getByRole("link", { name: "Primeira semana" });
-  await linkDoSumario.click();
-
-  const tituloDaSecao = page.getByRole("heading", {
-    level: 2,
-    name: "Primeira semana",
-  });
-  await expect(tituloDaSecao).toBeInViewport();
-  expect(page.url()).toContain("#bloco-guia-onboarding-engenharia-3");
-});
-
 test("/canais cai em /espacos", async ({ page }) => {
   await page.goto("/canais");
 

@@ -6,6 +6,7 @@ import { BlockNoteView } from "@blocknote/shadcn";
 import type { HocuspocusProvider } from "@hocuspocus/provider";
 import type * as Y from "yjs";
 
+import { ATRIBUTOS_DO_EDITOR } from "./dom-attributes";
 import { documentSchema } from "./schema";
 import { VARIAVEIS_CSS_DO_EDITOR } from "./tema";
 
@@ -38,6 +39,7 @@ export function Editor({ provider, fragment, user, editable }: EditorProps) {
       // sumário (`TableOfContents`, em `apps/web`) precisa de um `id` de
       // verdade no DOM para `href="#<id>"` rolar até o título.
       setIdAttribute: true,
+      domAttributes: ATRIBUTOS_DO_EDITOR,
     }),
   );
 

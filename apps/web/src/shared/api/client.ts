@@ -30,6 +30,13 @@ function messageFromResponseBody(data: unknown): string | null {
 export const httpClient = axios.create({
   baseURL: env.apiUrl,
   timeout: 10_000,
+  // motivo: a aplicação e a API vivem em origens distintas (portas diferentes
+  // já bastam), e sem isto o navegador nem manda nem guarda o cookie de
+  // sessão em nenhuma chamada — `auth-client.ts` já precisa do mesmo valor
+  // pelo mesmo motivo. Sem sessão real de ponta a ponta (etapa 6 do plano
+  // 02), toda rota de `/documents` por este cliente recusava com 401 mesmo
+  // para quem estava autenticado.
+  withCredentials: true,
 });
 
 httpClient.interceptors.response.use(

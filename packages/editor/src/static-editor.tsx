@@ -2,6 +2,7 @@ import * as locales from "@blocknote/core/locales";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/shadcn";
 
+import { ATRIBUTOS_DO_EDITOR } from "./dom-attributes";
 import { documentSchema, type DocumentBlock } from "./schema";
 import { VARIAVEIS_CSS_DO_EDITOR } from "./tema";
 
@@ -22,6 +23,7 @@ export function StaticEditor({ content }: StaticEditorProps) {
     // decisão: mesma razão do editor colaborativo — o sumário precisa de um
     // `id` real no DOM, não só o `data-id` que o BlockNote marca por padrão.
     setIdAttribute: true,
+    domAttributes: ATRIBUTOS_DO_EDITOR,
   });
 
   return (

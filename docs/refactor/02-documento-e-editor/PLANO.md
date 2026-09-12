@@ -357,25 +357,25 @@ e o editor; quem prova o acesso é sempre `GET /documents/:id`.
 
 ### Etapa 6 — Ponta a ponta com sessão real
 
-- [ ] Ler: `docs/refactor/00-fundamentos/modelo-de-acesso.md` (D6),
+- [x] Ler: `docs/refactor/00-fundamentos/modelo-de-acesso.md` (D6),
       `apps/web/playwright.config.ts`, `apps/web/e2e/apoio/sessao.ts`,
       `docker-compose.yml` (mailpit)
-- [ ] `e2e/apoio/mailpit.ts`: `linkDeConfirmacao(email)` contra a API REST
+- [x] `e2e/apoio/mailpit.ts`: `linkDeConfirmacao(email)` contra a API REST
       do Mailpit em `http://localhost:8025/api/v1` (conferir o formato
       exato da versão `v1.21` já no compose antes de fixar o caminho)
-- [ ] `e2e/setup/autenticar.setup.ts`: projeto de setup do Playwright — cria
+- [x] `e2e/setup/autenticar.setup.ts`: projeto de setup do Playwright — cria
       duas pessoas pela `/criar-conta` real, confirma pelo link do Mailpit,
       entra e salva `storageState` (`donaDoDocumento`, `outraPessoa`)
-- [ ] `playwright.config.ts`: `projects` — `setup` (roda
+- [x] `playwright.config.ts`: `projects` — `setup` (roda
       `autenticar.setup.ts`) e `chromium` (`dependencies: ["setup"]`);
       banco `folioteca_e2e` recriado antes da execução
-- [ ] `e2e/documentos.spec.ts`: `"cria, escreve título e dois blocos, e
+- [x] `e2e/documentos.spec.ts`: `"cria, escreve título e dois blocos, e
       encontra tudo depois de recarregar"` (com `donaDoDocumento`),
       `"mostra Documento não encontrado para quem não é dono"` (mesmo id
       com `outraPessoa`), `"favorito aparece em Favoritos"`, `"restaura
       documento da lixeira"`; cada teste confere o console limpo
       (`apoio/console.ts`) e roda o axe (`apoio/axe.ts`)
-- [ ] Verificação da etapa: `pnpm --filter web exec playwright test -g "documento"` sai com 0
+- [x] Verificação da etapa: `pnpm --filter web exec playwright test -g "documento"` sai com 0
 
 ### Etapa final — Ver na tela
 
@@ -445,6 +445,30 @@ e o editor; quem prova o acesso é sempre `GET /documents/:id`.
 
 ## Riscos e decisões em aberto
 
+- **`style-src` só cobre o BlockNote estático; os menus flutuantes dele
+  continuam incompatíveis com a política.** Achado da etapa 6, medido contra
+  o artefato de verdade: o editor injeta duas folhas `<style>` estáticas a
+  cada montagem (liberadas por hash, sem `'unsafe-inline'`), mas o menu de
+  barra, a barra de formatação e a alça de arrastar escrevem `style=""` em
+  atributo com posição calculada em tempo real — valor que muda a cada
+  abertura, que hash nenhum cobre. Nenhum teste desta etapa os aciona (só
+  digitam texto simples); o plano 08 (comentários ancorados no editor) ou o
+  10 (imagens) são os primeiros candidatos a precisar de um menu flutuante
+  de verdade num teste, e aí a suíte reprova de novo. Não há correção que
+  não seja decisão do dono: **opção A** — `'unsafe-inline'` escopado a
+  `style-src` (nunca a `script-src`/`default-src`), ajustando
+  `scripts/gates/segredo.sh`/`verificar-politica.sh` para recusar o termo
+  só fora de `style-src` e o parágrafo do CLAUDE.md raiz sobre a política
+  (hoje só fala de origem externa de fonte/folha de estilo); custo: abre mão
+  de parte da proteção contra injeção de estilo, risco bem menor que
+  `'unsafe-inline'` em `script-src`, e é o padrão de facto de praticamente
+  todo editor de blocos em produção. **Opção B** — desligar todas as UIs
+  flutuantes do BlockNote (`formattingToolbar`/`linkToolbar`/`slashMenu`/
+  `sideMenu`/`tableHandles`: `false` em `BlockNoteDefaultUIProps`); custo:
+  perde menu de barra, barra de formatação ao selecionar, alça de arrastar —
+  a experiência de editor de blocos que a decisão 3 de `decisoes.md`
+  escolheu o BlockNote para ter. Recomendação: opção A, porque a B devolve
+  seis etapas de trabalho a um editor sem as interações que o justificam.
 - **Sessão no handshake do WebSocket depende de `hml`/`api-hml` continuarem
   sob o mesmo sufixo público (`duckdns.org`).** Um domínio próprio que quebre
   o mesmo-site tira o cookie do `upgrade`. Padrão: manter o cookie; se o
@@ -791,3 +815,123 @@ contra a aplicação de verdade). `DocumentoNaoEncontrado`, a troca de
 `queryFn` (`useDocument`, incluindo a tradução do 404) e a barra lateral
 (botão novo, itens novos) têm teste; a renderização do `Editor`
 colaborativo em si não.
+
+2026-09-12 — etapa 6 — Ponta a ponta com sessão real. `apps/web/e2e/apoio/
+mailpit.ts` (`linkDeConfirmacao`, contra `http://localhost:8025/api/v1/search`
++ `/message/:id` — a versão `v1.21` já expõe as duas); `apps/web/e2e/apoio/
+contas.ts` (os dois caminhos de `storageState`, extraído de
+`autenticar.setup.ts` porque o Playwright recusa um arquivo de teste
+importando outro); `apps/web/e2e/setup/autenticar.setup.ts` (dois `setup()`
+— cria conta real pela UI de `/criar-conta`, confirma pelo link do Mailpit
+com `page.request.get` fora da navegação, entra pela UI de `/entrar`, grava
+`storageState`); `playwright.config.ts` com `projects: [setup, chromium]`
+(`chromium` depende de `setup`) e o `DATABASE_URL` padrão do `webServer`
+trocado de `folioteca` para `folioteca_e2e`; `scripts/e2e/banco-limpo.sh`
+(recria `folioteca_e2e` — só quando `CI=true` ou o nome termina em `_e2e` —
+e roda `prisma migrate deploy`). `apps/web/e2e/documentos.spec.ts` com os
+quatro testes nomeados pelo plano, cada um com `browser.newContext` próprio
+(uma identidade por teste, `outraPessoa` só na etapa que testa acesso
+negado), documento semeado por chamada direta a `POST /documents` quando o
+teste não é sobre a própria criação, e `exigirConsoleLimpo` + `analisar` em
+cada um.
+
+Achados centrais da etapa — a primeira vez que sessão real, API real e o
+artefato com CSP real se encontram, e os três não tinham se encontrado antes:
+
+1. **`httpClient` (axios compartilhado de `apps/web/src/shared/api/client.ts`)
+   nunca mandava o cookie de sessão.** `axios.create` não herda
+   `withCredentials`; só `registrar.ts` o declarava, por chamada, e
+   `/auth/register` não precisa de cookie nenhum. Toda rota de
+   `features/documents/api/*` — todas as que a etapa 5 escreveu — pedia sem
+   `withCredentials: true` e recebia 401 de quem estava autenticado, porque a
+   aplicação e a API vivem em origens diferentes. Nenhum teste de unidade
+   (MSW não aplica CORS) nem nenhuma suíte e2e anterior (sessão dublê,
+   nunca um cookie real) tinha como revelar isto — é o primeiro teste com
+   sessão de verdade contra a API de verdade. Corrigido movendo
+   `withCredentials: true` para a instância (`client.ts`), com o motivo
+   anotado; `registrar.ts` perdeu a declaração por chamada, agora redundante.
+2. **A política de conteúdo não liberava o WebSocket da colaboração.**
+   `connect-src 'self' http://localhost:3000` não cobre
+   `ws://localhost:3000/collaboration` — Chromium não trata esquema `ws`
+   como incluído em `http` da mesma origem dentro de `connect-src`. Sem o
+   `vite dev` ter CSP (a suíte mede só o build), nenhum portão e nenhum teste
+   anterior tocava isto. `build-api-url.ts` ganhou `webSocketOriginForBuild`
+   (mesma troca de esquema de `packages/editor/src/provider.ts`,
+   `paraWebSocket`); `vite.config.ts` soma o resultado ao `connect-src`;
+   `verificar-politica.sh` e o teste dele (`__tests__/verificar-politica.
+   test.sh`) ganharam o mesmo cálculo, para a política "canônica" que o
+   portão compara continuar sendo a política real.
+3. **A política de conteúdo também não liberava as duas folhas `<style>`
+   que o Tiptap/BlockNote injeta a cada montagem do editor.** `style-src
+   'self'` as bloqueia e reprova o console limpo em toda página com
+   `Editor`/`StaticEditor`. As duas são estáticas — mesmo conteúdo, mesmo
+   hash, em qualquer documento, medido e reconfirmado várias vezes — e
+   `vite.config.ts` ganhou os dois `'sha256-...'` em `style-src` (constante
+   `ESTILOS_ESTATICOS_DO_EDITOR`, com o motivo e o limite anotados ao lado);
+   `verificar-politica.sh`/seu teste ganharam os mesmos dois hashes. **Isto
+   não cobre a posição dos menus flutuantes do editor** (menu de barra,
+   barra de formatação, alça de arrastar) — esses escrevem `style=""` em
+   atributo (`style-src-attr`), com valor que muda a cada abertura, e hash
+   não alcança valor que muda; confirmado que abrir o menu de barra ("/")
+   chega a gerar dez violações numa mesma carga. Nenhum teste desta etapa os
+   aciona (os quatro só digitam texto simples), mas uma interação futura que
+   os abrir (plano 08, comentários ancorados; plano 10, imagens) volta a
+   reprovar o console, e a correção não é hash — é 'unsafe-inline' escopado
+   a `style-src` (nunca a `script-src`), que o portão de política recusa
+   hoje por inteiro e o CLAUDE.md da raiz só proíbe para origem externa de
+   fonte/folha de estilo, não para isto. Decisão do dono, não tomada aqui;
+   ver "Riscos e decisões em aberto".
+4. **O editor não tinha nome acessível.** `role="textbox"` (o BlockNote já o
+   marca por padrão) sem `aria-label`/`aria-labelledby` é
+   `aria-input-field-name`, severidade `serious` — achado do axe contra o
+   editor de verdade, que nenhum teste anterior renderizava. `packages/
+   editor/src/dom-attributes.ts` (`ATRIBUTOS_DO_EDITOR`, usando
+   `domAttributes.editor` da própria `BlockNoteEditorOptions`) soma
+   `aria-label="Conteúdo do documento"` em `Editor` e `StaticEditor`.
+5. **Todo fetch/XHR que volta 404 faz o Chromium escrever "Failed to load
+   resource: the server responded with a status of 404 (Not Found)" no
+   console, por conta própria, mesmo quando o código trata a resposta** —
+   aqui, `useDocument` traduzindo o 404 em "Documento não encontrado"
+   (regra 2). Como o teste de acesso negado têm de chamar exatamente essa
+   rota, a linha é inevitável e não denuncia defeito nenhum; filtrada, só
+   ela, nomeada, dentro de `documentos.spec.ts` (`exigirConsoleLimpo`) — não
+   em `apoio/console.ts`, que os outros specs compartilham e que não tem
+   motivo para parar de exigir zero erro.
+6. **`arvore_atual()` de `scripts/e2e/relatorio.sh` hasheava
+   `apps/web/e2e/setup/.auth/`** — o `storageState` que o próprio projeto
+   `setup` escreve a cada execução, com um token de sessão novo sempre.
+   `_exige_relatorio_da_arvore` comparava a árvore de antes da subida com a
+   de depois e reprovava toda execução, mesmo sem nada de fonte ter mudado.
+   Corrigido excluindo o caminho do `find`, com o motivo anotado.
+
+O que desviou do plano, e por quê: (1) o plano não nomeia onde o banco
+`folioteca_e2e` é recriado — `scripts/e2e/banco-limpo.sh` entrou porque a
+etapa exige o comportamento e não havia script nenhum ainda; o mesmo nome e
+a mesma guarda (`CI=true` ou sufixo `_e2e`) que o plano 03 (ainda não
+executado) já previa para o próprio setup dele, então quem o escrever não
+vai encontrar um buraco nem duas versões. (2) `esqueleto.spec.ts` perdeu o
+teste `"o documento abre pela árvore de espaços e o link do sumário leva ao
+título"` — dependia de um documento listado dentro de um espaço, capacidade
+que a etapa 5 deste mesmo plano já tinha apagado (`useDocumentsBySpace`
+devolve `[]` sempre; compartilhamento só existe nos planos 05/06) e nenhum
+spec tinha sido ajustado ainda. (3) `a11y.spec.ts` teve o terceiro estado do
+teste `"o axe não acha violação séria em Início, num espaço e num
+documento"` trocado de `/documentos/guia-onboarding-engenharia` (mesmo
+motivo do item 2) para `/documentos/inexistente` com um `page.route` que
+devolve 404 — o único estado de página de documento alcançável sem sessão
+real, que é o que esta suíte usa (dublê de `apoio/sessao.ts`); o nível do
+heading mudou de 1 para 2, porque `DocumentoNaoEncontrado` usa `titleAs=
+"h2"`. (4) `playwright.config.ts`: além dos `projects`, o `DATABASE_URL`
+padrão do `webServer` da API mudou de `.../folioteca` para `.../
+folioteca_e2e` — rodar a suíte localmente sem variável de ambiente não pode
+continuar escrevendo pessoa e documento de teste no banco de desenvolvimento
+que o `setup` agora cria de verdade. Não afeta o CI: `_suite-react.yml` já
+define `DATABASE_URL` explícito (Postgres efêmero do job), que sempre vence
+o `??`.
+
+Sem teste de Vitest nesta etapa — tudo que ela mede é comportamento de ponta
+a ponta contra sessão e API reais, que é exatamente o que Vitest com MSW não
+alcança; os 218 testes de unidade existentes continuam verdes (confirmado
+depois da troca de `client.ts`, já que toda chamada que passava por ele
+ganhou um cabeçalho novo de verdade no transporte real, ainda que invisível
+para o MSW).
