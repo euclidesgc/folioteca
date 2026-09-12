@@ -1,7 +1,7 @@
 # 01 — Layout e navegação
 
 **Status:** [ ] não iniciado · [ ] em andamento · [x] entregue
-**Branch:** `feat/01-layout-e-navegacao` a partir de `develop` · **PR:** —
+**Branch:** `feat/01-layout-e-navegacao` a partir de `develop` · **PR:** [#85](https://github.com/euclidesgc/folioteca/pull/85)
 **Depende de:** nenhum
 **Desbloqueia:** 02 — Documento e editor, 03 — Estrutura organizacional, 05 — Espaços
 
