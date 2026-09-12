@@ -42,6 +42,7 @@ model User {
   createdDocuments  Document[]         @relation("DocumentCreatedBy")
   favoriteDocuments DocumentFavorite[]
   memberships       UnitMembership[]
+  invitationsSent   Invitation[]       @relation("InvitationsSent")
 }
 
 model UnitType {
@@ -74,6 +75,7 @@ model Unit {
   unitType   UnitType? @relation(fields: [unitTypeId], references: [id])
 
   memberships UnitMembership[]
+  invitations Invitation[]
 
   @@unique([parentId, normalizedName])
 }
@@ -107,6 +109,25 @@ model UnitMembership {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([unitId, userId])
+}
+
+model Invitation {
+  id          String    @id @default(uuid())
+  email       String
+  unitId      String
+  role        UserRole  @default(MEMBER)
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  invitedById String
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  unit      Unit @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  invitedBy User @relation("InvitationsSent", fields: [invitedById], references: [id])
+
+  @@index([email])
+  @@index([unitId])
 }
 
 model Session {

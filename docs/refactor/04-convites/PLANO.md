@@ -1,6 +1,6 @@
 # 04 — Convites
 
-**Status:** [ ] não iniciado · [ ] em andamento · [ ] entregue
+**Status:** [ ] não iniciado · [x] em andamento · [ ] entregue
 **Branch:** `feat/04-convites` a partir de `develop` · **PR:** —
 **Depende de:** 03 — Estrutura organizacional (guard de sessão, `/me`, filtro
 de erro, Testcontainers, instalação com código, unidades em árvore, lotação,
@@ -181,25 +181,25 @@ do servidor mesmo que burle a tela.
 ## Etapas
 
 ### Etapa 1 — Modelo de dados e regras do convite
-- [ ] Ler: `apps/api/prisma/schema.prisma`, `docs/refactor/00-fundamentos/
+- [x] Ler: `apps/api/prisma/schema.prisma`, `docs/refactor/00-fundamentos/
       modelo-de-acesso.md` (M2, M3, M6, D5), `apps/api/src/auth/
       auth.factory.ts`, `apps/api/src/account/{account.service.ts,
       account.repository.ts}` (padrão repository/service/transação)
-- [ ] Medir, na versão de `better-auth` instalada, se `createLocalAccountIssuer`
+- [x] Medir, na versão de `better-auth` instalada, se `createLocalAccountIssuer`
       (ou equivalente) está exportado, como D5 pede; registrar o achado em
       **Andamento**
-- [ ] Migration `invitations`: modelo `Invitation` acima, `unitId` com
+- [x] Migration `invitations`: modelo `Invitation` acima, `unitId` com
       `onDelete: Restrict`
-- [ ] `apps/api/src/invitations/{invitations.module.ts, invitations.service.ts,
+- [x] `apps/api/src/invitations/{invitations.module.ts, invitations.service.ts,
       invitations.repository.ts, mask-email.ts, errors.ts}`: criar, listar,
       reenviar (gira token e prazo), revogar (marca `revokedAt`) — sem rota
       HTTP ainda, só o serviço
-- [ ] Teste: `apps/api/src/invitations/mask-email.spec.ts` ("mascara o e-mail
+- [x] Teste: `apps/api/src/invitations/mask-email.spec.ts` ("mascara o e-mail
       mantendo o primeiro caractere e o domínio") e
       `apps/api/src/invitations/invitations.service.spec.ts` (repositório
       dublê, cobre 409 `USER_ALREADY_EXISTS`/`INVITATION_PENDING`/
       `INVITATION_NOT_PENDING`)
-- [ ] Verificação da etapa: `pnpm --filter api exec jest -t "convite"` sai
+- [x] Verificação da etapa: `pnpm --filter api exec jest -t "convite"` sai
       com 0
 
 ### Etapa 2 — Rotas administrativas e contrato
@@ -388,3 +388,33 @@ do servidor mesmo que burle a tela.
 
 Linhas acrescentadas durante a execução: `AAAA-MM-DD — etapa N — o que foi
 feito — o que desviou do plano e por quê`.
+
+2026-09-12 — etapa 1 — migration `20260912132022_invitations` (modelo
+`Invitation` acima, `unitId` com `onDelete: Restrict`; back-relations
+`Unit.invitations` e `User.invitationsSent` acrescentadas só para o Prisma
+aceitar as duas pontas da relação nomeada, exigência do schema, não decisão de
+produto); `@better-auth/core@1.7.2` expõe `createLocalAccountIssuer` pelo
+subpath `@better-auth/core/db` (confirmado em
+`node_modules/@better-auth/core/dist/db/index.mjs`), D5 se confirma sem
+dependência nova — já era direta em `apps/api/package.json` desde o plano 03;
+`apps/api/src/invitations/{invitations.module.ts, invitations.service.ts,
+invitations.repository.ts, mask-email.ts, errors.ts}` (sem controller ainda);
+`invitations.repository.mock.ts` como dublê de teste dedicado
+(`nest-testing-unit`), não listado no plano mas necessário para o teste
+pedido; `mask-email.spec.ts` e `invitations.service.spec.ts` com as três
+naturezas (contrato, caminho feliz, bordas) — o que desviou do plano: (1)
+`apps/api/src/account/**` não existe mais (apagado no plano 03, registrado no
+Andamento dele); o padrão repository/service/transação equivalente hoje é
+`apps/api/src/installation/{installation.service.ts,
+installation.repository.ts}`, lido no lugar; (2) ao gerar a migration com
+`prisma migrate dev`, o Prisma propôs também `DROP`/`ADD CONSTRAINT` em
+`Unit_unitTypeId_fkey` (de `RESTRICT` para `SET NULL`) e o `DROP` sem
+recriação de `UnitClosure_ancestorId_fkey`/`_descendantId_fkey` e do índice
+`UnitClosure_descendantId_idx` — drift pré-existente entre `schema.prisma`
+(relação opcional `Unit.unitType` sem `onDelete` explícito) e a migration do
+plano 03 (que grava `RESTRICT` para essa FK), sem relação com este plano;
+apliquei só as três tabelas/índices/FKs do `Invitation` (migration gerada com
+`--create-only`, aparada à mão, aplicada com `migrate deploy`) e restaurei o
+banco de desenvolvimento ao estado exato de antes — achado registrado para o
+dono decidir se declara `onDelete: Restrict` explícito em `Unit.unitType`,
+fora deste PR.
