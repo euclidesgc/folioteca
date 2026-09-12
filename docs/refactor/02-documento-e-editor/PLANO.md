@@ -1,6 +1,6 @@
 # 02 — Documento e editor
 
-**Status:** [ ] não iniciado · [ ] em andamento · [ ] entregue
+**Status:** [ ] não iniciado · [x] em andamento · [ ] entregue
 **Branch:** `feat/02-documento-e-editor` a partir de `develop` · **PR:** —
 **Depende de:** 01 — Layout e navegação (a barra lateral única e o esqueleto de `/documentos`)
 **Desbloqueia:** 06 — Compartilhamento, 07 — Pesquisa, 08 — Comentários, 09 — Histórico de versões, 10 — Anexos e imagens, 11 — Presença e robustez do tempo real
@@ -189,42 +189,42 @@ e o editor; quem prova o acesso é sempre `GET /documents/:id`.
 
 ### Etapa 1 — Fundações da API: sessão, erro de domínio, `/me` e o modelo de dados
 
-- [ ] Ler: `apps/api/src/app.module.ts`, `apps/api/src/auth/auth.factory.ts`,
+- [x] Ler: `apps/api/src/app.module.ts`, `apps/api/src/auth/auth.factory.ts`,
       `apps/api/src/account/*` (padrão), `docs/refactor/00-fundamentos/
       decisoes.md` (decisão 4), `modelo-de-acesso.md` (M13, D6)
-- [ ] `auth.factory.ts`: `user.additionalFields.role = { type: "string",
+- [x] `auth.factory.ts`: `user.additionalFields.role = { type: "string",
       input: false }` — a sessão expõe o papel sem consulta, e
       `/update-user` nunca o aceita
-- [ ] `apps/api/src/common/errors/`: `domain-error.ts` (`DomainError`
+- [x] `apps/api/src/common/errors/`: `domain-error.ts` (`DomainError`
       abstrata com `code`/`status`, + `UnauthenticatedError`,
       `DocumentNotFoundError`); `domain-exception.filter.ts`
       (`@Catch(DomainError)` → `{ code, message }`), com `APP_FILTER`
-- [ ] `apps/api/src/common/auth/`: `session.guard.ts`
+- [x] `apps/api/src/common/auth/`: `session.guard.ts`
       (`auth.api.getSession({ headers: fromNodeHeaders(request.headers) })`
       de `better-auth/node`, lança `UnauthenticatedError` se nula, grava
       `request.currentUser`); `current-user.decorator.ts` (`@CurrentUser()`)
-- [ ] `apps/api/src/me/`: `GET /me` sob `@UseGuards(SessionGuard)`, devolve
+- [x] `apps/api/src/me/`: `GET /me` sob `@UseGuards(SessionGuard)`, devolve
       `{ id, name, email, role }`; confirmar que `ValidationPipe` global já
       tem `whitelist`/`forbidNonWhitelisted`
-- [ ] `apps/api/prisma/schema.prisma`: `Document` e `DocumentFavorite`
+- [x] `apps/api/prisma/schema.prisma`: `Document` e `DocumentFavorite`
       ("Desenho > Modelo de dados"), com as duas relações inversas em
       `User`; migration `prisma migrate dev --name documento_pessoal` —
       escrever o nome final (com timestamp) em Andamento
-- [ ] `apps/api/src/route-modules.ts`: exporta `ROUTE_MODULES`, um array com
+- [x] `apps/api/src/route-modules.ts`: exporta `ROUTE_MODULES`, um array com
       `MeModule` — o ponto único que `app.module.ts` e
       `apps/api/scripts/generate-openapi.ts` importam em vez de listar cada
       módulo de rota duas vezes; é este arquivo que os planos seguintes (03,
       05, 06, 15, 16, 17) estendem
-- [ ] `apps/api/scripts/generate-openapi.ts`: monta os módulos a partir de
+- [x] `apps/api/scripts/generate-openapi.ts`: monta os módulos a partir de
       `ROUTE_MODULES`, com um `useValue` para `AUTH_INSTANCE` ao lado do
       dublê de `PrismaService`
-- [ ] Teste: `apps/api/test/apoio/sessao.ts` — cria pessoa + organização
+- [x] Teste: `apps/api/test/apoio/sessao.ts` — cria pessoa + organização
       pela transação de `AccountRepository`, marca `emailVerified: true` e
       chama `auth.api.signInEmail({ returnHeaders: true })` (caminho D5)
       para devolver o `Cookie` de uma sessão real
-- [ ] Teste: `apps/api/test/me.e2e-spec.ts` — `"nega acesso sem sessão"`,
+- [x] Teste: `apps/api/test/me.e2e-spec.ts` — `"nega acesso sem sessão"`,
       `"devolve o papel de quem está autenticado"`
-- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t "GET /me"` e `pnpm --filter api run typecheck` saem com 0
+- [x] Verificação da etapa: `pnpm --filter api run test:integration -t "GET /me"` e `pnpm --filter api run typecheck` saem com 0
 
 ### Etapa 2 — `packages/editor`: dependências, esquema e tema
 
@@ -458,3 +458,18 @@ e o editor; quem prova o acesso é sempre `GET /documents/:id`.
   de escrita no Postgres.
 
 ## Andamento
+
+2026-09-12 — etapa 1 — `auth.factory.ts` ganhou `user.additionalFields.role`;
+`common/errors` (`DomainError`, `UnauthenticatedError`, `DocumentNotFoundError`,
+`DomainExceptionFilter` via `APP_FILTER`) e `common/auth` (`SessionGuard`,
+`CurrentUser`) criados; `GET /me` sob `SessionGuard`; `Document` e
+`DocumentFavorite` no `schema.prisma` com as relações inversas em `User`,
+migration `20260912071221_documento_pessoal` aplicada no Postgres de
+desenvolvimento; `route-modules.ts` com `ROUTE_MODULES = [MeModule]`, usado por
+`app.module.ts` e `generate-openapi.ts`; `test/apoio/sessao.ts` e
+`test/me.e2e-spec.ts` — o que desviou: o Mailpit do `docker-compose.yml` não
+estava de pé (só o Postgres) e o caminho D5 do helper de sessão dispara
+e-mail de verificação no `signUpEmail`; subi o contêiner `mailpit` já
+declarado no compose (nenhuma dependência nova) em vez de trocar o caminho de
+criação de conta. `pnpm contract` comitado junto (`openapi.json` e o cliente
+gerado de `apps/web`), porque `GET /me` é rota nova.

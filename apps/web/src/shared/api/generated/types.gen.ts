@@ -8,6 +8,13 @@ export type HealthResponse = {
     status: string;
 };
 
+export type MeResponse = {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+};
+
 export type GetHealthData = {
     body?: never;
     path?: never;
@@ -85,3 +92,16 @@ export type GetReadinessResponses = {
 };
 
 export type GetReadinessResponse = GetReadinessResponses[keyof GetReadinessResponses];
+
+export type GetMeData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/me';
+};
+
+export type GetMeResponses = {
+    200: MeResponse;
+};
+
+export type GetMeResponse = GetMeResponses[keyof GetMeResponses];
