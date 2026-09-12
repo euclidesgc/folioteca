@@ -7,6 +7,8 @@ export function HomeMark(props: SVGProps<SVGSVGElement>): ReactElement {
       fill="none"
       stroke="currentColor"
       strokeWidth={1.5}
+      width="1em"
+      height="1em"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
@@ -25,6 +27,8 @@ export function SearchMark(props: SVGProps<SVGSVGElement>): ReactElement {
       fill="none"
       stroke="currentColor"
       strokeWidth={1.5}
+      width="1em"
+      height="1em"
       strokeLinecap="round"
       aria-hidden="true"
       {...props}
@@ -42,6 +46,8 @@ export function StructureMark(props: SVGProps<SVGSVGElement>): ReactElement {
       fill="none"
       stroke="currentColor"
       strokeWidth={1.5}
+      width="1em"
+      height="1em"
       strokeLinecap="round"
       aria-hidden="true"
       {...props}

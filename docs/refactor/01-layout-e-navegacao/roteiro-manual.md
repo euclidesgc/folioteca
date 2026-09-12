@@ -67,13 +67,3 @@ Tudo o que aparece marcado "Dados de exemplo" — o nome da organização, a
 árvore de espaços e os oito documentos — é dado fixo, igual para qualquer
 sessão. Isto é esperado: a origem dos dados troca nos planos seguintes (02,
 03 e 05) sem mudar a tela que você está vendo agora.
-
-## Achado à parte, fora deste plano
-
-Os ícones de "Início", "Pesquisa" e "Organização" na barra lateral aparecem
-bem maiores que os demais (visível nas capturas) — os três SVGs de
-`apps/web/src/app/layout/marcas.tsx` (criados na etapa 1) não têm
-`width="1em" height="1em"`, ao contrário de todo outro ícone do produto
-(`PersonMark`, `PrivateMark`, `ChannelMark`, `MenuMark`). Não corrigido
-aqui por estar fora do arquivo e da etapa desta sessão; sinalizado para
-decisão.
