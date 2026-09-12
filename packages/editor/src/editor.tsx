@@ -34,6 +34,10 @@ export function Editor({ provider, fragment, user, editable }: EditorProps) {
       },
       schema: documentSchema,
       dictionary: locales.pt,
+      // decisão: por padrão o BlockNote só marca `data-id` no bloco; o
+      // sumário (`TableOfContents`, em `apps/web`) precisa de um `id` de
+      // verdade no DOM para `href="#<id>"` rolar até o título.
+      setIdAttribute: true,
     }),
   );
 

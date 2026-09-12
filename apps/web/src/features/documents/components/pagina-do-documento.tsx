@@ -19,6 +19,7 @@ import { updateDocumentTitle } from "../api/update-document-title";
 import { chavesDeDocumentos } from "../api/chaves";
 import { useSyncStatus } from "../hooks/use-sync-status";
 import { DeleteForeverDialog } from "./delete-forever-dialog";
+import { TableOfContents } from "./table-of-contents";
 
 const RES_ESTADO: Record<"salvando" | "salvo" | "reconectando", string> = {
   salvando: "Salvando…",
@@ -31,6 +32,14 @@ function invalidarListasDeDocumentos(queryClient: QueryClient, id: string): void
   queryClient.invalidateQueries({ queryKey: chavesDeDocumentos.favorites() });
   queryClient.invalidateQueries({ queryKey: chavesDeDocumentos.trash() });
   queryClient.invalidateQueries({ queryKey: chavesDeDocumentos.detail(id) });
+}
+
+// contorno: `content` chega do transporte HTTP como `unknown[]`
+// (`DocumentDetailDto`); quem o produziu foi o próprio BlockNote no
+// servidor (`yDocToBlocks`, em `document-sync.service.ts`), então a forma
+// já é a do schema — o `any` fica contido nesta única borda.
+function blocksFromDocument(document: DocumentDetailDto): DocumentBlock[] {
+  return (document.content ?? []) as DocumentBlock[];
 }
 
 function DocumentoAtivo({ document }: { document: DocumentDetailDto }): ReactElement {
@@ -113,12 +122,19 @@ function DocumentoAtivo({ document }: { document: DocumentDetailDto }): ReactEle
         </div>
       </div>
 
-      <Editor
-        provider={provider}
-        fragment={fragmentoColaborativo(provider.document)}
-        user={{ name: sessao?.user.name ?? "", color: "var(--color-verdete)" }}
-        editable
-      />
+      <div className="flex flex-col gap-8 desde-tablet:flex-row">
+        <div className="order-1 min-w-0 flex-1 desde-tablet:order-2">
+          <Editor
+            provider={provider}
+            fragment={fragmentoColaborativo(provider.document)}
+            user={{ name: sessao?.user.name ?? "", color: "var(--color-verdete)" }}
+            editable
+          />
+        </div>
+        <div className="order-2 shrink-0 desde-tablet:order-1 desde-tablet:w-48">
+          <TableOfContents blocks={blocksFromDocument(document)} />
+        </div>
+      </div>
     </div>
   );
 }
@@ -167,11 +183,14 @@ function DocumentoNaLixeira({ document }: { document: DocumentDetailDto }): Reac
         Este documento está na lixeira.
       </p>
 
-      {/* contorno: `content` chega do transporte HTTP como `unknown[]`
-          (`DocumentDetailDto`); quem o produziu foi o próprio BlockNote no
-          servidor (`yDocToBlocks`, em `document-sync.service.ts`), então a
-          forma já é a do schema — o `any` fica contido nesta única borda. */}
-      <StaticEditor content={(document.content ?? []) as DocumentBlock[]} />
+      <div className="flex flex-col gap-8 desde-tablet:flex-row">
+        <div className="order-1 min-w-0 flex-1 desde-tablet:order-2">
+          <StaticEditor content={blocksFromDocument(document)} />
+        </div>
+        <div className="order-2 shrink-0 desde-tablet:order-1 desde-tablet:w-48">
+          <TableOfContents blocks={blocksFromDocument(document)} />
+        </div>
+      </div>
     </div>
   );
 }

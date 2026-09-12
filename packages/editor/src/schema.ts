@@ -25,7 +25,9 @@ export const documentSchema = BlockNoteSchema.create({
 
 export type DocumentSchema = typeof documentSchema;
 
-// decisão: `documentSchema.PartialBlock` já é o tipo de bloco com os
-// parâmetros genéricos deste esquema aplicados — evita reconstruir
-// `PartialBlock<BSchema, ISchema, SSchema>` à mão a partir de `DocumentSchema`.
-export type DocumentBlock = (typeof documentSchema)["PartialBlock"];
+// decisão: `documentSchema.Block` (não `.PartialBlock`) — `content` chega do
+// transporte já inteiro, todo campo presente; é o tipo que `listHeadings`
+// espera sem precisar tratar `id`/`content`/`children` como opcionais. Um
+// `Block[]` completo ainda serve como `initialContent` do editor (que pede
+// `PartialBlock[]`): todo campo obrigatório aqui cobre um opcional lá.
+export type DocumentBlock = (typeof documentSchema)["Block"];

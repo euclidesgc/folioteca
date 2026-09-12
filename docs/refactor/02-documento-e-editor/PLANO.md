@@ -707,7 +707,10 @@ que `/compartilhados` e a página de espaço já mostravam. `PaginaDoDocumento`
 `useSyncStatus(provider)`) e `DocumentoNaLixeira` (sem `HocuspocusProvider`
 nenhum, aviso "Este documento está na lixeira.", Restaurar/Excluir
 definitivamente) segundo `deletedAt`; `DocumentoNaoEncontrado` (novo)
-substitui o antigo comportamento de `DocumentView`. Rotas
+substitui o antigo comportamento de `DocumentView`. `TableOfContents` e
+`model/blocks.ts` (`listHeadings`, `inlineText`) do plano 01 continuam —
+adaptados a `DocumentBlock` (de `@folioteca/editor`), não apagados — e
+`PaginaDoDocumento` os monta ao lado do corpo nos dois estados. Rotas
 `favoritos.tsx`/`lixeira.tsx` criadas, `documentos.tsx`/`documento.tsx`
 reescritas, as duas somadas a `app/routes/index.tsx`. Barra lateral:
 `NewDocumentButton` no topo (cria e navega para `/documentos/:id`),
@@ -746,12 +749,26 @@ blocos à mão em `apps/web` (perdendo table/codeBlock/quote/toggleListItem,
 que o renderizador manual do plano 01 nunca cobriu), `packages/editor`
 ganhou `StaticEditor`, um `useCreateBlockNote` sem colaboração, `editable`
 fixo em `false` — mesma fidelidade visual do editor de verdade, sem abrir
-WebSocket nenhum. Isto tira `DocumentView`/`TableOfContents`/`model/blocks.ts`
-de uso (e seus testes, que liam `EXEMPLO_DOCUMENTOS`): os três foram
-apagados em vez de adaptados, porque nada mais os referenciava fora de
-`documento.tsx`, e a rota de `/documentos/:id` do plano 01 (trilha de
-espaço, `AccessSpine` por origem) não se aplica a um documento que só existe
-no espaço pessoal (M13) — reescrita por completo, não adaptada.
+WebSocket nenhum. Isto tira `DocumentView` de uso (e seu teste, que lia
+`EXEMPLO_DOCUMENTOS`): o componente foi apagado, não adaptado, porque nada
+mais o referenciava fora de `documento.tsx`, e a rota de `/documentos/:id`
+do plano 01 (trilha de espaço, `AccessSpine` por origem) não se aplica a um
+documento que só existe no espaço pessoal (M13) — reescrita por completo,
+não adaptada. O sumário continua: `TableOfContents`/`model/blocks.ts`
+(`listHeadings`, `inlineText`) seguem de pé, agora sobre `DocumentBlock` (o
+tipo de `@folioteca/editor`, `documentSchema["Block"]` — todo campo
+presente, diferente de `.PartialBlock`, que o editor usa para atualização
+parcial) em vez de `ExampleBlock`; `PaginaDoDocumento` o monta ao lado do
+corpo nos dois estados (`Editor` em edição, `StaticEditor` na lixeira),
+lendo os blocos do `content` que `GET /documents/:id` devolve. (2.1) a
+âncora do link mudou de `#bloco-<id>` para `#<id>`: por padrão o BlockNote
+só marca `data-id="<id>"` no DOM de cada bloco, nunca um `id` de verdade —
+sem `id`, `href="#bloco-<id>"` não rola a página a lugar nenhum. A opção
+`setIdAttribute: true` (documentada no `.d.ts`, mas só descoberta ao
+procurar por que o sumário antigo não teria efeito nenhum sobre o editor
+de verdade) faz o BlockNote também escrever um `id` literal — sem prefixo,
+porque `renderHTML` usa `e.id` cru — então a âncora é o próprio id do
+bloco, não uma convenção nossa.
 
 Outras divergências: (3) o botão "Excluir definitivamente" da página do
 documento (na lixeira) reaproveita o mesmo `Dialog` de confirmação que o

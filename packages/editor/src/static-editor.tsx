@@ -19,6 +19,9 @@ export function StaticEditor({ content }: StaticEditorProps) {
     initialContent: content.length > 0 ? content : undefined,
     schema: documentSchema,
     dictionary: locales.pt,
+    // decisão: mesma razão do editor colaborativo — o sumário precisa de um
+    // `id` real no DOM, não só o `data-id` que o BlockNote marca por padrão.
+    setIdAttribute: true,
   });
 
   return (
