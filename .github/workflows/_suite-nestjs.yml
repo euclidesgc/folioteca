@@ -198,6 +198,14 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U folioteca -d folioteca"
           --health-interval 2s --health-timeout 5s --health-retries 30
+      # Better Auth dispara e-mail de verificação ao criar cada sessão de teste
+      # (test/apoio/sessao.ts), e test/apoio/correio.ts lê o token do convite
+      # pela API HTTP do Mailpit — sem o serviço de pé, nenhum dos dois existe.
+      mailpit:
+        image: axllent/mailpit:v1.21
+        ports:
+          - 1025/tcp
+          - 8025/tcp
     env:
       NODE_ENV: test
     steps:
@@ -225,6 +233,19 @@ jobs:
           # exigido pelo schema em todo ambiente (M2), nasce por execução e
           # morre com o job.
           echo "INSTALLATION_CODE=$(openssl rand -hex 16)" >> "$GITHUB_ENV"
+      # Mesmo espírito do passo acima: porta não devolvida é medição
+      # impossível, não ausência de serviço, e só este passo sabe a diferença.
+      - name: A porta do Mailpit é a que o runner sorteou
+        run: |
+          smtp="${{ job.services.mailpit.ports['1025'] }}"
+          http="${{ job.services.mailpit.ports['8025'] }}"
+          if [ -z "$smtp" ] || [ -z "$http" ]; then
+            echo "::error::O runner não devolveu a porta publicada do serviço mailpit — sem ela não há como alcançar o SMTP nem a API de e-mail, e seguir mediria um endereço inventado."
+            exit 1
+          fi
+          echo "medido: o Mailpit responde em localhost:$smtp (SMTP) e localhost:$http (HTTP)"
+          echo "SMTP_PORT=$smtp" >> "$GITHUB_ENV"
+          echo "MAILPIT_HTTP_PORT=$http" >> "$GITHUB_ENV"
       # `dest` fora do HOME, e isto não é preferência: os runners desta casa são
       # quatro processos na MESMA máquina, com o MESMO `$HOME`. O padrão da ação é
       # `~/setup-pnpm`, então dois jobs simultâneos instalam e apagam o mesmo
