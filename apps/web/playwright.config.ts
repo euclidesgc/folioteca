@@ -55,6 +55,25 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
 
+  // decisão: `setup` cria as duas pessoas reais (conta pela `/criar-conta`,
+  // confirmação pelo link do Mailpit) uma vez, antes de tudo, e grava o
+  // `storageState` de cada uma em `e2e/setup/.auth/`; `chromium` depende dele
+  // para os casos de `documentos.spec.ts` herdarem sessão de verdade sem
+  // repetir o cadastro em cada teste. Os specs do esqueleto e de
+  // acessibilidade continuam na sessão dublê de `apoio/sessao.ts` e não leem
+  // nenhum dos dois arquivos de estado.
+  projects: [
+    {
+      name: "setup",
+      testMatch: /setup\/autenticar\.setup\.ts/,
+    },
+    {
+      name: "chromium",
+      testMatch: /.*\.spec\.ts/,
+      dependencies: ["setup"],
+    },
+  ],
+
   webServer: [
     {
       command: "pnpm --filter api run start",
@@ -66,11 +85,14 @@ export default defineConfig({
         NODE_ENV: "development",
         PORT: String(API_PORT),
         // motivo: no CI a porta do Postgres é sorteada pelo runner, e o
-        // endereço chega pelo ambiente. O padrão é o do compose local, para
-        // quem roda na mão não precisar declarar nada.
+        // endereço chega pelo ambiente. O padrão, para quem roda na mão, é um
+        // banco PRÓPRIO da suíte (`folioteca_e2e`, recriado por
+        // `scripts/e2e/banco-limpo.sh`) — o projeto de setup cria pessoa e
+        // documento de verdade, e não pode fazer isso contra o banco de
+        // desenvolvimento.
         DATABASE_URL:
           process.env.DATABASE_URL ??
-          "postgresql://folioteca:senha@localhost:5433/folioteca",
+          "postgresql://folioteca:senha@localhost:5433/folioteca_e2e",
         WEB_ORIGIN: `${WEB_URL},${SITE_URL}`,
         // motivo: a configuração é validada no boot e esta chave é obrigatória —
         // sem ela a API não sobe e a suíte inteira morre dizendo que o servidor
@@ -113,4 +135,4 @@ export default defineConfig({
   ],
 });
 
-export { SITE_URL, WEB_URL };
+export { API_URL, SITE_URL, WEB_URL };

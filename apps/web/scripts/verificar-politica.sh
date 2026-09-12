@@ -63,8 +63,26 @@ _politica_pgid=""
 _politica_trabalho=""
 _politica_registro=""
 
+# motivo: o mesmo substituto de esquema que `packages/editor/src/provider.ts`
+# (`paraWebSocket`) e `build-api-url.ts` (`webSocketOriginForBuild`) usam para
+# o handshake de colaboração — as três cópias precisam mudar juntas se o
+# esquema ganhar uma terceira forma.
+_websocket_de() { # <origem http(s)>
+  case "$1" in
+    https://*) printf 'wss://%s' "${1#https://}" ;;
+    *) printf 'ws://%s' "${1#http://}" ;;
+  esac
+}
+
+# Os dois hashes são os mesmos dois de ESTILOS_ESTATICOS_DO_EDITOR em
+# apps/web/vite.config.ts — as duas folhas <style> estáticas que o
+# Tiptap/BlockNote injeta a cada montagem do editor. As duas cópias precisam
+# mudar juntas; o comentário ao lado da constante em vite.config.ts explica o
+# que cada hash libera e o que ele não cobre.
+readonly STYLE_SRC_DO_EDITOR="'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=' 'sha256-PlumsSlvJ7vvWzjqibGAYKq92O3y/4JTxWWsWJvyUYA='"
+
 _politica_canonica() { # <origem>
-  printf "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' %s; object-src 'none'; base-uri 'self'; form-action 'self'" "$1"
+  printf "default-src 'self'; script-src 'self'; style-src 'self' %s; img-src 'self' data:; connect-src 'self' %s %s; object-src 'none'; base-uri 'self'; form-action 'self'" "$STYLE_SRC_DO_EDITOR" "$1" "$(_websocket_de "$1")"
 }
 
 _conta_diretivas() { # <política>
@@ -156,7 +174,7 @@ exige_politica_canonica() {
 exige_connect_src() {
   local politica="$1" origem="$2" obtido esperado
   obtido="$(_connect_src_de "$politica")"
-  esperado="connect-src 'self' $origem"
+  esperado="connect-src 'self' $origem $(_websocket_de "$origem")"
   echo "medido: connect-src = '${obtido:-<ausente>}'"
   if [ "$obtido" = "$esperado" ]; then
     return 0

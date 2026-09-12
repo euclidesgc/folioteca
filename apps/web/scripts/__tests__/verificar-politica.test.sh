@@ -48,12 +48,12 @@ caso_fala() { # caso_fala <nome> <trecho esperado> <corpo>
 caso "carregar o script não executa o corpo" 0 \
   "source \"\$ALVO\""
 
-politica_canonica_localhost="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' http://localhost:3000; object-src 'none'; base-uri 'self'; form-action 'self'"
-politica_nove_diretivas="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' http://localhost:3000; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
-politica_unsafe_inline="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self'; img-src 'self' data:; connect-src 'self' http://localhost:3000; object-src 'none'; base-uri 'self'; form-action 'self'"
-politica_unsafe_eval="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self'; img-src 'self' data:; connect-src 'self' http://localhost:3000; object-src 'none'; base-uri 'self'; form-action 'self'"
-politica_origem_errada="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://outra-origem.exemplo; object-src 'none'; base-uri 'self'; form-action 'self'"
-politica_com_frame_ancestors="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' http://localhost:3000; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+politica_canonica_localhost="default-src 'self'; script-src 'self'; style-src 'self' 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=' 'sha256-PlumsSlvJ7vvWzjqibGAYKq92O3y/4JTxWWsWJvyUYA='; img-src 'self' data:; connect-src 'self' http://localhost:3000 ws://localhost:3000; object-src 'none'; base-uri 'self'; form-action 'self'"
+politica_nove_diretivas="default-src 'self'; script-src 'self'; style-src 'self' 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=' 'sha256-PlumsSlvJ7vvWzjqibGAYKq92O3y/4JTxWWsWJvyUYA='; img-src 'self' data:; connect-src 'self' http://localhost:3000 ws://localhost:3000; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
+politica_unsafe_inline="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=' 'sha256-PlumsSlvJ7vvWzjqibGAYKq92O3y/4JTxWWsWJvyUYA='; img-src 'self' data:; connect-src 'self' http://localhost:3000 ws://localhost:3000; object-src 'none'; base-uri 'self'; form-action 'self'"
+politica_unsafe_eval="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=' 'sha256-PlumsSlvJ7vvWzjqibGAYKq92O3y/4JTxWWsWJvyUYA='; img-src 'self' data:; connect-src 'self' http://localhost:3000 ws://localhost:3000; object-src 'none'; base-uri 'self'; form-action 'self'"
+politica_origem_errada="default-src 'self'; script-src 'self'; style-src 'self' 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=' 'sha256-PlumsSlvJ7vvWzjqibGAYKq92O3y/4JTxWWsWJvyUYA='; img-src 'self' data:; connect-src 'self' https://outra-origem.exemplo wss://outra-origem.exemplo; object-src 'none'; base-uri 'self'; form-action 'self'"
+politica_com_frame_ancestors="default-src 'self'; script-src 'self'; style-src 'self' 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=' 'sha256-PlumsSlvJ7vvWzjqibGAYKq92O3y/4JTxWWsWJvyUYA='; img-src 'self' data:; connect-src 'self' http://localhost:3000 ws://localhost:3000; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
 # Uma política com nove diretivas — e não oito — é o caso central desta
 # fase: uma nona diretiva não declarada em lugar nenhum do plano.

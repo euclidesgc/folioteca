@@ -15,6 +15,14 @@ packages:
 # Liberados: `prisma` e `@prisma/engines` posicionam no postinstall o motor de
 # consulta nativo. Sem ele o cliente não conecta e migration nenhuma roda — é a
 # condição de o Prisma existir, não um ganho de desempenho.
+#
+# `cpu-features`, `protobufjs` e `ssh2` entraram em 12/09/2026 com
+# `testcontainers`/`@testcontainers/postgresql` (etapa 3 do plano 02): os três
+# chegam via `dockerode`, que fala com o daemon do Docker local — `ssh2` é só
+# para tunelar um Docker remoto por SSH, `cpu-features` só acelera a criptografia
+# do `ssh2`, e `protobufjs` serve um cliente gRPC que `dockerode` nem importa no
+# caminho do socket Unix local. Nenhum dos três tem script de build exigido pelo
+# uso que a suíte de integração faz (contêiner no Docker local da máquina).
 allowBuilds:
   "@parcel/watcher": false
   "@scarf/scarf": false
@@ -22,6 +30,9 @@ allowBuilds:
   msw: false
   "@prisma/engines": true
   prisma: true
+  cpu-features: false
+  protobufjs: false
+  ssh2: false
 
 # `js-yaml` 4.2.0 entra por `@hey-api/openapi-ts` e carrega dois avisos de
 # negação de serviço por análise quadrática. O gerador só lê `apps/api/openapi.json`,

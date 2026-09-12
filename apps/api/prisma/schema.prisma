@@ -36,6 +36,12 @@ model User {
   sessions Session[]
   accounts Account[]
 
+  // motivo: sem `onDelete` aqui de propósito — a FK sem cascade impede apagar
+  // `User` com documento pendurado (o dono nunca some junto com a conta).
+  ownedDocuments    Document[]         @relation("DocumentOwner")
+  createdDocuments  Document[]         @relation("DocumentCreatedBy")
+  favoriteDocuments DocumentFavorite[]
+
   @@index([organizationId])
 }
 
@@ -84,4 +90,35 @@ model Verification {
   updatedAt  DateTime @updatedAt
 
   @@index([identifier])
+}
+
+model Document {
+  id          String    @id @default(uuid())
+  title       String    @default("Sem título")
+  ownerId     String
+  createdById String
+  state       Bytes?
+  content     Json?
+  plainText   String    @default("")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  owner     User @relation("DocumentOwner", fields: [ownerId], references: [id])
+  createdBy User @relation("DocumentCreatedBy", fields: [createdById], references: [id])
+
+  favorites DocumentFavorite[]
+
+  @@index([ownerId, deletedAt])
+}
+
+model DocumentFavorite {
+  userId     String
+  documentId String
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@id([userId, documentId])
 }

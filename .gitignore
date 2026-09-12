@@ -28,4 +28,5 @@ next-env.d.ts
 *.log
 apps/web/.e2e-arvore
 apps/web/e2e-apontamentos.json
+apps/web/e2e/**/.auth/
 design_handoff_site_home/**

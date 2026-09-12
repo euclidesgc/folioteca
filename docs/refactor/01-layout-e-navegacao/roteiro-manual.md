@@ -5,6 +5,12 @@ Como testar à mão o que este plano entrega. As capturas citadas estão em
 a sessão dublê de `apps/web/e2e/apoio/sessao.ts` — a mesma tela que a suíte
 mede, não uma reconstrução à parte.
 
+> **Vale até o plano 02.** Os oito documentos de exemplo que este roteiro
+> percorre saem quando o plano 02 (Documento e editor) liga a lista à API de
+> verdade: a partir de lá, `/inicio` e `/documentos` mostram o que você mesmo
+> criou, e a árvore de espaços continua no exemplo até o plano 05. Este
+> roteiro descreve o estado em que o plano 01 foi entregue.
+
 1. **Entrar com a própria conta.**
    Abra a aplicação e entre normalmente. O que muda a partir daqui é só o
    esqueleto ao redor do conteúdo: uma barra lateral única, no lugar do
