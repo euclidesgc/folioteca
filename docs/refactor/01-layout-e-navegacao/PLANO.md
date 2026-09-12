@@ -218,12 +218,12 @@ vai aparecer quando os planos 03, 05 e 06 a trouxerem.
 ## Etapas
 
 ### Etapa 1 — Dados de exemplo, rótulo de Espaço e marcas novas
-- [ ] Ler: `docs/refactor/00-fundamentos/decisoes.md` (item 3), `docs/refactor/00-fundamentos/modelo-de-acesso.md` (M8–M18), `docs/prioridade_layout.md` ("Dados de exemplo"), `apps/web/src/shared/components/access/access-badge.tsx`, `apps/web/src/app/layout/gaveta-de-destinos.tsx` (padrão de `MenuMark`)
-- [ ] Criar `apps/web/src/shared/example-data/folioteca.ts`: tipos `ExampleBlock`, `ExampleSpace`, `ExampleDocument`, `ExampleOrganization`; exporta `EXEMPLO_ORGANIZACAO`, `EXEMPLO_ESPACOS` e `EXEMPLO_DOCUMENTOS`, conforme "Dados de exemplo" acima
-- [ ] Criar `apps/web/src/app/layout/marcas.tsx` com `HomeMark`, `SearchMark` e `StructureMark`, no padrão de `MenuMark` (`viewBox="0 0 16 16"`, `stroke="currentColor"`, `strokeWidth={1.5}`, `aria-hidden="true"`)
-- [ ] Editar `apps/web/src/shared/components/access/access-badge.tsx`: `ROTULOS.canal` passa de `"Canal"` para `"Espaço"` (a chave continua `canal`; `ChannelMark` continua com o mesmo nome e caminho)
-- [ ] Teste: `apps/web/src/shared/components/access/access-badge.test.tsx` — trocar `screen.getByText("Canal")` por `screen.getByText("Espaço")` no teste "names each origin in Portuguese, one label per value it receives"
-- [ ] Verificação da etapa: `pnpm --filter web typecheck && pnpm --filter web exec vitest run -t "names each origin in Portuguese, one label per value it receives"` sai com 0
+- [x] Ler: `docs/refactor/00-fundamentos/decisoes.md` (item 3), `docs/refactor/00-fundamentos/modelo-de-acesso.md` (M8–M18), `docs/prioridade_layout.md` ("Dados de exemplo"), `apps/web/src/shared/components/access/access-badge.tsx`, `apps/web/src/app/layout/gaveta-de-destinos.tsx` (padrão de `MenuMark`)
+- [x] Criar `apps/web/src/shared/example-data/folioteca.ts`: tipos `ExampleBlock`, `ExampleSpace`, `ExampleDocument`, `ExampleOrganization`; exporta `EXEMPLO_ORGANIZACAO`, `EXEMPLO_ESPACOS` e `EXEMPLO_DOCUMENTOS`, conforme "Dados de exemplo" acima
+- [x] Criar `apps/web/src/app/layout/marcas.tsx` com `HomeMark`, `SearchMark` e `StructureMark`, no padrão de `MenuMark` (`viewBox="0 0 16 16"`, `stroke="currentColor"`, `strokeWidth={1.5}`, `aria-hidden="true"`)
+- [x] Editar `apps/web/src/shared/components/access/access-badge.tsx`: `ROTULOS.canal` passa de `"Canal"` para `"Espaço"` (a chave continua `canal`; `ChannelMark` continua com o mesmo nome e caminho)
+- [x] Teste: `apps/web/src/shared/components/access/access-badge.test.tsx` — trocar `screen.getByText("Canal")` por `screen.getByText("Espaço")` no teste "names each origin in Portuguese, one label per value it receives"
+- [x] Verificação da etapa: `pnpm --filter web typecheck && pnpm --filter web exec vitest run -t "names each origin in Portuguese, one label per value it receives"` sai com 0
 
 ### Etapa 2 — Organização e árvore de espaços (dados e hooks)
 - [ ] Ler: `apps/web/src/shared/example-data/folioteca.ts` (etapa 1), `apps/web/src/features/health/index.ts` e `apps/web/src/features/health/hooks/use-health.ts` (padrão de barril e de `useQuery`), `docs/refactor/00-fundamentos/estado-atual.md` §11 (convenções de React em vigor)
@@ -310,3 +310,5 @@ vai aparecer quando os planos 03, 05 e 06 a trouxerem.
   continuar sendo o único sinal de proveniência do acesso.
 
 ## Andamento
+
+2026-09-12 — etapa 1 — criados `shared/example-data/folioteca.ts` (tipos `ExampleBlock`/`ExampleSpace`/`ExampleDocument`/`ExampleOrganization` e os três `EXEMPLO_*`, com os sete documentos fora do guia de onboarding escritos nesta sessão, um `heading` por seção) e `app/layout/marcas.tsx` (`HomeMark`, `SearchMark`, `StructureMark`); `ROTULOS.canal` trocado para "Espaço" em `access-badge.tsx` — sem desvio.

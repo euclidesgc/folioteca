@@ -11,14 +11,14 @@ describe("AccessBadge", () => {
         <AccessBadge origin="privado" />
       </>,
     );
-    expect(screen.getByText("Canal")).toBeInTheDocument();
+    expect(screen.getByText("Espaço")).toBeInTheDocument();
     expect(screen.getByText("Pessoa")).toBeInTheDocument();
     expect(screen.getByText("Privado")).toBeInTheDocument();
   });
 
   it("carries a graphic mark hidden from assistive tech alongside the label", () => {
     render(<AccessBadge origin="canal" />);
-    const etiqueta = screen.getByText("Canal");
+    const etiqueta = screen.getByText("Espaço");
     const marca = etiqueta.closest("span")?.querySelector("svg");
     expect(marca).toHaveAttribute("aria-hidden", "true");
   });
