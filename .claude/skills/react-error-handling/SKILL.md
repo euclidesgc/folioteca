@@ -158,4 +158,4 @@ it('deve mostrar o código de rastreio quando o componente lança', async () => 
 - `templates/error-fallback.tsx` — estado de erro com ação e identificador.
 - Forma do erro que chega: skill `react-api-layer`.
 - Ramo `isError` da query: skill `react-state-server`.
-- A Definition of Done que cobra o console limpo: skill `quality-baseline`.
+- Quem cobra o console limpo: a suíte e2e, por `apps/web/e2e/apoio/console.ts`.

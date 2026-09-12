@@ -8,7 +8,7 @@ user-invocable: false
 
 ## Quando esta skill vale
 
-Vale quando a fase cria ou altera tabela, escreve consulta, coordena escrita em
+Vale quando a etapa cria ou altera tabela, escreve consulta, coordena escrita em
 mais de um agregado, ou precisa decidir como testar código que fala com o banco.
 
 ## As regras
@@ -106,7 +106,8 @@ async placeOrder(order: NewOrder, items: StockChange[]): Promise<Order> {
 ```
 
 Quando a unidade atômica cruza dois módulos de verdade, isso é uma decisão de
-desenho — registre a divergência em vez de espalhar `tx` pelas assinaturas.
+desenho — descreva no retorno o que o `PLANO.md` pede, o que o esquema exige, e
+a opção recomendada, em vez de espalhar `tx` pelas assinaturas.
 
 ## Como testar
 

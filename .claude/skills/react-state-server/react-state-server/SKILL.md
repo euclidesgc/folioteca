@@ -7,7 +7,7 @@ description: "Estado de servidor com TanStack Query: fábrica de chaves de query
 
 ## Quando esta skill vale
 
-Vale sempre que um dado vem de uma requisição. Neste pack — **Vite, SPA, sem
+Vale sempre que um dado vem de uma requisição. Neste projeto — **Vite, SPA, sem
 componente de servidor e sem ação de servidor** — esta é a **única folha de
 busca de dados**: não existe outro lugar legítimo de onde o dado do servidor
 entre na tela. Toda leitura passa por `useQuery`; toda escrita passa por

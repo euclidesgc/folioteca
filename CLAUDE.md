@@ -1,45 +1,49 @@
-# Folioteca — a empresa escreve documentos e os distribui por canais; o acesso vem de onde a pessoa está, e é revogado quando ela sai de lá.
+# Folioteca — a empresa escreve documentos e os distribui por espaços; o acesso vem de onde a pessoa está, e é revogado quando ela sai de lá.
 
-Frentes: web em `apps/web` (react), api em `apps/api` (nestjs).
+Frentes: web em `apps/web` (React + Vite), api em `apps/api` (NestJS), hotsite
+em `apps/site` (Next).
 
 ## Processo
 
-`/harness:start` conduz; `/harness:status` resume.
+O plano é `docs/refactor/README.md`: os planos em ordem de execução, um
+`PLANO.md` por funcionalidade, e em `docs/refactor/00-fundamentos/decisoes.md`
+as escolhas de stack aprovadas pelo dono. Como executar está no próprio README.
 
-1. Sem plano aprovado (`03-plan.md`), o guard recusa escrita em código.
-2. Cada agent escreve só no escopo declarado.
-3. Mudança de API começa no OpenAPI.
-4. Divergência de contrato para a fase. A normal segue na recomendação e se
-   registra; trava merge só se a escolha for do dono.
+1. O dono indica o que fazer; a sessão faz aquilo e só aquilo, e termina com
+   algo que ele consiga ver ou testar na tela.
+2. O `PLANO.md` é o registro: tarefa feita vira `[x]`, e cada etapa fecha com
+   uma linha em **Andamento**. Não há roadmap nem estado paralelo.
+3. Um plano é uma branch `feat/NN-slug` a partir de `develop` e um PR. Merge
+   só quando o dono pedir, por `bash scripts/merge-se-liberado.sh <número>`.
+4. Mudança de API começa no OpenAPI.
 5. Critério de aceite é tipado (`comando`, `estrutural`, `comportamental`).
-   Adjetivo não é critério.
+   Adjetivo não é critério. Critério que não dá para cumprir se diz ao dono;
+   não se reescreve para passar.
 6. A DoD global é do CI e não se repete no plano.
-7. Documento canônico não tem cicatriz: reescreve-se no presente.
-8. Reconciliação de doc no mesmo PR da mudança.
-9. Uma fase é um PR. Pilha é `gh stack`, nunca `--base` à mão.
-10. "Pronto" é build verde com testes passando.
+7. Quando a execução desmente o plano ou uma decisão, o documento se corrige
+   no mesmo PR, escrito no presente.
+8. Achado fora do pedido se diz ao dono em uma linha, separado, e não vira
+   trabalho sem ele pedir. Nada de frente de infraestrutura por conta própria.
+9. "Pronto" é build verde com testes passando.
 
 ## Código
 
-11. Zero comentário, exceto o porquê que o código não mostra: decisão,
+10. Zero comentário, exceto o porquê que o código não mostra: decisão,
     contorno externo, restrição de plataforma, invariante.
-12. Sem TODO. Pendência vira item de roadmap, na posição de precedência
-    certa, antes de a fase fechar.
-13. Autorização é do servidor; no cliente é experiência de uso.
-14. Segredo nunca no repositório.
-15. Sem dependência não declarada.
-16. Código e commits em inglês; documentos e interface em pt-BR.
+11. Sem TODO. Pendência se anota em "Riscos e decisões em aberto" do
+    `PLANO.md` em execução e se diz ao dono.
+12. Autorização é do servidor; no cliente é experiência de uso.
+13. Segredo nunca no repositório.
+14. Sem dependência não declarada.
+15. Código e commits em inglês; documentos e interface em pt-BR.
 
 ## Ferramentas
 
-17. Grafo antes de busca crua: `semantic_search_nodes_tool`, `query_graph_tool`.
-18. Saída de comando se estreita na origem, não por camada que resume.
-19. Antes de dar por pronto: `bash scripts/gates/gates_runner.sh`. Portão que
+16. Grafo antes de busca crua: `semantic_search_nodes_tool`, `query_graph_tool`.
+17. Saída de comando se estreita na origem, não por camada que resume.
+18. Antes de dar por pronto: `bash scripts/gates/gates_runner.sh`. Portão que
     não conseguiu medir reprova, nunca aprova.
-20. Erro repetido pela segunda vez vira causa raiz, não terceiro remendo.
-21. `/harness:doctor` diagnostica ambiente, hooks e estado.
-
-Detalhe nas skills do harness.
+19. Erro repetido pela segunda vez vira causa raiz, não terceiro remendo.
 
 ## React (`apps/web`)
 
@@ -80,5 +84,3 @@ Detalhe nas skills `react-*`.
 - API muda no OpenAPI primeiro; `oasdiff` e clientes no mesmo PR.
 
 Detalhe nas skills `nest-*`.
-
-<!-- harness:claude-md -->
