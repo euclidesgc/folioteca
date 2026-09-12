@@ -348,85 +348,90 @@ administra recebe 403 do servidor, nunca só um botão escondido (M20).
 - [x] Verificação da etapa: `pnpm --filter web exec playwright test -g "administradora cria unidade"` sai com 0
 
 ### Etapa final — Ver na tela
-- [ ] Capturas em `docs/refactor/03-estrutura-organizacional/capturas/`:
+- [x] Capturas em `docs/refactor/03-estrutura-organizacional/capturas/`:
       `/criar-conta` (instalação e fechado), `/entrar` (com a faixa de
       mensagem), `/organizacao` como administração e como membro, `/perfil`
       (lotações) — larguras 1440 e 375, temas claro e escuro, geradas pelo
       Playwright
-- [ ] Roteiro manual: (1) suba o compose com `INSTALLATION_CODE` definido; (2)
+- [x] Roteiro manual: (1) suba o compose com `INSTALLATION_CODE` definido; (2)
       abra `/criar-conta`, informe o código e os dados, confirme a chegada em
       `/organizacao` já lotada na raiz; (3) crie um tipo, uma unidade filha,
       lote uma segunda pessoa (via seed — convite ainda não existe) e
       promova-a; (4) abra `/criar-conta` de novo, confirme o redireciono para
       `/entrar` com "O cadastro é por convite."; (5) entre como a segunda
       pessoa, `MEMBER`, e confirme que `/organizacao` não tem nenhum botão
-- [ ] `bash scripts/gates/gates_runner.sh` sai com 0
+- [x] `bash scripts/gates/gates_runner.sh` sai com 0
 - [ ] PR aberto com: o que entrega, como testar à mão, capturas
 
 ## Critérios de aceite
 
-- [ ] `comportamental` — Dado o código de instalação certo numa instância ainda
+- [x] `comportamental` — Dado o código de instalação certo numa instância ainda
       não instalada, quando `POST /installation` recebe nome, e-mail, senha e
       nome da empresa, então a resposta é 201, a sessão abre e `GET
       /organization` passa a responder `READY`. Prova:
       `apps/api/test/installation.e2e-spec.ts`, teste "instala a instância com
       o código certo e abre sessão do primeiro administrador".
-- [ ] `comportamental` — Dado o código de instalação errado, quando `POST
+- [x] `comportamental` — Dado o código de instalação errado, quando `POST
       /installation` é chamado, então a resposta é 403 com `code:
       "INSTALLATION_CODE_INVALID"`. Prova:
       `apps/api/test/installation.e2e-spec.ts`, teste "recusa o código de
       instalação errado".
-- [ ] `comportamental` — Dado que a instância já foi instalada, quando `POST
+- [x] `comportamental` — Dado que a instância já foi instalada, quando `POST
       /installation` é chamado de novo, então a resposta é 409 com `code:
       "INSTALLATION_ALREADY_DONE"`. Prova:
       `apps/api/test/installation.e2e-spec.ts`, teste "recusa a segunda
       instalação".
-- [ ] `comportamental` — Dado uma unidade com uma unidade filha e essa filha
+- [x] `comportamental` — Dado uma unidade com uma unidade filha e essa filha
       com uma neta, quando as três são criadas em sequência, então
       `UnitClosure` tem a linha entre a avó e a neta com `depth = 2`. Prova:
       `apps/api/test/units.e2e-spec.ts`, teste "mantém o fecho da árvore
       depois de unidades aninhadas".
-- [ ] `comportamental` — Dado uma unidade com uma pessoa lotada direto, quando
+- [x] `comportamental` — Dado uma unidade com uma pessoa lotada direto, quando
       `DELETE /units/:id` é chamado, então a resposta é 409 com `code:
       "UNIT_NOT_EMPTY"`. Prova: `apps/api/test/units.e2e-spec.ts`, teste
       "recusa apagar unidade com gente lotada".
-- [ ] `comportamental` — Dado um `MEMBER` autenticado, quando ele chama `POST
+- [x] `comportamental` — Dado um `MEMBER` autenticado, quando ele chama `POST
       /units`, então a resposta é 403. Prova:
       `apps/api/test/units.e2e-spec.ts`, teste "recusa membro criando
       unidade".
-- [ ] `comportamental` — Dado dois administradores, quando um despromove o
+- [x] `comportamental` — Dado dois administradores, quando um despromove o
       outro por `PATCH /users/:id/role` com `{ role: "MEMBER" }`, então a
       resposta é 200 e o papel muda. Prova: `apps/api/test/users.e2e-spec.ts`,
       teste "despromove um administrador quando há mais de um".
-- [ ] `comportamental` — Dado um único administrador, quando ele tenta
+- [x] `comportamental` — Dado um único administrador, quando ele tenta
       despromover a si mesmo por `PATCH /users/:id/role`, então a resposta é
       409 com `code: "LAST_ADMIN"`. Prova: `apps/api/test/users.e2e-spec.ts`,
       teste "recusa despromover o último administrador".
-- [ ] `comportamental` — Dado uma sessão real de administração, quando ela cria
+- [x] `comportamental` — Dado uma sessão real de administração, quando ela cria
       uma unidade filha na árvore de `/organizacao` e lota uma pessoa nessa
       unidade, então o nome da unidade e o da pessoa aparecem na árvore sem
       recarregar a página. Prova: `apps/web/e2e/organizacao-admin.spec.ts`,
       teste "administradora cria unidade filha e lota uma pessoa".
-- [ ] `comportamental` — Dado uma sessão real de `MEMBER`, quando a pessoa abre
+- [x] `comportamental` — Dado uma sessão real de `MEMBER`, quando a pessoa abre
       `/organizacao`, então a página não tem nenhum elemento com papel
       `button` de criar, renomear, apagar, lotar ou promover. Prova:
       `apps/web/e2e/organizacao-membro.spec.ts`, teste "mostra a árvore sem
       nenhum botão de administração para quem não administra".
-- [ ] `comportamental` — Dado que a instância já foi instalada, quando alguém
+- [x] `comportamental` — Dado que a instância já foi instalada, quando alguém
       abre `/criar-conta`, então é redirecionado para `/entrar` e a página
       mostra o texto "O cadastro é por convite.". Prova:
       `apps/web/e2e/cadastro-fechado.spec.ts`, teste "fecha o cadastro público
       depois da instalação".
-- [ ] `estrutural` — `apps/api/prisma/schema.prisma` declara `model
+- [x] `estrutural` — `apps/api/prisma/schema.prisma` declara `model
       UnitClosure` e não declara `organizationId` em `model User`. Prova: `rg
       -c "model UnitClosure" apps/api/prisma/schema.prisma` imprime `1`; `rg
-      -c "organizationId" apps/api/prisma/schema.prisma` imprime `0`.
-- [ ] `estrutural` — `apps/api/src/account/` não existe mais e
+      -c "organizationId" apps/api/prisma/schema.prisma` imprime `0`. — medido
+      com `rg` (norma do projeto, não `grep`): a primeira imprime `1`; a
+      segunda não imprime nada e sai com 1 — comportamento do `rg` em zero
+      ocorrências (`grep -c` imprimiria `0`; `rg -c` só imprime a contagem
+      quando ela é maior que zero). A ausência de saída confirma a mesma coisa
+      que "imprime 0": nenhuma ocorrência de `organizationId`.
+- [x] `estrutural` — `apps/api/src/account/` não existe mais e
       `apps/api/src/installation/installation.controller.ts` exporta
       `InstallationController`. Prova: `test ! -d apps/api/src/account` sai
       com 0; `rg -c "export class InstallationController"
       apps/api/src/installation/installation.controller.ts` imprime `1`.
-- [ ] `comando` — Contra o Postgres do `docker-compose.yml`, `pnpm --filter api
+- [x] `comando` — Contra o Postgres do `docker-compose.yml`, `pnpm --filter api
       exec prisma migrate deploy && pnpm --filter api exec prisma migrate
       status` sai com 0.
 
@@ -634,3 +639,38 @@ a asserção final usa a presença do botão "Desalojar" (que só existe na linh
 de quem já está lotada) para escolher entre os dois `<li>` que casam com o
 nome da pessoa.
 
+2026-09-12 — etapa final — capturas em
+`docs/refactor/03-estrutura-organizacional/capturas/` (20 arquivos: 5 rotas ×
+2 larguras × 2 temas) geradas estendendo `apps/web/scripts/capturas.ts`
+(generalizado `novaPaginaComSessaoReal`/`capturarRotaComSessaoReal` para
+aceitar `storageState`/pasta de saída como parâmetro, em vez de fixos na
+dona do documento); `/criar-conta` "instalação" usa `page.route` para
+simular `GET /organization` como `SETUP_PENDING` (a instância contra a qual
+as capturas rodam já foi instalada pelo `setup` da suíte, e não há como
+voltar a esse estado sem recriar o banco), e a estrutura de
+`/organizacao`/`/perfil` (um tipo, uma unidade filha, a pessoa membro lotada)
+nasce de um seed próprio do script, idempotente (tenta criar, cai para achar
+pelo nome se já existir), pelas mesmas duas pessoas do `setup`;
+`roteiro-manual.md` com os cinco passos do plano, mais uma seção "O que
+também vale conferir" (`/perfil`, `UNIT_NOT_EMPTY`, `LAST_ADMIN`, 375px/tema
+escuro); `bash scripts/gates/gates_runner.sh` saiu com 0. — o que foi
+diferente do texto do plano: (1) duas capturas ("Produto") ficaram presas
+num `waitFor` que nunca resolvia — `getByText("Produto")` (busca de texto
+não diferencia caixa) também casa com o título `sr-only` da gaveta de
+navegação mobile ("Destinos do produto"), sempre no DOM mesmo fechada, e
+`.first()` prendia a espera nesse elemento para sempre oculto; corrigido
+escopando a `<main>` (`page.getByRole("main").getByText(...)`), o mesmo
+ajuste que `organizacao-membro.spec.ts` já precisou para o nome da
+organização colidir com o link da barra lateral; (2) a captura
+`perfil-lotacoes` mostrava só Nome/Senha/E-mail — a seção "Onde você está
+lotada" é a última da página e a captura é só do viewport (sem
+`fullPage: true`); corrigido com `scrollIntoViewIfNeeded()` no trecho
+localizado antes do `screenshot()`; (3) rodar `capturas.ts` por inteiro
+regenerou também as capturas dos planos 01 e 02 (mesmo conteúdo visual,
+PNGs recodificados) — efeito colateral inerente ao script ser um só para os
+três planos, não uma escolha desta etapa; (4) o critério estrutural
+`rg -c "organizationId" apps/api/prisma/schema.prisma imprime 0` não bate
+literalmente com `rg`: em zero ocorrências `rg -c` não imprime nada (sai 1),
+diferente de `grep -c`, que imprimiria `0` (saindo 1 também) — a ausência de
+saída é a mesma informação ("zero ocorrências"), e o critério foi marcado
+`[x]` por isso, com a diferença anotada ao lado dele.
