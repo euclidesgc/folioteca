@@ -631,3 +631,33 @@ nos dois pontos de chamada que a reproduziam. Teste novo em
 `apps/web/src/shared/components/ui/select.test.tsx`: "o erro do select é
 anunciado pelo campo, não só pintado ao lado" (mais dois casos de contrato —
 resting sem `aria-describedby`, e o `throw` fora de `Select.Root`).
+
+2026-09-12 — correção pós-entrega — `apps/web/e2e/convites.spec.ts` falhava no
+CI porque `apps/web/e2e/apoio/correio.ts` fixava o Mailpit em
+`http://localhost:8025`, e no CI o serviço sobe com porta dinâmica publicada
+em `MAILPIT_HTTP_PORT` (o mesmo defeito que `apps/web/e2e/apoio/mailpit.ts`,
+do plano 02, já resolvia para a confirmação de e-mail). Juntei `correio.ts`
+dentro de `mailpit.ts` — que passa a exportar também `linkDoConvite`, ao lado
+de `linkDeConfirmacao` — e apaguei `correio.ts`; `convites.spec.ts` e
+`apps/web/scripts/capturas.ts` (achado por `rg`, fora da pasta `e2e/`) agora
+importam de `./apoio/mailpit`. `apps/web/e2e/instalacao.setup.ts` não
+importava nenhum dos dois — não precisou de ajuste. `apps/api/test/apoio/
+correio.ts` (arquivo irmão, de nome igual mas pasta diferente, que fica onde
+está por ser da suíte da API) ganhou a mesma queda de `MAILPIT_HTTP_PORT`
+para 8025, comentada no mesmo formato que o arquivo já usava.
+
+2026-09-12 — correção pós-entrega — o job `integracao` de
+`.github/workflows/_suite-nestjs.yml` reprovava os quatro testes de convite
+(`recusa segundo convite pendente`, `invalida o token anterior ao reenviar`,
+`convite vencido responde convite inválido`, `aceita convite cria pessoa
+lotada e sessão`) e logava `[Better Auth]: Failed to run background task:
+Error: connect ECONNREFUSED 127.0.0.1:1025`: o fluxo não subia serviço de SMTP
+nenhum, e a suíte precisa de um por dois caminhos — `test/apoio/sessao.ts`
+cria contas de verdade pelo Better Auth, que dispara e-mail de verificação em
+segundo plano, e `test/apoio/correio.ts` lê o e-mail do convite pela API HTTP
+do Mailpit para extrair o token. Acrescentei o serviço `mailpit`
+(`axllent/mailpit:v1.21`, portas `1025/tcp` e `8025/tcp` publicadas
+dinamicamente, espelhando `_suite-react.yml`) e um passo que reprova em voz
+alta quando o runner não devolve a porta publicada — mesmo espírito do passo
+já existente para o Postgres — exportando `SMTP_PORT` e `MAILPIT_HTTP_PORT`,
+os nomes que `environment.schema.ts` e `test/apoio/correio.ts` já liam.
