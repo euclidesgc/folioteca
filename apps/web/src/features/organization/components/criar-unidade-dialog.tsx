@@ -86,6 +86,7 @@ export function CriarUnidadeDialog({ parentId }: { parentId: string }): ReactEle
                   collection={colecao}
                   value={field.value ? [field.value] : []}
                   onValueChange={(detalhe) => field.onChange(detalhe.value[0] ?? "")}
+                  invalid={Boolean(errors.unitTypeId)}
                 >
                   <Select.Label>Tipo de unidade</Select.Label>
                   <Select.Control>
@@ -103,14 +104,12 @@ export function CriarUnidadeDialog({ parentId }: { parentId: string }): ReactEle
                     </Select.Content>
                   </Select.Positioner>
                   <Select.HiddenSelect />
+                  {errors.unitTypeId ? (
+                    <Select.Error>{errors.unitTypeId.message}</Select.Error>
+                  ) : null}
                 </Select.Root>
               )}
             />
-            {errors.unitTypeId ? (
-              <p role="alert" className="text-sm text-carimbo">
-                {errors.unitTypeId.message}
-              </p>
-            ) : null}
 
             {criar.isError ? (
               <p role="alert" className="text-sm text-carimbo">

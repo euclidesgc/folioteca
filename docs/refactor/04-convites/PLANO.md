@@ -615,3 +615,20 @@ correção à parte. Todos os critérios de aceite de API foram verificados por
 `pnpm --filter api run test -t "..."`/`run test:integration -t "..."` (a
 forma que de fato roda), não pela invocação literal do plano — ver critérios
 de aceite acima. `bash scripts/gates/gates_runner.sh`: limpo, 0.
+
+2026-09-12 — correção de acessibilidade (Select) — `apps/web/src/shared/
+components/ui/select.tsx` ganhou o mesmo desenho de `field.tsx`: um contexto
+(`errorId`, `invalid`) criado em `Select.Root` (que passa `invalid` ao
+`ArkSelect.Root`, já suportado pelo `@zag-js/select` de baixo), `Select.
+Trigger` lendo `aria-describedby` do contexto só quando `invalid` (nunca
+apontando para um id que não existe no DOM, mesmo invariante de `field.tsx`),
+e `Select.Error` — um `<p role="alert">` com o `id` do contexto, mesma classe
+que os `<p role="alert">` soltos já usavam, então a aparência não muda.
+`convidar-pessoa-dialog.tsx` (Select "Unidade") e `criar-unidade-dialog.tsx`
+(Select "Tipo de unidade") passaram a marcar `invalid={Boolean(errors.*)}` no
+`Select.Root` e a trocar o `<p role="alert">` solto por `<Select.Error>` — a
+lacuna que a etapa 4 registrou, agora corrigida no primitivo compartilhado, e
+nos dois pontos de chamada que a reproduziam. Teste novo em
+`apps/web/src/shared/components/ui/select.test.tsx`: "o erro do select é
+anunciado pelo campo, não só pintado ao lado" (mais dois casos de contrato —
+resting sem `aria-describedby`, e o `throw` fora de `Select.Root`).

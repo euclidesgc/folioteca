@@ -139,6 +139,7 @@ export function ConvidarPessoaDialog(): ReactElement {
                     collection={colecaoDeUnidades}
                     value={field.value ? [field.value] : []}
                     onValueChange={(detalhe) => field.onChange(detalhe.value[0] ?? "")}
+                    invalid={Boolean(errors.unitId)}
                   >
                     <Select.Label>Unidade</Select.Label>
                     <Select.Control>
@@ -156,14 +157,10 @@ export function ConvidarPessoaDialog(): ReactElement {
                       </Select.Content>
                     </Select.Positioner>
                     <Select.HiddenSelect />
+                    {errors.unitId ? <Select.Error>{errors.unitId.message}</Select.Error> : null}
                   </Select.Root>
                 )}
               />
-              {errors.unitId ? (
-                <p role="alert" className="text-sm text-carimbo">
-                  {errors.unitId.message}
-                </p>
-              ) : null}
 
               <Controller
                 name="role"
