@@ -240,8 +240,8 @@ Quem lê a auditoria geral, exporta ou busca documento/pessoa para o filtro é s
 - [ ] Teste: `apps/api/test/audit-append-only.e2e-spec.ts` — `"recusa UPDATE e DELETE de uma linha
       dentro da retenção"`; `apps/api/src/common/http/client-ip.spec.ts` — `"usa o primeiro valor
       de X-Forwarded-For quando presente"`
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t
-      "append-only" && pnpm --filter api exec jest -t "X-Forwarded-For"` sai com 0
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t
+      "append-only" && pnpm --filter api run test -t "X-Forwarded-For"` sai com 0
 
 ### Etapa 2 — Produtores de estrutura: compartilhamento, lotação, papel, espaço
 - [ ] Ler: `apps/api/src/sharing/*` (06, confirmar o nome do serviço com `rg -n "class.*Service"
@@ -259,7 +259,7 @@ Quem lê a auditoria geral, exporta ou busca documento/pessoa para o filtro é s
       mudar o compartilhamento"`, `"marca ADMIN_SELF_MEMBERSHIP quando o administrador se lota"`,
       `"marca ADMIN_SELF_MEMBERSHIP quando o gestor adiciona um administrador ao espaço"`, `"grava
       before e after ao mudar o papel"`
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t
       "produtor"` sai com 0
 
 ### Etapa 3 — Produtores de documento, desligamento, IA, e as rotas de leitura
@@ -286,7 +286,7 @@ Quem lê a auditoria geral, exporta ou busca documento/pessoa para o filtro é s
 - [ ] Teste: `apps/api/test/audit-events-read.e2e-spec.ts` — `"recusa quem tem apenas ver ou
       editar, mesmo com acesso ao documento"`, `"filtra por tipo e período e pagina sem repetir
       linha"`
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t
       "audit"` sai com 0
 
 ### Etapa 4 — Exportação em CSV e retenção
@@ -308,7 +308,7 @@ Quem lê a auditoria geral, exporta ou busca documento/pessoa para o filtro é s
       filtrado"`
 - [ ] Teste: `apps/api/test/audit-retention.e2e-spec.ts` — `"apaga só o evento fora da janela de
       retenção"`
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t
       "export|retenção"` sai com 0
 
 ### Etapa 5 — Web: `features/audit`, "Quem viu", "Ver acessos"

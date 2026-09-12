@@ -261,8 +261,7 @@ própria.
       notifica DOCUMENT_SHARED_WITH_ME, e compartilhar com um espaço não",
       "preferência desligada não cria notificação", "sem acesso ao documento
       não cria notificação"
-- [ ] Verificação da etapa: `pnpm --filter api run db:migrate && pnpm
-      --filter api exec jest --config test/jest-e2e.config.js -t
+- [ ] Verificação da etapa: `pnpm --filter api run db:migrate && pnpm --filter api run test:integration -t
       "notifica"` sai com 0
 
 ### Etapa 2 — Rotas, preferências e contrato
@@ -305,8 +304,7 @@ própria.
       lê `MAILPIT_HTTP_PORT`, padrão 8025)
 - [ ] Teste: acrescentar a `notifications.e2e-spec.ts` — "resumo diário reúne
       o não lido e não enviado, envia por Mailpit e marca emailedAt"
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config
-      test/jest-e2e.config.js -t "resumo diário"` sai com 0
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t "resumo diário"` sai com 0
 
 ### Etapa 4 — Sino, lista, `/notificacoes` e preferências no perfil
 - [ ] Ler: `apps/web/src/app/layout/{barra-lateral,app-shell}.tsx` (01),

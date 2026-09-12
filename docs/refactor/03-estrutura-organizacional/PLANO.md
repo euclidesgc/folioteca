@@ -262,7 +262,7 @@ administra recebe 403 do servidor, nunca só um botão escondido (M20).
 - [x] Teste: `apps/api/test/installation.e2e-spec.ts` — "instala a instância com
       o código certo e abre sessão do primeiro administrador", "recusa o
       código de instalação errado", "recusa a segunda instalação"
-- [x] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "instala"` sai com 0
+- [x] Verificação da etapa: `pnpm --filter api run test:integration -t "instala"` sai com 0
 
 ### Etapa 2 — Árvore de unidades, tipos e lotação (API)
 - [x] Ler: `apps/api/src/account/account.repository.ts` (padrão de transação),
@@ -281,7 +281,7 @@ administra recebe 403 do servidor, nunca só um botão escondido (M20).
 - [x] Teste: `apps/api/test/units.e2e-spec.ts` — "mantém o fecho da árvore
       depois de unidades aninhadas", "recusa apagar unidade com gente
       lotada", "recusa membro criando unidade"
-- [x] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "unidade"` sai com 0
+- [x] Verificação da etapa: `pnpm --filter api run test:integration -t "unidade"` sai com 0
 
 ### Etapa 3 — Papéis e pessoas (API)
 - [x] Ler: `apps/api/prisma/schema.prisma` (`UserRole`), `modelo-de-acesso.md` (M3, D6)
@@ -301,7 +301,7 @@ administra recebe 403 do servidor, nunca só um botão escondido (M20).
       `apps/web/src/shared/api/generated/`
 - [x] Teste: `apps/api/test/users.e2e-spec.ts` — "despromove um administrador
       quando há mais de um", "recusa despromover o último administrador"
-- [x] Verificação da etapa: `pnpm --filter api run openapi:generate && pnpm --filter api exec jest --config test/jest-e2e.config.js -t "administrador"` sai com 0
+- [x] Verificação da etapa: `pnpm --filter api run openapi:generate && pnpm --filter api run test:integration -t "administrador"` sai com 0
 
 ### Etapa 4 — Tela de Organização e fechamento do cadastro (web)
 - [x] Ler: `apps/web/src/app/routes/{organizacao,criar-conta,entrar,perfil}.tsx`,

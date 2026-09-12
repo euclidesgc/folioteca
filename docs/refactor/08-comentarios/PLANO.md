@@ -263,8 +263,7 @@ publicado nomes diferentes, a Etapa 1 usa os de `06` e ajusta este texto.
       apaga comentário alheio", "resolve e reabre thread", "recusa menção
       sem acesso", "sem acesso recebe 404", "thread sobrevive à remoção do
       bloco"
-- [ ] Verificação da etapa: `pnpm --filter api run openapi:generate && pnpm
-      --filter api exec jest --config test/jest-e2e.config.js -t
+- [ ] Verificação da etapa: `pnpm --filter api run openapi:generate && pnpm --filter api run test:integration -t
       "comentário"` sai com 0
 
 ### Etapa 3 — Audiência para menção
@@ -275,7 +274,7 @@ publicado nomes diferentes, a Etapa 1 usa os de `06` e ajusta este texto.
       plano não cria `GET /documents/:id/audience` de novo
 - [ ] Teste: `apps/api/test/comments.e2e-spec.ts` — "audiência lista só quem
       tem acesso e bate a busca" (contra a rota que 06 entrega)
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "audiência"` sai com 0
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t "audiência"` sai com 0
 
 ### Etapa 4 — Botão "Comentar" no editor
 - [ ] Ler: `docs/refactor/00-fundamentos/pesquisa/tecnologias.md` §1

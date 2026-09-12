@@ -203,8 +203,7 @@ quem barra a última forma de entrar é o Better Auth.
 - [ ] Teste: `apps/api/test/google-sign-in.e2e-spec.ts` — "recusa e-mail sem
       convite quando entra com Google" e "aceita convite pendente e lota a
       unidade quando entra com Google"
-- [ ] Verificação da etapa: `pnpm --filter api exec jest --config
-      test/jest-e2e.config.js -t "Google"` sai com 0
+- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t "Google"` sai com 0
 
 ### Etapa 2 — Vinculação e desvínculo no perfil
 - [ ] Ler: `apps/web/src/features/conta/index.ts`,
@@ -253,7 +252,7 @@ quem barra a última forma de entrar é o Better Auth.
       decifra o segredo do cliente"
 - [ ] Teste: `apps/api/test/sso-provider.e2e-spec.ts` — "lista provedores sem
       expor o client secret"
-- [ ] Verificação da etapa: `pnpm --filter api exec jest -t "cifra e decifra"`
+- [ ] Verificação da etapa: `pnpm --filter api run test -t "cifra e decifra"`
       sai com 0
 
 ### Etapa 4 — Entrar com SSO e "Exigir SSO"
@@ -311,27 +310,26 @@ quem barra a última forma de entrar é o Better Auth.
 - [ ] `comportamental` — Dado um e-mail sem conta e sem convite pendente,
       quando a pessoa clica "Entrar com Google" e o Google confirma esse
       e-mail, então nenhuma conta nasce e a resposta recusa a criação. Prova:
-      `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "recusa
+      `pnpm --filter api run test:integration -t "recusa
       e-mail sem convite quando entra com Google"`.
 - [ ] `comportamental` — Dado um convite pendente para esse e-mail, quando a
       pessoa entra com Google, então a conta nasce, o convite fica aceito e a
       lotação é criada na unidade do convite. Prova:
-      `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "aceita
+      `pnpm --filter api run test:integration -t "aceita
       convite pendente e lota a unidade quando entra com Google"`.
 - [ ] `comportamental` — Dado um usuário já existente com e-mail verificado,
       quando entra com Google usando o mesmo endereço, então a conta Google é
       vinculada a esse usuário e nenhum segundo usuário é criado. Prova:
-      `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "vincula
+      `pnpm --filter api run test:integration -t "vincula
       conta Google a usuário existente pelo e-mail verificado"`.
 - [ ] `comportamental` — Dado um provedor OIDC cadastrado com segredo de
       cliente, quando a administração lista os provedores, então a resposta
       não traz o segredo em texto claro. Prova:
-      `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "lista
+      `pnpm --filter api run test:integration -t "lista
       provedores sem expor o client secret"`.
 - [ ] `comportamental` — Dado o domínio de e-mail com "Exigir SSO" ligado,
       quando alguém desse domínio tenta entrar com e-mail e senha, então a API
-      recusa a entrada. Prova: `pnpm --filter api exec jest --config
-      test/jest-e2e.config.js -t "recusa e-mail e senha quando o domínio exige
+      recusa a entrada. Prova: `pnpm --filter api run test:integration -t "recusa e-mail e senha quando o domínio exige
       SSO"`.
 - [ ] `comportamental` — Dado o provedor OIDC do `oauth2-mock-server`
       cadastrado para um domínio de teste, quando a pessoa informa esse e-mail

@@ -346,13 +346,13 @@ XHR/fetch. Toda decisão de nível fica no servidor (M20).
 - [ ] `comportamental` — Dado um arquivo com assinatura de texto XML/SVG,
       quando enviado a `POST /documents/:id/attachments` por quem tem
       EDITAR, então a API responde 415 com `code: "UNSUPPORTED_TYPE"`.
-      Prova: `pnpm --filter api exec jest --config test/jest-e2e.config.js
+      Prova: `pnpm --filter api run test:integration
       -t "recusa SVG porque o conteúdo não tem tipo reconhecido por bytes
       mágicos"`.
 - [ ] `comportamental` — Dado um arquivo cujo conteúdo real é PDF salvo com
       o nome `foto.png`, quando enviado a `PUT /me/avatar`, então a API
       responde 415 com `code: "UNSUPPORTED_TYPE"`, porque o tipo lido do
-      conteúdo é `application/pdf`. Prova: `pnpm --filter api exec jest
+      conteúdo é `application/pdf`. Prova: `pnpm --filter api run test
       --config test/jest-e2e.config.js -t "recusa avatar cujo conteúdo real
       não é imagem, mesmo com extensão de imagem"`
       (`apps/api/test/avatar.e2e-spec.ts`).
@@ -364,8 +364,7 @@ XHR/fetch. Toda decisão de nível fica no servidor (M20).
 - [ ] `comportamental` — Dado um documento sem compartilhamento com a
       pessoa, quando ela chama `GET /attachments/:id/content` de um anexo
       desse documento, então a API responde 404 com `code:
-      "ATTACHMENT_NOT_FOUND"`. Prova: `pnpm --filter api exec jest --config
-      test/jest-e2e.config.js -t "esconde o anexo de quem não tem acesso ao
+      "ATTACHMENT_NOT_FOUND"`. Prova: `pnpm --filter api run test:integration -t "esconde o anexo de quem não tem acesso ao
       documento"`.
 - [ ] `comportamental` — Dado que a pessoa enviou uma foto por `PUT
       /me/avatar`, quando qualquer pessoa autenticada chama `GET

@@ -199,7 +199,7 @@ do servidor mesmo que burle a tela.
       `apps/api/src/invitations/invitations.service.spec.ts` (repositório
       dublê, cobre 409 `USER_ALREADY_EXISTS`/`INVITATION_PENDING`/
       `INVITATION_NOT_PENDING`)
-- [x] Verificação da etapa: `pnpm --filter api exec jest -t "convite"` sai
+- [x] Verificação da etapa: `pnpm --filter api run test -t "convite"` sai
       com 0
 
 ### Etapa 2 — Rotas administrativas e contrato
@@ -249,7 +249,7 @@ do servidor mesmo que burle a tela.
       sessão" (cria → aceita → `GET /me` devolve o papel e a unidade do
       convite), "recusa a décima primeira consulta pública no mesmo minuto"
 - [x] Verificação da etapa:
-      `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "convite"`
+      `pnpm --filter api run test:integration -t "convite"`
       sai com 0
 
 ### Etapa 4 — Tela
@@ -323,27 +323,27 @@ do servidor mesmo que burle a tela.
 - [x] `comportamental` — Dado um e-mail que já tem conta na Folioteca,
       quando a administração faz `POST /invitations` para esse e-mail, então
       a API responde 409 com `code: "USER_ALREADY_EXISTS"`. Prova:
-      `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "recusa
+      `pnpm --filter api run test:integration -t "recusa
       convite para e-mail que já tem conta"` (`apps/api/test/
       invitations.e2e-spec.ts`; rodado como `pnpm --filter api run
       test:integration -t "..."`).
 - [x] `comportamental` — Dado um convite pendente e válido para um e-mail,
       quando a administração cria um segundo convite para o mesmo e-mail,
       então a API responde 409 com `code: "INVITATION_PENDING"`. Prova:
-      `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "recusa
+      `pnpm --filter api run test:integration -t "recusa
       segundo convite pendente para o mesmo e-mail"` (`apps/api/test/
       invitations.e2e-spec.ts`; rodado como `pnpm --filter api run
       test:integration -t "..."`).
 - [x] `comportamental` — Dado um convite reenviado, quando alguém consulta
       `GET /invitations/by-token/:token` com o token antigo, então a API
       responde 404 com `code: "INVITATION_INVALID"`. Prova:
-      `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "invalida
+      `pnpm --filter api run test:integration -t "invalida
       o token anterior ao reenviar"` (`apps/api/test/invitations.e2e-spec.ts`;
       rodado como `pnpm --filter api run test:integration -t "..."`).
 - [x] `comportamental` — Dado um convite com `expiresAt` no passado, quando
       alguém consulta `GET /invitations/by-token/:token`, então a API
       responde 404 com `code: "INVITATION_INVALID"`. Prova:
-      `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "convite
+      `pnpm --filter api run test:integration -t "convite
       vencido responde convite inválido"` (`apps/api/test/
       invitations.e2e-spec.ts`; rodado como `pnpm --filter api run
       test:integration -t "..."`).
@@ -351,14 +351,13 @@ do servidor mesmo que burle a tela.
       quando alguém faz `POST /invitations/:token/accept` com nome e senha,
       então a API cria a pessoa, a lotação na unidade do convite e a sessão
       na mesma resposta, e `GET /me` devolve o papel do convite. Prova:
-      `pnpm --filter api exec jest --config test/jest-e2e.config.js -t "aceita
+      `pnpm --filter api run test:integration -t "aceita
       convite cria pessoa lotada e sessão"` (`apps/api/test/
       invitations.e2e-spec.ts`; rodado como `pnpm --filter api run
       test:integration -t "..."`).
 - [x] `comportamental` — Dado 10 pedidos a `GET /invitations/by-token/:token`
       do mesmo IP no mesmo minuto, quando o 11º pedido chega, então a API
-      responde 429. Prova: `pnpm --filter api exec jest --config
-      test/jest-e2e.config.js -t "recusa a décima primeira consulta pública
+      responde 429. Prova: `pnpm --filter api run test:integration -t "recusa a décima primeira consulta pública
       no mesmo minuto"` (`apps/api/test/invitations.e2e-spec.ts`; rodado como
       `pnpm --filter api run test:integration -t "..."`).
 - [x] `comando` — `cp apps/api/openapi.json /tmp/openapi-antes.json && pnpm
@@ -599,7 +598,7 @@ plano: (1) `capturarOrganizacao` (plano 03) reprovava em `esperarArvore` — o
 "— Produto" por unidade, e `getByText("Produto")` sem `exact` também batia
 nela; a espera passou a pedir `exact: true`, que distingue o nó da árvore
 (texto exato) das opções do combobox (prefixadas) — sem tocar em nenhum
-componente; (2) `pnpm --filter api exec jest`/`jest --config
+componente; (2) `pnpm --filter api run test`/`jest --config
 test/jest-e2e.config.js`, a forma que os critérios de aceite citam
 literalmente, morre com "Cannot use import statement outside a module" em
 `@better-auth/core/db` e em `better-auth/node` — as duas ficam puramente ESM
