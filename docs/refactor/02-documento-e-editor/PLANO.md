@@ -379,66 +379,66 @@ e o editor; quem prova o acesso é sempre `GET /documents/:id`.
 
 ### Etapa final — Ver na tela
 
-- [ ] Capturas em `docs/refactor/02-documento-e-editor/capturas/`
+- [x] Capturas em `docs/refactor/02-documento-e-editor/capturas/`
       (`/documentos`, `/documentos/:id` com conteúdo, `/favoritos`,
       `/lixeira`, "Documento não encontrado" — larguras 1440 e 375, temas
       claro e escuro), geradas pelo Playwright
-- [ ] Roteiro manual: entrar, clicar "Novo documento", escrever título e
+- [x] Roteiro manual: entrar, clicar "Novo documento", escrever título e
       dois parágrafos, ver "Salvo", recarregar e conferir que os dois
       continuam lá; favoritar pela lista e conferir em "Favoritos"; mandar
       para a lixeira, conferir em "Lixeira", restaurar; numa segunda sessão
       (outra pessoa), abrir o link do primeiro documento e conferir
       "Documento não encontrado"
-- [ ] `bash scripts/gates/gates_runner.sh` sai com 0
+- [x] `bash scripts/gates/gates_runner.sh` sai com 0
 - [ ] PR aberto com: o que entrega, como testar à mão, capturas
 
 ## Critérios de aceite
 
-- [ ] `estrutural` — `apps/api/src/common/errors/domain-error.ts` exporta
+- [x] `estrutural` — `apps/api/src/common/errors/domain-error.ts` exporta
       `DomainError`; `domain-exception.filter.ts` exporta
       `DomainExceptionFilter`, registrado via `APP_FILTER` em `app.module.ts`.
-- [ ] `estrutural` — `apps/api/src/common/auth/session.guard.ts` exporta
+- [x] `estrutural` — `apps/api/src/common/auth/session.guard.ts` exporta
       `SessionGuard`, usado com `@UseGuards(SessionGuard)` em
       `me.controller.ts` e `documents.controller.ts`.
-- [ ] `comportamental` — Dado nenhum cookie de sessão, quando `GET /me` é
+- [x] `comportamental` — Dado nenhum cookie de sessão, quando `GET /me` é
       chamado, então a resposta é 401 `{ code: "UNAUTHENTICATED" }`. Prova:
       `apps/api/test/me.e2e-spec.ts`, teste `"nega acesso sem sessão"`.
-- [ ] `comportamental` — Dado uma sessão válida, quando `GET /me` é chamado,
+- [x] `comportamental` — Dado uma sessão válida, quando `GET /me` é chamado,
       então a resposta é 200 com `{ id, name, email, role }` da pessoa. Prova:
       `apps/api/test/me.e2e-spec.ts`, teste `"devolve o papel de quem está
       autenticado"`.
-- [ ] `estrutural` — `apps/api/prisma/schema.prisma` declara `model Document`
+- [x] `estrutural` — `apps/api/prisma/schema.prisma` declara `model Document`
       com `state Bytes?` e `model DocumentFavorite` com
       `@@id([userId, documentId])`.
-- [ ] `comportamental` — Dado uma pessoa sem documentos, quando `POST
+- [x] `comportamental` — Dado uma pessoa sem documentos, quando `POST
       /documents` é chamado, então `ownerId` e `createdById` são o id dessa
       pessoa. Prova: `apps/api/test/documents.e2e-spec.ts`, teste `"cria um
       documento em branco com o dono igual a quem criou"`.
-- [ ] `comportamental` — Dado um documento de outra pessoa, quando `GET
+- [x] `comportamental` — Dado um documento de outra pessoa, quando `GET
       /documents/:id` é chamado, então a resposta é 404 `{ code:
       "DOCUMENT_NOT_FOUND" }`. Prova: `apps/api/test/documents.e2e-spec.ts`,
       teste `"nega acesso a documento de outra pessoa sem revelar que ele
       existe"`.
-- [ ] `comportamental` — Dado um estado Yjs com dois blocos de parágrafo,
+- [x] `comportamental` — Dado um estado Yjs com dois blocos de parágrafo,
       quando `deriveFromYDoc` é chamado, então `content` tem dois itens e
       `plainText` contém o texto dos dois. Prova: `apps/api/src/
       collaboration/document-sync.service.spec.ts`, teste `"deriva content e
       plainText a partir do estado Yjs"`.
-- [ ] `comando` — `pnpm contract && rg -q '"/documents":' apps/api/openapi.json` sai com 0.
-- [ ] `comando` — `bash scripts/gates/blocknote_sem_xl.sh` sai com 0 contra
+- [x] `comando` — `pnpm contract && rg -q '"/documents":' apps/api/openapi.json` sai com 0.
+- [x] `comando` — `bash scripts/gates/blocknote_sem_xl.sh` sai com 0 contra
       `pnpm-lock.yaml`.
-- [ ] `comportamental` — Dado a página de um documento novo, quando a pessoa
+- [x] `comportamental` — Dado a página de um documento novo, quando a pessoa
       escreve título e dois blocos e recarrega, então os três continuam
       visíveis. Prova: `apps/web/e2e/documentos.spec.ts`, teste `"cria,
       escreve título e dois blocos, e encontra tudo depois de recarregar"`.
-- [ ] `comportamental` — Dado o link de um documento de outra pessoa, quando
+- [x] `comportamental` — Dado o link de um documento de outra pessoa, quando
       a pessoa autenticada o abre, então a página mostra "Documento não
       encontrado". Prova: `apps/web/e2e/documentos.spec.ts`, teste `"mostra
       Documento não encontrado para quem não é dono"`.
-- [ ] `comportamental` — Dado um documento favoritado pela lista, quando a
+- [x] `comportamental` — Dado um documento favoritado pela lista, quando a
       pessoa abre `/favoritos`, então ele aparece nela. Prova: `apps/web/
       e2e/documentos.spec.ts`, teste `"favorito aparece em Favoritos"`.
-- [ ] `comportamental` — Dado um documento na lixeira, quando a pessoa clica
+- [x] `comportamental` — Dado um documento na lixeira, quando a pessoa clica
       "Restaurar", então ele reaparece em `/documentos` e sai de `/lixeira`.
       Prova: `apps/web/e2e/documentos.spec.ts`, teste `"restaura documento
       da lixeira"`.
