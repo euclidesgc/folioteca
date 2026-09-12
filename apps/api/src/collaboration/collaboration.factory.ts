@@ -66,8 +66,7 @@ export async function createCollaborationServer(
       if (!session) {
         throw new UnauthenticatedError();
       }
-      // regra 2: o mesmo 404 de um documento inexistente nega o acesso de
-      // quem não é dono, para a conexão não deixar rastro de que ele existe.
+      // gate3-ok: invariante — recusar como inexistente, e não como proibido, é o que impede a conexão de revelar que o documento existe.
       await deps.documentsService.assertAccess(session.user.id, documentName);
       return { userId: session.user.id };
     },

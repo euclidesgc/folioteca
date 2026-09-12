@@ -17,7 +17,8 @@
 # e imprime uma linha por violação, no formato `arquivo:linha:trecho`.
 #
 # Depois dos gates declarados vêm os portões diretos — quarentena de
-# dependência, pacote @blocknote/xl-* banido do lockfile, ações do CI em SHA,
+# dependência, pacote @blocknote/xl-* banido do lockfile, esquema de blocos
+# único entre editor e servidor, ações do CI em SHA,
 # vulnerabilidade conhecida no lockfile, desenho dos fluxos, isolamento do
 # pnpm, concorrência declarada, atalho deliberado, subida única da suíte
 # comportamental e segredo —, que não cabem no molde acima:
@@ -28,7 +29,7 @@
 # saída propagado.
 #
 # Modos:
-#   gates_runner.sh                  roda os gates e os dez portões diretos
+#   gates_runner.sh                  roda os gates e os catorze portões diretos
 #   gates_runner.sh --diff-only      força avaliação apenas do diff
 #   gates_runner.sh --all            força avaliação da árvore inteira
 #   gates_runner.sh --count-json     imprime a contagem por gate/arquivo (baseline)
@@ -269,6 +270,7 @@ esac
 
 bash "$ROOT/scripts/gates/quarentena.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/blocknote_sem_xl.sh" || VEREDICTO=1
+bash "$ROOT/scripts/gates/esquema_de_blocos_unico.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/acoes_em_sha.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/vulnerabilidade.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/fluxos.sh" || VEREDICTO=1

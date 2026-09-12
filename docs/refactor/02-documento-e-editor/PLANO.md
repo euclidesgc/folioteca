@@ -681,3 +681,4 @@ explícita de `apps/api` — já resolvia por ser transitiva de `jest`, mas
 `apoio/sequenciador.js` o `require()` direto. (5) o `debounce`/`maxDebounce`
 da `extension-database` ficaram no padrão do pacote, não configurados — ver
 "Riscos e decisões em aberto".
+2026-09-12 — etapas 3 e 4, fechamento — o `documentSchema` ficou declarado duas vezes (no editor e em `document-sync.service.ts`), porque `packages/editor` não tem build e o caminho ESM do servidor só resolve pacote publicado. Para a divergência não ficar silenciosa, entrou o portão `scripts/gates/esquema_de_blocos_unico.sh`, somado ao `gates_runner.sh`: ele compara as duas listas de blocos e reprova se elas se afastarem (provado removendo `heading` de um lado). O comentário da regra 2 em `collaboration.factory.ts` passou para o escape nomeado `gate3-ok`, com o motivo na própria linha.
