@@ -24,6 +24,31 @@ const SESSAO_DE_TESTE = {
   user: PESSOA_DE_TESTE,
 };
 
+// motivo: o assunto destes casos é o esqueleto e a acessibilidade, não a
+// estrutura organizacional — `ADMIN` é o que deixa o bloco "Instância"
+// (com `HealthStatus`, que `health.spec.ts` mede) renderizar, e uma unidade
+// raiz sem filha nem gente lotada é o suficiente para `ArvoreDeUnidades` sair
+// do estado de carregamento sem cair no de erro.
+const ME_DE_TESTE = {
+  id: PESSOA_DE_TESTE.id,
+  name: PESSOA_DE_TESTE.name,
+  email: PESSOA_DE_TESTE.email,
+  role: "ADMIN",
+  organization: { id: "organizacao-de-teste", name: "Organização de Teste" },
+  units: [{ id: "unidade-raiz-de-teste", name: "Organização de Teste", path: ["Organização de Teste"] }],
+};
+
+const ORGANIZACAO_DE_TESTE = { status: "READY", name: "Organização de Teste" };
+
+const UNIDADES_DE_TESTE = {
+  id: "unidade-raiz-de-teste",
+  name: "Organização de Teste",
+  isRoot: true,
+  unitType: null,
+  directMembers: [],
+  children: [],
+};
+
 // motivo: a resposta é servida a uma origem diferente da que a pede, e o
 // navegador aplica CORS mesmo quando quem responde é o próprio Playwright. Sem
 // estes cabeçalhos o dublê é entregue e descartado antes de o JavaScript vê-lo,
@@ -37,11 +62,13 @@ function cabecalhosDeOrigem(origem: string): Record<string, string> {
   };
 }
 
-export async function instalarSessao(
+async function instalarRotaJson(
   page: Page,
+  caminho: string,
   origem: string,
+  corpo: unknown,
 ): Promise<void> {
-  await page.route(CAMINHO_DA_SESSAO, async (rota) => {
+  await page.route(caminho, async (rota) => {
     if (rota.request().method() === "OPTIONS") {
       await rota.fulfill({ status: 204, headers: cabecalhosDeOrigem(origem) });
       return;
@@ -50,9 +77,26 @@ export async function instalarSessao(
       status: 200,
       contentType: "application/json",
       headers: cabecalhosDeOrigem(origem),
-      body: JSON.stringify(SESSAO_DE_TESTE),
+      body: JSON.stringify(corpo),
     });
   });
+}
+
+export async function instalarSessao(
+  page: Page,
+  origem: string,
+): Promise<void> {
+  await instalarRotaJson(page, CAMINHO_DA_SESSAO, origem, SESSAO_DE_TESTE);
+  // motivo: `OrganizacaoRoute` (etapa 4 do plano 03) e o bloco "Instância"
+  // leem estas rotas por `GET /me`, `GET /units`, `GET /unit-types`, `GET
+  // /users` e `GET /organization` — sem o dublê, `esqueleto.spec.ts`/
+  // `a11y.spec.ts`/`health.spec.ts` bateriam na API real com o cookie falso
+  // acima e cairiam no estado de erro ou 401, que nenhum desses casos mede.
+  await instalarRotaJson(page, "**/me", origem, ME_DE_TESTE);
+  await instalarRotaJson(page, "**/units", origem, UNIDADES_DE_TESTE);
+  await instalarRotaJson(page, "**/unit-types", origem, []);
+  await instalarRotaJson(page, "**/users*", origem, []);
+  await instalarRotaJson(page, "**/organization", origem, ORGANIZACAO_DE_TESTE);
 }
 
 // O assunto destes casos é o esqueleto e a acessibilidade dele, não a

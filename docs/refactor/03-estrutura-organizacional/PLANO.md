@@ -328,24 +328,24 @@ administra recebe 403 do servidor, nunca só um botão escondido (M20).
 - [x] Verificação da etapa: `pnpm --filter web exec vitest run -t "UnidadeNo"` sai com 0
 
 ### Etapa 5 — Sessão real no Playwright e testes de ponta a ponta
-- [ ] Ler: `apps/web/playwright.config.ts`, `apps/web/e2e/apoio/sessao.ts`,
+- [x] Ler: `apps/web/playwright.config.ts`, `apps/web/e2e/apoio/sessao.ts`,
       `apps/web/e2e/health.spec.ts`
-- [ ] `scripts/e2e/banco-limpo.sh`: recria `folioteca_e2e` só quando `CI=true`
+- [x] `scripts/e2e/banco-limpo.sh`: recria `folioteca_e2e` só quando `CI=true`
       ou o nome do banco termina em `_e2e` (nunca contra o banco de
       desenvolvimento); `playwright.config.ts` ganha `projects` — `setup`
       (`e2e/instalacao.setup.ts`, que instala pelo `POST /installation` de
       verdade e semeia um `User` `MEMBER` direto no banco, sem convite) e os
       projetos que dependem dele, com `storageState` por pessoa em
       `e2e/.auth/{admin,membro}.json`
-- [ ] `e2e/apoio/pessoas.ts` (dados fixos de ADMIN e MEMBER de teste)
-- [ ] `e2e/apoio/sessao.ts` (dublê de esqueleto/visual) passa a responder
+- [x] `e2e/apoio/pessoas.ts` (dados fixos de ADMIN e MEMBER de teste)
+- [x] `e2e/apoio/sessao.ts` (dublê de esqueleto/visual) passa a responder
       também `/me`, `/units`, `/unit-types`, `/users`, `/organization`
-- [ ] Teste: `apps/web/e2e/organizacao-admin.spec.ts` — "administradora cria
+- [x] Teste: `apps/web/e2e/organizacao-admin.spec.ts` — "administradora cria
       unidade filha e lota uma pessoa"; `apps/web/e2e/organizacao-membro.spec.ts`
       — "mostra a árvore sem nenhum botão de administração para quem não
       administra"; `apps/web/e2e/cadastro-fechado.spec.ts` — "fecha o cadastro
       público depois da instalação"
-- [ ] Verificação da etapa: `pnpm --filter web exec playwright test -g "administradora cria unidade"` sai com 0
+- [x] Verificação da etapa: `pnpm --filter web exec playwright test -g "administradora cria unidade"` sai com 0
 
 ### Etapa final — Ver na tela
 - [ ] Capturas em `docs/refactor/03-estrutura-organizacional/capturas/`:
@@ -585,3 +585,52 @@ por esse caminho; o comando sai 0 por não ter rodado teste nenhum (`43
 skipped`), não por tê-los passado. Corrigido para `-t "UnidadeNo"` — aí os 8
 testes do arquivo rodam e passam — e a linha da "Verificação da etapa" já
 está com o texto corrigido acima.
+
+2026-09-12 — etapa 5 — `e2e/instalacao.setup.ts` (projeto `setup`) instala a
+administradora pelo `POST /installation` de verdade (cai para autenticar com
+a mesma senha se a instância já estiver instalada — reexecução local sem
+`banco-limpo.sh` entre elas) e semeia a pessoa `MEMBER` chamando
+`apps/api/scripts/seed-e2e-member.ts`, que os dois `storageState`
+(`e2e/.auth/{admin,membro}.json`); `e2e/apoio/pessoas.ts` com os dados fixos
+das duas; `e2e/apoio/sessao.ts` (dublê) passa a responder também `/me`
+(role `ADMIN`, para o bloco "Instância" que `health.spec.ts` mede),
+`/units`, `/unit-types`, `/users`, `/organization`; três specs novos
+(`organizacao-admin.spec.ts`, `organizacao-membro.spec.ts`,
+`cadastro-fechado.spec.ts`) com os nomes de teste literais do plano. — o que
+foi diferente do texto do plano: (1) **a reconciliação com o plano 02, que o
+corpo da tarefa pede e os bullets de "Escopo exato" não nomeiam por
+inteiro**: `apps/web/e2e/setup/autenticar.setup.ts` (criava conta por
+`/criar-conta` pública, confirmava pelo Mailpit) foi apagado por inteiro — o
+cadastro público fechou (M2) e aquele caminho não existe mais —, e
+`e2e/apoio/contas.ts` manteve os nomes exportados
+`ARQUIVO_DONA_DO_DOCUMENTO`/`ARQUIVO_OUTRA_PESSOA`, só apontando os dois para
+`admin.json`/`membro.json`; `documentos.spec.ts` (plano 02) não mudou uma
+linha, e os 5 casos dele continuam verdes na mesma subida dos specs novos —
+a administradora dobra como "dona do documento" e a pessoa membro como
+"outra pessoa", em vez de quatro contas paralelas. `scripts/e2e/relatorio.sh`
+(`arvore_atual()`) e `.gitignore` seguiram a mudança de
+`e2e/setup/.auth/` para `e2e/.auth/`; (2) **semear a pessoa `MEMBER` "direto
+no banco"** não tem rota HTTP (`/sign-up/email` está desabilitado por
+`disabledPaths`, M2) — `apps/api/scripts/seed-e2e-member.ts`, script novo
+(não nomeado no plano; irmão de `scripts/generate-openapi.ts`, que já existia
+por motivo parecido), usa `@prisma/adapter-pg` + `better-auth` isolados
+(sem NestJS) só para `auth.$context.password.hash` e grava `User`+`Account`
+com o mesmo par issuer/providerId que `InstallationRepository` usa (M2/D5);
+`apps/api/package.json` ganhou o script `e2e:seed-member` só de
+conveniência — `instalacao.setup.ts` chama `pnpm --filter api exec ts-node
+--transpile-only scripts/seed-e2e-member.ts <nome> <email> <senha>`
+diretamente, porque `pnpm --filter api run <script> -- <args>` insere um `--`
+literal na linha de comando encaminhada (medido: a senha se perdia,
+`process.argv` chegava como `["--", nome, email]`, sem a senha —
+`pnpm ... exec ts-node ... <args>`, sem `run`/`--`, encaminha os argumentos
+como vieram); (3) a rota de sign-in real é `POST /api/auth/sign-in/email`
+(better-auth, `formCsrfMiddleware`) — chamada direta por `page.request.post`
+sem cabeçalho `Origin`/`Referer` nem `Sec-Fetch-*` passa sem bloqueio de CSRF,
+o mesmo caminho que a instalação já usava; (4) `organizacao-admin.spec.ts`
+precisou desambiguar a linha da pessoa já lotada do resto do resultado de
+busca que `LotarPessoaDialog` deixa no DOM, escondido mas não desmontado, ao
+fechar (o diálogo não é portalado para fora do `<li>` da própria unidade) —
+a asserção final usa a presença do botão "Desalojar" (que só existe na linha
+de quem já está lotada) para escolher entre os dois `<li>` que casam com o
+nome da pessoa.
+

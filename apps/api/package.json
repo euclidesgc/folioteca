@@ -12,6 +12,7 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "test:integration": "NODE_OPTIONS=--experimental-vm-modules jest --config test/jest-e2e.config.js --runInBand",
     "openapi:generate": "ts-node --transpile-only scripts/generate-openapi.ts",
+    "e2e:seed-member": "ts-node --transpile-only scripts/seed-e2e-member.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy"
   },

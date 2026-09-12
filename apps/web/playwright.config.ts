@@ -17,6 +17,18 @@ const WEB_URL = `http://localhost:${WEB_PORT}`;
 const SITE_PORT = Number(process.env.SITE_PORT ?? 3101);
 const SITE_URL = `http://localhost:${SITE_PORT}`;
 
+// decisão: valores de teste, hardcoded — o mesmo tratamento que
+// `BETTER_AUTH_SECRET` já recebe abaixo. A API os valida no boot, e o projeto
+// `setup` (`e2e/instalacao.setup.ts`) precisa do mesmo par para instalar a
+// instância e semear a pessoa membro; nenhum dos dois protege nada em
+// produção, e amarrar os dois ao `.env` da máquina faria a suíte depender de
+// um segredo que ela não deveria conhecer.
+const DATABASE_URL =
+  process.env.DATABASE_URL ??
+  "postgresql://folioteca:senha@localhost:5433/folioteca_e2e";
+const BETTER_AUTH_SECRET = "segredo-de-teste-com-trinta-e-dois-caracteres";
+const INSTALLATION_CODE = "codigo-de-instalacao-para-a-suite-e2e";
+
 // decisão: a suíte sobe a aplicação UMA vez e mede tudo nessa subida. O custo de
 // uma execução é dominado pelo build e pelo boot da API, não pelos casos, e o
 // validador cego tem um critério comportamental por requisito — invocar o
@@ -55,17 +67,22 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
 
-  // decisão: `setup` cria as duas pessoas reais (conta pela `/criar-conta`,
-  // confirmação pelo link do Mailpit) uma vez, antes de tudo, e grava o
-  // `storageState` de cada uma em `e2e/setup/.auth/`; `chromium` depende dele
-  // para os casos de `documentos.spec.ts` herdarem sessão de verdade sem
-  // repetir o cadastro em cada teste. Os specs do esqueleto e de
-  // acessibilidade continuam na sessão dublê de `apoio/sessao.ts` e não leem
-  // nenhum dos dois arquivos de estado.
+  // decisão: `setup` instala a instância pelo `POST /installation` de
+  // verdade (a administradora) e semeia a pessoa `MEMBER` direto no banco, sem
+  // convite — o cadastro público fecha depois da primeira instalação (M2), e
+  // `/criar-conta` deixou de poder criar conta nenhuma. Os dois
+  // `storageState` nascem em `e2e/.auth/{admin,membro}.json`; `chromium`
+  // depende do setup para todo spec herdar sessão de verdade sem reinstalar a
+  // cada teste. `documentos.spec.ts` (plano 02) lê os dois mesmos arquivos
+  // pelos nomes antigos que `apoio/contas.ts` continua exportando — a mesma
+  // administradora e a mesma pessoa membro cobrem os papéis de dona do
+  // documento e de outra pessoa, em vez de quatro contas paralelas. Os specs
+  // do esqueleto e de acessibilidade continuam na sessão dublê de
+  // `apoio/sessao.ts` e não leem nenhum dos dois arquivos de estado.
   projects: [
     {
       name: "setup",
-      testMatch: /setup\/autenticar\.setup\.ts/,
+      testMatch: /instalacao\.setup\.ts/,
     },
     {
       name: "chromium",
@@ -90,14 +107,16 @@ export default defineConfig({
         // `scripts/e2e/banco-limpo.sh`) — o projeto de setup cria pessoa e
         // documento de verdade, e não pode fazer isso contra o banco de
         // desenvolvimento.
-        DATABASE_URL:
-          process.env.DATABASE_URL ??
-          "postgresql://folioteca:senha@localhost:5433/folioteca_e2e",
+        DATABASE_URL,
         WEB_ORIGIN: `${WEB_URL},${SITE_URL}`,
         // motivo: a configuração é validada no boot e esta chave é obrigatória —
         // sem ela a API não sobe e a suíte inteira morre dizendo que o servidor
         // não respondeu. O valor é de teste e não protege nada.
-        BETTER_AUTH_SECRET: "segredo-de-teste-com-trinta-e-dois-caracteres",
+        BETTER_AUTH_SECRET,
+        // motivo: validada no boot (M2) desde que `InstallationModule` entrou em
+        // `ROUTE_MODULES` — sem ela a API não sobe, e o projeto `setup` precisa
+        // do mesmo valor para instalar a instância.
+        INSTALLATION_CODE,
         API_URL: API_URL,
       },
     },
@@ -135,4 +154,4 @@ export default defineConfig({
   ],
 });
 
-export { API_URL, SITE_URL, WEB_URL };
+export { API_URL, SITE_URL, WEB_URL, DATABASE_URL, BETTER_AUTH_SECRET, INSTALLATION_CODE };
