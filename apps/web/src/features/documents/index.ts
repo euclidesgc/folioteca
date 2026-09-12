@@ -7,5 +7,5 @@ export { useDocumentsBySpace } from "./hooks/use-documents-by-space";
 export { useDocument } from "./hooks/use-document";
 export { DocumentList } from "./components/document-list";
 export { NewDocumentButton } from "./components/new-document-button";
-export { PaginaDoDocumento } from "./components/pagina-do-documento";
+export { PaginaDoDocumento } from "./components/pagina-do-documento-lazy";
 export { DocumentoNaoEncontrado } from "./components/documento-nao-encontrado";

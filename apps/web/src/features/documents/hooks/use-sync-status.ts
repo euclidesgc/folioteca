@@ -13,6 +13,11 @@ export function useSyncStatus(
   const [isSynced, setIsSynced] = useState(provider.isSynced);
   const [isDisconnected, setIsDisconnected] = useState(false);
 
+  // invariante: a releitura de `provider.isSynced` dentro do próprio efeito,
+  // antes de assinar, fecha a janela entre a renderização (que já podia estar
+  // atrasada por um `Suspense`/`lazy` à frente na árvore) e a assinatura do
+  // evento "synced" — sem ela, uma sincronização que termina nessa janela
+  // nunca é observada, e "Salvando…" fica para sempre, mesmo sincronizado.
   useEffect(() => {
     function aoSincronizar({ state }: { state: boolean }) {
       setIsSynced(state);
@@ -21,6 +26,7 @@ export function useSyncStatus(
       setIsDisconnected(status === "disconnected");
     }
 
+    setIsSynced(provider.isSynced);
     provider.on("synced", aoSincronizar);
     provider.on("status", aoMudarStatus);
     return () => {
