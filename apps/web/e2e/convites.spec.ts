@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { ARQUIVO_ADMIN } from "./apoio/contas";
 import { PESSOA_ADMIN } from "./apoio/pessoas";
 import { analisar, comecarRegistro } from "./apoio/axe";
-import { linkDoConvite } from "./apoio/correio";
+import { linkDoConvite } from "./apoio/mailpit";
 
 test.beforeAll(() => {
   comecarRegistro();
