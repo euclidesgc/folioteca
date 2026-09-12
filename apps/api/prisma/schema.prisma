@@ -72,18 +72,23 @@ model Unit {
   children Unit[]  @relation("UnitParent")
 
   unitTypeId String?
-  unitType   UnitType? @relation(fields: [unitTypeId], references: [id])
+  unitType   UnitType? @relation(fields: [unitTypeId], references: [id], onDelete: Restrict)
 
   memberships UnitMembership[]
   invitations Invitation[]
+
+  closureAsAncestor   UnitClosure[] @relation("UnitClosureAncestor")
+  closureAsDescendant UnitClosure[] @relation("UnitClosureDescendant")
 
   @@unique([parentId, normalizedName])
 }
 
 model UnitClosure {
   // motivo: mantida por gatilho `AFTER INSERT ON "Unit"` — grava a própria
-  // linha (depth 0) e uma por ancestral do pai (depth+1); sem campo de
-  // escrita pelo Prisma Client, por isso sem relação declarada aqui. Gatilho
+  // linha (depth 0) e uma por ancestral do pai (depth+1); nada escreve aqui
+  // pelo Prisma Client. As relações abaixo existem para o esquema declarar as
+  // chaves estrangeiras que a migration criou: sem elas, o próximo
+  // `migrate dev` propõe apagá-las junto com o índice. Gatilho
   // `BEFORE UPDATE OF "parentId" ON "Unit"` recusa a troca — mover unidade
   // está fora deste plano (D2).
   ancestorId   String
@@ -91,7 +96,11 @@ model UnitClosure {
   depth        Int
   createdAt    DateTime @default(now())
 
+  ancestor   Unit @relation("UnitClosureAncestor", fields: [ancestorId], references: [id], onDelete: Cascade)
+  descendant Unit @relation("UnitClosureDescendant", fields: [descendantId], references: [id], onDelete: Cascade)
+
   @@id([ancestorId, descendantId])
+  @@index([descendantId])
 }
 
 model UnitMembership {
