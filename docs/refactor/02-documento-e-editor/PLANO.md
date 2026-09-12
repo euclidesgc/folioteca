@@ -228,33 +228,33 @@ e o editor; quem prova o acesso é sempre `GET /documents/:id`.
 
 ### Etapa 2 — `packages/editor`: dependências, esquema e tema
 
-- [ ] Ler: `decisoes.md` (decisão 3), `pesquisa/tecnologias.md` §1,
+- [x] Ler: `decisoes.md` (decisão 3), `pesquisa/tecnologias.md` §1,
       `packages/editor/{package.json,README.md}`, `packages/tema/
       package.json` (padrão sem build), `apps/web/src/shared/styles/
       theme.css`, `scripts/gates/{quarentena,icone_unico,gates_runner}.sh`
-- [ ] Medir com `pnpm view <pacote> version time --json` a versão de
+- [x] Medir com `pnpm view <pacote> version time --json` a versão de
       `@blocknote/{core,react,shadcn,code-block,server-util}`, `yjs`,
       `@hocuspocus/provider`, `crossws`, `jsdom`; instalar com `pnpm add
       --filter editor …` deixando `minimumReleaseAge` (10080 no workspace)
       escolher a versão — escrever as versões resolvidas em Andamento
-- [ ] `package.json`: `"type": "module"`, `"exports": { ".":
+- [x] `package.json`: `"type": "module"`, `"exports": { ".":
       "./src/index.ts" }`, as dependências acima
-- [ ] `src/schema.ts`: `documentSchema` via `BlockNoteSchema.create`, a
+- [x] `src/schema.ts`: `documentSchema` via `BlockNoteSchema.create`, a
       partir de `defaultBlockSpecs` sem `image`/`file` (conferir as chaves
       reais do pacote instalado), somando `codeBlock`
-- [ ] `src/tema.ts`: mapeia as variáveis CSS de `@blocknote/shadcn` para
+- [x] `src/tema.ts`: mapeia as variáveis CSS de `@blocknote/shadcn` para
       `--color-{papel,tinta,grafite,verdete,carimbo,fio}` de `theme.css`,
       claro e escuro
-- [ ] `src/editor.tsx`: `Editor({ provider, fragment, editable })` com
+- [x] `src/editor.tsx`: `Editor({ provider, fragment, editable })` com
       `useCreateBlockNote(withCollaboration({ collaboration: { provider,
       fragment, user }, schema: documentSchema, dictionary: locales.pt }))`
       + `BlockNoteView`; `src/index.ts` barril
-- [ ] `README.md`: tira a promessa de Plate e de `apps/site`
-- [ ] `scripts/gates/blocknote_sem_xl.sh`: reprova `@blocknote/xl-` em
+- [x] `README.md`: tira a promessa de Plate e de `apps/site`
+- [x] `scripts/gates/blocknote_sem_xl.sh`: reprova `@blocknote/xl-` em
       `pnpm-lock.yaml`; somar em `gates_runner.sh`
-- [ ] `apps/web/eslint.config.mjs`: `no-restricted-imports` banindo
+- [x] `apps/web/eslint.config.mjs`: `no-restricted-imports` banindo
       `lucide-react` em `files: ["src/**"]`
-- [ ] Verificação da etapa: `bash scripts/gates/blocknote_sem_xl.sh` e `pnpm --filter web run lint` saem com 0
+- [x] Verificação da etapa: `bash scripts/gates/blocknote_sem_xl.sh` e `pnpm --filter web run lint` saem com 0
 
 ### Etapa 3 — API de documentos
 
@@ -473,3 +473,56 @@ e-mail de verificação no `signUpEmail`; subi o contêiner `mailpit` já
 declarado no compose (nenhuma dependência nova) em vez de trocar o caminho de
 criação de conta. `pnpm contract` comitado junto (`openapi.json` e o cliente
 gerado de `apps/web`), porque `GET /me` é rota nova.
+
+2026-09-12 — etapa 2 — `packages/editor` ganhou dependências, esquema e tema.
+Versões resolvidas pela quarentena (10080 min): `@blocknote/core`,
+`@blocknote/react`, `@blocknote/shadcn`, `@blocknote/code-block`,
+`@blocknote/server-util` em `0.54.0` (0.54.1 e 0.54.2 saíram em 2026-09-09,
+ainda em quarentena); `yjs@13.6.32`; `@hocuspocus/provider@4.6.0` (4.7.0 em
+quarentena); `crossws@0.4.12`; `jsdom@30.0.1`. `package.json` com `"type":
+"module"` e `"exports": { ".": "./src/index.ts" }`. `src/schema.ts`:
+`documentSchema` via `BlockNoteSchema.create`, lista explícita de blocos sem
+`image`/`file`, com `codeBlock` trocado por `createCodeBlockSpec(codeBlockOptions)`
+(o pacote instalado já inclui `codeBlock` em `defaultBlockSpecs` — "somar" é
+trocar a versão plana pela versão com a lista de linguagens do
+`@blocknote/code-block`, não adicionar uma chave nova). `src/tema.ts`: um só
+mapeamento de `--bn-colors-*` para os tokens (não dois, claro/escuro) — os
+seis tokens de `theme.css` já trocam de valor por tema, e herdar a variável
+cobre os dois sem repetir a lista; `carimbo` não entrou no mapeamento (nenhum
+papel do editor pediu um segundo acento além de `verdete`). `src/editor.tsx`
+e `src/index.ts` conforme o plano. `README.md` sem Plate nem `apps/site`.
+`scripts/gates/blocknote_sem_xl.sh` criado e somado a `gates_runner.sh`.
+`apps/web/eslint.config.mjs` com `no-restricted-imports` banindo
+`lucide-react` em `src/**`.
+
+O que desviou do plano, e por quê: (1) `y-prosemirror@1.3.7` entrou como
+dependência direta, fora da lista medida na etapa — `@blocknote/core/yjs`
+(import de `withCollaboration`) lança `ERR_MODULE_NOT_FOUND` em tempo de
+execução sem ele; é peer opcional do core, mas nenhum outro pacote do
+workspace o resolve, então ninguém o instalava por tabela. (2) `react`,
+`react-dom`, `@types/react`, `@types/react-dom` entraram como
+`devDependencies`, e `react`/`react-dom` também como `peerDependencies` —
+pinados nas mesmas versões de `apps/web` (`19.2.8` / `19.2.18` / `19.2.5`).
+`src/editor.tsx` é `.tsx`: sem react resolvível a partir do próprio diretório
+do pacote, nem o runtime de JSX compila; o padrão é o do próprio
+`@blocknote/react` (peer + devDependency). (3) `Editor` ganhou um quarto
+parâmetro, `user: CollaborationUser` — o pseudocódigo do plano já usa `user`
+dentro de `collaboration`, mas a assinatura escrita tinha só três campos;
+sem receber `user` de fora, o pacote teria de inventar nome/cor de quem
+edita, e `packages/editor` não conhece sessão. (4) dentro de
+`collaboration.provider`, só `{ awareness: provider.awareness ?? undefined }`
+passa, não o `HocuspocusProvider` inteiro — `HocuspocusProvider.awareness` é
+tipado `Awareness | null`, e `CollaborationOptions.provider.awareness` só
+aceita `Awareness | undefined`; os dois pacotes descrevem o mesmo dado de
+jeitos incompatíveis, sob modo estrito. (5) `defaultBlockSpecs` do pacote
+instalado tem `audio` e `video`, além de `image`/`file` — os quatro têm os
+mesmos campos dependentes de envio de arquivo (`url`/`name`/`caption`), mas o
+plano só nomeou `image`/`file` para excluir; mantive `audio`/`video` no
+esquema (literal ao texto) e registro o achado: eles ficam sem
+infraestrutura de upload até o plano 10, igual a `image`/`file` ficariam.
+Sem teste novo nesta etapa — nenhum critério de aceite do plano cobre
+`packages/editor` isoladamente, e nada em `apps/web` ainda o importa (isso é
+a etapa 5); typecheck/lint de `pnpm --filter web` não alcançam os arquivos
+novos por esse motivo, e a verificação ficou por leitura de tipo manual
+(`tsc --noEmit` contra um `tsconfig` avulso, descartado) e pelos dois
+comandos que o plano pede.

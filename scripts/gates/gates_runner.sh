@@ -17,10 +17,10 @@
 # e imprime uma linha por violação, no formato `arquivo:linha:trecho`.
 #
 # Depois dos gates declarados vêm os portões diretos — quarentena de
-# dependência, ações do CI em SHA, vulnerabilidade conhecida no lockfile,
-# desenho dos fluxos, isolamento do pnpm, concorrência declarada, atalho
-# deliberado, subida única da suíte comportamental e segredo —,
-# que não cabem no molde acima:
+# dependência, pacote @blocknote/xl-* banido do lockfile, ações do CI em SHA,
+# vulnerabilidade conhecida no lockfile, desenho dos fluxos, isolamento do
+# pnpm, concorrência declarada, atalho deliberado, subida única da suíte
+# comportamental e segredo —, que não cabem no molde acima:
 # `.harness/gates.json` fala de arquivos por stdin e violações por stdout, com o
 # código de saída ignorado, e metade do que cada um deles precisa dizer é que
 # **não conseguiu medir**. Declarados ali, a reprovação por medição impossível
@@ -268,6 +268,7 @@ case "$MODE" in
 esac
 
 bash "$ROOT/scripts/gates/quarentena.sh" || VEREDICTO=1
+bash "$ROOT/scripts/gates/blocknote_sem_xl.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/acoes_em_sha.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/vulnerabilidade.sh" || VEREDICTO=1
 bash "$ROOT/scripts/gates/fluxos.sh" || VEREDICTO=1
