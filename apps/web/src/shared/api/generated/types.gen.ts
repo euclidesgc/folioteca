@@ -15,6 +15,62 @@ export type MeResponse = {
     role: string;
 };
 
+export type CreateDocumentDto = {
+    [key: string]: unknown;
+};
+
+export type DocumentCreatedDto = {
+    id: string;
+    title: string;
+    ownerId: string;
+    createdById: string;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type DocumentSummaryDto = {
+    id: string;
+    title: string;
+    updatedAt: string;
+    deletedAt: string | null;
+    favorited: boolean;
+};
+
+export type DocumentListDto = {
+    items: Array<DocumentSummaryDto>;
+};
+
+export type DocumentDetailDto = {
+    id: string;
+    title: string;
+    ownerId: string;
+    createdById: string;
+    content: Array<{
+        [key: string]: unknown;
+    }> | null;
+    deletedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+    favorited: boolean;
+};
+
+export type UpdateDocumentDto = {
+    /**
+     * Novo título do documento.
+     */
+    title: string;
+};
+
+export type DocumentTrashStateDto = {
+    id: string;
+    deletedAt: string | null;
+};
+
+export type DocumentFavoriteStateDto = {
+    id: string;
+    favorited: boolean;
+};
+
 export type GetHealthData = {
     body?: never;
     path?: never;
@@ -105,3 +161,136 @@ export type GetMeResponses = {
 };
 
 export type GetMeResponse = GetMeResponses[keyof GetMeResponses];
+
+export type ListDocumentsData = {
+    body?: never;
+    path?: never;
+    query: {
+        filter: 'OWNED' | 'FAVORITES' | 'TRASH';
+    };
+    url: '/documents';
+};
+
+export type ListDocumentsResponses = {
+    200: DocumentListDto;
+};
+
+export type ListDocumentsResponse = ListDocumentsResponses[keyof ListDocumentsResponses];
+
+export type CreateDocumentData = {
+    body: CreateDocumentDto;
+    path?: never;
+    query?: never;
+    url: '/documents';
+};
+
+export type CreateDocumentResponses = {
+    200: DocumentCreatedDto;
+};
+
+export type CreateDocumentResponse = CreateDocumentResponses[keyof CreateDocumentResponses];
+
+export type TrashDocumentData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/documents/{id}';
+};
+
+export type TrashDocumentResponses = {
+    200: DocumentTrashStateDto;
+};
+
+export type TrashDocumentResponse = TrashDocumentResponses[keyof TrashDocumentResponses];
+
+export type GetDocumentData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/documents/{id}';
+};
+
+export type GetDocumentResponses = {
+    200: DocumentDetailDto;
+};
+
+export type GetDocumentResponse = GetDocumentResponses[keyof GetDocumentResponses];
+
+export type UpdateDocumentTitleData = {
+    body: UpdateDocumentDto;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/documents/{id}';
+};
+
+export type UpdateDocumentTitleResponses = {
+    200: DocumentDetailDto;
+};
+
+export type UpdateDocumentTitleResponse = UpdateDocumentTitleResponses[keyof UpdateDocumentTitleResponses];
+
+export type RestoreDocumentData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/documents/{id}/restore';
+};
+
+export type RestoreDocumentResponses = {
+    200: DocumentTrashStateDto;
+};
+
+export type RestoreDocumentResponse = RestoreDocumentResponses[keyof RestoreDocumentResponses];
+
+export type DeleteDocumentPermanentlyData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/documents/{id}/permanent';
+};
+
+export type DeleteDocumentPermanentlyResponses = {
+    204: void;
+};
+
+export type DeleteDocumentPermanentlyResponse = DeleteDocumentPermanentlyResponses[keyof DeleteDocumentPermanentlyResponses];
+
+export type UnfavoriteDocumentData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/documents/{id}/favorite';
+};
+
+export type UnfavoriteDocumentResponses = {
+    200: DocumentFavoriteStateDto;
+};
+
+export type UnfavoriteDocumentResponse = UnfavoriteDocumentResponses[keyof UnfavoriteDocumentResponses];
+
+export type FavoriteDocumentData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/documents/{id}/favorite';
+};
+
+export type FavoriteDocumentResponses = {
+    200: DocumentFavoriteStateDto;
+};
+
+export type FavoriteDocumentResponse = FavoriteDocumentResponses[keyof FavoriteDocumentResponses];

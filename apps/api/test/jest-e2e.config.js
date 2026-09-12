@@ -3,6 +3,8 @@ module.exports = {
   rootDir: ".",
   testEnvironment: "node",
   testRegex: ".e2e-spec.ts$",
+  globalSetup: "<rootDir>/apoio/global-setup.ts",
+  globalTeardown: "<rootDir>/apoio/global-teardown.ts",
   transform: {
     "^.+\\.(t|j)s$": "ts-jest",
     "^.+\\.mjs$": ["ts-jest", { isolatedModules: true }],

@@ -10,7 +10,7 @@
     "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\"",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "test:integration": "jest --config test/jest-e2e.config.js",
+    "test:integration": "jest --config test/jest-e2e.config.js --runInBand",
     "openapi:generate": "ts-node --transpile-only scripts/generate-openapi.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy"
@@ -39,6 +39,7 @@
   "devDependencies": {
     "@nestjs/cli": "11.0.24",
     "@nestjs/testing": "11.2.3",
+    "@testcontainers/postgresql": "^12.1.0",
     "@types/express": "5.0.6",
     "@types/jest": "30.0.0",
     "@types/node": "24.13.3",
@@ -47,6 +48,7 @@
     "eslint": "10.9.1",
     "jest": "30.4.2",
     "supertest": "7.2.2",
+    "testcontainers": "^12.1.0",
     "ts-jest": "29.4.12",
     "ts-node": "10.9.2",
     "typescript": "5.9.3",

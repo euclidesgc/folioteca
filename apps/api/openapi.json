@@ -213,6 +213,286 @@
           "me"
         ]
       }
+    },
+    "/documents": {
+      "post": {
+        "operationId": "createDocument",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDocumentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentCreatedDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "documents"
+        ]
+      },
+      "get": {
+        "operationId": "listDocuments",
+        "parameters": [
+          {
+            "name": "filter",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "OWNED",
+                "FAVORITES",
+                "TRASH"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentListDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/documents/{id}": {
+      "get": {
+        "operationId": "getDocument",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "documents"
+        ]
+      },
+      "patch": {
+        "operationId": "updateDocumentTitle",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDocumentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "documents"
+        ]
+      },
+      "delete": {
+        "operationId": "trashDocument",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentTrashStateDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/documents/{id}/restore": {
+      "post": {
+        "operationId": "restoreDocument",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentTrashStateDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/documents/{id}/permanent": {
+      "delete": {
+        "operationId": "deleteDocumentPermanently",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "",
+        "tags": [
+          "documents"
+        ]
+      }
+    },
+    "/documents/{id}/favorite": {
+      "put": {
+        "operationId": "favoriteDocument",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentFavoriteStateDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "documents"
+        ]
+      },
+      "delete": {
+        "operationId": "unfavoriteDocument",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentFavoriteStateDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "",
+        "tags": [
+          "documents"
+        ]
+      }
     }
   },
   "info": {
@@ -257,6 +537,184 @@
           "name",
           "email",
           "role"
+        ]
+      },
+      "CreateDocumentDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "DocumentCreatedDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "createdById": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "ownerId",
+          "createdById",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "DocumentSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "favorited": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "updatedAt",
+          "deletedAt",
+          "favorited"
+        ]
+      },
+      "DocumentListDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DocumentSummaryDto"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "DocumentDetailDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "createdById": {
+            "type": "string"
+          },
+          "content": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "nullable": true
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "favorited": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "ownerId",
+          "createdById",
+          "content",
+          "deletedAt",
+          "createdAt",
+          "updatedAt",
+          "favorited"
+        ]
+      },
+      "UpdateDocumentDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Novo título do documento.",
+            "minLength": 1,
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "title"
+        ]
+      },
+      "DocumentTrashStateDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "deletedAt"
+        ]
+      },
+      "DocumentFavoriteStateDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "favorited": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "favorited"
         ]
       }
     }

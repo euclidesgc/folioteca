@@ -258,33 +258,33 @@ e o editor; quem prova o acesso é sempre `GET /documents/:id`.
 
 ### Etapa 3 — API de documentos
 
-- [ ] Ler: `apps/api/src/account/*` (padrão module/controller/service/
+- [x] Ler: `apps/api/src/account/*` (padrão module/controller/service/
       repository), "Desenho > API" e "Desenho > Regras" deste plano,
       `apps/web/openapi-ts.config.ts`, `apps/web/src/shared/api/*`
-- [ ] `apps/api/src/documents/dto/`: `create-document.dto.ts` (vazio),
+- [x] `apps/api/src/documents/dto/`: `create-document.dto.ts` (vazio),
       `update-document.dto.ts` (`title` 1–300),
       `list-documents.query.dto.ts` (`filter` via `@IsEnum(DocumentFilter)`),
       `document-summary.dto.ts`, `document-detail.dto.ts`
-- [ ] `documents.repository.ts`: único ponto que injeta `PrismaService`
+- [x] `documents.repository.ts`: único ponto que injeta `PrismaService`
       (G7) — criar, achar por id e dono, listar por filtro com `favorited`
       via `LEFT JOIN`, atualizar título, marcar/desmarcar `deletedAt`,
       apagar em definitivo, marcar/desmarcar favorito
-- [ ] `documents.service.ts`: as regras 1–5 de "Desenho > Regras", lançando
+- [x] `documents.service.ts`: as regras 1–5 de "Desenho > Regras", lançando
       `DocumentNotFoundError` quando o dono não bate
-- [ ] `documents.controller.ts` + `documents.module.ts`: as nove rotas da
+- [x] `documents.controller.ts` + `documents.module.ts`: as nove rotas da
       tabela, todas sob `@UseGuards(SessionGuard)`, `operationId` por rota
-- [ ] Somar `DocumentsModule` a `ROUTE_MODULES`
+- [x] Somar `DocumentsModule` a `ROUTE_MODULES`
       (`apps/api/src/route-modules.ts`); `pnpm contract` e comitar o par
-- [ ] `apps/api/test/apoio/banco.ts`: `globalSetup`/`globalTeardown` com
+- [x] `apps/api/test/apoio/banco.ts`: `globalSetup`/`globalTeardown` com
       `@testcontainers/postgresql` (`pgvector/pgvector:pg16`, `prisma
       migrate deploy` contra o contêiner, `DATABASE_URL` escrita em
       `process.env` antes de o Jest abrir os workers); `jest-e2e.config.js`
       ganha os dois e roda com `--runInBand`
-- [ ] Teste: `apps/api/test/documents.e2e-spec.ts` —
+- [x] Teste: `apps/api/test/documents.e2e-spec.ts` —
       `"cria um documento em branco com o dono igual a quem criou"`,
       `"nega acesso a documento de outra pessoa sem revelar que ele existe"`,
       mais listar por filtro, favoritar, lixeira e restauro
-- [ ] Verificação da etapa: `pnpm --filter api run test:integration` sai com 0
+- [x] Verificação da etapa: `pnpm --filter api run test:integration` sai com 0
 
 ### Etapa 4 — Tempo real: Hocuspocus no mesmo processo Nest
 
@@ -526,3 +526,46 @@ a etapa 5); typecheck/lint de `pnpm --filter web` não alcançam os arquivos
 novos por esse motivo, e a verificação ficou por leitura de tipo manual
 (`tsc --noEmit` contra um `tsconfig` avulso, descartado) e pelos dois
 comandos que o plano pede.
+
+2026-09-12 — etapa 3 — API de documentos. `apps/api/src/documents/` ganhou o
+quarteto (`dto/{create-document,update-document,list-documents.query,
+document-summary,document-detail}.dto.ts`, `documents.repository.ts` — único
+ponto que injeta `PrismaService` nesta feature —, `documents.service.ts` com
+as regras 1–5, `documents.controller.ts` com as nove rotas e
+`documents.module.ts`); `DocumentsModule` somado a `ROUTE_MODULES`; `pnpm
+contract` comitado junto (`openapi.json` + `apps/web/src/shared/api/
+generated/`). `apps/api/test/apoio/banco.ts` com `@testcontainers/postgresql`
+contra `pgvector/pgvector:pg16`, migrado via `prisma migrate deploy` no
+próprio `globalSetup`; `jest-e2e.config.js` ganhou `globalSetup`/
+`globalTeardown`, e `test:integration` passou a rodar com `--runInBand`.
+`apps/api/test/documents.e2e-spec.ts` com os dois casos nomeados pelo plano
+mais listagem por filtro, favoritar/desfavoritar, lixeira e restauro — 13
+testes, todos verificando status e corpo, nunca o método do ORM chamado.
+Dependências: `testcontainers@12.1.0` e `@testcontainers/postgresql@12.1.0`
+(devDependencies de `apps/api`, resolvidas pela quarentena — publicadas em
+2026-08-04, já fora da janela de 7 dias).
+
+O que desviou do plano, e por quê: (1) o plano nomeia só `apps/api/test/
+apoio/banco.ts` para o `globalSetup`/`globalTeardown`, mas o Jest exige um
+módulo por hook (`requireAndTranspileModule` chama o export default
+diretamente, sem aceitar nome) — `banco.ts` ficou com a lógica e duas
+variáveis de módulo (`globalSetup`/`globalTeardown` nomeados), e dois
+arquivos de 2 linhas (`global-setup.ts`, `global-teardown.ts`, mesma pasta
+`test/apoio/`) só reexportam cada um como `export default`. (2) `--runInBand`
+não é chave de configuração do Jest (só flag de CLI) — entrou no script
+`test:integration` do `package.json`, não em `jest-e2e.config.js`, que é
+onde a flag realmente precisa surtir efeito (sem ela, os workers filhos não
+compartilham o `process.env.DATABASE_URL` escrito pelo `globalSetup` no
+processo principal). (3) `cpu-features`, `protobufjs` e `ssh2` entraram como
+dependências transitivas de `dockerode` (via `testcontainers`) com build
+nativo ignorado pelo pnpm; `pnpm-workspace.yaml` ganhou os três em
+`allowBuilds: false` com a razão (nenhum dos três é exigido pelo uso local de
+Docker que a suíte faz). (4) as rotas de resposta além de "leitura"
+(`POST /documents`, `DELETE /documents/:id`, `POST /documents/:id/restore`,
+`PUT`/`DELETE .../favorite`) ganharam DTOs de resposta próprios dentro dos
+mesmos dois arquivos nomeados pelo plano (`DocumentCreatedDto`,
+`DocumentTrashStateDto`, `DocumentFavoriteStateDto` em `document-detail.dto.ts`,
+e `DocumentListDto` em `document-summary.dto.ts`) — sem plugin do
+`@nestjs/swagger` no `nest-cli.json`, cada forma de resposta precisa de uma
+classe com `@ApiProperty` para entrar no `openapi.json`; nenhum arquivo novo
+fora dos dois que o plano já previa.
