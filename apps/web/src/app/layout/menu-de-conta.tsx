@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useNavigate } from "react-router";
+import { Avatar } from "@/shared/components/ui/avatar";
 import { Menu } from "@/shared/components/ui/menu";
 import { useTema } from "@/shared/theme";
 import { signOut, useSession } from "@/features/auth";
@@ -14,6 +15,7 @@ export function MenuDeConta(): ReactElement {
 
   const rotuloAlternador = tema === "claro" ? "Tema escuro" : "Tema claro";
   const pessoa = data?.user;
+  const rotuloDoMenu = pessoa ? `Menu de conta: ${pessoa.name}` : "Menu de conta";
 
   async function sair(): Promise<void> {
     await signOut();
@@ -40,8 +42,14 @@ export function MenuDeConta(): ReactElement {
         }
       }}
     >
-      <Menu.Trigger className="bg-transparent px-3 text-tinta hover:bg-fio">
-        Menu de conta
+      <Menu.Trigger
+        aria-label={rotuloDoMenu}
+        className="flex w-full items-center gap-2 rounded-padrao bg-transparent px-2 py-2 text-left text-tinta hover:bg-fio"
+      >
+        {pessoa ? <Avatar name={pessoa.name} size="sm" /> : null}
+        <span className="truncate text-sm font-semibold">
+          {pessoa ? pessoa.name : "Menu de conta"}
+        </span>
       </Menu.Trigger>
       <Menu.Positioner>
         <Menu.Content>
