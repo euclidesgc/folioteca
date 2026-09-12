@@ -14,50 +14,10 @@ async function corComputadaDoToken(
   }, token);
 }
 
-test("os quatro destinos navegam para o estado vazio que convida a agir", async ({
-  page,
-}) => {
-  await page.goto("/documentos");
-
-  const nav = page.getByRole("navigation", { name: "Destinos do produto" });
-  const links = nav.getByRole("link");
-  await expect(links).toHaveCount(4);
-
-  const textos = await links.allTextContents();
-  expect(textos).toEqual(["Documentos", "Canais", "Pesquisa", "Organização"]);
-
-  const hrefs = await links.evaluateAll((elementos) =>
-    elementos.map((elemento) => elemento.getAttribute("href")),
-  );
-  expect(hrefs).not.toContain("/design");
-
-  const destinos = [
-    { link: "Documentos", titulo: "Documentos", verbo: /^Publicar/ },
-    { link: "Canais", titulo: "Canais", verbo: /^Criar/ },
-    { link: "Pesquisa", titulo: "Pesquisa", verbo: /^Pesquisar/ },
-    { link: "Organização", titulo: "Organização", verbo: /^Convidar/ },
-  ] as const;
-
-  for (const destino of destinos) {
-    await page.getByRole("link", { name: destino.link }).click();
-    await expect(
-      page.getByRole("heading", { level: 1, name: destino.titulo }),
-    ).toBeVisible();
-    // motivo: escopado no conteúdo porque a sublateral de Documentos e de
-    // Canais também tem estado vazio — o que se afirma aqui é o da página.
-    await expect(
-      page.getByRole("main").getByText(/^Nenhum.*ainda$/),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: destino.verbo }),
-    ).toBeVisible();
-  }
-});
-
 test("a barra é navegação nomeada e marca o destino atual", async ({
   page,
 }) => {
-  await page.goto("/canais");
+  await page.goto("/pesquisa");
 
   const nav = page.getByRole("navigation", { name: "Destinos do produto" });
   await expect(nav).toBeVisible();
@@ -72,9 +32,9 @@ test("a barra é navegação nomeada e marca o destino atual", async ({
 
   const comPagina = estados.filter((estado) => estado.ariaCurrent === "page");
   expect(comPagina).toHaveLength(1);
-  expect(comPagina[0]?.nome).toBe("Canais");
+  expect(comPagina[0]?.nome).toBe("Pesquisa");
 
-  const semAtributo = estados.filter((estado) => estado.nome !== "Canais");
+  const semAtributo = estados.filter((estado) => estado.nome !== "Pesquisa");
   for (const estado of semAtributo) {
     expect(estado.ariaCurrent).toBeNull();
   }
@@ -84,8 +44,11 @@ test("o primeiro Tab alcança pular para o conteúdo", async ({ page }) => {
   await page.goto("/documentos");
   // motivo: a rota é guardada, e até a sessão ser resolvida a página mostra o
   // aviso de verificação — sem esta espera o Tab cai numa árvore que ainda vai
-  // ser trocada, e o foco se perde na troca.
-  await expect(page.getByRole("banner")).toBeVisible();
+  // ser trocada, e o foco se perde na troca. A barra lateral, não mais um
+  // cabeçalho, é quem só existe depois da sessão resolvida.
+  await expect(
+    page.getByRole("navigation", { name: "Destinos do produto" }),
+  ).toBeVisible();
 
   await page.keyboard.press("Tab");
   await expect(
@@ -99,38 +62,14 @@ test("o primeiro Tab alcança pular para o conteúdo", async ({ page }) => {
   expect(focoNoMain).toBe(true);
 });
 
-test("a identidade fica à esquerda e a conta no canto superior direito", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto("/documentos");
-
-  const cabecalho = page.getByRole("banner");
-  const identidade = page.getByRole("link", { name: "Folioteca" });
-  const conta = page.getByRole("button", { name: "Menu de conta" });
-
-  const caixaCabecalho = await cabecalho.boundingBox();
-  const caixaIdentidade = await identidade.boundingBox();
-  const caixaConta = await conta.boundingBox();
-  if (!caixaCabecalho || !caixaIdentidade || !caixaConta) {
-    throw new Error("elemento do cabeçalho sem caixa mensurável");
-  }
-
-  const metade = caixaCabecalho.x + caixaCabecalho.width / 2;
-  expect(caixaIdentidade.x).toBeLessThan(metade);
-  expect(caixaConta.x).toBeGreaterThan(metade);
-  expect(caixaConta.y).toBeGreaterThanOrEqual(caixaCabecalho.y);
-  expect(caixaConta.y + caixaConta.height).toBeLessThanOrEqual(
-    caixaCabecalho.y + caixaCabecalho.height,
-  );
-});
-
 test("cada destino sobrevive à abertura direta e à recarga", async ({
   page,
 }) => {
   const destinos = [
-    { rota: "/documentos", nome: "Documentos" },
-    { rota: "/canais", nome: "Canais" },
+    { rota: "/inicio", nome: "Início" },
+    { rota: "/espacos", nome: "Espaços" },
+    { rota: "/documentos", nome: "Meus documentos" },
+    { rota: "/compartilhados", nome: "Compartilhados comigo" },
     { rota: "/pesquisa", nome: "Pesquisa" },
     { rota: "/organizacao", nome: "Organização" },
   ];
@@ -206,7 +145,7 @@ test("o alternador do menu de conta troca o tema sem recarregar", async ({
     cookies.find((cookie) => cookie.name === "folioteca.tema")?.value,
   ).toBe("escuro");
 
-  const outrasRotas = ["/canais", "/pesquisa", "/organizacao"];
+  const outrasRotas = ["/espacos", "/pesquisa", "/organizacao"];
   for (const rota of outrasRotas) {
     await page.goto(rota);
     const contagem = await contarTabsAteMenuDeConta();
@@ -285,6 +224,11 @@ test("abaixo de 768px a barra vira gaveta com foco preso", async ({ page }) => {
 
   const nav = page.getByRole("navigation", { name: "Destinos do produto" });
   const botaoAbrir = page.getByRole("button", { name: "Abrir navegação" });
+  // decisão: a gaveta inteira é o diálogo, maior que a própria navegação —
+  // ela também contém o botão "Fechar navegação" e a árvore de Espaços, e é
+  // onde o Ark UI coloca o primeiro foco ao abrir. O preso precisa valer para
+  // o diálogo todo, não só para o `<nav>` que compartilha o rótulo com ele.
+  const gaveta = page.getByRole("dialog", { name: "Destinos do produto" });
 
   await expect(nav).not.toBeVisible();
   await expect(botaoAbrir).toBeVisible();
@@ -293,7 +237,7 @@ test("abaixo de 768px a barra vira gaveta com foco preso", async ({ page }) => {
   await expect(nav).toBeVisible();
 
   const focoDentro = () =>
-    nav.evaluate((elemento) => elemento.contains(document.activeElement));
+    gaveta.evaluate((elemento) => elemento.contains(document.activeElement));
 
   expect(await focoDentro()).toBe(true);
 
@@ -309,11 +253,12 @@ test("abaixo de 768px a barra vira gaveta com foco preso", async ({ page }) => {
 
 test("em 360px e em 767px nada rola na horizontal", async ({ page }) => {
   const rotas = [
-    { caminho: "/documentos", titulo: "Documentos" },
-    { caminho: "/canais", titulo: "Canais" },
+    { caminho: "/inicio", titulo: "Início" },
+    { caminho: "/espacos", titulo: "Espaços" },
+    { caminho: "/documentos", titulo: "Meus documentos" },
+    { caminho: "/compartilhados", titulo: "Compartilhados comigo" },
     { caminho: "/pesquisa", titulo: "Pesquisa" },
     { caminho: "/organizacao", titulo: "Organização" },
-    { caminho: "/design", titulo: "Página viva" },
   ];
 
   for (const largura of [360, 767] as const) {
@@ -338,7 +283,7 @@ test("em 360px e em 767px nada rola na horizontal", async ({ page }) => {
 test("o indicador de foco existe nos dois temas", async ({ page }) => {
   await page.goto("/documentos");
 
-  const link = page.getByRole("link", { name: "Documentos" });
+  const link = page.getByRole("link", { name: "Meus documentos" });
 
   // decisão: o foco chega por Tab, e não por `link.focus()`, porque é o
   // caminho do teclado que o critério mede — `:focus-visible` casa sempre com
@@ -353,7 +298,9 @@ test("o indicador de foco existe nos dois temas", async ({ page }) => {
         return;
       }
     }
-    throw new Error("o link Documentos não recebeu foco em 12 pressões de Tab");
+    throw new Error(
+      "o link Meus documentos não recebeu foco em 12 pressões de Tab",
+    );
   };
 
   const lerIndicador = async () => {
@@ -384,18 +331,21 @@ test("o indicador de foco existe nos dois temas", async ({ page }) => {
   expect(indicadorEscuro.cor).toBe(verdeteEscuro);
 });
 
-test("o topo fica fixo enquanto o conteúdo rola", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 600 });
-  await page.goto("/documentos");
-  const cabecalho = page.getByRole("banner");
-  await expect(cabecalho).toBeVisible();
+test("a barra lateral continua visível enquanto o conteúdo da página rola", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 400 });
+  await page.goto("/inicio");
 
-  const topoAntes = await cabecalho.evaluate(
+  const barraLateral = page.getByRole("complementary");
+  await expect(barraLateral).toBeVisible();
+
+  const topoAntes = await barraLateral.evaluate(
     (el) => el.getBoundingClientRect().top,
   );
-  await page.evaluate(() => window.scrollBy(0, 400));
+  await page.evaluate(() => window.scrollBy(0, 300));
 
-  const topoDepois = await cabecalho.evaluate(
+  const topoDepois = await barraLateral.evaluate(
     (el) => el.getBoundingClientRect().top,
   );
   expect(topoAntes).toBe(0);
@@ -405,52 +355,93 @@ test("o topo fica fixo enquanto o conteúdo rola", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("a sublateral aparece em Documentos e Canais, e não nas outras seções", async ({
+test("a árvore de Espaços expande e leva à página do espaço", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/inicio");
 
-  await page.goto("/documentos");
+  // por quê: Engenharia é filha de Produto — revelar Backend exige expandir
+  // os dois níveis da árvore, não só o espaço que contém o link.
+  await page.getByRole("button", { name: "Expandir Produto" }).click();
+  await page.getByRole("button", { name: "Expandir Engenharia" }).click();
+  const linkBackend = page.getByRole("link", { name: "Backend" });
+  await expect(linkBackend).toBeVisible();
+
+  await linkBackend.click();
+
   await expect(
-    page.getByRole("navigation", { name: "Documentos" }),
+    page.getByRole("heading", { level: 1, name: "Backend" }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("navigation", { name: "Documentos" }),
-  ).toContainText("Nenhum documento ainda");
-
-  await page.getByRole("link", { name: "Canais" }).click();
-  await expect(page.getByRole("navigation", { name: "Canais" })).toBeVisible();
-  await expect(
-    page.getByRole("navigation", { name: "Documentos" }),
-  ).toBeHidden();
-
-  await page.getByRole("link", { name: "Pesquisa" }).click();
-  await expect(page.getByRole("navigation", { name: "Canais" })).toBeHidden();
-  await expect(
-    page.getByRole("navigation", { name: "Documentos" }),
-  ).toBeHidden();
-
-  await page.getByRole("link", { name: "Organização" }).click();
-  await expect(
-    page.getByRole("navigation", { name: "Organização" }),
-  ).toBeHidden();
+  expect(new URL(page.url()).pathname).toBe("/espacos/backend");
 });
 
-test("o salto para o conteúdo não aterrissa atrás do topo fixo", async ({
+test("o documento abre pela árvore de espaços e o link do sumário leva ao título", async ({
   page,
 }) => {
-  await page.goto("/documentos");
-  await expect(page.getByRole("banner")).toBeVisible();
+  await page.goto("/inicio");
 
-  await page.keyboard.press("Tab");
-  await page.keyboard.press("Enter");
+  // por quê: Engenharia é filha de Produto — revelar o link exige expandir
+  // o espaço de topo antes do próprio Engenharia.
+  await page.getByRole("button", { name: "Expandir Produto" }).click();
+  await page.getByRole("button", { name: "Expandir Engenharia" }).click();
+  await page.getByRole("link", { name: "Engenharia", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Engenharia" }),
+  ).toBeVisible();
 
-  const alturaDoTopo = await page
-    .getByRole("banner")
-    .evaluate((el) => el.getBoundingClientRect().height);
-  const topoDoConteudo = await page
-    .getByRole("main")
-    .evaluate((el) => el.getBoundingClientRect().top);
+  await page
+    .getByRole("link", { name: "Guia de onboarding de engenharia" })
+    .click();
 
-  expect(topoDoConteudo).toBeGreaterThanOrEqual(alturaDoTopo - 1);
+  const titulo = page.getByRole("heading", {
+    level: 1,
+    name: "Guia de onboarding de engenharia",
+  });
+  await expect(titulo).toBeVisible();
+
+  // decisão: o filete é `aria-hidden`, por marcar uma informação redundante à
+  // etiqueta de texto ao lado — não há papel nem nome acessível para alcançá-lo,
+  // e a classe é exatamente o que o critério de aceite pede medir.
+  const filete = titulo.locator("xpath=../../span[1]");
+  await expect(filete).toHaveClass(/border-l-verdete/);
+
+  const linkDoSumario = page.getByRole("link", { name: "Primeira semana" });
+  await linkDoSumario.click();
+
+  const tituloDaSecao = page.getByRole("heading", {
+    level: 2,
+    name: "Primeira semana",
+  });
+  await expect(tituloDaSecao).toBeInViewport();
+  expect(page.url()).toContain("#bloco-guia-onboarding-engenharia-3");
+});
+
+test("/canais cai em /espacos", async ({ page }) => {
+  await page.goto("/canais");
+
+  await expect(page).toHaveURL(/\/espacos$/);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Espaços" }),
+  ).toBeVisible();
+});
+
+test("a gaveta fecha ao navegar e devolve o foco a quem abriu", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto("/inicio");
+
+  const botaoAbrir = page.getByRole("button", { name: "Abrir navegação" });
+  await botaoAbrir.click();
+
+  const gaveta = page.getByRole("dialog", { name: "Destinos do produto" });
+  await expect(gaveta).toBeVisible();
+
+  await gaveta.getByRole("link", { name: "Meus documentos" }).click();
+
+  await expect(gaveta).toBeHidden();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Meus documentos" }),
+  ).toBeVisible();
+  await expect(botaoAbrir).toBeFocused();
 });

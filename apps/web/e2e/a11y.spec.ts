@@ -113,6 +113,39 @@ test("o axe não acha violação séria nos dois temas", async ({ page }) => {
   expect(cargas()).toBe(1);
 });
 
+test("o axe não acha violação séria em Início, num espaço e num documento", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "light" });
+
+  const estados = [
+    { rota: "/inicio", titulo: "Início" },
+    { rota: "/espacos/engenharia", titulo: "Engenharia" },
+    {
+      rota: "/documentos/guia-onboarding-engenharia",
+      titulo: "Guia de onboarding de engenharia",
+    },
+  ];
+
+  for (const estado of estados) {
+    await page.goto(estado.rota);
+    await expect(
+      page.getByRole("heading", { level: 1, name: estado.titulo }),
+    ).toBeVisible();
+    await analisar(page, `${estado.titulo} no tema claro`);
+  }
+
+  await trocarParaTemaEscuro(page);
+
+  for (const estado of estados) {
+    await page.goto(estado.rota);
+    await expect(
+      page.getByRole("heading", { level: 1, name: estado.titulo }),
+    ).toBeVisible();
+    await analisar(page, `${estado.titulo} no tema escuro`);
+  }
+});
+
 test("o axe não acha violação séria nos quatro estados pós-interação", async ({
   page,
 }) => {
@@ -245,9 +278,9 @@ test("o caminho do esqueleto à página viva atravessa as fases", async ({
   );
   expect(focoNoMain).toBe(true);
 
-  const destinoCanais = page.getByRole("link", { name: "Canais" });
-  await destinoCanais.click();
-  await expect(destinoCanais).toHaveAttribute("aria-current", "page");
+  const destinoPesquisa = page.getByRole("link", { name: "Pesquisa" });
+  await destinoPesquisa.click();
+  await expect(destinoPesquisa).toHaveAttribute("aria-current", "page");
 
   await trocarParaTemaEscuro(page);
 
