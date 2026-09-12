@@ -1,7 +1,7 @@
 # 04 — Convites
 
-**Status:** [ ] não iniciado · [x] em andamento · [ ] entregue
-**Branch:** `feat/04-convites` a partir de `develop` · **PR:** —
+**Status:** [ ] não iniciado · [ ] em andamento · [x] entregue
+**Branch:** `feat/04-convites`, empilhada sobre `feat/03-estrutura-organizacional` · **PR:** —
 **Depende de:** 03 — Estrutura organizacional (guard de sessão, `/me`, filtro
 de erro, Testcontainers, instalação com código, unidades em árvore, lotação,
 papéis `ADMIN|MEMBER`)
@@ -304,7 +304,7 @@ do servidor mesmo que burle a tela.
       volte a Organização → Pessoas e confirme a pessoa lotada na unidade
       escolhida
 - [x] `bash scripts/gates/gates_runner.sh` sai com 0
-- [ ] PR aberto com: o que entrega, como testar à mão, capturas — a abertura
+- [x] PR aberto com: o que entrega, como testar à mão, capturas — a abertura
       do PR é da sessão principal, fora deste escopo.
 
 ## Critérios de aceite
