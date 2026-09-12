@@ -304,28 +304,28 @@ administra recebe 403 do servidor, nunca só um botão escondido (M20).
 - [x] Verificação da etapa: `pnpm --filter api run openapi:generate && pnpm --filter api exec jest --config test/jest-e2e.config.js -t "administrador"` sai com 0
 
 ### Etapa 4 — Tela de Organização e fechamento do cadastro (web)
-- [ ] Ler: `apps/web/src/app/routes/{organizacao,criar-conta,entrar,perfil}.tsx`,
+- [x] Ler: `apps/web/src/app/routes/{organizacao,criar-conta,entrar,perfil}.tsx`,
       `apps/web/src/features/{auth,conta,health}/index.ts`,
       `apps/web/src/shared/components/ui/{dialog,field,button,badge,card,empty-state}.tsx`
-- [ ] `apps/web/src/features/auth/`: troca `criar-conta-form.tsx` e
+- [x] `apps/web/src/features/auth/`: troca `criar-conta-form.tsx` e
       `api/registrar.ts` por `components/instalacao-form.tsx` e
       `api/{instalacao,get-organization}.ts` + `hooks/use-organizacao-status.ts`;
       `entrar-form`/`app/routes/entrar.tsx` ganham a faixa de mensagem e perdem
       o link de cadastro
-- [ ] `apps/web/src/features/organization/` (api, hooks, componentes):
+- [x] `apps/web/src/features/organization/` (api, hooks, componentes):
       `arvore-de-unidades.tsx`, `unidade-no.tsx` (com as ações de administração),
       `criar-unidade-dialog.tsx`, `lotar-pessoa-dialog.tsx`,
       `tipos-de-unidade-dialog.tsx`, `bloco-instancia.tsx` (com `HealthStatus`
       de `@/features/health`); `index.ts`
-- [ ] `apps/web/src/app/routes/organizacao.tsx` monta a árvore por `useMe().role`
-- [ ] `apps/web/src/features/conta/components/lotacoes-lista.tsx` +
+- [x] `apps/web/src/app/routes/organizacao.tsx` monta a árvore por `useMe().role`
+- [x] `apps/web/src/features/conta/components/lotacoes-lista.tsx` +
       `apps/web/src/app/routes/perfil.tsx` ganha a seção "Onde você está lotada"
-- [ ] `apps/site/src/components/sections/pricing.tsx` e
+- [x] `apps/site/src/components/sections/pricing.tsx` e
       `apps/site/src/lib/app-url.ts`: troca descrita em "Telas"
-- [ ] Teste: `apps/web/src/features/organization/components/unidade-no.test.tsx`
+- [x] Teste: `apps/web/src/features/organization/components/unidade-no.test.tsx`
       (papel por texto acessível, sem MSW real de todas as rotas — cobertura de
       unidade fica para os e2e da etapa 5)
-- [ ] Verificação da etapa: `pnpm --filter web exec vitest run -t "unidade-no"` sai com 0
+- [x] Verificação da etapa: `pnpm --filter web exec vitest run -t "UnidadeNo"` sai com 0
 
 ### Etapa 5 — Sessão real no Playwright e testes de ponta a ponta
 - [ ] Ler: `apps/web/playwright.config.ts`, `apps/web/e2e/apoio/sessao.ts`,
@@ -535,3 +535,53 @@ administradoras, então o teste precisa zerar as que não é a sua para o
 cenário ficar determinístico; (4) `apps/api/test/me.e2e-spec.ts` (etapa 2)
 comparava `GET /me` por igualdade estrita com o formato antigo — ajustado ao
 novo, porque `GET /me` agora depende da instalação já ter ocorrido.
+
+2026-09-12 — etapa 4 — `apps/web/src/features/auth/`: `InstalacaoForm`
+(código, nome da empresa, nome, e-mail, senha; 403 `INSTALLATION_CODE_INVALID`
+vira aviso no campo, 409 `INSTALLATION_ALREADY_DONE` navega para `/entrar`
+como já pronto, sucesso navega para `/organizacao`) substitui `CriarContaForm`
+e `registrar.ts`; `useOrganizacaoStatus` (`GET /organization`) decide, em
+`CriarContaRoute`, entre mostrar o formulário e `<Navigate>` para `/entrar`
+sem pisca-pisca; `EntrarRoute` perde o link de cadastro e ganha a faixa
+`role="status"` com `location.state?.mensagem`. `apps/web/src/features/
+organization/` nasce com a api completa da tabela do plano (`get-me`,
+`get-units-tree`, `get`/`create`/`delete-unit-type`, `create`/`rename`/
+`delete-unit`, `add`/`remove-unit-member`, `search-users`,
+`update-user-role`, `erros.ts` para ler `code` de `ApiError.data`), os hooks
+(`useMe`, `useOrganization` — só a `queryFn` mudou, agora lê `GET /me` e
+seleciona `organization.name`, mesma chave de `useMe` para compartilhar
+cache —, `useUnitsTree`, `useUnitTypes`, `useUsersSearch`) e os componentes
+(`ArvoreDeUnidades`, `UnidadeNo` recursivo com as ações de administração,
+`CriarUnidadeDialog`, `LotarPessoaDialog`, `TiposDeUnidadeDialog`,
+`BlocoInstancia`); `OrganizacaoRoute` lê `useMe().role` uma vez e passa
+`isAdmin` para a árvore, só renderizando o diálogo de tipos e o bloco
+"Instância" para quem administra. `LotacoesLista` (em `features/conta`, lendo
+`useMe` pelo barril público de `organization`) e a seção "Onde você está
+lotada" em `/perfil`. Hotsite: os dois `ButtonLink` de `pricing.tsx` passam a
+`ROTA_DE_ENTRADA` (o primeiro troca o rótulo "Criar conta" por "Entrar"; o
+segundo, "Assinar o Time", não continha o texto "Criar conta" e manteve o
+rótulo, só a `href`); `ROTA_DE_CADASTRO` sai de `lib/app-url.ts`. A etiqueta
+"Dados de exemplo" ao lado do nome da organização sai de `barra-lateral.tsx`
+— o nome agora é real (`GET /me`) —, e com ela `EXEMPLO_ORGANIZACAO`/
+`ExampleOrganization` saem de `shared/example-data/folioteca.ts`, órfãos sem
+nenhum outro consumidor; a etiqueta ao lado de "Espaços" continua, porque a
+árvore de espaços é exemplo até o plano 05. — o que foi diferente do texto do
+plano: (1) `pricing.tsx` tem duas chamadas a `ROTA_DE_CADASTRO`, mas
+`closing.tsx` (seção de fechamento da home, fora da lista "os dois
+ButtonLink") também importava a mesma constante — apagar `ROTA_DE_CADASTRO`
+sem tocar `closing.tsx` derrubava o build do hotsite; troquei só o `href`
+daquele terceiro botão para `ROTA_DE_ENTRADA`, sem mudar o texto "Começar
+grátis" (redesenhar copy do hotsite é plano 13); (2) a raiz não ganhou botão
+"Apagar" em `UnidadeNo` — a API sempre recusa com 422
+`ROOT_UNIT_NOT_DELETABLE` (regra 7), e a lista de ações "por unidade" da
+seção "Telas" não nomeia essa exceção; decidi esconder o botão cujo clique
+nunca poderia ter sucesso, em vez de deixá-lo visível só para sempre
+responder erro; (3) a "Verificação da etapa", como o plano escreve
+(`-t "unidade-no"`), casa zero testes — os nomes de `describe`/`it` seguem o
+padrão já usado por todo outro arquivo de teste do repositório (nome do
+componente em PascalCase, ex.: "UnidadeNo — contrato"), sem o hífen literal
+do nome do arquivo, e o filtro de nome do Vitest não alcança arquivo nenhum
+por esse caminho; o comando sai 0 por não ter rodado teste nenhum (`43
+skipped`), não por tê-los passado. Corrigido para `-t "UnidadeNo"` — aí os 8
+testes do arquivo rodam e passam — e a linha da "Verificação da etapa" já
+está com o texto corrigido acima.

@@ -1,15 +1,18 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState, type ReactElement } from "react";
 import { useForm } from "react-hook-form";
+import { useNavigate } from "react-router";
 import { z } from "zod";
-import { ApiError } from "@/shared/api/client";
+import { ApiError } from "@/shared/api";
 import { Button } from "@/shared/components/ui/button";
 import { Field } from "@/shared/components/ui/field";
-import { registrar } from "../api/registrar";
+import { instalar } from "../api/instalacao";
+import { CAMINHO_ENTRAR } from "../auth-rotas";
 
 const esquema = z.object({
-  name: z.string().trim().min(1, "Informe seu nome."),
+  installationCode: z.string().trim().min(1, "Informe o código de instalação."),
   organizationName: z.string().trim().min(1, "Informe o nome da empresa."),
+  name: z.string().trim().min(1, "Informe seu nome."),
   email: z
     .email("Informe um endereço de e-mail válido.")
     .transform((valor) => valor.trim().toLowerCase()),
@@ -24,8 +27,8 @@ const esquema = z.object({
 
 type Entrada = z.input<typeof esquema>;
 
-export function CriarContaForm(): ReactElement {
-  const [enviado, setEnviado] = useState(false);
+export function InstalacaoForm(): ReactElement {
+  const navigate = useNavigate();
   const [falha, setFalha] = useState<string | null>(null);
   const {
     register,
@@ -36,38 +39,42 @@ export function CriarContaForm(): ReactElement {
   async function aoEnviar(valores: Entrada): Promise<void> {
     setFalha(null);
     try {
-      await registrar(esquema.parse(valores));
-      setEnviado(true);
+      await instalar(esquema.parse(valores));
     } catch (erro) {
-      setFalha(
-        erro instanceof ApiError && erro.status === 429
-          ? "Muitas tentativas seguidas. Espere um minuto e tente de novo."
-          : "Não conseguimos concluir o cadastro agora. Tente de novo em instantes.",
-      );
+      if (erro instanceof ApiError && erro.status === 403) {
+        setFalha("O código de instalação não confere.");
+        return;
+      }
+      if (erro instanceof ApiError && erro.status === 409) {
+        await navigate(CAMINHO_ENTRAR, {
+          replace: true,
+          state: { mensagem: "O cadastro é por convite." },
+        });
+        return;
+      }
+      setFalha("Não conseguimos instalar agora. Tente de novo em instantes.");
+      return;
     }
-  }
-
-  if (enviado) {
-    return (
-      <p role="status" className="rounded-padrao border border-fio px-3 py-4 text-sm text-tinta">
-        Se houver uma conta a criar com esse endereço, enviamos um e-mail com os
-        próximos passos. Confirme o endereço para entrar.
-      </p>
-    );
+    await navigate("/organizacao", { replace: true });
   }
 
   return (
     <form onSubmit={handleSubmit(aoEnviar)} className="flex flex-col gap-4" noValidate>
       {falha ? (
-        <p role="alert" className="rounded-padrao border border-carimbo px-3 py-2 text-sm text-carimbo">
+        <p
+          role="alert"
+          className="rounded-padrao border border-carimbo px-3 py-2 text-sm text-carimbo"
+        >
           {falha}
         </p>
       ) : null}
 
-      <Field.Root invalid={Boolean(errors.name)} hasHint={false}>
-        <Field.Label>Seu nome</Field.Label>
-        <Field.Control autoComplete="name" {...register("name")} />
-        {errors.name ? <Field.Error>{errors.name.message}</Field.Error> : null}
+      <Field.Root invalid={Boolean(errors.installationCode)} hasHint={false}>
+        <Field.Label>Código de instalação</Field.Label>
+        <Field.Control autoComplete="off" {...register("installationCode")} />
+        {errors.installationCode ? (
+          <Field.Error>{errors.installationCode.message}</Field.Error>
+        ) : null}
       </Field.Root>
 
       <Field.Root invalid={Boolean(errors.organizationName)} hasHint={false}>
@@ -76,6 +83,12 @@ export function CriarContaForm(): ReactElement {
         {errors.organizationName ? (
           <Field.Error>{errors.organizationName.message}</Field.Error>
         ) : null}
+      </Field.Root>
+
+      <Field.Root invalid={Boolean(errors.name)} hasHint={false}>
+        <Field.Label>Seu nome</Field.Label>
+        <Field.Control autoComplete="name" {...register("name")} />
+        {errors.name ? <Field.Error>{errors.name.message}</Field.Error> : null}
       </Field.Root>
 
       <Field.Root invalid={Boolean(errors.email)} hasHint={false}>
@@ -94,7 +107,7 @@ export function CriarContaForm(): ReactElement {
       </Field.Root>
 
       <Button type="submit" disabled={isSubmitting}>
-        {isSubmitting ? "Criando conta…" : "Criar conta"}
+        {isSubmitting ? "Instalando…" : "Instalar"}
       </Button>
     </form>
   );
