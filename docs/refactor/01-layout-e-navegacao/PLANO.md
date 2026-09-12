@@ -235,16 +235,16 @@ vai aparecer quando os planos 03, 05 e 06 a trouxerem.
 - [x] Verificação da etapa: `pnpm --filter web typecheck && pnpm --filter web exec vitest run -t "monta a trilha de ancestrais até a raiz"` sai com 0
 
 ### Etapa 3 — Documentos: listas, leitura e sumário
-- [ ] Ler: `apps/web/src/features/spaces/` (etapa 2), `product/00-linguagem-visual.md` (Tipografia), `apps/web/src/shared/components/ui/empty-state.tsx`
-- [ ] Criar `apps/web/src/shared/lib/format-relative-time.ts`: `formatRelativeTime(date, now)`, com `Intl.RelativeTimeFormat("pt-BR")`, escalando dia/semana/mês/ano
-- [ ] Criar `apps/web/src/features/documents/model/blocks.ts` (puro): `listHeadings(blocks)`, devolve `{ id, text, level }[]` na ordem em que aparecem
-- [ ] Criar hooks em `apps/web/src/features/documents/hooks/`: `use-recent-documents.ts`, `use-owned-documents.ts` (filtra `origin === "privado"`), `use-shared-with-me.ts` (filtra `origin === "pessoa"`), `use-document.ts`
-- [ ] Criar `apps/web/src/features/documents/components/document-list.tsx` (`DocumentList`: filete, título, espaço ou origem, "atualizado há X por Y"/"por você", e `EmptyState` "Nenhum documento por aqui ainda" quando a lista está vazia)
-- [ ] Criar `apps/web/src/features/documents/components/table-of-contents.tsx` (`TableOfContents`: `<nav aria-label="Sumário do documento">`, um link por `heading`, `href="#bloco-<id>"`)
-- [ ] Criar `apps/web/src/features/documents/components/document-view.tsx` (`DocumentView`: agrupa `bulletListItem`/`numberedListItem` consecutivos em `<ul>`/`<ol>`, dá `id="bloco-<id>"` a cada `heading`, mostra `EmptyState titleAs="h2"` "Documento não encontrado" quando o id não existe)
-- [ ] Criar `apps/web/src/features/documents/index.ts` (barril)
-- [ ] Teste: `apps/web/src/features/documents/components/table-of-contents.test.tsx` — "cada item do sumário aponta para a âncora do título correspondente"; `apps/web/src/features/documents/components/document-view.test.tsx` — "mostra Documento não encontrado quando o id não existe no exemplo"
-- [ ] Verificação da etapa: `pnpm --filter web typecheck && pnpm --filter web exec vitest run -t "cada item do sumário aponta para a âncora do título correspondente"` sai com 0
+- [x] Ler: `apps/web/src/features/spaces/` (etapa 2), `product/00-linguagem-visual.md` (Tipografia), `apps/web/src/shared/components/ui/empty-state.tsx`
+- [x] Criar `apps/web/src/shared/lib/format-relative-time.ts`: `formatRelativeTime(date, now)`, com `Intl.RelativeTimeFormat("pt-BR")`, escalando dia/semana/mês/ano
+- [x] Criar `apps/web/src/features/documents/model/blocks.ts` (puro): `listHeadings(blocks)`, devolve `{ id, text, level }[]` na ordem em que aparecem
+- [x] Criar hooks em `apps/web/src/features/documents/hooks/`: `use-recent-documents.ts`, `use-owned-documents.ts` (filtra `origin === "privado"`), `use-shared-with-me.ts` (filtra `origin === "pessoa"`), `use-document.ts`
+- [x] Criar `apps/web/src/features/documents/components/document-list.tsx` (`DocumentList`: filete, título, espaço ou origem, "atualizado há X por Y"/"por você", e `EmptyState` "Nenhum documento por aqui ainda" quando a lista está vazia)
+- [x] Criar `apps/web/src/features/documents/components/table-of-contents.tsx` (`TableOfContents`: `<nav aria-label="Sumário do documento">`, um link por `heading`, `href="#bloco-<id>"`)
+- [x] Criar `apps/web/src/features/documents/components/document-view.tsx` (`DocumentView`: agrupa `bulletListItem`/`numberedListItem` consecutivos em `<ul>`/`<ol>`, dá `id="bloco-<id>"` a cada `heading`, mostra `EmptyState titleAs="h2"` "Documento não encontrado" quando o id não existe)
+- [x] Criar `apps/web/src/features/documents/index.ts` (barril)
+- [x] Teste: `apps/web/src/features/documents/components/table-of-contents.test.tsx` — "cada item do sumário aponta para a âncora do título correspondente"; `apps/web/src/features/documents/components/document-view.test.tsx` — "mostra Documento não encontrado quando o id não existe no exemplo"
+- [x] Verificação da etapa: `pnpm --filter web typecheck && pnpm --filter web exec vitest run -t "cada item do sumário aponta para a âncora do título correspondente"` sai com 0
 
 ### Etapa 4 — Barra lateral e árvore de Espaços
 - [ ] Ler: `apps/web/src/app/layout/app-header.tsx`, `navegacao-de-destinos.tsx`, `menu-de-conta.tsx` (o que existe hoje), `apps/web/src/shared/components/ui/{menu,badge,avatar}.tsx`, `apps/web/src/features/organization/` e `apps/web/src/features/spaces/` (etapas 2–3), `product/00-linguagem-visual.md` (Largura e ponto de quebra)
@@ -313,3 +313,4 @@ vai aparecer quando os planos 03, 05 e 06 a trouxerem.
 
 2026-09-12 — etapa 1 — criados `shared/example-data/folioteca.ts` (tipos `ExampleBlock`/`ExampleSpace`/`ExampleDocument`/`ExampleOrganization` e os três `EXEMPLO_*`, com os sete documentos fora do guia de onboarding escritos nesta sessão, um `heading` por seção) e `app/layout/marcas.tsx` (`HomeMark`, `SearchMark`, `StructureMark`); `ROTULOS.canal` trocado para "Espaço" em `access-badge.tsx` — sem desvio.
 2026-09-12 — etapa 2 — criados `features/spaces/model/tree.ts` (`listTopLevelSpaces`, `findSpace`, `spaceAncestry`), os hooks `useSpaceTree`/`useSpace` sobre `EXEMPLO_ESPACOS`, `features/organization` com `useOrganization`, e os dois barris — sem desvio.
+2026-09-12 — etapa 3 — criados `format-relative-time.ts`, `features/documents/model/blocks.ts` (`listHeadings`, `inlineText`), os quatro hooks de documento, `DocumentList`, `TableOfContents`, `DocumentView` e o barril da feature, com teste para cada peça nova. Desvio: `useDocument` e, por arrastamento, o `useSpace` da etapa 2 devolviam `undefined` do `queryFn` quando o id não existe — o TanStack Query trata isso como "ainda não buscou" e loga erro em vez de aceitar como sucesso vazio; os dois hooks passaram a devolver `null` nesse caso, e `DocumentView` e os critérios de "não encontrado" continuam batendo (`null` também é falsy).
