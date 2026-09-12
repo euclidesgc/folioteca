@@ -47,7 +47,7 @@ const MOVIMENTO = [
 
 const ORIGENS_ACESSO = createListCollection({
   items: [
-    { label: "Canal", value: "canal" },
+    { label: "Espaço", value: "canal" },
     { label: "Pessoa", value: "pessoa" },
     { label: "Privado", value: "privado" },
   ],

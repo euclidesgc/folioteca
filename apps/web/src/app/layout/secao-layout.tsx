@@ -1,31 +1,19 @@
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 import { Outlet } from "react-router";
-import { Sublateral } from "./sublateral";
 
-export function SecaoLayout({
-  sublateral,
-}: {
-  sublateral?: { rotulo: string; conteudo: ReactNode };
-}): ReactElement {
+export function SecaoLayout(): ReactElement {
   return (
-    <>
-      {sublateral ? (
-        <Sublateral rotulo={sublateral.rotulo}>
-          {sublateral.conteudo}
-        </Sublateral>
-      ) : null}
-      <main
-        id="conteudo"
-        tabIndex={-1}
-        // motivo: `scroll-mt-16` é a altura do cabeçalho fixo. Sem ele, o salto
-        // para o conteúdo leva o foco a um ponto que o topo cobre, e quem usa
-        // teclado chega numa área que não consegue ver.
-        className="min-w-0 flex-1 scroll-mt-16 px-4 py-8 desde-tablet:px-8"
-      >
-        <div className="mx-auto max-w-4xl">
-          <Outlet />
-        </div>
-      </main>
-    </>
+    <main
+      id="conteudo"
+      tabIndex={-1}
+      // motivo: `scroll-mt-16` é a altura da barra compacta fixa, que só existe
+      // abaixo de 768px; a partir daí a barra lateral ocupa a própria coluna e
+      // não há mais cabeçalho cobrindo o conteúdo para o salto evitar.
+      className="min-w-0 flex-1 max-desde-tablet:scroll-mt-16 px-4 py-8 desde-tablet:px-8"
+    >
+      <div className="mx-auto max-w-4xl">
+        <Outlet />
+      </div>
+    </main>
   );
 }

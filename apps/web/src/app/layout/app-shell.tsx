@@ -1,17 +1,24 @@
 import type { ReactElement } from "react";
-import { Outlet } from "react-router";
-import { AppHeader } from "./app-header";
+import { Link, Outlet } from "react-router";
+import { BarraLateral } from "./barra-lateral";
+import { GavetaDeDestinos } from "./gaveta-de-destinos";
 import { SkipLink } from "./skip-link";
 
 export function AppShell(): ReactElement {
   return (
-    <div className="flex min-h-dvh flex-col bg-papel text-tinta">
+    <div className="flex min-h-dvh flex-col bg-papel text-tinta desde-tablet:flex-row">
       <SkipLink />
-      <AppHeader />
-      {/* O `main` não mora aqui: cada seção o monta ao lado da própria
-          sublateral, para que a lateral seja irmã do conteúdo e não filha dele —
-          e para que continue existindo exatamente um alvo do salto por rota. */}
-      <div className="flex flex-1 flex-col desde-tablet:flex-row">
+      <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 border-b border-fio bg-papel px-4 desde-tablet:hidden">
+        <GavetaDeDestinos />
+        <Link
+          to="/inicio"
+          className="font-display text-lg font-semibold text-tinta"
+        >
+          Folioteca
+        </Link>
+      </header>
+      <BarraLateral />
+      <div className="flex min-w-0 flex-1 flex-col">
         <Outlet />
       </div>
     </div>

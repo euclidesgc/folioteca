@@ -1,9 +1,5 @@
 import { createBrowserRouter, Navigate } from "react-router";
 import { AppShell } from "@/app/layout/app-shell";
-import {
-  ArvoreDeCanais,
-  ArvoreDeDocumentos,
-} from "@/app/layout/listas-da-sublateral";
 import { SecaoLayout } from "@/app/layout/secao-layout";
 import {
   CAMINHO_RECUPERAR_SENHA,
@@ -12,8 +8,12 @@ import {
 } from "@/features/auth";
 import { CAMINHO_PERFIL } from "@/features/conta";
 import { PaginaViva } from "./design";
+import { InicioRoute } from "./inicio";
+import { EspacosRoute } from "./espacos";
+import { EspacoRoute } from "./espaco";
 import { DocumentosRoute } from "./documentos";
-import { CanaisRoute } from "./canais";
+import { CompartilhadosRoute } from "./compartilhados";
+import { DocumentoRoute } from "./documento";
 import { PesquisaRoute } from "./pesquisa";
 import { OrganizacaoRoute } from "./organizacao";
 import { EntrarRoute } from "./entrar";
@@ -44,30 +44,37 @@ export const router = createBrowserRouter([
           {
             element: <AppShell />,
             children: [
-              { path: "/", element: <Navigate to="/documentos" replace /> },
+              { path: "/", element: <Navigate to="/inicio" replace /> },
+              { path: "/canais", element: <Navigate to="/espacos" replace /> },
+              {
+                path: "/inicio",
+                element: <SecaoLayout />,
+                children: [{ index: true, element: <InicioRoute /> }],
+              },
+              {
+                path: "/espacos",
+                element: <SecaoLayout />,
+                children: [{ index: true, element: <EspacosRoute /> }],
+              },
+              {
+                path: "/espacos/:id",
+                element: <SecaoLayout />,
+                children: [{ index: true, element: <EspacoRoute /> }],
+              },
               {
                 path: "/documentos",
-                element: (
-                  <SecaoLayout
-                    sublateral={{
-                      rotulo: "Documentos",
-                      conteudo: <ArvoreDeDocumentos />,
-                    }}
-                  />
-                ),
+                element: <SecaoLayout />,
                 children: [{ index: true, element: <DocumentosRoute /> }],
               },
               {
-                path: "/canais",
-                element: (
-                  <SecaoLayout
-                    sublateral={{
-                      rotulo: "Canais",
-                      conteudo: <ArvoreDeCanais />,
-                    }}
-                  />
-                ),
-                children: [{ index: true, element: <CanaisRoute /> }],
+                path: "/compartilhados",
+                element: <SecaoLayout />,
+                children: [{ index: true, element: <CompartilhadosRoute /> }],
+              },
+              {
+                path: "/documentos/:id",
+                element: <SecaoLayout />,
+                children: [{ index: true, element: <DocumentoRoute /> }],
               },
               {
                 path: "/pesquisa",

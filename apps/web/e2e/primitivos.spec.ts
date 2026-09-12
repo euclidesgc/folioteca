@@ -310,7 +310,7 @@ test("o filete e a etiqueta dizem de onde vem o acesso", async ({ page }) => {
   expect(new Set([corCanal, corPessoa, corPrivado]).size).toBe(3);
 
   for (const [origem, nome] of [
-    ["canal", "Canal"],
+    ["canal", "Espaço"],
     ["pessoa", "Pessoa"],
     ["privado", "Privado"],
   ] as const) {
@@ -335,11 +335,11 @@ test("a etiqueta densa mantém rótulo e marca a doze pixels", async ({
   expect(await linhas.count()).toBeGreaterThanOrEqual(3);
 
   const primeiraLinha = linhas.first();
-  const etiqueta = primeiraLinha.getByText("Canal", { exact: true });
+  const etiqueta = primeiraLinha.getByText("Espaço", { exact: true });
   await expect(etiqueta).toBeVisible();
   await expect(etiqueta.locator("svg")).toHaveCount(1);
   await expect(etiqueta.locator("svg")).toHaveAttribute("aria-hidden", "true");
-  expect(await etiqueta.textContent()).toBe("Canal");
+  expect(await etiqueta.textContent()).toBe("Espaço");
 
   const tamanhoFonte = await etiqueta.evaluate(
     (elemento) => getComputedStyle(elemento).fontSize,

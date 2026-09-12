@@ -6,7 +6,7 @@ import { PersonMark } from "./marks/person";
 import { PrivateMark } from "./marks/private";
 
 const ROTULOS: Record<AccessOrigin, string> = {
-  canal: "Canal",
+  canal: "Espaço",
   pessoa: "Pessoa",
   privado: "Privado",
 };
