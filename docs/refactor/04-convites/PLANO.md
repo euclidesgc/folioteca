@@ -1,7 +1,7 @@
 # 04 — Convites
 
 **Status:** [ ] não iniciado · [ ] em andamento · [x] entregue
-**Branch:** `feat/04-convites`, empilhada sobre `feat/03-estrutura-organizacional` · **PR:** —
+**Branch:** `feat/04-convites`, empilhada sobre `feat/03-estrutura-organizacional` · **PR:** [#88](https://github.com/euclidesgc/folioteca/pull/88)
 **Depende de:** 03 — Estrutura organizacional (guard de sessão, `/me`, filtro
 de erro, Testcontainers, instalação com código, unidades em árvore, lotação,
 papéis `ADMIN|MEMBER`)
