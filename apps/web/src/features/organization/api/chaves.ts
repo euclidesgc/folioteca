@@ -7,4 +7,5 @@ export const chavesDeOrganizacao = {
   units: () => ["units"] as const,
   unitTypes: () => ["unit-types"] as const,
   users: (search: string) => ["users", search] as const,
+  settings: () => ["organization-settings"] as const,
 };
