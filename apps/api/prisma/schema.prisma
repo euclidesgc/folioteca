@@ -43,6 +43,8 @@ model User {
   favoriteDocuments DocumentFavorite[]
   memberships       UnitMembership[]
   invitationsSent   Invitation[]       @relation("InvitationsSent")
+  managedSpaces     Space[]
+  spaceMemberships  SpaceMember[]
 }
 
 model UnitType {
@@ -79,6 +81,8 @@ model Unit {
 
   closureAsAncestor   UnitClosure[] @relation("UnitClosureAncestor")
   closureAsDescendant UnitClosure[] @relation("UnitClosureDescendant")
+
+  space Space?
 
   @@unique([parentId, normalizedName])
 }
@@ -215,4 +219,43 @@ model DocumentFavorite {
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@id([userId, documentId])
+}
+
+enum SpaceKind {
+  UNIT
+  FREE
+}
+
+// motivo: CHECK escrita à mão na migration garante o par por `kind` (M7/M12) —
+// espaço de unidade nunca é restrito e não tem gestor; espaço livre sempre tem
+// gestor e não tem `unitId`.
+model Space {
+  id                 String    @id @default(uuid())
+  kind               SpaceKind
+  unitId             String?   @unique
+  parentId           String?
+  name               String
+  inheritsFromParent Boolean
+  restricted         Boolean   @default(false)
+  managerId          String?
+  createdAt          DateTime  @default(now())
+
+  unit     Unit?         @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  parent   Space?        @relation("SpaceParent", fields: [parentId], references: [id])
+  children Space[]       @relation("SpaceParent")
+  manager  User?         @relation(fields: [managerId], references: [id])
+  members  SpaceMember[]
+
+  @@index([parentId])
+}
+
+model SpaceMember {
+  spaceId   String
+  userId    String
+  createdAt DateTime @default(now())
+
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([spaceId, userId])
 }

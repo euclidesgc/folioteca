@@ -120,6 +120,23 @@ export class UnitsRepository {
     return this.prisma.unitMembership.count({ where: { unitId: id } });
   }
 
+  // motivo (plano 05, regra 8): o espaço da unidade é criado pelo gatilho
+  // `space_for_unit_after_insert_trigger` (plano 05) — toda unidade tem um;
+  // `false` quando, por algum motivo, ainda não tiver.
+  async hasFreeChildSpaces(unitId: string): Promise<boolean> {
+    const unitSpace = await this.prisma.space.findUnique({
+      where: { unitId },
+      select: { id: true },
+    });
+    if (!unitSpace) {
+      return false;
+    }
+    const count = await this.prisma.space.count({
+      where: { parentId: unitSpace.id, kind: "FREE" },
+    });
+    return count > 0;
+  }
+
   async delete(id: string): Promise<void> {
     await this.prisma.unit.delete({ where: { id } });
   }

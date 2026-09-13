@@ -26,3 +26,9 @@ export type {
   InvitationResponseDto,
   PublicInvitationDto,
 } from "./generated/types.gen";
+export type {
+  SpaceDetailDto,
+  SpaceDto,
+  SpaceMemberDto,
+  SpacePathEntryDto,
+} from "./generated/types.gen";

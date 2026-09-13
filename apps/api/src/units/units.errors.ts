@@ -56,3 +56,14 @@ export class RootUnitNotDeletableError extends UnprocessableError {
     super("A raiz da organização não pode ser apagada.");
   }
 }
+
+// motivo (plano 05, regra 8): apagar a unidade apagaria, em cascata, o espaço
+// dela — um espaço livre pendurado por baixo ficaria sem pai. Para onde esses
+// espaços vão fica fora deste plano.
+export class UnitHasFreeSpacesError extends ConflictError {
+  readonly code = "UNIT_HAS_FREE_SPACES";
+
+  constructor() {
+    super("Mova os espaços livres desta unidade antes de apagá-la.");
+  }
+}

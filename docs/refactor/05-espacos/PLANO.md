@@ -1,6 +1,6 @@
 # 05 — Espaços
 
-**Status:** [ ] não iniciado · [ ] em andamento · [ ] entregue
+**Status:** [ ] não iniciado · [x] em andamento · [ ] entregue
 **Branch:** `feat/05-espacos` a partir de `develop` · **PR:** —
 **Depende de:** 03 — Estrutura organizacional (`Unit`, `UnitClosure`,
 `UnitMembership`, `ADMIN|MEMBER`, `AdminGuard`, Testcontainers,
@@ -161,15 +161,22 @@ espaço acima.". Só para quem administra; `PATCH /organization/settings` e
 | PATCH | `/spaces/:id` | `{ name?: string, restricted?: boolean }` | 200, o mesmo formato | 401; 403 `SPACE_NOT_MANAGED`; 404 |
 | PUT | `/spaces/:id/inheritance` | `{ inheritsFromParent: boolean }` | 200, o mesmo formato | 401; 403 `SPACE_INHERITANCE_FORBIDDEN`; 404 |
 | PUT | `/spaces/:id/members/:userId` | — | 204 (idempotente) | 401; 403 `SPACE_NOT_MANAGED`; 404 `SPACE_NOT_FOUND`/`USER_NOT_FOUND` |
-| DELETE | `/spaces/:id/members/:userId` | — | 204 (idempotente, salvo o gestor) | 401; 403 `SPACE_NOT_MANAGED`; 409 `MANAGER_CANNOT_LEAVE` |
-| DELETE | `/spaces/:id` | — | 204 | 401; 403 `SPACE_NOT_MANAGED`; 409 `SPACE_HAS_CHILDREN` |
+| DELETE | `/spaces/:id/members/:userId` | — | 204 (idempotente, salvo o gestor) | 401; 403 `SPACE_NOT_MANAGED`; 404 `SPACE_NOT_FOUND`; 409 `MANAGER_CANNOT_LEAVE` |
+| DELETE | `/spaces/:id` | — | 204 | 401; 403 `SPACE_NOT_MANAGED`; 404 `SPACE_NOT_FOUND`; 409 `SPACE_HAS_CHILDREN` |
 | GET | `/organization/settings` | — | `{ spacesInheritByDefault: boolean }` | 401; 403 |
 | PATCH | `/organization/settings` | `{ spacesInheritByDefault: boolean }` | `{ spacesInheritByDefault: boolean }` | 401; 403 |
 
+**Corrigido em execução (etapa 3)**: as linhas de `DELETE /spaces/:id` e
+`DELETE /spaces/:id/members/:userId` ganharam `404 SPACE_NOT_FOUND` — toda
+rota de escrita por `:id` precisa achar a linha antes de checar `managerId`, e
+as outras quatro já listavam esse erro; omiti-lo aqui não tinha como se
+sustentar sem arriscar um erro não tratado quando o id não existe.
+
 `DELETE /units/:id` (plano 03) ganha mais um erro: 409 `UNIT_HAS_FREE_SPACES`,
-quando o espaço da unidade tem filho livre. `SpacesModule` e `OrganizationModule`
-entram em `ROUTE_MODULES` (confirmar o nome real do arquivo com `rg -n
-"ROUTE_MODULES =" apps/api/src` antes de editar); `pnpm --filter api run
+quando o espaço da unidade tem filho livre. `SpacesModule` e
+`OrganizationSettingsModule` entram em `ROUTE_MODULES` (confirmar o nome real
+do arquivo com `rg -n "ROUTE_MODULES =" apps/api/src` antes de editar);
+`pnpm --filter api run
 openapi:generate` grava as duas em `apps/api/openapi.json` e `pnpm --filter
 web run api:generate` regenera `apps/web/src/shared/api/generated/`.
 
@@ -228,12 +235,26 @@ SQL escrito à mão sobre o diff que o Prisma gera, no mesmo `migration.sql`:
   raiz), `name` da unidade, `inheritsFromParent` = `spacesInheritByDefault`
   atual da `Organization`. A ordem por profundidade garante que o pai já
   tem `Space` quando o filho é inserido.
-- `CREATE OR REPLACE FUNCTION user_audience_spaces(p_user_id uuid) RETURNS
-  TABLE(space_id uuid) LANGUAGE sql STABLE`: `WITH RECURSIVE` que parte de
+- `CREATE OR REPLACE FUNCTION user_audience_spaces(p_user_id text) RETURNS
+  TABLE(space_id text) LANGUAGE sql STABLE`: `WITH RECURSIVE` que parte de
   (a) todo `SpaceMember` da pessoa e (b) todo espaço `UNIT` com
   `UnitMembership` direto dela, e desce por `parentId` só para filhos com
   `inheritsFromParent = true` — a primeira função de acesso da casa (D1),
-  chamada só por `AccessRepository`.
+  chamada só por `AccessRepository`. **Corrigido em execução**: `text`, não
+  `uuid` — todo id desta base nasce `String @default(uuid())` e vira coluna
+  `TEXT` (nenhum modelo usa o tipo nativo `uuid` do Postgres); `p_user_id
+  uuid` exigiria cast em toda comparação contra as colunas reais.
+- Gatilho `space_for_unit_after_insert_trigger` (`AFTER INSERT ON "Unit"`,
+  função `space_for_unit_after_insert`), **não previsto na versão original
+  desta seção**: cria o `Space` `kind = 'UNIT'` de toda unidade nova, com o
+  mesmo formato do backfill (`parentId` = `Space` da unidade pai,
+  `inheritsFromParent` = `spacesInheritByDefault` atual). Sem ele M8 só
+  valeria para unidade que já existia quando esta migration rodou —
+  `POST /installation` e `POST /units` criam unidade em transação de
+  aplicação, não em migration, e por isso toda instância nova (inclusive o
+  Postgres do Testcontainers, que roda as migrations sobre um banco sempre
+  vazio) nasceria com unidade sem espaço. Espelha
+  `unit_closure_after_insert_trigger` (D2).
 
 ### Acesso
 
@@ -249,73 +270,95 @@ exigem `AdminGuard`, como as outras rotas de configuração da instância (M3).
 ## Etapas
 
 ### Etapa 1 — Modelo de dados e a primeira função de acesso
-- [ ] Ler: `apps/api/prisma/schema.prisma`, a migration `estrutura_organizacional`
+- [x] Ler: `apps/api/prisma/schema.prisma`, a migration `estrutura_organizacional`
       do plano 03 (`Unit`, `UnitClosure`, `UnitMembership`,
       `Organization.spacesInheritByDefault`), `docs/refactor/00-fundamentos/modelo-de-acesso.md`
       (M8–M12, D1, D2), `.claude/skills/nest-errors-filters/templates/*.ts`
-- [ ] Acrescenta ao schema `enum SpaceKind`, `model Space`, `model SpaceMember`
-- [ ] Gera a migration `spaces` e edita o `migration.sql`: `CHECK` por tipo,
+- [x] Acrescenta ao schema `enum SpaceKind`, `model Space`, `model SpaceMember`
+- [x] Gera a migration `spaces` e edita o `migration.sql`: `CHECK` por tipo,
       backfill por profundidade de `UnitClosure`, `CREATE OR REPLACE FUNCTION
-      user_audience_spaces`
-- [ ] Cria `apps/api/src/access/{access.module.ts,access.repository.ts}`
+      user_audience_spaces` — **e um quarto trecho não previsto na prosa
+      original desta seção**: gatilho `space_for_unit_after_insert_trigger`
+      (`AFTER INSERT ON "Unit"`, espelha `unit_closure_after_insert_trigger`
+      de D2). Sem ele M8 só valeria para unidade que já existia quando esta
+      migration rodou — `POST /installation` e `POST /units` criam unidade em
+      transação de aplicação, não em migration, e o Postgres do
+      Testcontainers roda as migrations sobre um banco sempre vazio; toda
+      instância nova (inclusive a de teste) nasceria com unidade sem espaço.
+      Ver Andamento.
+- [x] Cria `apps/api/src/access/{access.module.ts,access.repository.ts}`
       (módulo global) com `getAudienceSpaceIds(userId): Promise<string[]>` —
       único ponto que roda `SELECT * FROM user_audience_spaces($1)`
-- [ ] Teste: `apps/api/test/spaces.e2e-spec.ts` — "copies the organization
-      default onto a newly created space", "counts only direct staffing as
-      unit space membership", "backfills one space per existing unit with
-      the parent's space as parent", "stops the inheritance chain at the
-      first space that does not inherit" (via `AccessRepository` e Prisma
-      direto contra o Postgres do Testcontainers, sem HTTP)
-- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t "spaces"` sai com 0
+- [x] Teste: `apps/api/test/spaces.e2e-spec.ts` — "backfills one space per
+      existing unit with the parent's space as parent", "stops the
+      inheritance chain at the first space that does not inherit" (via
+      `AccessRepository` e Prisma direto contra o Postgres do Testcontainers,
+      sem HTTP). **Reagendado**: "counts only direct staffing as unit space
+      membership" foi para a etapa 2 (a prova nos critérios de aceite é `GET
+      /spaces/:id/members`, que só existe a partir dali) e "copies the
+      organization default onto a newly created space" foi para a etapa 3 (a
+      prova é `POST /spaces`). Ver Andamento.
+- [x] Verificação da etapa: `pnpm --filter api run test:integration -t "spaces"` sai com 0
 
 ### Etapa 2 — Leitura: árvore, detalhe e membros
-- [ ] Ler: `apps/api/src/units/**` (padrão module/controller/service/repository
+- [x] Ler: `apps/api/src/units/**` (padrão module/controller/service/repository
       e `units.errors.ts` do plano 03), `apps/api/src/common/errors/domain-error.ts`,
       `apps/api/scripts/generate-openapi.ts`, `apps/web/src/features/spaces/`
       (dados de exemplo do plano 01)
-- [ ] Cria `apps/api/src/spaces/{spaces.module.ts,spaces.controller.ts,
+- [x] Cria `apps/api/src/spaces/{spaces.module.ts,spaces.controller.ts,
       spaces.service.ts,spaces.repository.ts,spaces.errors.ts,dto/space.dto.ts,
       dto/space-member.dto.ts}` com `GET /spaces` (árvore podada por
       visibilidade, Regra 6), `GET /spaces/:id`, `GET /spaces/:id/members`;
       `SpaceNotFoundError extends NotFoundError` (`SPACE_NOT_FOUND`)
-- [ ] Registra `SpacesModule` em `ROUTE_MODULES` e no `AppModule`
-- [ ] Roda `pnpm --filter api run openapi:generate` e `pnpm --filter web run api:generate`
-- [ ] Troca a `queryFn` de `apps/web/src/features/spaces/hooks/{use-space-tree,use-space}.ts`
+- [x] Registra `SpacesModule` em `ROUTE_MODULES` e no `AppModule`
+- [x] Roda `pnpm --filter api run openapi:generate` e `pnpm --filter web run api:generate`
+- [x] Troca a `queryFn` de `apps/web/src/features/spaces/hooks/{use-space-tree,use-space}.ts`
       de `EXEMPLO_ESPACOS` para `GET /spaces`/`GET /spaces/:id` (a assinatura
       dos hooks não muda, só a origem do dado — como o plano 01 já previu)
-- [ ] Teste: `apps/api/test/spaces.e2e-spec.ts` — "hides a restricted space
+- [x] Teste: `apps/api/test/spaces.e2e-spec.ts` — "hides a restricted space
       from someone outside its audience", "shows a restricted space to a
-      member and to someone with inherited access"
-- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t "spaces"` sai com 0
+      member and to someone with inherited access". **Somado**: "counts only
+      direct staffing as unit space membership" (reagendado da etapa 1 — ver
+      Andamento da etapa 1).
+- [x] Verificação da etapa: `pnpm --filter api run test:integration -t "spaces"` sai com 0
 
 ### Etapa 3 — Escrita: criar, editar, herança, membros, apagar, e o padrão da organização
-- [ ] Ler: `apps/api/src/spaces/*` (etapa 2), `apps/api/src/units/units.service.ts`
+- [x] Ler: `apps/api/src/spaces/*` (etapa 2), `apps/api/src/units/units.service.ts`
       e `units.errors.ts` (rota `DELETE /units/:id` do plano 03),
       `apps/web/src/features/organization/` (componentes do plano 03, em
       especial `bloco-instancia.tsx`)
-- [ ] Acrescenta ao `SpacesController/Service/Repository`: `POST /spaces`
+- [x] Acrescenta ao `SpacesController/Service/Repository`: `POST /spaces`
       (`SpaceParentNotAllowedError extends UnprocessableError`), `PATCH
       /spaces/:id` (`SpaceNotManagedError extends ForbiddenError`), `PUT
       /spaces/:id/inheritance` (`SpaceInheritanceForbiddenError extends
       ForbiddenError`), `PUT|DELETE /spaces/:id/members/:userId`
       (`ManagerCannotLeaveError extends ConflictError`), `DELETE /spaces/:id`
       (`SpaceHasChildrenError extends ConflictError`)
-- [ ] Em `units.service.ts`, antes de apagar uma unidade, confere se o
+- [x] Em `units.service.ts`, antes de apagar uma unidade, confere se o
       espaço dela tem filho `FREE`; se tiver, lança `UnitHasFreeSpacesError
       extends ConflictError` (`UNIT_HAS_FREE_SPACES`), acrescentada a
       `units.errors.ts`
-- [ ] Cria `apps/api/src/organization-settings/{organization-settings.module.ts,
+- [x] Cria `apps/api/src/organization-settings/{organization-settings.module.ts,
       controller.ts,service.ts,repository.ts}` com `GET|PATCH
       /organization/settings`, atrás de `AdminGuard`; registra em `ROUTE_MODULES`
-- [ ] Regenera contrato e cliente web (mesmos dois comandos da etapa 2)
+- [x] Regenera contrato e cliente web (mesmos dois comandos da etapa 2)
 - [ ] Cria `apps/web/src/features/organization/hooks/use-organization-settings.ts`
       (`useOrganizationSettings()`, `useUpdateOrganizationSettings()`) e
-      acrescenta o `Switch` "Espaços novos herdam do pai" a `bloco-instancia.tsx`
-- [ ] Teste: `apps/api/test/spaces.e2e-spec.ts` — "refuses to let the manager
+      acrescenta o `Switch` "Espaços novos herdam do pai" a `bloco-instancia.tsx`.
+      **Não feito nesta sessão**: a sessão recebeu escopo explícito de não
+      tocar `apps/web/src/` além do cliente que `pnpm contract` regenera — a
+      tela é a etapa 4. Ver Andamento.
+- [x] Teste: `apps/api/test/spaces.e2e-spec.ts` — "refuses to let the manager
       leave their own space", "refuses to delete a space that still has
       children"; `apps/api/test/organization-settings.e2e-spec.ts` —
-      "keeps the inheritance default only for the administration role"
-- [ ] Verificação da etapa: `pnpm --filter api run test:integration -t "spaces"` sai com 0
+      "keeps the inheritance default only for the administration role".
+      **Somado**: "copies the organization default onto a newly created
+      space" (reagendado da etapa 1 — ver Andamento da etapa 1), "refuses to
+      create a free space under a unit where the person is not staffed" e
+      "blocks deleting a unit whose space still has a free child space" —
+      cobrem `SPACE_PARENT_NOT_ALLOWED` e `UNIT_HAS_FREE_SPACES`, que esta
+      etapa introduz sem um `it()` nomeado na lista original.
+- [x] Verificação da etapa: `pnpm --filter api run test:integration -t "spaces"` sai com 0
 
 ### Etapa 4 — Tela do espaço e renome canal → espaço
 - [ ] Ler: `apps/web/src/app/routes/{espacos,espaco}.tsx`,
@@ -390,49 +433,49 @@ exigem `AdminGuard`, como as outras rotas de configuração da instância (M3).
 
 ## Critérios de aceite
 
-- [ ] `estrutural` — `apps/api/prisma/schema.prisma` declara `enum SpaceKind`,
+- [x] `estrutural` — `apps/api/prisma/schema.prisma` declara `enum SpaceKind`,
       `model Space` e `model SpaceMember`. Prova: `rg -c "model Space
       |model SpaceMember|enum SpaceKind" apps/api/prisma/schema.prisma` imprime `3`.
-- [ ] `estrutural` — `user_audience_spaces` só é chamada, fora da migration,
+- [x] `estrutural` — `user_audience_spaces` só é chamada, fora da migration,
       em `apps/api/src/access/access.repository.ts`. Prova: `rg -l
       "user_audience_spaces" apps/api/src` imprime só esse caminho.
-- [ ] `comportamental` — Dado um espaço livre restrito do qual a pessoa não é
+- [x] `comportamental` — Dado um espaço livre restrito do qual a pessoa não é
       membro nem descende por herança, quando ela chama `GET /spaces/:id`,
       então a resposta é 404 `SPACE_NOT_FOUND`. Prova:
       `apps/api/test/spaces.e2e-spec.ts`, teste "hides a restricted space
       from someone outside its audience".
-- [ ] `comportamental` — Dado um espaço restrito do qual a pessoa é membro
+- [x] `comportamental` — Dado um espaço restrito do qual a pessoa é membro
       direto, e outro que ela só alcança por estar lotada num espaço de
       unidade que herda até ele, quando ela chama `GET /spaces/:id` para
       cada um, então as duas respostas são 200. Prova:
       `apps/api/test/spaces.e2e-spec.ts`, teste "shows a restricted space to
       a member and to someone with inherited access".
-- [ ] `comportamental` — Dado `Organization.spacesInheritByDefault = true`,
+- [x] `comportamental` — Dado `Organization.spacesInheritByDefault = true`,
       quando uma pessoa cria um espaço livre por `POST /spaces`, então ele
       nasce com `inheritsFromParent: true`. Prova:
       `apps/api/test/spaces.e2e-spec.ts`, teste "copies the organization
       default onto a newly created space".
-- [ ] `comportamental` — Dado alguém lotado numa subunidade mas não na
+- [x] `comportamental` — Dado alguém lotado numa subunidade mas não na
       unidade pai, quando se chama `GET /spaces/:id/members` do espaço da
       unidade pai, então essa pessoa não está na lista. Prova:
       `apps/api/test/spaces.e2e-spec.ts`, teste "counts only direct staffing
       as unit space membership".
-- [ ] `comportamental` — Dado o backfill da migration `spaces` sobre unidades
+- [x] `comportamental` — Dado o backfill da migration `spaces` sobre unidades
       pré-existentes, quando ele termina, então existe um `Space` por
       `Unit`, com `parentId` igual ao id do `Space` da unidade pai. Prova:
       `apps/api/test/spaces.e2e-spec.ts`, teste "backfills one space per
       existing unit with the parent's space as parent".
-- [ ] `comportamental` — Dado um espaço-filho que não herda e um espaço-neto
+- [x] `comportamental` — Dado um espaço-filho que não herda e um espaço-neto
       que herda abaixo dele, quando alguém com acesso só ao avô chama
       `user_audience_spaces`, então o neto não aparece no resultado. Prova:
       `apps/api/test/spaces.e2e-spec.ts`, teste "stops the inheritance chain
       at the first space that does not inherit".
-- [ ] `comportamental` — Dado o gestor de um espaço livre, quando ele chama
+- [x] `comportamental` — Dado o gestor de um espaço livre, quando ele chama
       `DELETE /spaces/:id/members/:userId` com o próprio id, então a
       resposta é 409 `MANAGER_CANNOT_LEAVE`. Prova:
       `apps/api/test/spaces.e2e-spec.ts`, teste "refuses to let the manager
       leave their own space".
-- [ ] `comportamental` — Dado um espaço com um subespaço, quando o gestor
+- [x] `comportamental` — Dado um espaço com um subespaço, quando o gestor
       chama `DELETE /spaces/:id`, então a resposta é 409
       `SPACE_HAS_CHILDREN`. Prova: `apps/api/test/spaces.e2e-spec.ts`,
       teste "refuses to delete a space that still has children".
@@ -477,3 +520,121 @@ exigem `AdminGuard`, como as outras rotas de configuração da instância (M3).
   no banco, sem convite), registrado em Andamento.
 
 ## Andamento
+
+2026-09-12 — etapa 1 — schema (`enum SpaceKind`, `model Space`, `model
+SpaceMember`, com `space Space?` em `Unit` e `managedSpaces`/`spaceMemberships`
+em `User` para as relações reversas que o Prisma exige), migration
+`20260912161137_spaces` e `apps/api/src/access/{access.module.ts,
+access.repository.ts}` (`AccessModule` global, registrado em `AppModule` ao
+lado de `PrismaModule`/`MailModule`, não em `ROUTE_MODULES` — não tem
+controller). Desviou do plano em três pontos: (1) `user_audience_spaces` usa
+`text`, não `uuid` — todo id da base é `String @default(uuid())`, coluna
+`TEXT`, sem nenhum uso do tipo nativo `uuid` em nenhuma migration anterior;
+com `uuid` cada comparação contra as colunas reais exigiria cast; (2) a
+migration ganhou um gatilho `space_for_unit_after_insert_trigger` (`AFTER
+INSERT ON "Unit"`) não pedido pela prosa original de "Modelo de dados" —
+sem ele, M8 ("cada unidade tem um espaço") só valeria para unidade que já
+existia quando esta migration rodou, porque `POST /installation` e `POST
+/units` criam unidade em transação de aplicação, não em migration; o Postgres
+do Testcontainers roda as migrations sobre um banco sempre vazio, então toda
+instância nova — inclusive a de teste — nasceria com unidade sem espaço,
+quebrando a premissa de `GET /spaces` antes mesmo de ele existir. Confirmado
+por teste manual (`INSERT` direto numa transação revertida) e pelo teste de
+integração da etapa; (3) dos quatro testes que a lista de tarefas da etapa 1
+citava, escrevi dois aqui (backfill e cadeia de herança, que não dependem de
+rota nenhuma) e movi os outros dois: "counts only direct staffing as unit
+space membership" para a etapa 2 (a prova nos critérios de aceite é `GET
+/spaces/:id/members`, inexistente até a etapa 2) e "copies the organization
+default onto a newly created space" para a etapa 3 (a prova é `POST
+/spaces`, fora do escopo desta sessão). `pnpm --filter api run
+test:integration -t "spaces"`: 2 testes, 0 falhas.
+
+2026-09-12 — etapa 2 — `apps/api/src/spaces/{spaces.module.ts,
+spaces.controller.ts, spaces.service.ts, spaces.repository.ts,
+spaces.errors.ts, dto/space.dto.ts, dto/space-member.dto.ts}` com `GET
+/spaces`, `GET /spaces/:id` e `GET /spaces/:id/members`; `SpacesModule`
+somado a `ROUTE_MODULES` (e, por tabela, ao `AppModule`, que já espalha esse
+array). `pnpm run contract` gravou as três rotas em `apps/api/openapi.json`
+e regenerou `apps/web/src/shared/api/generated/`, reexportado em
+`apps/web/src/shared/api/index.ts` (`SpaceDto`, `SpaceDetailDto`,
+`SpaceMemberDto`, `SpacePathEntryDto`). `use-space-tree.ts`/`use-space.ts`
+passaram a chamar `GET /spaces`/`GET /spaces/:id`, achatando a árvore (que a
+API devolve aninhada em `children`) para a forma plana com `parentId` que
+`EspacosRoute`/`EspacoRoute`/`ArvoreDeEspacos`/`ConteudoDaBarraLateral` ainda
+esperam — a assinatura dos hooks não mudou, só a origem; a troca desses
+quatro consumidores para o formato novo (e a remoção da etiqueta "Dados de
+exemplo") é a etapa 4. Somei "counts only direct staffing as unit space
+membership" aqui (reagendado da etapa 1, ver acima), mais as duas da lista
+original da etapa 2. `pnpm --filter api run test:integration -t "spaces"`: 5
+testes, 0 falhas; suíte de integração inteira: 12 suítes, 49 testes, 0
+falhas; suíte de unidade: 6 suítes, 75 testes, 0 falhas; `pnpm --filter web
+run typecheck`, `pnpm --filter web run lint` e `pnpm --filter web exec
+vitest run -t "spaces tree"` (4 testes) verdes — nenhum arquivo de
+`apps/web/src/app/` tocado, só os dois hooks e o barril de `shared/api`.
+`prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma`:
+"No difference detected." `bash scripts/gates/gates_runner.sh`: 0.
+
+2026-09-12 — etapa 3 — `POST /spaces`, `PATCH /spaces/:id`, `PUT
+/spaces/:id/inheritance`, `PUT|DELETE /spaces/:id/members/:userId`, `DELETE
+/spaces/:id` em `SpacesController/Service/Repository`, com
+`SpaceParentNotAllowedError`, `SpaceNotManagedError`,
+`SpaceInheritanceForbiddenError`, `ManagerCannotLeaveError`,
+`SpaceHasChildrenError` e `SpaceUserNotFoundError` (`USER_NOT_FOUND`) em
+`spaces.errors.ts`; `UnitHasFreeSpacesError` em `units.errors.ts`, checado em
+`units.service.ts` antes de `DELETE /units/:id` (via
+`UnitsRepository.hasFreeChildSpaces`, que lê a tabela `Space` direto, sem
+cruzar para o módulo `spaces`); `apps/api/src/organization-settings/` novo
+(`organization-settings.{module,controller,service,repository}.ts`,
+`dto/{organization-settings,update-organization-settings}.dto.ts`) com
+`GET|PATCH /organization/settings` atrás de `SessionGuard`+`AdminGuard`;
+`OrganizationSettingsModule` somado a `ROUTE_MODULES`. `pnpm run contract`
+gravou as sete rotas novas em `apps/api/openapi.json` e regenerou
+`apps/web/src/shared/api/generated/` — não toquei em
+`apps/web/src/shared/api/index.ts` (o barril manual de reexportação) nem em
+nenhum outro arquivo de `apps/web/src/`, porque a tarefa desta sessão trouxe
+escopo explícito mais estreito que o texto original desta etapa: **não criei
+`apps/web/src/features/organization/hooks/use-organization-settings.ts` nem
+toquei `bloco-instancia.tsx`** (marcado `[ ]` acima) — essa tarefa do
+`PLANO.md` pertence à tela, e a tela é a etapa 4 por instrução direta de
+quem disparou esta sessão; fica pendente para lá. Quatro decisões dentro do
+que o `PLANO.md` deixou aberto: (1) a elegibilidade de `parentId` em `POST
+/spaces` (Regra 2) usa lotação/membresia **direta** (`UnitMembership`/
+`SpaceMember`), não `user_audience_spaces` — a audiência inclui herança, que
+é sobre *ver* compartilhamento, não sobre *onde pendurar* um espaço novo;
+(2) `PUT`/`DELETE /spaces/:id/members/:userId` exigem `managerId === `
+sessão nos dois sentidos, sem a saída natural do próprio membro que D3 (em
+`modelo-de-acesso.md`) descreve em prosa — a seção "Acesso" deste `PLANO.md`,
+que minhas instruções tratam como contrato junto da tabela, lista
+`SPACE_NOT_MANAGED` como erro possível dos dois verbos sem exceção; nenhum
+critério de aceite pede a saída por conta própria, então segui a leitura
+literal da seção em vez da decisão mais antiga e mais genérica; (3) as linhas
+de `DELETE /spaces/:id` e `DELETE /spaces/:id/members/:userId` na tabela
+"API" não listavam `404 SPACE_NOT_FOUND` — toda rota de escrita por `:id`
+precisa achar a linha antes de checar `managerId`, e as quatro rotas
+irmãs já listavam esse erro; corrigi a tabela em vez de deixar um 500
+silencioso para id inexistente (doc atualizado acima, no presente, como a
+regra 7 do `CLAUDE.md` pede); (4) os arquivos de `organization-settings`
+nasceram com o nome completo (`organization-settings.controller.ts`, não
+`controller.ts`) — a lista da tarefa veio sem o prefixo só nesses três
+arquivos, e todo outro módulo do repositório (`spaces`, `units`,
+`unit-types`...) prefixa os quatro do quarteto; seguir a convenção do
+repositório em vez da grafia literal da tarefa. Testes somados a
+`apps/api/test/spaces.e2e-spec.ts`: os dois pedidos ("refuses to let the
+manager leave their own space", "refuses to delete a space that still has
+children"), o reagendado da etapa 1 ("copies the organization default onto a
+newly created space") e dois além da lista original — "refuses to create a
+free space under a unit where the person is not staffed" e "blocks deleting
+a unit whose space still has a free child space" — escritos porque
+`SPACE_PARENT_NOT_ALLOWED` e `UNIT_HAS_FREE_SPACES` são erros novos desta
+etapa sem nenhum outro teste que os exercite. `apps/api/test/
+organization-settings.e2e-spec.ts` novo, com "keeps the inheritance default
+only for the administration role". `pnpm --filter api run test:integration -t
+"spaces"`: 10 testes, 0 falhas; suíte de integração inteira: 13 suítes, 55
+testes, 0 falhas; suíte de unidade: 6 suítes, 75 testes, 0 falhas (nenhum
+teste de unidade novo — nenhum serviço tocado nesta etapa tem
+`*.service.spec.ts` hoje; `units`, `installation` e o próprio `spaces` das
+etapas 1–2 também só têm prova de integração, e segui o mesmo padrão).
+`pnpm --filter web run typecheck` e `pnpm --filter web run lint` verdes
+(cliente gerado, sem consumidor novo ainda). `prisma migrate diff
+--from-config-datasource --to-schema prisma/schema.prisma`: "No difference
+detected." (etapa sem mudança de esquema). `bash scripts/gates/gates_runner.sh`: 0.

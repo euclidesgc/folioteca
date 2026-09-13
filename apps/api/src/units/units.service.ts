@@ -5,6 +5,7 @@ import type { FlatUnitRow, MemberRow } from "./units.repository";
 import { UnitsRepository } from "./units.repository";
 import {
   RootUnitNotDeletableError,
+  UnitHasFreeSpacesError,
   UnitNameTakenError,
   UnitNotEmptyError,
   UnitNotFoundError,
@@ -136,12 +137,16 @@ export class UnitsService {
     if (unit.isRoot) {
       throw new RootUnitNotDeletableError();
     }
-    const [children, members] = await Promise.all([
+    const [children, members, hasFreeSpaces] = await Promise.all([
       this.repository.countChildren(id),
       this.repository.countDirectMembers(id),
+      this.repository.hasFreeChildSpaces(id),
     ]);
     if (children > 0 || members > 0) {
       throw new UnitNotEmptyError();
+    }
+    if (hasFreeSpaces) {
+      throw new UnitHasFreeSpacesError();
     }
     await this.repository.delete(id);
   }
