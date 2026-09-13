@@ -1,3 +1,15 @@
-export { findSpace, listTopLevelSpaces, spaceAncestry } from "./model/tree";
+export type { EspacoResumido } from "./hooks/use-space-tree";
 export { useSpace } from "./hooks/use-space";
 export { useSpaceTree } from "./hooks/use-space-tree";
+export { useSpaceMembers } from "./hooks/use-space-members";
+export { useCreateSpace } from "./hooks/use-create-space";
+export { useUpdateSpace } from "./hooks/use-update-space";
+export { useUpdateSpaceInheritance } from "./hooks/use-update-space-inheritance";
+export { useAddSpaceMember } from "./hooks/use-add-space-member";
+export { useRemoveSpaceMember } from "./hooks/use-remove-space-member";
+export { useDeleteSpace } from "./hooks/use-delete-space";
+export { SpaceCard } from "./components/space-card";
+export { CreateSpaceDialog } from "./components/create-space-dialog";
+export { SpaceMembersDialog } from "./components/space-members-dialog";
+export { SpaceActionsMenu } from "./components/space-actions-menu";
+export { SpaceInheritanceSwitch } from "./components/space-inheritance-switch";

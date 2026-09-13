@@ -144,15 +144,12 @@ describe("BarraLateral — caminho feliz", () => {
     ).toBeInTheDocument();
   });
 
-  it("mostra o nome real da organização, sem a etiqueta de dados de exemplo ao lado", async () => {
+  it("mostra o nome real da organização, sem a etiqueta de dados de exemplo", async () => {
     await renderBarraLateral();
 
     const nomeDaOrganizacao = await screen.findByText(ME.organization.name);
     expect(nomeDaOrganizacao).toBeInTheDocument();
-    // decisão: a árvore de espaços continua exemplo (plano 05); só o nome da
-    // organização passou a vir de `GET /me` — a etiqueta ao lado dele deixou
-    // de fazer sentido, e sobra só a que marca os espaços.
-    expect(screen.getAllByText("Dados de exemplo")).toHaveLength(1);
+    expect(screen.queryByText("Dados de exemplo")).not.toBeInTheDocument();
   });
 });
 

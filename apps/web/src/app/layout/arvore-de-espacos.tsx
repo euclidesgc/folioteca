@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { ReactElement, SVGProps } from "react";
 import { Link } from "react-router";
 import { cn } from "@/shared/lib/cn";
-import { ChannelMark } from "@/shared/components/access/marks/channel";
+import { SpaceMark } from "@/shared/components/access/marks/space";
 import type { ExampleSpace } from "@/shared/example-data/folioteca";
 
 function DisclosureMark(props: SVGProps<SVGSVGElement>): ReactElement {
@@ -80,7 +80,7 @@ function EspacoNaArvore({
         ) : (
           <span className="size-6 shrink-0" aria-hidden="true" />
         )}
-        <ChannelMark aria-hidden="true" className="shrink-0 text-verdete" />
+        <SpaceMark aria-hidden="true" className="shrink-0 text-verdete" />
         <Link
           to={`/espacos/${espaco.id}`}
           className="flex-1 truncate rounded-padrao px-1 py-1 text-sm text-tinta no-underline hover:bg-fio"

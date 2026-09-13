@@ -4,7 +4,7 @@ import { AccessSpine, accessSpineVariants } from "./access-spine";
 
 describe("accessSpineVariants", () => {
   it("maps each access origin to a distinct theme border color, never an arbitrary value", () => {
-    expect(accessSpineVariants({ origin: "canal" })).toContain(
+    expect(accessSpineVariants({ origin: "espaco" })).toContain(
       "border-l-verdete",
     );
     expect(accessSpineVariants({ origin: "pessoa" })).toContain(
@@ -18,12 +18,12 @@ describe("accessSpineVariants", () => {
 
 describe("AccessSpine", () => {
   it("renders a decorative bar hidden from assistive tech", () => {
-    const { container } = render(<AccessSpine origin="canal" />);
+    const { container } = render(<AccessSpine origin="espaco" />);
     expect(container.firstElementChild).toHaveAttribute("aria-hidden", "true");
   });
 
   it.each([
-    ["canal", "border-l-verdete"],
+    ["espaco", "border-l-verdete"],
     ["pessoa", "border-l-carimbo"],
     ["privado", "border-l-grafite"],
   ] as const)(
@@ -35,7 +35,7 @@ describe("AccessSpine", () => {
   );
 
   it("gives each origin a different spine, so the three never collapse into one", () => {
-    const classes = (["canal", "pessoa", "privado"] as const).map((origin) => {
+    const classes = (["espaco", "pessoa", "privado"] as const).map((origin) => {
       const { container } = render(<AccessSpine origin={origin} />);
       return container.firstElementChild?.className ?? "";
     });

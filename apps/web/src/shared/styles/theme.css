@@ -97,7 +97,7 @@
   --texto-suave: var(--color-grafite);
   --acao: var(--color-verdete);
   --divisoria: var(--color-fio);
-  --lombada-canal: var(--color-verdete);
+  --lombada-espaco: var(--color-verdete);
   --lombada-pessoa: var(--color-carimbo);
   --lombada-privado: var(--color-grafite);
 
@@ -132,7 +132,7 @@
     --texto-suave: var(--color-grafite);
     --acao: var(--color-verdete);
     --divisoria: var(--color-fio);
-    --lombada-canal: var(--color-verdete);
+    --lombada-espaco: var(--color-verdete);
     --lombada-pessoa: var(--color-carimbo);
     --lombada-privado: var(--color-grafite);
 
@@ -153,7 +153,7 @@
   --texto-suave: var(--color-grafite);
   --acao: var(--color-verdete);
   --divisoria: var(--color-fio);
-  --lombada-canal: var(--color-verdete);
+  --lombada-espaco: var(--color-verdete);
   --lombada-pessoa: var(--color-carimbo);
   --lombada-privado: var(--color-grafite);
 

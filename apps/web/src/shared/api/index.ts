@@ -27,8 +27,15 @@ export type {
   PublicInvitationDto,
 } from "./generated/types.gen";
 export type {
+  OrganizationSettingsDto,
+  UpdateOrganizationSettingsDto,
+} from "./generated/types.gen";
+export type {
+  CreateSpaceDto,
   SpaceDetailDto,
   SpaceDto,
   SpaceMemberDto,
   SpacePathEntryDto,
+  UpdateSpaceDto,
+  UpdateSpaceInheritanceDto,
 } from "./generated/types.gen";

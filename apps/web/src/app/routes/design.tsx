@@ -47,22 +47,22 @@ const MOVIMENTO = [
 
 const ORIGENS_ACESSO = createListCollection({
   items: [
-    { label: "Espaço", value: "canal" },
+    { label: "Espaço", value: "espaco" },
     { label: "Pessoa", value: "pessoa" },
     { label: "Privado", value: "privado" },
   ],
 });
 
-const ORIGENS = ["canal", "pessoa", "privado"] as const;
+const ORIGENS = ["espaco", "pessoa", "privado"] as const;
 
 const NOMES_DE_ORIGEM: Record<(typeof ORIGENS)[number], string> = {
-  canal: "Documento de acesso por canal",
+  espaco: "Documento de acesso por espaço",
   pessoa: "Documento de acesso por pessoa",
   privado: "Documento de acesso privado",
 };
 
 const LINHAS_DA_LISTA = [
-  { origem: "canal", titulo: "Política de reembolso" },
+  { origem: "espaco", titulo: "Política de reembolso" },
   { origem: "pessoa", titulo: "Ata da diretoria" },
   { origem: "privado", titulo: "Rascunho pessoal" },
 ] as const;
@@ -84,7 +84,7 @@ const FACES = [
     token: "--font-mono",
     papel: "Utilitária",
     classe: "font-mono",
-    para: "Identificador, valor de token, código de canal.",
+    para: "Identificador, valor de token, código de espaço.",
   },
 ] as const;
 
@@ -527,12 +527,12 @@ function EtiquetaDeExemplo() {
     <div className="flex flex-col gap-6">
       <ul className="flex flex-wrap items-center gap-4">
         <li className="flex flex-col items-start gap-2">
-          <AccessBadge origin="canal" />
-          <Token nome="AccessBadge origin=canal (normal)" />
+          <AccessBadge origin="espaco" />
+          <Token nome="AccessBadge origin=espaco (normal)" />
         </li>
         <li className="flex flex-col items-start gap-2">
-          <AccessBadge origin="canal" reduced />
-          <Token nome="AccessBadge origin=canal (reduzida)" />
+          <AccessBadge origin="espaco" reduced />
+          <Token nome="AccessBadge origin=espaco (reduzida)" />
         </li>
         <li className="flex flex-col items-start gap-2">
           <Badge tone="neutro">Rascunho</Badge>
@@ -574,8 +574,8 @@ function MenuDeExemplo() {
         <Menu.Trigger>Abrir menu de exemplo</Menu.Trigger>
         <Menu.Positioner>
           <Menu.Content>
-            <Menu.Item value="canal">
-              <Menu.ItemText>Canal</Menu.ItemText>
+            <Menu.Item value="espaco">
+              <Menu.ItemText>Espaço</Menu.ItemText>
             </Menu.Item>
             <Menu.Item value="pessoa">
               <Menu.ItemText>Pessoa</Menu.ItemText>
@@ -714,7 +714,7 @@ export function PaginaViva() {
         <Secao
           id="cor"
           titulo="Cor"
-          resumo="Seis tokens. O verdete é a ação e a lombada de acesso por canal; o carimbo marca propriedade e concessão individual. O mesmo nome existe nos dois temas, com valores medidos para manter o contraste."
+          resumo="Seis tokens. O verdete é a ação e a lombada de acesso por espaço; o carimbo marca propriedade e concessão individual. O mesmo nome existe nos dois temas, com valores medidos para manter o contraste."
         >
           <Cores />
         </Secao>
