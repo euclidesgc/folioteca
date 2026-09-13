@@ -1,6 +1,6 @@
 import type { ReactElement, SVGProps } from "react";
 
-export function ChannelMark(props: SVGProps<SVGSVGElement>): ReactElement {
+export function SpaceMark(props: SVGProps<SVGSVGElement>): ReactElement {
   return (
     <svg
       viewBox="0 0 16 16"

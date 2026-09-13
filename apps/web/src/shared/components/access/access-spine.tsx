@@ -5,13 +5,13 @@ import { cn } from "@/shared/lib/cn";
 export const accessSpineVariants = cva("border-l-4", {
   variants: {
     origin: {
-      canal: "border-l-verdete",
+      espaco: "border-l-verdete",
       pessoa: "border-l-carimbo",
       privado: "border-l-grafite",
     },
   },
   defaultVariants: {
-    origin: "canal",
+    origin: "espaco",
   },
 });
 

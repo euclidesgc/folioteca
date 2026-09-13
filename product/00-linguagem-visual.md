@@ -18,15 +18,15 @@ abrir o volume, a lombada já disse de onde ele vem e a que coleção pertence.
 
 A Folioteca guarda fólios da empresa, e a sua pergunta central não é o que o
 documento diz, e sim de onde vem o direito de lê-lo. A tese do produto é que o
-acesso segue o trabalho e não o organograma: quem está no canal enxerga o que o
-canal publica, quem recebeu concessão individual enxerga o que lhe foi dado, e
+acesso segue o trabalho e não o organograma: quem está no espaço enxerga o que o
+espaço publica, quem recebeu concessão individual enxerga o que lhe foi dado, e
 quem sai do lugar perde o acesso junto. **Lombada** é o nome da direção porque a
 interface faz esse fato ser visto antes de ser lido: cada documento carrega, na
 borda esquerda, um **filete** de quatro pixels que diz a origem do acesso.
 
 | Origem | Filete | Marca | Rótulo |
 | --- | --- | --- | --- |
-| Canal | `verdete` | três barras verticais | `Canal` |
+| Espaço | `verdete` | três barras verticais | `Espaço` |
 | Pessoa | `carimbo` | figura de uma pessoa | `Pessoa` |
 | Privado | `grafite` | fólio fechado | `Privado` |
 
@@ -37,7 +37,7 @@ token de ação. O filete é a assinatura da tese — é a única marca que apar
 toda superfície de conteúdo, sempre no mesmo canto, sempre com o mesmo
 significado. O token de ação, o `verdete`, é a única cor saturada que a interface
 usa por iniciativa própria: ele pinta o botão primário, o anel de foco e a marca
-do canal.
+do espaço.
 
 O resto fica quieto, e fica quieto de propósito. A superfície é papel quase
 neutro; o texto é quase preto; as divisórias são fio de um pixel; os raios são
@@ -58,13 +58,13 @@ o tema resolve qual `verdete`.
 | `papel` | `#f4f4f1` | `#14181a` | A superfície. Pinta o elemento raiz, o corpo, o cartão e o conteúdo do botão primário. |
 | `tinta` | `#15191b` | `#ebebe7` | O texto de leitura, o título e o fundo do aviso temporário. |
 | `grafite` | `#5a6165` | `#8a9397` | O texto secundário — resumo, dica, legenda — e a lombada do acesso privado. |
-| `verdete` | `#1e4b43` | `#48b3a0` | A ação: botão primário, anel de foco, estado marcado. E a lombada do acesso por canal. |
+| `verdete` | `#1e4b43` | `#48b3a0` | A ação: botão primário, anel de foco, estado marcado. E a lombada do acesso por espaço. |
 | `carimbo` | `#8e1b5b` | `#e781ba` | A marca de propriedade e a lombada da concessão individual. Também o destrutivo e o erro de validação. |
 | `fio` | `#dbdcd6` | `#2b3235` | A divisória de um pixel, a borda em repouso, o fundo do esqueleto de carregamento e o realce de passagem. |
 
 Sobre os seis, o tema declara os nomes semânticos que o esqueleto consome:
 `--superficie`, `--texto`, `--texto-suave`, `--acao`, `--divisoria`,
-`--lombada-canal`, `--lombada-pessoa` e `--lombada-privado`. Cada bloco de tema
+`--lombada-espaco`, `--lombada-pessoa` e `--lombada-privado`. Cada bloco de tema
 declara também o seu `color-scheme`, para que a barra de rolagem e os controles
 nativos acompanhem a escolha.
 
@@ -81,7 +81,7 @@ na fonte de reserva. Os arquivos ficam dentro; a política não afrouxa.
 | --- | --- | --- | --- |
 | `--font-display` | `Fraunces` | `Georgia`, `Times New Roman`, serifada | Título e número grande. Aparece pouco, e por isso pode ter voz. |
 | `--font-body` | `Atkinson Hyperlegible Next` | `system-ui`, sem serifa | Parágrafo, rótulo, campo, tabela — tudo que se lê por muito tempo. |
-| `--font-mono` | `IBM Plex Mono` | `ui-monospace`, monoespaçada | Identificador, valor de token, código de canal. |
+| `--font-mono` | `IBM Plex Mono` | `ui-monospace`, monoespaçada | Identificador, valor de token, código de espaço. |
 
 A escala de tamanhos tem oito degraus em uso:
 
@@ -204,7 +204,7 @@ correta.
 propriedade e função são escritos em inglês. A exceção é declarada e estreita: o
 vocabulário da direção — o nome do token e o valor de variante que nomeia
 conceito do domínio visual, como `--color-verdete`, `rounded-padrao` e
-`origin="canal"` — vale nos dois lados, porque é a língua em que a direção foi
+`origin="espaco"` — vale nos dois lados, porque é a língua em que a direção foi
 pensada.
 
 **A ação mantém o mesmo verbo do começo ao fim.** O botão "Publicar" produz o

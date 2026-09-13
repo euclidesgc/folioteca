@@ -6,7 +6,7 @@ describe("AccessBadge", () => {
   it("names each origin in Portuguese, one label per value it receives", () => {
     render(
       <>
-        <AccessBadge origin="canal" />
+        <AccessBadge origin="espaco" />
         <AccessBadge origin="pessoa" />
         <AccessBadge origin="privado" />
       </>,
@@ -17,7 +17,7 @@ describe("AccessBadge", () => {
   });
 
   it("carries a graphic mark hidden from assistive tech alongside the label", () => {
-    render(<AccessBadge origin="canal" />);
+    render(<AccessBadge origin="espaco" />);
     const etiqueta = screen.getByText("Espaço");
     const marca = etiqueta.closest("span")?.querySelector("svg");
     expect(marca).toHaveAttribute("aria-hidden", "true");

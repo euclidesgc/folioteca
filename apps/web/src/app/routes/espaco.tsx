@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { Link, useParams } from "react-router";
-import { ChannelMark } from "@/shared/components/access/marks/channel";
+import { SpaceMark } from "@/shared/components/access/marks/space";
 import { EmptyState } from "@/shared/components/ui/empty-state";
 import { spaceAncestry, useSpace, useSpaceTree } from "@/features/spaces";
 import { DocumentList, useDocumentsBySpace } from "@/features/documents";
@@ -55,7 +55,7 @@ export function EspacoRoute(): ReactElement | null {
         <ul className="flex flex-col gap-3">
           {subespacos.map((sub) => (
             <li key={sub.id} className="flex items-center gap-2">
-              <ChannelMark aria-hidden="true" className="text-verdete" />
+              <SpaceMark aria-hidden="true" className="text-verdete" />
               <Link
                 to={`/espacos/${sub.id}`}
                 className="text-base font-semibold text-tinta hover:underline"

@@ -1,24 +1,24 @@
 import type { ReactElement } from "react";
 import { Badge } from "@/shared/components/ui/badge";
 import type { AccessOrigin } from "./access-spine";
-import { ChannelMark } from "./marks/channel";
+import { SpaceMark } from "./marks/space";
 import { PersonMark } from "./marks/person";
 import { PrivateMark } from "./marks/private";
 
 const ROTULOS: Record<AccessOrigin, string> = {
-  canal: "Espaço",
+  espaco: "Espaço",
   pessoa: "Pessoa",
   privado: "Privado",
 };
 
-const MARCAS: Record<AccessOrigin, typeof ChannelMark> = {
-  canal: ChannelMark,
+const MARCAS: Record<AccessOrigin, typeof SpaceMark> = {
+  espaco: SpaceMark,
   pessoa: PersonMark,
   privado: PrivateMark,
 };
 
 const CORES: Record<AccessOrigin, string> = {
-  canal: "text-verdete",
+  espaco: "text-verdete",
   pessoa: "text-carimbo",
   privado: "text-grafite",
 };
