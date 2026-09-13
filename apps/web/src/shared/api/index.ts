@@ -31,8 +31,11 @@ export type {
   UpdateOrganizationSettingsDto,
 } from "./generated/types.gen";
 export type {
+  CreateSpaceDto,
   SpaceDetailDto,
   SpaceDto,
   SpaceMemberDto,
   SpacePathEntryDto,
+  UpdateSpaceDto,
+  UpdateSpaceInheritanceDto,
 } from "./generated/types.gen";

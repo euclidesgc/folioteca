@@ -1,7 +1,7 @@
 # 05 — Espaços
 
 **Status:** [ ] não iniciado · [x] em andamento · [ ] entregue
-**Branch:** `feat/05-espacos` a partir de `develop` · **PR:** —
+**Branch:** `feat/05-espacos-tela` a partir de `develop` · **PR:** —
 **Depende de:** 03 — Estrutura organizacional (`Unit`, `UnitClosure`,
 `UnitMembership`, `ADMIN|MEMBER`, `AdminGuard`, Testcontainers,
 `ROUTE_MODULES`) e 01 — Layout e navegação (`ArvoreDeEspacos` com dados de
@@ -58,13 +58,13 @@ A skill `frontend-design` orientou a escolha abaixo: a Folioteca já tem uma
 linguagem fechada (a "Lombada"), então a decisão aqui não é cor ou fonte
 nova — é que a `AccessSpine` marca a origem de um *documento*, não de um
 espaço; usá-la no cabeçalho confundiria as duas coisas. Por isso a página do
-espaço não leva filete, só o `ChannelMark` ao lado do nome, como a árvore já faz.
+espaço não leva filete, só o `SpaceMark` ao lado do nome, como a árvore já faz.
 
 **`/espacos`** (`EspacosRoute`, já existe com dados de exemplo) passa a ler
 `useSpaceTree()` de verdade: h1 "Espaços", um parágrafo curto ("As unidades da
 organização e os espaços que as pessoas criam.") e um botão primário "Criar
 espaço" no canto; abaixo, um `Card` por espaço de topo (raízes: o espaço da
-unidade raiz e qualquer espaço livre criado "no topo"), com o `ChannelMark`,
+unidade raiz e qualquer espaço livre criado "no topo"), com o `SpaceMark`,
 o nome, um `Badge` "Restrito" quando aplicável, e a legenda "Espaço de
 unidade" ou "Espaço livre · N pessoas". Carregando: três `Skeleton` no lugar
 dos cartões. Erro: `EmptyState` "Não foi possível carregar os espaços" com
@@ -73,12 +73,16 @@ ação "Tentar de novo".
 **`/espacos/:id`** (`EspacoRoute`, já existe) ganha, entre a trilha e a lista
 de subespaços que já tem:
 
-- Cabeçalho: `ChannelMark` + nome (h1), `Badge` "Restrito" se aplicável, e a
-  legenda "Espaço de unidade" ou "Espaço livre · gerido por <nome>". Gestora
-  (livre) ou administração (unidade) vê um botão "Editar" (Ark `Menu`):
-  "Renomear", "Tornar restrito"/"Tornar aberto a todos", "Gerenciar
-  membros", "Apagar espaço" — desativado com `title` "Este espaço tem
-  subespaços" quando há filhos.
+- Cabeçalho: `SpaceMark` + nome (h1), `Badge` "Restrito" se aplicável, e a
+  legenda "Espaço de unidade" ou "Espaço livre · gerido por <nome>". A gestora
+  de um espaço livre vê um botão "Editar" (Ark `Menu`): "Renomear", "Tornar
+  restrito"/"Tornar aberto a todos", "Gerenciar membros", "Apagar espaço" —
+  desativado com `title` "Este espaço tem subespaços" quando há filhos.
+  **Corrigido em execução (etapa 4)**: a versão original dava esse menu à
+  administração também no espaço de unidade, mas o servidor recusa `PATCH`,
+  `DELETE` e membros em espaço de unidade para qualquer sessão — o
+  `managerId` desses espaços é nulo (seção "Acesso") —; lá, da administração,
+  a única decisão é o interruptor de herança.
 - Interruptor (`Switch`) "Este espaço herda o compartilhamento do espaço
   acima", visível só para quem decide (administração na unidade, gestor no
   livre); ligar/desligar chama `PUT /spaces/:id/inheritance` na hora, com
@@ -342,12 +346,12 @@ exigem `AdminGuard`, como as outras rotas de configuração da instância (M3).
       controller.ts,service.ts,repository.ts}` com `GET|PATCH
       /organization/settings`, atrás de `AdminGuard`; registra em `ROUTE_MODULES`
 - [x] Regenera contrato e cliente web (mesmos dois comandos da etapa 2)
-- [ ] Cria `apps/web/src/features/organization/hooks/use-organization-settings.ts`
+- [x] Cria `apps/web/src/features/organization/hooks/use-organization-settings.ts`
       (`useOrganizationSettings()`, `useUpdateOrganizationSettings()`) e
       acrescenta o `Switch` "Espaços novos herdam do pai" a `bloco-instancia.tsx`.
-      **Não feito nesta sessão**: a sessão recebeu escopo explícito de não
-      tocar `apps/web/src/` além do cliente que `pnpm contract` regenera — a
-      tela é a etapa 4. Ver Andamento.
+      **Feito na etapa 4** (commit `3e93e74`): a sessão da etapa 3 recebeu
+      escopo explícito de não tocar `apps/web/src/` além do cliente que
+      `pnpm contract` regenera. Ver Andamento.
 - [x] Teste: `apps/api/test/spaces.e2e-spec.ts` — "refuses to let the manager
       leave their own space", "refuses to delete a space that still has
       children"; `apps/api/test/organization-settings.e2e-spec.ts` —
@@ -361,24 +365,24 @@ exigem `AdminGuard`, como as outras rotas de configuração da instância (M3).
 - [x] Verificação da etapa: `pnpm --filter api run test:integration -t "spaces"` sai com 0
 
 ### Etapa 4 — Tela do espaço e renome canal → espaço
-- [ ] Ler: `apps/web/src/app/routes/{espacos,espaco}.tsx`,
+- [x] Ler: `apps/web/src/app/routes/{espacos,espaco}.tsx`,
       `apps/web/src/app/layout/arvore-de-espacos.tsx`,
       `apps/web/src/shared/components/access/**`,
       `apps/web/src/shared/styles/theme.css`, `apps/web/src/app/routes/design.tsx`,
       `product/00-linguagem-visual.md`
-- [ ] Em `apps/web/src/app/layout/barra-lateral.tsx`, remove a etiqueta
+- [x] Em `apps/web/src/app/layout/barra-lateral.tsx`, remove a etiqueta
       "Dados de exemplo" ao lado do título "Espaços" (a árvore já lê `GET
       /spaces` desde a etapa 2)
-- [ ] Cria `apps/web/src/features/spaces/`: hooks `use-space-members.ts` e as
+- [x] Cria `apps/web/src/features/spaces/`: hooks `use-space-members.ts` e as
       mutações (`use-create-space`, `use-update-space`,
       `use-update-space-inheritance`, `use-add-space-member`,
       `use-remove-space-member`, `use-delete-space`); componentes
       `space-card.tsx`, `create-space-dialog.tsx`, `space-members-dialog.tsx`,
       `space-actions-menu.tsx`, `space-inheritance-switch.tsx`; soma ao `index.ts`
-- [ ] Edita `apps/web/src/app/routes/espacos.tsx` (cartões + botão "Criar
+- [x] Edita `apps/web/src/app/routes/espacos.tsx` (cartões + botão "Criar
       espaço") e `espaco.tsx` (cabeçalho, herança, membros, ações de gestor,
       "Nenhum documento compartilhado aqui ainda")
-- [ ] Renomeia `canal` → `espaco`: `--lombada-canal` → `--lombada-espaco`
+- [x] Renomeia `canal` → `espaco`: `--lombada-canal` → `--lombada-espaco`
       (três blocos de `theme.css`); a chave `canal` de `ROTULOS`, `CORES` e
       `MARCAS` em `access-badge.tsx` → `espaco`; `origin: "canal"` →
       `"espaco"` em `access-spine.tsx`; `marks/channel.tsx` → `marks/space.tsx`
@@ -386,11 +390,11 @@ exigem `AdminGuard`, como as outras rotas de configuração da instância (M3).
       importadores); `design.tsx` (`ORIGENS`, `ORIGENS_ACESSO`,
       `NOMES_DE_ORIGEM`, `LINHAS_DA_LISTA`, `Menu.Item`);
       `product/00-linguagem-visual.md`
-- [ ] Teste: `apps/web/src/shared/components/access/access-badge.test.tsx` e
+- [x] Teste: `apps/web/src/shared/components/access/access-badge.test.tsx` e
       `access-spine.test.tsx` — troca `origin="canal"` por `origin="espaco"`
       nos testes existentes; `apps/web/src/features/spaces/components/create-space-dialog.test.tsx`
       — "recusa criar quando o campo Nome está vazio"
-- [ ] Verificação da etapa: `pnpm --filter web typecheck && pnpm --filter web exec vitest run -t "espaco"` sai com 0
+- [x] Verificação da etapa: `pnpm --filter web typecheck && pnpm --filter web exec vitest run -t "espaco"` sai com 0
 
 ### Etapa 5 — Ponta a ponta com sessão real
 - [ ] Ler: `apps/web/e2e/apoio/{sessao,pessoas}.ts`, `apps/web/e2e/instalacao.setup.ts`,
@@ -496,7 +500,7 @@ exigem `AdminGuard`, como as outras rotas de configuração da instância (M3).
       Prova: `apps/web/e2e/a11y.spec.ts`, teste "o axe não acha violação
       crítica ou séria em /espacos, /espacos/:id e o diálogo Criar espaço
       aberto".
-- [ ] `estrutural` — `rg -c "canal|Canal|Canais"
+- [x] `estrutural` — `rg -c "canal|Canal|Canais"
       apps/web/src/shared/components/access apps/web/src/shared/styles/theme.css
       apps/web/src/app/routes/design.tsx product/00-linguagem-visual.md` sai
       com código 1 (nenhuma ocorrência encontrada).
@@ -638,3 +642,49 @@ etapas 1–2 também só têm prova de integração, e segui o mesmo padrão).
 (cliente gerado, sem consumidor novo ainda). `prisma migrate diff
 --from-config-datasource --to-schema prisma/schema.prisma`: "No difference
 detected." (etapa sem mudança de esquema). `bash scripts/gates/gates_runner.sh`: 0.
+
+2026-09-13 — etapa 4 — executada em duas sessões (a primeira foi interrompida
+no meio; os commits `5536386` e `3e93e74` são dela, o resto é da segunda).
+Sessão 1: renome `canal` → `espaco` na linguagem de acesso (`theme.css`,
+`access-badge`, `access-spine`, `marks/space.tsx` com `SpaceMark`,
+`design.tsx`, `product/00-linguagem-visual.md`, e os dois testes de acesso);
+`features/organization` ganhou `api/{get,update}-organization-settings.ts`,
+`hooks/use-organization-settings.ts` e o `Switch` "Espaços novos herdam do
+pai" em `bloco-instancia.tsx` — a tarefa que a etapa 3 tinha deixado para a
+tela. Sessão 2: etiqueta "Dados de exemplo" removida da barra lateral (com o
+teste ajustado); `features/spaces` ganhou `api/` (`chaves.ts` com
+`chavesDeEspacos`, `erros.ts` com `codigoDoErro`, uma função por rota) e os
+seis hooks de mutação mais `use-space-members`; componentes `space-card`,
+`create-space-dialog`, `space-members-dialog`, `space-actions-menu` (com o
+diálogo de renomear dentro, porque a lista de componentes do plano não tinha
+arquivo para ele) e `space-inheritance-switch`; `espacos.tsx` reescrita
+(cabeçalho com "Criar espaço", `Skeleton` no carregamento, `EmptyState`
+"Tentar de novo" no erro, `SpaceCard` por espaço de topo) e `espaco.tsx`
+reescrita (trilha de `espaco.path`, cabeçalho com legenda e `Badge`
+"Restrito", menu da gestora, interruptor de herança, "Membros" com `Avatar`,
+grade de subespaços com "Criar espaço aqui" para quem pode, "Documentos" no
+estado vazio fixo — `DocumentList` saiu da rota, a lista real é do plano 06).
+Quatro decisões dentro do que o plano deixou aberto ou contra o que a
+execução desmentiu: (1) o menu "Editar" só aparece para a gestora de espaço
+livre — a versão original da seção "Telas" dava o menu à administração
+também no espaço de unidade, mas o servidor recusa `PATCH`, `DELETE` e
+membros nesses espaços para qualquer sessão (`managerId` nulo, seção
+"Acesso"); a seção foi corrigida acima, no presente; na unidade, da
+administração, fica só o interruptor de herança; (2) `model/tree.ts`
+(`findSpace`, `spaceAncestry`, `listTopLevelSpaces`) e o `EXEMPLO_ESPACOS`
+foram apagados — com a trilha vindo de `espaco.path`, eram o último elo aos
+dados de exemplo, sem consumidor restante; `useSpace` passou a devolver
+`SpaceDetailDto` e `useSpaceTree` a lista plana `EspacoResumido[]` (com
+`unitId`, `managerId` e `inheritsFromParent`, estruturalmente compatível com
+o que `ArvoreDeEspacos` espera); (3) a elegibilidade de pai no diálogo de
+criação (Regra 2) é calculada no cliente com `useMe().units` (lotação direta)
+e uma consulta de membros por espaço livre visível — a árvore não tem
+contagem de membros nem a API deste plano tem endpoint de elegibilidade, e
+"Criar espaço aqui" segue o mesmo predicado; (4) `useUsersSearch` entrou no
+barril público de `features/organization` — o diálogo de membros precisa
+listar quem da instância ainda não é membro, e feature acessa feature pelo
+barril. `pnpm --filter web run typecheck` e `pnpm --filter web run lint`
+verdes; `vitest run` na suíte inteira: 45 suítes, 230 testes, 0 falhas
+(inclui o novo "recusa criar quando o campo Nome está vazio"); `rg -c
+"canal|Canal|Canais"` sobre os quatro alvos do critério estrutural sai com
+código 1; `bash scripts/gates/gates_runner.sh`: 0.

@@ -1,15 +1,23 @@
 import { useQuery } from "@tanstack/react-query";
 import { httpClient } from "@/shared/api";
 import type { SpaceDto } from "@/shared/api";
-import type { ExampleSpace } from "@/shared/example-data/folioteca";
+import { chavesDeEspacos } from "../api/chaves";
+
+export type EspacoResumido = {
+  id: string;
+  name: string;
+  parentId: string | null;
+  kind: "unit" | "free";
+  restricted: boolean;
+  unitId: string | null;
+  managerId: string | null;
+  inheritsFromParent: boolean;
+};
 
 // motivo: `GET /spaces` devolve a árvore já podada por visibilidade (Regra
-// 6), aninhada em `children`; os consumidores atuais (`EspacosRoute`,
-// `EspacoRoute`, `ArvoreDeEspacos`) ainda esperam a lista plana com
-// `parentId` que os dados de exemplo do plano 01 usavam — achatar aqui
-// mantém a assinatura do hook e adia a troca desses consumidores para a
-// etapa 4.
-function achatar(nodes: SpaceDto[], parentId: string | null): ExampleSpace[] {
+// 6), aninhada em `children`; a barra lateral e as rotas trabalham com a
+// lista plana — achatar aqui mantém um só ponto que conhece as duas formas.
+function achatar(nodes: SpaceDto[], parentId: string | null): EspacoResumido[] {
   return nodes.flatMap((node) => [
     {
       id: node.id,
@@ -17,6 +25,9 @@ function achatar(nodes: SpaceDto[], parentId: string | null): ExampleSpace[] {
       parentId,
       kind: node.kind === "UNIT" ? ("unit" as const) : ("free" as const),
       restricted: node.restricted,
+      unitId: node.unitId,
+      managerId: node.managerId,
+      inheritsFromParent: node.inheritsFromParent,
     },
     ...achatar(node.children, node.id),
   ]);
@@ -24,7 +35,7 @@ function achatar(nodes: SpaceDto[], parentId: string | null): ExampleSpace[] {
 
 export function useSpaceTree() {
   return useQuery({
-    queryKey: ["spaces"],
+    queryKey: chavesDeEspacos.all(),
     queryFn: async ({ signal }) => {
       const response = await httpClient.get<SpaceDto[]>("/spaces", { signal });
       return achatar(response.data, null);

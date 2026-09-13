@@ -1,7 +1,6 @@
 import type { ComponentType, ReactElement, SVGProps } from "react";
 import { Link, NavLink } from "react-router";
 import { cn } from "@/shared/lib/cn";
-import { Badge } from "@/shared/components/ui/badge";
 import { PersonMark } from "@/shared/components/access/marks/person";
 import { PrivateMark } from "@/shared/components/access/marks/private";
 import { useOrganization } from "@/features/organization";
@@ -71,7 +70,6 @@ export function ConteudoDaBarraLateral(): ReactElement {
           >
             Espaços
           </Link>
-          <Badge size="reduzida">Dados de exemplo</Badge>
         </div>
         <ArvoreDeEspacos spaces={espacos ?? []} />
       </div>
