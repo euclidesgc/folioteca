@@ -34,12 +34,35 @@ declarado="$(printf '%s' "$declarado" | tr -d '[:space:]')"
 
 versao="${declarado#pnpm@}"
 echo "instalando $declarado, sem scripts de ciclo de vida"
-npm install --global --ignore-scripts "$declarado" >/dev/null \
+
+# O DESTINO É PRIVADO DO JOB, NÃO O PREFIXO GLOBAL DO HOME
+#
+# `npm install --global` sem `--prefix` escreve no prefixo global do usuário —
+# que, nos runners desta casa, é o MESMO `$HOME` para os quatro processos na
+# mesma máquina (ver scripts/gates/pnpm_isolado.sh, que documenta a mesma
+# corrida para `pnpm/action-setup`). Dois jobs de portões em workflows
+# distintos, no mesmo runner, instalavam e apagavam os mesmos arquivos de
+# `node_modules/pnpm` ao mesmo tempo; o segundo `pnpm --version` respondia
+# vazio, com a causa engolida pelo `2>/dev/null` da conferência — vermelho
+# intermitente, sem relação com o diff, medido em 13/09/2026. `RUNNER_TEMP`
+# é próprio de cada job, e o runner o limpa sozinho.
+destino="${RUNNER_TEMP:-$(mktemp -d)}/pnpm-instalado"
+npm install --global --ignore-scripts --prefix "$destino" "$declarado" >/dev/null \
   || _reprova "a instalação de $declarado falhou"
 
+export PATH="$destino/bin:$PATH"
+# O passo que interroga o pnpm é outro processo, noutro step — `GITHUB_PATH`
+# é o canal que o Actions dá para atravessar essa fronteira. Fora do Actions,
+# quem chamou este script herda o `export` acima e só.
+[ -z "${GITHUB_PATH:-}" ] || printf '%s\n' "$destino/bin" >>"$GITHUB_PATH"
+
 exige_comando pnpm
-instalada="$(pnpm --version 2>/dev/null | tr -d '[:space:]')"
+erro="$(mktemp)"
+if ! instalada="$(pnpm --version 2>"$erro")"; then
+  _reprova "'pnpm --version' falhou depois da instalação (binário em $(command -v pnpm)): $(cat "$erro")"
+fi
+instalada="$(printf '%s' "$instalada" | tr -d '[:space:]')"
 [ "$instalada" = "$versao" ] \
-  || _reprova "o pnpm que respondeu no PATH é $instalada, e o declarado é $versao — o binário que responde não é o que foi instalado"
+  || _reprova "o pnpm que respondeu no PATH é $instalada (em $(command -v pnpm)), e o declarado é $versao — o binário que responde não é o que foi instalado"
 
 echo "instalado: pnpm $instalada, igual ao packageManager da raiz"
