@@ -1,7 +1,11 @@
 # 05 — Espaços
 
-**Status:** [ ] não iniciado · [x] em andamento · [ ] entregue
-**Branch:** `feat/05-espacos-tela` a partir de `develop` · **PR:** —
+**Status:** [ ] não iniciado · [ ] em andamento · [x] entregue
+**Branch:** pilha `feat/05-espacos` → `feat/05-espacos-tela` →
+`feat/05-espacos-e2e` a partir de `develop` · **PR:**
+[#90](https://github.com/euclidesgc/folioteca/pull/90) (API) ·
+[#91](https://github.com/euclidesgc/folioteca/pull/91) (tela) · e2e e
+capturas no PR desta última branch
 **Depende de:** 03 — Estrutura organizacional (`Unit`, `UnitClosure`,
 `UnitMembership`, `ADMIN|MEMBER`, `AdminGuard`, Testcontainers,
 `ROUTE_MODULES`) e 01 — Layout e navegação (`ArvoreDeEspacos` com dados de
@@ -397,13 +401,13 @@ exigem `AdminGuard`, como as outras rotas de configuração da instância (M3).
 - [x] Verificação da etapa: `pnpm --filter web typecheck && pnpm --filter web exec vitest run -t "espaco"` sai com 0
 
 ### Etapa 5 — Ponta a ponta com sessão real
-- [ ] Ler: `apps/web/e2e/apoio/{sessao,pessoas}.ts`, `apps/web/e2e/instalacao.setup.ts`,
+- [x] Ler: `apps/web/e2e/apoio/{sessao,pessoas}.ts`, `apps/web/e2e/instalacao.setup.ts`,
       `apps/web/playwright.config.ts` (projetos e `storageState` do plano
       03), `apps/web/e2e/a11y.spec.ts`
-- [ ] Acrescenta a `apps/web/e2e/apoio/pessoas.ts` uma terceira pessoa fixa
+- [x] Acrescenta a `apps/web/e2e/apoio/pessoas.ts` uma terceira pessoa fixa
       (`COLEGA`, `MEMBER`) e, a `playwright.config.ts`, o projeto
       `e2e/.auth/colega.json`, no mesmo padrão de `admin`/`membro`
-- [ ] Cria `apps/web/e2e/espacos.spec.ts`: no `beforeAll`, a administração
+- [x] Cria `apps/web/e2e/espacos.spec.ts`: no `beforeAll`, a administração
       (sessão `admin`) cria a unidade "Financeiro" e lota `membro` nela; um
       teste "member creates a restricted free space and only the invited
       colleague sees it" — `membro` cria um espaço livre restrito sob
@@ -412,28 +416,33 @@ exigem `AdminGuard`, como as outras rotas de configuração da instância (M3).
       vê; outro teste "administration turns on the default inheritance
       switch and it survives a reload" — `admin` liga o interruptor em
       `/organizacao` e, após recarregar, ele continua ligado
-- [ ] Acrescenta `/espacos` e `/espacos/:id` (com o diálogo "Criar espaço"
+- [x] Acrescenta `/espacos` e `/espacos/:id` (com o diálogo "Criar espaço"
       aberto) a `apps/web/e2e/a11y.spec.ts`, num caso só, "o axe não acha
       violação crítica ou séria em /espacos, /espacos/:id e o diálogo Criar
       espaço aberto"
-- [ ] Teste: os três `it()`/casos acima
-- [ ] Verificação da etapa: `pnpm --filter web exec playwright test -g "space"` sai com 0
+- [x] Teste: os três `it()`/casos acima
+- [x] Verificação da etapa: `pnpm --filter web exec playwright test -g "space"` sai com 0
 
 ### Etapa final — Ver na tela
-- [ ] Capturas em `docs/refactor/05-espacos/capturas/`: `/espacos`,
+- [x] Capturas em `docs/refactor/05-espacos/capturas/`: `/espacos`,
       `/espacos/:id` (com subespaço, membros e menu de gestor aberto), o
       diálogo "Criar espaço", o interruptor de herança em `/organizacao` —
       larguras 1440 e 375, temas claro e escuro, geradas pelo Playwright
-- [ ] Roteiro manual: (1) entre como administração, crie a unidade
+- [x] Roteiro manual: (1) entre como administração, crie a unidade
       "Financeiro" em `/organizacao` e lote-se nela; (2) abra `/espacos`,
       confirme que a etiqueta "Dados de exemplo" sumiu e que "Financeiro"
       aparece; (3) dentro de "Financeiro", crie um espaço livre restrito
       "Orçamento 2027", adicione outra pessoa como membro; (4) entre com
       essa pessoa e confirme que ela vê "Orçamento 2027"; (5) entre com uma
       terceira pessoa e confirme que ela não vê; (6) como administração, em
-      `/organizacao`, ligue "Espaços novos herdam do pai" e recarregue
-- [ ] `bash scripts/gates/gates_runner.sh` sai com 0
-- [ ] PR aberto com: o que entrega, como testar à mão, capturas
+      `/organizacao`, ligue "Espaços novos herdam do pai" e recarregue —
+      **cada passo é um trecho dos dois casos de `e2e/espacos.spec.ts`,
+      verdes na mesma subida em que o axe mediu as duas rotas**
+- [x] `bash scripts/gates/gates_runner.sh` sai com 0
+- [x] PR aberto com: o que entrega, como testar à mão, capturas — a pilha
+      [#90](https://github.com/euclidesgc/folioteca/pull/90) (API),
+      [#91](https://github.com/euclidesgc/folioteca/pull/91) (tela) e o PR
+      desta etapa (e2e e capturas)
 
 ## Critérios de aceite
 
@@ -483,18 +492,18 @@ exigem `AdminGuard`, como as outras rotas de configuração da instância (M3).
       chama `DELETE /spaces/:id`, então a resposta é 409
       `SPACE_HAS_CHILDREN`. Prova: `apps/api/test/spaces.e2e-spec.ts`,
       teste "refuses to delete a space that still has children".
-- [ ] `comportamental` — Dado uma pessoa lotada em "Financeiro", quando ela
+- [x] `comportamental` — Dado uma pessoa lotada em "Financeiro", quando ela
       cria um espaço livre restrito ali dentro e adiciona uma colega, então
       a colega vê o espaço na própria árvore e uma terceira pessoa, não
       adicionada, não vê. Prova: `apps/web/e2e/espacos.spec.ts`, teste
       "member creates a restricted free space and only the invited
       colleague sees it".
-- [ ] `comportamental` — Dado a tela de Organização, quando a administração
+- [x] `comportamental` — Dado a tela de Organização, quando a administração
       liga "Espaços novos herdam do pai" e recarrega a página, então o
       interruptor continua ligado. Prova: `apps/web/e2e/espacos.spec.ts`,
       teste "administration turns on the default inheritance switch and it
       survives a reload".
-- [ ] `comportamental` — Dado `/espacos` e `/espacos/:id` (com o diálogo
+- [x] `comportamental` — Dado `/espacos` e `/espacos/:id` (com o diálogo
       "Criar espaço" aberto) nos temas claro e escuro, quando o axe analisa
       cada uma, então nenhuma violação `critical` ou `serious` aparece.
       Prova: `apps/web/e2e/a11y.spec.ts`, teste "o axe não acha violação
@@ -688,3 +697,37 @@ verdes; `vitest run` na suíte inteira: 45 suítes, 230 testes, 0 falhas
 (inclui o novo "recusa criar quando o campo Nome está vazio"); `rg -c
 "canal|Canal|Canais"` sobre os quatro alvos do critério estrutural sai com
 código 1; `bash scripts/gates/gates_runner.sh`: 0.
+
+2026-09-13 — etapa 5 e etapa final — também em duas sessões: a primeira
+escreveu o trabalho e foi interrompida antes de commitar (arquivos íntegros
+na árvore, sem commit); esta revisou, corrigiu uma corrida, verificou e
+registrou. `PESSOA_COLEGA` em `e2e/apoio/pessoas.ts` e o terceiro
+`storageState` (`colega.json`) em `instalacao.setup.ts` — a semeadura direto
+no banco virou a função `semearDiretoNoBanco`, sem mudar o mecanismo (o
+risco "terceira pessoa fixa" saiu como o "se ninguém decidir diferente"
+previa). `e2e/espacos.spec.ts` com os dois casos do plano; `a11y.spec.ts`
+com o caso único de axe sobre `/espacos`, `/espacos/:id` e o diálogo aberto,
+em sessão real (`ARQUIVO_ADMIN`). Duas decisões fora do texto original: (1)
+o dublê de `apoio/sessao.ts` passou a responder `GET /spaces`,
+`GET /spaces/:id` e `GET /organization/settings` com os dados de exemplo
+migrados para o formato da API — sem isso, a suíte de esqueleto e o caso
+antigo do a11y, que medem a árvore sem sessão real, morriam no 401 da API;
+com isso, `esqueleto.spec.ts` e o "Engenharia" do a11y não precisaram de
+uma linha sequer; (2) `health.spec.ts` ganhou a espera por um `role=status`
+só na seção "Instância", porque o "Carregando preferências…" do interruptor
+convive com o da saúde durante o carregamento. `primitivos.spec.ts`
+("Documento de acesso por canal" → "por espaço") e as capturas dos planos
+01–04 regeneradas — o renome do token `--lombada-canal` mudou a pintura, e
+o script de capturas regera a suíte inteira. **Correção de causa raiz**
+(regra 19): na primeira execução local o caso "member creates a restricted
+free space…" falhou porque a suíte é `fullyParallel` — os dois casos do
+arquivo rodaram juntos (início a 400 ms um do outro), e o interruptor ligado
+pelo segundo vazou para o Given do primeiro: "Financeiro" nasceu com
+`inheritsFromParent = true`, e a administração alcançou o espaço restrito
+pela herança. Conserto no teste, não na regra: `test.describe.configure({
+mode: "serial" })` no arquivo (o resto da suíte segue paralelo) e o primeiro
+caso força `spacesInheritByDefault = false` via API antes do Given, o que
+também torna a reexecução contra o mesmo banco estável. `pnpm --filter web
+exec playwright test` (suíte inteira, contra o build): **60 testes, 0
+falhas**, incluindo os três critérios comportamentais deste plano;
+`bash scripts/gates/gates_runner.sh`: 0.

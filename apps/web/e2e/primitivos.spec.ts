@@ -274,7 +274,7 @@ test("o filete e a etiqueta dizem de onde vem o acesso", async ({ page }) => {
   await page.goto("/design");
 
   const cartoes = {
-    canal: page.getByRole("article", { name: "Documento de acesso por canal" }),
+    espaco: page.getByRole("article", { name: "Documento de acesso por espaço" }),
     pessoa: page.getByRole("article", {
       name: "Documento de acesso por pessoa",
     }),
@@ -288,8 +288,8 @@ test("o filete e a etiqueta dizem de onde vem o acesso", async ({ page }) => {
     expect(parseFloat(largura)).toBeGreaterThan(0);
   }
 
-  const [corCanal, corPessoa, corPrivado] = await Promise.all([
-    cartoes.canal.evaluate(
+  const [corEspaco, corPessoa, corPrivado] = await Promise.all([
+    cartoes.espaco.evaluate(
       (elemento) => getComputedStyle(elemento).borderLeftColor,
     ),
     cartoes.pessoa.evaluate(
@@ -305,12 +305,12 @@ test("o filete e a etiqueta dizem de onde vem o acesso", async ({ page }) => {
     corComputadaDoToken(page, "--color-carimbo"),
   ]);
 
-  expect(corCanal).toBe(corVerdete);
+  expect(corEspaco).toBe(corVerdete);
   expect(corPessoa).toBe(corCarimbo);
-  expect(new Set([corCanal, corPessoa, corPrivado]).size).toBe(3);
+  expect(new Set([corEspaco, corPessoa, corPrivado]).size).toBe(3);
 
   for (const [origem, nome] of [
-    ["canal", "Espaço"],
+    ["espaco", "Espaço"],
     ["pessoa", "Pessoa"],
     ["privado", "Privado"],
   ] as const) {

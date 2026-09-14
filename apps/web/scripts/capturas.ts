@@ -1,5 +1,6 @@
 // Capturas de tela da etapa final dos planos `01-layout-e-navegacao`,
-// `02-documento-e-editor`, `03-estrutura-organizacional` e `04-convites`.
+// `02-documento-e-editor`, `03-estrutura-organizacional`, `04-convites` e
+// `05-espacos`.
 //
 // decisão: isto é Playwright de verdade — `chromium.launch()` e a sessão
 // dublê de `e2e/apoio/sessao.ts`, a mesma que autentica a suíte e2e —, e não
@@ -22,9 +23,13 @@ import {
   type BrowserContext,
   type Page,
 } from "@playwright/test";
-import { ARQUIVO_ADMIN, ARQUIVO_DONA_DO_DOCUMENTO, ARQUIVO_MEMBRO } from "../e2e/apoio/contas.ts";
+import {
+  ARQUIVO_ADMIN,
+  ARQUIVO_DONA_DO_DOCUMENTO,
+  ARQUIVO_MEMBRO,
+} from "../e2e/apoio/contas.ts";
 import { linkDoConvite } from "../e2e/apoio/mailpit.ts";
-import { PESSOA_MEMBRO } from "../e2e/apoio/pessoas.ts";
+import { PESSOA_ADMIN, PESSOA_COLEGA, PESSOA_MEMBRO } from "../e2e/apoio/pessoas.ts";
 import { instalarSessao } from "../e2e/apoio/sessao.ts";
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
@@ -44,6 +49,10 @@ const PASTA_DE_SAIDA_ORGANIZACAO = path.join(
 const PASTA_DE_SAIDA_CONVITES = path.join(
   RAIZ_DO_REPOSITORIO,
   "docs/refactor/04-convites/capturas",
+);
+const PASTA_DE_SAIDA_ESPACOS = path.join(
+  RAIZ_DO_REPOSITORIO,
+  "docs/refactor/05-espacos/capturas",
 );
 
 const BASE_URL = process.env.CAPTURAS_BASE_URL ?? "http://localhost:4173";
@@ -401,14 +410,21 @@ async function garantirUnidade(
 }
 
 async function idDaPessoaMembro(contexto: BrowserContext): Promise<string> {
+  return idDaPessoa(contexto, PESSOA_MEMBRO.email);
+}
+
+async function idDaPessoa(
+  contexto: BrowserContext,
+  email: string,
+): Promise<string> {
   const resposta = await contexto.request.get(`${API_URL}/users`, {
-    params: { search: PESSOA_MEMBRO.email },
+    params: { search: email },
   });
   const pessoas = (await resposta.json()) as Array<{ id: string; email: string }>;
-  const pessoa = pessoas.find((candidata) => candidata.email === PESSOA_MEMBRO.email);
+  const pessoa = pessoas.find((candidata) => candidata.email === email);
   if (!pessoa) {
     throw new Error(
-      `pessoa membro "${PESSOA_MEMBRO.email}" não encontrada — rode o projeto setup da suíte e2e antes`,
+      `pessoa "${email}" não encontrada — rode o projeto setup da suíte e2e antes`,
     );
   }
   return pessoa.id;
@@ -595,11 +611,219 @@ async function capturarConvites(navegador: Browser): Promise<string[]> {
   return arquivos;
 }
 
+type NoDeEspaco = {
+  id: string;
+  kind: string;
+  name: string;
+  unitId: string | null;
+  children?: NoDeEspaco[];
+};
+
+async function acharEspaco(
+  contexto: BrowserContext,
+  casa: (no: NoDeEspaco) => boolean,
+): Promise<NoDeEspaco | null> {
+  const raizes = (await (
+    await contexto.request.get(`${API_URL}/spaces`)
+  ).json()) as NoDeEspaco[];
+  let achado: NoDeEspaco | null = null;
+  const visitar = (no: NoDeEspaco): void => {
+    if (casa(no)) {
+      achado = no;
+    }
+    (no.children ?? []).forEach(visitar);
+  };
+  raizes.forEach(visitar);
+  return achado;
+}
+
+const NOME_DA_UNIDADE_DE_CAPTURA_DE_ESPACOS = "Financeiro";
+const NOME_DO_ESPACO_DE_CAPTURA = "Orçamento 2027";
+const NOME_DO_SUBESPACO_DE_CAPTURA = "Planejamento";
+
+// decisão: o espaço livre nasce pela API da pessoa membro, e não pela UI,
+// porque o gestor dele é quem cria — e a captura da página do espaço precisa
+// do menu de gestor aberto, que só a gestora vê. Idempotente pelo nome, como o
+// seed de estrutura do plano 03: rodar de novo contra o mesmo banco acha o
+// "Orçamento 2027" da primeira rodada em vez de criar outro.
+async function semearEspacos(navegador: Browser): Promise<string> {
+  const contextoAdmin = await navegador.newContext({
+    storageState: ARQUIVO_ADMIN,
+    baseURL: BASE_URL,
+  });
+  const raizId = await idDaRaiz(contextoAdmin);
+  const tipoId = await garantirTipoDeUnidade(
+    contextoAdmin,
+    NOME_DO_TIPO_DE_UNIDADE_DE_CAPTURA,
+  );
+  const unidadeFinanceiroId = await garantirUnidade(
+    contextoAdmin,
+    NOME_DA_UNIDADE_DE_CAPTURA_DE_ESPACOS,
+    raizId,
+    tipoId,
+  );
+  const membroId = await idDaPessoa(contextoAdmin, PESSOA_MEMBRO.email);
+  await contextoAdmin.request.put(
+    `${API_URL}/units/${unidadeFinanceiroId}/members/${membroId}`,
+  );
+  const adminId = await idDaPessoa(contextoAdmin, PESSOA_ADMIN.email);
+  const colegaId = await idDaPessoa(contextoAdmin, PESSOA_COLEGA.email);
+  await contextoAdmin.close();
+
+  const contextoMembro = await navegador.newContext({
+    storageState: ARQUIVO_MEMBRO,
+    baseURL: BASE_URL,
+  });
+  const espacoDoFinanceiro = await acharEspaco(
+    contextoMembro,
+    (no) => no.unitId === unidadeFinanceiroId,
+  );
+  if (!espacoDoFinanceiro) {
+    throw new Error(
+      `o espaço da unidade "${NOME_DA_UNIDADE_DE_CAPTURA_DE_ESPACOS}" não apareceu em GET /spaces`,
+    );
+  }
+  const orcamentoExistente = await acharEspaco(
+    contextoMembro,
+    (no) => no.name === NOME_DO_ESPACO_DE_CAPTURA,
+  );
+  if (!orcamentoExistente) {
+    const criado = await contextoMembro.request.post(`${API_URL}/spaces`, {
+      data: {
+        name: NOME_DO_ESPACO_DE_CAPTURA,
+        parentId: espacoDoFinanceiro.id,
+        restricted: true,
+      },
+    });
+    if (!criado.ok()) {
+      throw new Error(
+        `POST /spaces devolveu ${criado.status()}: ${await criado.text()}`,
+      );
+    }
+  }
+  const orcamento = await acharEspaco(
+    contextoMembro,
+    (no) => no.name === NOME_DO_ESPACO_DE_CAPTURA,
+  );
+  if (!orcamento) {
+    throw new Error(`espaço "${NOME_DO_ESPACO_DE_CAPTURA}" não achado após criar`);
+  }
+  await contextoMembro.request.put(
+    `${API_URL}/spaces/${orcamento.id}/members/${adminId}`,
+  );
+  await contextoMembro.request.put(
+    `${API_URL}/spaces/${orcamento.id}/members/${colegaId}`,
+  );
+  const planejamentoExistente = await acharEspaco(
+    contextoMembro,
+    (no) => no.name === NOME_DO_SUBESPACO_DE_CAPTURA,
+  );
+  if (!planejamentoExistente) {
+    const criado = await contextoMembro.request.post(`${API_URL}/spaces`, {
+      data: {
+        name: NOME_DO_SUBESPACO_DE_CAPTURA,
+        parentId: orcamento.id,
+        restricted: false,
+      },
+    });
+    if (!criado.ok()) {
+      throw new Error(
+        `POST /spaces devolveu ${criado.status()}: ${await criado.text()}`,
+      );
+    }
+  }
+  await contextoMembro.close();
+  return orcamento.id;
+}
+
+async function capturarEspacos(navegador: Browser): Promise<string[]> {
+  const orcamentoId = await semearEspacos(navegador);
+  const arquivos: string[] = [];
+
+  arquivos.push(
+    ...(await capturarRotaComSessao(
+      navegador,
+      PASTA_DE_SAIDA_ESPACOS,
+      "espacos",
+      "/espacos",
+      ARQUIVO_ADMIN,
+      async (pagina) => {
+        await pagina
+          .getByRole("heading", { level: 1, name: "Espaços" })
+          .waitFor();
+      },
+    )),
+  );
+
+  // por quê: a captura é do viewport, e a página do espaço precisa de
+  // subespaço, membros e o menu de gestor aberto ao mesmo tempo — abrir o
+  // menu antes de esperar o cabeçalho deixaria a captura na mão de uma
+  // corrida entre o clique e o conteúdo ainda não carregado.
+  arquivos.push(
+    ...(await capturarRotaComSessao(
+      navegador,
+      PASTA_DE_SAIDA_ESPACOS,
+      "espaco-detalhe",
+      `/espacos/${orcamentoId}`,
+      ARQUIVO_MEMBRO,
+      async (pagina) => {
+        await pagina
+          .getByRole("heading", { level: 1, name: NOME_DO_ESPACO_DE_CAPTURA })
+          .waitFor();
+        await pagina.getByRole("button", { name: "Editar" }).click();
+        await pagina.getByRole("menu").waitFor({ state: "visible" });
+      },
+    )),
+  );
+
+  arquivos.push(
+    ...(await capturarRotaComSessao(
+      navegador,
+      PASTA_DE_SAIDA_ESPACOS,
+      "criar-espaco-dialogo",
+      "/espacos",
+      ARQUIVO_MEMBRO,
+      async (pagina) => {
+        await pagina
+          .getByRole("heading", { level: 1, name: "Espaços" })
+          .waitFor();
+        await pagina.getByRole("button", { name: "Criar espaço" }).click();
+        await pagina
+          .getByRole("dialog", { name: "Criar espaço" })
+          .waitFor({ state: "visible" });
+      },
+    )),
+  );
+
+  // por quê: o bloco "Instância" é a última seção da rota — sem rolar até o
+  // interruptor, a captura mostraria a árvore de unidades e nada da decisão
+  // de herança que este plano entrega (o mesmo ajuste de `perfil-lotacoes`).
+  arquivos.push(
+    ...(await capturarRotaComSessao(
+      navegador,
+      PASTA_DE_SAIDA_ESPACOS,
+      "organizacao-heranca",
+      "/organizacao",
+      ARQUIVO_ADMIN,
+      async (pagina) => {
+        const interruptor = pagina.getByRole("switch", {
+          name: "Espaços novos herdam do pai",
+        });
+        await interruptor.waitFor();
+        await interruptor.scrollIntoViewIfNeeded();
+      },
+    )),
+  );
+
+  return arquivos;
+}
+
 async function main(): Promise<void> {
   await mkdir(PASTA_DE_SAIDA, { recursive: true });
   await mkdir(PASTA_DE_SAIDA_DOCUMENTOS, { recursive: true });
   await mkdir(PASTA_DE_SAIDA_ORGANIZACAO, { recursive: true });
   await mkdir(PASTA_DE_SAIDA_CONVITES, { recursive: true });
+  await mkdir(PASTA_DE_SAIDA_ESPACOS, { recursive: true });
   const navegador = await chromium.launch();
   try {
     const arquivos = [
@@ -621,6 +845,7 @@ async function main(): Promise<void> {
       ...(await capturarCriarConta(navegador)),
       ...(await capturarOrganizacao(navegador)),
       ...(await capturarConvites(navegador)),
+      ...(await capturarEspacos(navegador)),
     ];
     for (const arquivo of arquivos) {
       console.log(arquivo);

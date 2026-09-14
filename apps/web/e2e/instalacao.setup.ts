@@ -2,8 +2,8 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test as setup, type Page } from "@playwright/test";
-import { ARQUIVO_ADMIN, ARQUIVO_MEMBRO } from "./apoio/contas";
-import { PESSOA_ADMIN, PESSOA_MEMBRO } from "./apoio/pessoas";
+import { ARQUIVO_ADMIN, ARQUIVO_COLEGA, ARQUIVO_MEMBRO } from "./apoio/contas";
+import { PESSOA_ADMIN, PESSOA_COLEGA, PESSOA_MEMBRO } from "./apoio/pessoas";
 import {
   API_URL,
   BETTER_AUTH_SECRET,
@@ -30,6 +30,42 @@ async function autenticarPorEmail(
       `sign-in/email devolveu ${resposta.status()} para ${email}: ${await resposta.text()}`,
     );
   }
+}
+
+// contorno: não há convite para pessoa que já existe (o de plano 04 cria
+// pessoa nova) e o cadastro público fechou (M2) — a única forma de uma pessoa
+// além da administradora existir é nascer direto no banco. `apps/api` é quem
+// sabe hashear senha do jeito que `auth.api.signInEmail` depois confere
+// (M2/D5); a suíte da web só invoca o script que já mora lá, como já faz
+// para migrar e gerar o contrato.
+function semearDiretoNoBanco(
+  name: string,
+  email: string,
+  password: string,
+): void {
+  // contorno: `pnpm --filter api run <script> -- <args>` insere um `--`
+  // literal na linha de comando encaminhada — `process.argv` do script
+  // recebia `["--", nome, email]` e a senha se perdia. `pnpm exec` encaminha
+  // os argumentos como vieram, sem essa marca.
+  execFileSync(
+    "pnpm",
+    [
+      "--filter",
+      "api",
+      "exec",
+      "ts-node",
+      "--transpile-only",
+      "scripts/seed-e2e-member.ts",
+      name,
+      email,
+      password,
+    ],
+    {
+      cwd: RAIZ_DO_REPOSITORIO,
+      stdio: "inherit",
+      env: { ...process.env, DATABASE_URL, BETTER_AUTH_SECRET },
+    },
+  );
 }
 
 setup("instala a instância e autentica a administradora", async ({ page }) => {
@@ -59,36 +95,23 @@ setup("instala a instância e autentica a administradora", async ({ page }) => {
 });
 
 setup("semeia a pessoa membro e autentica", async ({ page }) => {
-  // contorno: não há convite ainda (plano 04) e o cadastro público fechou
-  // (M2) — a única forma de uma segunda pessoa existir é nascer direto no
-  // banco. `apps/api` é quem sabe hashear senha do jeito que `auth.api.
-  // signInEmail` depois confere (M2/D5); a suíte da web só invoca o script que
-  // já mora lá, como já faz para migrar e gerar o contrato.
-  //
-  // contorno: `pnpm --filter api run <script> -- <args>` insere um `--`
-  // literal na linha de comando encaminhada — `process.argv` do script
-  // recebia `["--", nome, email]` e a senha se perdia. `pnpm exec` encaminha
-  // os argumentos como vieram, sem essa marca.
-  execFileSync(
-    "pnpm",
-    [
-      "--filter",
-      "api",
-      "exec",
-      "ts-node",
-      "--transpile-only",
-      "scripts/seed-e2e-member.ts",
-      PESSOA_MEMBRO.name,
-      PESSOA_MEMBRO.email,
-      PESSOA_MEMBRO.password,
-    ],
-    {
-      cwd: RAIZ_DO_REPOSITORIO,
-      stdio: "inherit",
-      env: { ...process.env, DATABASE_URL, BETTER_AUTH_SECRET },
-    },
+  semearDiretoNoBanco(
+    PESSOA_MEMBRO.name,
+    PESSOA_MEMBRO.email,
+    PESSOA_MEMBRO.password,
   );
 
   await autenticarPorEmail(page, PESSOA_MEMBRO.email, PESSOA_MEMBRO.password);
   await page.context().storageState({ path: ARQUIVO_MEMBRO });
+});
+
+setup("semeia a pessoa colega e autentica", async ({ page }) => {
+  semearDiretoNoBanco(
+    PESSOA_COLEGA.name,
+    PESSOA_COLEGA.email,
+    PESSOA_COLEGA.password,
+  );
+
+  await autenticarPorEmail(page, PESSOA_COLEGA.email, PESSOA_COLEGA.password);
+  await page.context().storageState({ path: ARQUIVO_COLEGA });
 });

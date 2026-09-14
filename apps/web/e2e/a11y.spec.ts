@@ -1,11 +1,14 @@
 import { type Page } from "@playwright/test";
 import { expect, test } from "./apoio/sessao";
+import { ARQUIVO_ADMIN } from "./apoio/contas";
+import { PESSOA_ADMIN } from "./apoio/pessoas";
+import { API_URL } from "../playwright.config";
 // motivo: a análise de acessibilidade — `@axe-core/playwright` sob as
 // etiquetas wcag2a, wcag2aa, wcag21a e wcag21aa — mora em `./apoio/axe`, e não
 // dentro de cada caso daqui. Um construtor por caso deixaria a lista de
 // etiquetas e o corte por severidade divergirem entre os quatro sem ninguém
-// notar; um instrumento só é o que torna comparável o que os quatro medem, e o
-// corte que ele usa é provado em `src/shared/lib/axe-severidade.test.ts`.
+// notar; um instrumento só é o que torna comparável o que os quatro medem, e
+// o corte que ele usa é provado em `src/shared/lib/axe-severidade.test.ts`.
 import { analisar, comecarRegistro } from "./apoio/axe";
 
 const JANELA_DE_TELEFONE = { width: 360, height: 740 };
@@ -159,6 +162,94 @@ test("o axe não acha violação séria em Início, num espaço e num documento"
     ).toBeVisible();
     await analisar(page, `${estado.titulo} no tema escuro`);
   }
+});
+
+// motivo: os casos acima medem a árvore e a página de espaço contra o dublê
+// de `apoio/sessao.ts`; `/espacos` e `/espacos/:id` de verdade, com cartões,
+// trilha, membros e o diálogo de criação, só existem com sessão real — a
+// sessão dublê nunca passaria do 401 da API. A página é a mesma que
+// `espacos.spec.ts` exercita; aqui o assunto é o que o axe acha nela.
+test("o axe não acha violação crítica ou séria em /espacos, /espacos/:id e o diálogo Criar espaço aberto", async ({
+  browser,
+}) => {
+  const contexto = await browser.newContext({ storageState: ARQUIVO_ADMIN });
+  const page = await contexto.newPage();
+  await page.emulateMedia({ colorScheme: "light" });
+
+  const raizes = (await (
+    await contexto.request.get(`${API_URL}/spaces`)
+  ).json()) as Array<{ id: string; kind: string }>;
+  const espacoDaRaiz = raizes.find((raiz) => raiz.kind === "UNIT");
+  if (!espacoDaRaiz) {
+    throw new Error("GET /spaces não devolveu espaço de unidade raiz");
+  }
+
+  const estados: Array<{
+    abrir: (pagina: Page) => Promise<void>;
+    fechar?: (pagina: Page) => Promise<void>;
+    titulo: string;
+  }> = [
+    {
+      abrir: async (pagina: Page) => {
+        await pagina.goto("/espacos");
+        await pagina
+          .getByRole("heading", { level: 1, name: "Espaços" })
+          .waitFor();
+      },
+      titulo: "/espacos",
+    },
+    {
+      abrir: async (pagina: Page) => {
+        await pagina.goto(`/espacos/${espacoDaRaiz.id}`);
+        await pagina
+          .getByRole("heading", {
+            level: 1,
+            name: PESSOA_ADMIN.organizationName,
+          })
+          .waitFor();
+      },
+      titulo: "página do espaço da unidade raiz",
+    },
+    {
+      abrir: async (pagina: Page) => {
+        await pagina.goto("/espacos");
+        await pagina
+          .getByRole("heading", { level: 1, name: "Espaços" })
+          .waitFor();
+        await pagina.getByRole("button", { name: "Criar espaço" }).click();
+        await pagina
+          .getByRole("dialog", { name: "Criar espaço" })
+          .waitFor({ state: "visible" });
+      },
+      // por quê: o diálogo aberto marca o resto da página como aria-hidden —
+      // o "Menu de conta" que troca o tema some do papel de botão, e o caso
+      // morre esperando um alternador que a página viva não tem. Fechar depois
+      // de medir devolve a página a quem precisa dela em seguida.
+      fechar: async (pagina: Page) => {
+        await pagina.keyboard.press("Escape");
+        await pagina
+          .getByRole("dialog", { name: "Criar espaço" })
+          .waitFor({ state: "hidden" });
+      },
+      titulo: "diálogo Criar espaço aberto",
+    },
+  ];
+
+  for (const estado of estados) {
+    await estado.abrir(page);
+    await analisar(page, `${estado.titulo} no tema claro`);
+    await estado.fechar?.(page);
+  }
+
+  await trocarParaTemaEscuro(page);
+
+  for (const estado of estados) {
+    await estado.abrir(page);
+    await analisar(page, `${estado.titulo} no tema escuro`);
+    await estado.fechar?.(page);
+  }
+
+  await contexto.close();
 });
 
 test("o axe não acha violação séria nos quatro estados pós-interação", async ({
