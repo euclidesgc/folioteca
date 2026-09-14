@@ -68,17 +68,19 @@ export default defineConfig({
   },
 
   // decisão: `setup` instala a instância pelo `POST /installation` de
-  // verdade (a administradora) e semeia a pessoa `MEMBER` direto no banco, sem
-  // convite — o cadastro público fecha depois da primeira instalação (M2), e
-  // `/criar-conta` deixou de poder criar conta nenhuma. Os dois
-  // `storageState` nascem em `e2e/.auth/{admin,membro}.json`; `chromium`
-  // depende do setup para todo spec herdar sessão de verdade sem reinstalar a
-  // cada teste. `documentos.spec.ts` (plano 02) lê os dois mesmos arquivos
+  // verdade (a administradora) e semeia as pessoas `MEMBER` direto no banco,
+  // sem convite — o cadastro público fecha depois da primeira instalação (M2),
+  // e `/criar-conta` deixou de poder criar conta nenhuma. Os três
+  // `storageState` nascem em `e2e/.auth/{admin,membro,colega}.json`;
+  // `chromium` depende do setup para todo spec herdar sessão de verdade sem
+  // reinstalar a cada teste. `documentos.spec.ts` (plano 02) lê dois deles
   // pelos nomes antigos que `apoio/contas.ts` continua exportando — a mesma
   // administradora e a mesma pessoa membro cobrem os papéis de dona do
-  // documento e de outra pessoa, em vez de quatro contas paralelas. Os specs
-  // do esqueleto e de acessibilidade continuam na sessão dublê de
-  // `apoio/sessao.ts` e não leem nenhum dos dois arquivos de estado.
+  // documento e de outra pessoa, em vez de quatro contas paralelas; a colega
+  // (plano 05) é quem recebe convite para espaço restrito sem administrar
+  // nem criar nada. Os specs do esqueleto e de acessibilidade continuam na
+  // sessão dublê de `apoio/sessao.ts` e não leem nenhum dos três arquivos
+  // de estado.
   projects: [
     {
       name: "setup",
