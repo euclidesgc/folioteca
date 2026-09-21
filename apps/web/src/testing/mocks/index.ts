@@ -6,13 +6,17 @@ export const enableMocking = async (): Promise<void> => {
   if (!env.ENABLE_API_MOCKING) return;
 
   const { worker } = await import('./browser');
-  const { seedInstalled } = await import('./db');
+  const { seedInstalled, seedSampleDocuments } = await import('./db');
 
   // Reproduces an installed instance in the browser without touching code.
   // See the `mock-installation` key documented in utils.ts.
   const installationKey = window.localStorage.getItem('mock-installation');
   if (installationKey === 'installed') seedInstalled({ signedIn: false });
   if (installationKey === 'signed-in') seedInstalled({ signedIn: true });
+
+  // See the `mock-documents` key documented in utils.ts.
+  const documentsKey = window.localStorage.getItem('mock-documents');
+  if (documentsKey === 'sample') seedSampleDocuments();
 
   await worker.start({ onUnhandledRequest: 'bypass' });
 };

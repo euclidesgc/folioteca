@@ -5,6 +5,8 @@ import { AppLayout } from '@/components/layouts/app-layout';
 import { SidebarIdentity } from '@/components/layouts/sidebar-identity';
 import { paths } from '@/config/paths';
 import { ConnectionIndicator } from '@/features/connection/components/connection-indicator';
+import { NewDocumentButton } from '@/features/documents/components/new-document-button';
+import { SidebarDocuments } from '@/features/documents/components/sidebar-documents';
 import { useInstallation } from '@/features/installation/api/get-installation';
 import { ProtectedRoute } from '@/lib/auth';
 import { reportError } from '@/lib/report-error';
@@ -20,6 +22,8 @@ export function Root(): React.JSX.Element {
   return (
     <ProtectedRoute>
       <AppLayout
+        sidebarActions={<NewDocumentButton />}
+        sidebarSection={<SidebarDocuments />}
         sidebarFooter={
           <>
             <SidebarIdentity />

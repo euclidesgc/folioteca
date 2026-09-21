@@ -67,6 +67,19 @@ test('/favorites without a session ends at /login?redirectTo=%2Ffavorites', asyn
   expect(router.state.location.search).toBe('?redirectTo=%2Ffavorites');
 });
 
+test('registers /documents/:documentId inside the layout route', () => {
+  const gatedRoutes = createRoutes()[0]?.children ?? [];
+  const layoutRoute = gatedRoutes.find((route) => route.path === '/');
+
+  const childPaths = layoutRoute?.children?.map((route) => route.path) ?? [];
+  expect(childPaths).toContain('documents/:documentId');
+
+  const documentRoute = layoutRoute?.children?.find(
+    (route) => route.path === 'documents/:documentId',
+  );
+  expect(documentRoute?.lazy).toBeTypeOf('function');
+});
+
 test('registers /login outside the layout route', () => {
   const gatedRoutes = createRoutes()[0]?.children ?? [];
 

@@ -7,7 +7,12 @@ import { hardRedirect } from '@/lib/hard-redirect';
 import { server } from '@/testing/mocks/server';
 
 import { api } from '../api-client';
-import { isUnauthenticatedError, UnauthenticatedError } from '../errors';
+import {
+  isNotFoundError,
+  isUnauthenticatedError,
+  NotFoundError,
+  UnauthenticatedError,
+} from '../errors';
 
 // jsdom does not navigate: the end of a session is checked by this one call.
 vi.mock('@/lib/hard-redirect', () => ({ hardRedirect: vi.fn() }));
@@ -194,6 +199,49 @@ test('a 401 while on /login does not redirect', async () => {
   );
 
   expect(hardRedirect).not.toHaveBeenCalled();
+});
+
+test('a 404 rejects with NotFoundError and notifies', async () => {
+  server.use(
+    http.get(`${env.API_URL}/missing`, () =>
+      HttpResponse.json(
+        { message: 'Documento não encontrado.' },
+        { status: 404 },
+      ),
+    ),
+  );
+
+  await expect(api.get('/missing')).rejects.toBeInstanceOf(NotFoundError);
+
+  expect(notifications()).toHaveLength(1);
+  expect(notifications()[0]).toMatchObject({
+    type: 'error',
+    title: 'Algo deu errado',
+    message: 'Documento não encontrado.',
+  });
+});
+
+test('a 404 with silentError rejects with NotFoundError and notifies nothing', async () => {
+  server.use(
+    http.get(`${env.API_URL}/missing`, () =>
+      HttpResponse.json(
+        { message: 'Documento não encontrado.' },
+        { status: 404 },
+      ),
+    ),
+  );
+
+  await expect(
+    api.get('/missing', { silentError: true }),
+  ).rejects.toBeInstanceOf(NotFoundError);
+
+  expect(notifications()).toHaveLength(0);
+});
+
+test('isNotFoundError is true only for NotFoundError', () => {
+  expect(isNotFoundError(new NotFoundError())).toBe(true);
+  expect(isNotFoundError(new UnauthenticatedError())).toBe(false);
+  expect(isNotFoundError(new Error('outro erro'))).toBe(false);
 });
 
 test('no 401 case adds a notification', async () => {

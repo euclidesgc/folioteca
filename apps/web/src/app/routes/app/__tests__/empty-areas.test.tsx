@@ -14,10 +14,11 @@ beforeEach(() => {
 });
 
 import { Component as Favorites } from '../favorites';
-import { Component as MyDocuments } from '../my-documents';
 import { Component as Spaces } from '../spaces';
 import { Component as Trash } from '../trash';
 
+// "Meus documentos" left this set when it stopped being an empty page: it
+// now has its own file, my-documents.test.tsx.
 const areas = [
   {
     name: 'Favoritos',
@@ -27,16 +28,6 @@ const areas = [
     support: 'Os documentos que você marca como favoritos ficam à mão aqui.',
     empty:
       'Nenhum favorito ainda. Quando você marcar um documento como favorito, ele aparece aqui.',
-  },
-  {
-    name: 'Meus documentos',
-    Component: MyDocuments,
-    routePath: '/my-documents',
-    title: 'Meus documentos',
-    support:
-      'Os documentos que você cria ficam aqui, visíveis só para você até serem compartilhados.',
-    empty:
-      'Nenhum documento ainda. Os documentos que você criar aparecem aqui.',
   },
   {
     name: 'Espaços',

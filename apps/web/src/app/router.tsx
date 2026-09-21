@@ -40,6 +40,10 @@ export const createRoutes = (): RouteObject[] => [
             lazy: () => import('@/app/routes/app/my-documents'),
           },
           {
+            path: paths.document.path.slice(1),
+            lazy: () => import('@/app/routes/app/document'),
+          },
+          {
             path: paths.spaces.path.slice(1),
             lazy: () => import('@/app/routes/app/spaces'),
           },

@@ -10,3 +10,13 @@ export class UnauthenticatedError extends Error {
 export const isUnauthenticatedError = (
   error: unknown,
 ): error is UnauthenticatedError => error instanceof UnauthenticatedError;
+
+export class NotFoundError extends Error {
+  constructor() {
+    super('Not found');
+    this.name = 'NotFoundError';
+  }
+}
+
+export const isNotFoundError = (error: unknown): error is NotFoundError =>
+  error instanceof NotFoundError;

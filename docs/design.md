@@ -41,3 +41,7 @@ Fonte única da aparência. Este arquivo é seu: `/br:init` cria uma vez e nunca
 | Alerta dentro de formulário | `rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800` | 002 |
 | Notificação | pilha `fixed right-4 top-4 z-50 flex w-[calc(100%-2rem)] max-w-sm flex-col gap-2`; item `rounded-md border bg-white p-4 shadow-lg` + borda por tipo (`border-red-200`, `border-green-200`, `border-amber-200`, `border-gray-200`) | 002 |
 | Identidade na barra lateral | `<dl>` com `dt` só para leitor de tela; organização `text-sm font-medium text-gray-900 truncate`; pessoa `text-sm text-gray-600 truncate`; abaixo do `<dl>`, botão secundário "Sair" com `mt-3 w-full`; `mt-3` do botão até o indicador de conexão | 002, 003 |
+| Seção da barra lateral | contêiner `px-4 pb-4`; cabeçalho `<h2 className="px-3 text-xs font-semibold uppercase tracking-wide text-gray-600">`; lista `mt-2 space-y-1`; item = receita "Item da barra lateral", com título `block truncate` e data `block text-xs font-normal text-gray-600`; estados em `px-3 text-sm` — carregando e vazio `text-gray-600`, erro `text-red-800` | 004 |
+| Data em lista | `<time className="shrink-0 text-sm text-gray-600">` | 004 |
+| Título editável | rótulo da receita "Campo de formulário"; campo com `h-12 text-2xl font-bold` no lugar de `h-10 text-sm` | 004 |
+| Aviso informativo | `<p className="mt-6 rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-800">` | 004 |

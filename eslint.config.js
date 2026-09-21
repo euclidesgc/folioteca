@@ -87,6 +87,11 @@ export default tseslint.config(
               except: ['./installation'],
             },
             {
+              target: './apps/web/src/features/documents',
+              from: './apps/web/src/features',
+              except: ['./documents'],
+            },
+            {
               target: './apps/web/src/features',
               from: './apps/web/src/app',
             },

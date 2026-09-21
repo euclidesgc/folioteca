@@ -22,6 +22,10 @@ export const paths = {
     path: '/my-documents',
     getHref: (): string => '/my-documents',
   },
+  document: {
+    path: '/documents/:documentId',
+    getHref: (documentId: string): string => `/documents/${documentId}`,
+  },
   spaces: {
     path: '/spaces',
     getHref: (): string => '/spaces',

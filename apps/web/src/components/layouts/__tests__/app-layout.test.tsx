@@ -24,6 +24,32 @@ const renderLayout = (initialEntries: string[] = ['/']) => {
   return render(<RouterProvider router={router} />);
 };
 
+// Same frame as above, with the two optional slots filled.
+const renderLayoutWithSlots = () => {
+  const routes = [
+    {
+      path: '/',
+      element: (
+        <AppLayout
+          sidebarActions={<p>Ações de teste</p>}
+          sidebarSection={<p>Seção de teste</p>}
+          sidebarFooter={<p>Rodapé de teste</p>}
+        >
+          <Outlet />
+        </AppLayout>
+      ),
+      children: [{ index: true, element: <p>Conteúdo do início</p> }],
+    },
+  ];
+  const router = createMemoryRouter(routes, { initialEntries: ['/'] });
+  return render(<RouterProvider router={router} />);
+};
+
+const comesBefore = (first: Element, second: Element): boolean =>
+  Boolean(
+    first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING,
+  );
+
 test('renders the four navigation links in order inside the main navigation landmark', () => {
   renderLayout();
 
@@ -144,6 +170,37 @@ test('collapses the panel after navigating to another route', async () => {
     'aria-expanded',
     'false',
   );
+});
+
+test('renders sidebarActions above the main navigation', () => {
+  renderLayoutWithSlots();
+
+  const actions = screen.getByText('Ações de teste');
+  const nav = screen.getByRole('navigation', { name: 'Navegação principal' });
+
+  expect(comesBefore(actions, nav)).toBe(true);
+});
+
+test('renders sidebarSection between the navigation and the footer', () => {
+  renderLayoutWithSlots();
+
+  const nav = screen.getByRole('navigation', { name: 'Navegação principal' });
+  const section = screen.getByText('Seção de teste');
+  const footer = screen.getByText('Rodapé de teste');
+
+  expect(comesBefore(nav, section)).toBe(true);
+  expect(comesBefore(section, footer)).toBe(true);
+});
+
+test('renders as before without the optional slots', () => {
+  renderLayout();
+
+  expect(screen.getByText('Rodapé de teste')).toBeInTheDocument();
+  expect(
+    screen.getByRole('navigation', { name: 'Navegação principal' }),
+  ).toBeInTheDocument();
+  expect(screen.queryByText('Ações de teste')).not.toBeInTheDocument();
+  expect(screen.queryByText('Seção de teste')).not.toBeInTheDocument();
 });
 
 test('aria-controls of the menu button matches the panel id', () => {

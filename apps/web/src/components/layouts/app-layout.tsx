@@ -28,11 +28,18 @@ const sidebarItemClassName = ({
 const panelId = 'app-layout-sidebar-panel';
 
 type AppLayoutProps = {
+  // Optional slots of the collapsible panel: actions above the main
+  // navigation and a section below it. The layout knows nothing about what
+  // goes in them.
+  sidebarActions?: ReactNode;
+  sidebarSection?: ReactNode;
   sidebarFooter: ReactNode;
   children: ReactNode;
 };
 
 export function AppLayout({
+  sidebarActions,
+  sidebarSection,
   sidebarFooter,
   children,
 }: AppLayoutProps): React.JSX.Element {
@@ -94,17 +101,23 @@ export function AppLayout({
           id={panelId}
           className={`${isPanelOpen ? 'block' : 'hidden'} md:flex md:flex-1 md:flex-col md:justify-between`}
         >
-          <nav aria-label="Navegação principal" className="p-4">
-            <ul className="space-y-1">
-              {navItems.map((item) => (
-                <li key={item.href}>
-                  <NavLink to={item.href} className={sidebarItemClassName}>
-                    {item.label}
-                  </NavLink>
-                </li>
-              ))}
-            </ul>
-          </nav>
+          <div>
+            {sidebarActions ? <div className="p-4">{sidebarActions}</div> : null}
+
+            <nav aria-label="Navegação principal" className="p-4">
+              <ul className="space-y-1">
+                {navItems.map((item) => (
+                  <li key={item.href}>
+                    <NavLink to={item.href} className={sidebarItemClassName}>
+                      {item.label}
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+
+            {sidebarSection}
+          </div>
 
           <div className="p-4">{sidebarFooter}</div>
         </div>

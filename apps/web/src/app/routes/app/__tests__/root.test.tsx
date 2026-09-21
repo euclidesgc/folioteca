@@ -136,6 +136,31 @@ test('renders the identity above the connection indicator in the sidebar footer'
   ).toBeTruthy();
 });
 
+test('shows the Novo documento button and the Meus documentos recentes section in the sidebar', async () => {
+  seedInstalled({ signedIn: true });
+
+  renderRoot({
+    organization: { id: 'org-1', name: 'Biblioteca Municipal de Exemplo' },
+    person: {
+      id: 'person-1',
+      name: 'Ana Souza',
+      email: 'ana.souza@exemplo.com.br',
+      isAdmin: true,
+    },
+  });
+
+  expect(
+    await screen.findByRole('button', { name: 'Novo documento' }),
+  ).toBeInTheDocument();
+  const section = screen.getByRole('navigation', {
+    name: 'Meus documentos recentes',
+  });
+  expect(section).toBeInTheDocument();
+  expect(
+    await screen.findByText('Nenhum documento ainda.'),
+  ).toBeInTheDocument();
+});
+
 test('without a session redirects to the login page instead of rendering the layout', async () => {
   const router = renderRootWithoutSession();
 
