@@ -19,6 +19,9 @@ type DocumentEditorProps = {
   fragment: Y.XmlFragment;
   provider: CollaborationProvider;
   user: { name: string; color: string };
+  // A document in the trash is read-only: the server refuses the writes
+  // anyway, and this keeps the editor from inviting them.
+  editable?: boolean;
 };
 
 // Moving a block by keyboard is covered by BlockNote itself
@@ -28,6 +31,7 @@ export default function DocumentEditor({
   fragment,
   provider,
   user,
+  editable = true,
 }: DocumentEditorProps): React.JSX.Element {
   const editor = useCreateBlockNote(
     withCollaboration({
@@ -73,7 +77,7 @@ export default function DocumentEditor({
       // code block scrolling inside itself instead of widening the page.
       className="mt-6 min-w-0 [&_.bn-editor]:px-0"
     >
-      <BlockNoteView editor={editor} theme="light" />
+      <BlockNoteView editor={editor} theme="light" editable={editable} />
     </section>
   );
 }

@@ -14,11 +14,10 @@ beforeEach(() => {
 });
 
 import { Component as Spaces } from '../spaces';
-import { Component as Trash } from '../trash';
 
-// "Meus documentos" and "Favoritos" left this set when they stopped being
-// empty pages: their emptiness now comes from the API, and each has its own
-// file, my-documents.test.tsx and favorites.test.tsx.
+// "Meus documentos", "Favoritos" and "Lixeira" left this set when they stopped
+// being empty pages: their emptiness now comes from the API, and each has its
+// own file, my-documents.test.tsx, favorites.test.tsx and trash.test.tsx.
 const areas = [
   {
     name: 'Espaços',
@@ -28,15 +27,6 @@ const areas = [
     support: 'Espaços reúnem os documentos de uma equipe ou de um assunto.',
     empty:
       'Nenhum espaço ainda. Os espaços de que você participa aparecem aqui.',
-  },
-  {
-    name: 'Lixeira',
-    Component: Trash,
-    routePath: '/trash',
-    title: 'Lixeira',
-    support:
-      'Documentos excluídos ficam aqui até serem restaurados ou apagados de vez.',
-    empty: 'A lixeira está vazia. Os documentos que você excluir aparecem aqui.',
   },
 ];
 

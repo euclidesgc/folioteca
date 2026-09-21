@@ -1,6 +1,7 @@
 import type React from 'react';
 
 import { ContentLayout } from '@/components/layouts/content-layout';
+import { DocumentsList } from '@/features/documents/components/documents-list';
 
 export function Component(): React.JSX.Element {
   return (
@@ -8,9 +9,7 @@ export function Component(): React.JSX.Element {
       title="Lixeira"
       description="Documentos excluídos ficam aqui até serem restaurados ou apagados de vez."
     >
-      <p className="mt-6 rounded-md border border-dashed border-gray-300 p-6 text-center text-gray-600">
-        A lixeira está vazia. Os documentos que você excluir aparecem aqui.
-      </p>
+      <DocumentsList scope="trash" />
     </ContentLayout>
   );
 }

@@ -50,3 +50,8 @@ Fonte única da aparência. Este arquivo é seu: `/br:init` cria uma vez e nunca
 | Botão discreto (`ghost`) | base do botão + `text-gray-700 hover:bg-gray-100 focus-visible:outline-blue-600` | 006 |
 | Linha de ações do documento | `<div className="mb-4 flex justify-end">`, logo acima do título editável | 006 |
 | Estrela de favorito | `<svg aria-hidden="true" focusable="false" className="size-5">`, traço `currentColor`; favoritado: preenchida com `currentColor` e `text-amber-600`; não favoritado: sem preenchimento, na cor do texto do botão | 006 |
+| Botão destrutivo (`destructive`) | base do botão + `bg-red-600 text-white hover:bg-red-700 focus-visible:outline-red-600` | 007 |
+| Diálogo de confirmação | fundo `fixed inset-0 z-50 bg-black/50`; caixa `fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-md bg-white p-6 shadow-lg`; título `text-lg font-semibold text-gray-900`; descrição `mt-2 text-sm text-gray-600 break-words`; rodapé `mt-6 flex flex-wrap justify-end gap-2` com "Cancelar" (secundário) antes do confirmar | 007 |
+| Ação destrutiva discreta | botão `ghost` + `text-red-700 hover:bg-red-50 focus-visible:outline-red-600` (gatilho de "Apagar definitivamente") | 007 |
+| Ícone de lixeira | `<svg aria-hidden="true" focusable="false" className="size-5">`, traço `currentColor`, sem preenchimento | 007 |
+| Ações do item de lista | `<div className="flex w-full flex-wrap justify-end gap-2 sm:w-auto">`; o item da lista ganha `flex-wrap` | 007 |

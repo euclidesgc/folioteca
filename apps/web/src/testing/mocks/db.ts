@@ -161,3 +161,22 @@ export const seedSampleFavorites = (): void => {
 
   state = { ...state, favorites: [...state.favorites, ...sample] };
 };
+
+// How many documents `seedSampleTrash` moves to the trash.
+const SAMPLE_TRASH_COUNT = 2;
+
+// Moves the last documents already in the database to the trash, with
+// decreasing `trashedAt` dates (the most recently moved first). Kept separate
+// from `seedSampleDocuments` because the existing e2e journeys expect an
+// empty trash by default. Does nothing without documents.
+export const seedSampleTrash = (): void => {
+  const now = Date.now();
+
+  state.documents
+    .slice(-SAMPLE_TRASH_COUNT)
+    .forEach((document, index) => {
+      document.trashedAt = new Date(
+        now - index * 1000 * 60 * 60,
+      ).toISOString();
+    });
+};

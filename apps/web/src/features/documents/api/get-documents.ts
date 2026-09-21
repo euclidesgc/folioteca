@@ -8,9 +8,9 @@ import { api } from '@/lib/api-client';
 import type { QueryConfig } from '@/lib/react-query';
 import type { DocumentsResponse } from '@/types/api';
 
-export type DocumentsScope = 'mine' | 'favorites';
+export type DocumentsScope = 'mine' | 'favorites' | 'trash';
 
-const DOCUMENTS_SCOPES: DocumentsScope[] = ['mine', 'favorites'];
+const DOCUMENTS_SCOPES: DocumentsScope[] = ['mine', 'favorites', 'trash'];
 
 export const getDocuments = (
   scope: DocumentsScope,

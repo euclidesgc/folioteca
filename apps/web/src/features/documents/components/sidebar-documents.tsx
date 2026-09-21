@@ -14,9 +14,13 @@ import { formatDateTime } from '@/utils/format-date-time';
 // "Meus documentos" or in "Favoritos".
 const MAX_SIDEBAR_DOCUMENTS = 8;
 
+// The sidebar never lists the trash: only "mine" and "favorites" have a
+// section there.
+type SidebarDocumentsScope = Exclude<DocumentsScope, 'trash'>;
+
 // Only the words and the destination of "Ver todos" change between scopes.
 const scopeTexts: Record<
-  DocumentsScope,
+  SidebarDocumentsScope,
   {
     navLabel: string;
     heading: string;
@@ -53,7 +57,7 @@ const documentItemClassName = ({ isActive }: { isActive: boolean }): string =>
 export function SidebarDocuments({
   scope = 'mine',
 }: {
-  scope?: DocumentsScope;
+  scope?: SidebarDocumentsScope;
 } = {}): React.JSX.Element {
   const documentsQuery = useDocuments({ scope });
   const texts = scopeTexts[scope];

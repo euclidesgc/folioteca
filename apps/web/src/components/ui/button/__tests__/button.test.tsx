@@ -42,6 +42,19 @@ test('renders the ghost variant', () => {
   expect(button).not.toHaveClass('bg-blue-600');
 });
 
+test('renders the destructive variant', () => {
+  render(<Button variant="destructive">Apagar definitivamente</Button>);
+
+  const button = screen.getByRole('button', {
+    name: 'Apagar definitivamente',
+  });
+  expect(button).toHaveClass('bg-red-600');
+  expect(button).toHaveClass('text-white');
+  expect(button).toHaveClass('hover:bg-red-700');
+  expect(button).toHaveClass('focus-visible:outline-red-600');
+  expect(button).not.toHaveClass('bg-blue-600');
+});
+
 test('is disabled and aria-busy while isLoading', () => {
   render(<Button isLoading>Instalando…</Button>);
 

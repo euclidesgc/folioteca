@@ -82,7 +82,17 @@ test('requests the given scope', async () => {
   expect(scope).toBe('favorites');
 });
 
-test('invalidateDocumentLists invalidates both lists and leaves the open document alone', () => {
+test('uses its own key for the trash scope', () => {
+  expect(getDocumentsQueryOptions('trash').queryKey).toEqual([
+    'documents',
+    { scope: 'trash' },
+  ]);
+  expect(getDocumentsQueryOptions('trash').queryKey).not.toEqual(
+    getDocumentsQueryOptions('mine').queryKey,
+  );
+});
+
+test('invalidateDocumentLists invalidates the three lists and leaves the open document alone', () => {
   const queryClient = new QueryClient({ defaultOptions: queryConfig });
   const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
 
@@ -94,7 +104,10 @@ test('invalidateDocumentLists invalidates both lists and leaves the open documen
   expect(invalidateQueries).toHaveBeenCalledWith({
     queryKey: ['documents', { scope: 'favorites' }],
   });
-  expect(invalidateQueries).toHaveBeenCalledTimes(2);
+  expect(invalidateQueries).toHaveBeenCalledWith({
+    queryKey: ['documents', { scope: 'trash' }],
+  });
+  expect(invalidateQueries).toHaveBeenCalledTimes(3);
   expect(invalidateQueries).not.toHaveBeenCalledWith({
     queryKey: ['documents'],
   });

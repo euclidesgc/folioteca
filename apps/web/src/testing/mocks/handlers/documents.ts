@@ -25,11 +25,25 @@ const toDocumentBody = (document: MockDocument): Document => ({
   ),
 });
 
+const TRASH_LIMIT = 100;
+
 const unauthenticated = (): ReturnType<typeof HttpResponse.json> =>
   HttpResponse.json({ message: 'Sessão não encontrada.' }, { status: 401 });
 
 const notFound = (): ReturnType<typeof HttpResponse.json> =>
   HttpResponse.json({ message: 'Documento não encontrado.' }, { status: 404 });
+
+const outsideTrash = (): ReturnType<typeof HttpResponse.json> =>
+  HttpResponse.json(
+    { message: 'Mova o documento para a lixeira antes de apagá-lo definitivamente.' },
+    { status: 409 },
+  );
+
+const inTrash = (): ReturnType<typeof HttpResponse.json> =>
+  HttpResponse.json(
+    { message: 'Este documento está na lixeira. Restaure-o para editar.' },
+    { status: 409 },
+  );
 
 export const documentsHandlers = [
   http.post(`${env.API_URL}/documents`, async ({ cookies }) => {
@@ -69,7 +83,7 @@ export const documentsHandlers = [
     if (!cookies[SESSION_COOKIE_NAME]) return unauthenticated();
 
     const scope = new URL(request.url).searchParams.get('scope');
-    if (scope !== 'mine' && scope !== 'favorites') {
+    if (scope !== 'mine' && scope !== 'favorites' && scope !== 'trash') {
       return HttpResponse.json(
         {
           message: 'Dados inválidos.',
@@ -81,15 +95,34 @@ export const documentsHandlers = [
 
     const { documents, favorites } = getDb();
 
+    if (scope === 'trash') {
+      const trashList = [...documents]
+        .filter((document) => document.trashedAt !== null)
+        .sort((a, b) => (b.trashedAt ?? '').localeCompare(a.trashedAt ?? ''))
+        .slice(0, TRASH_LIMIT)
+        .map(({ id, title, updatedAt, trashedAt }) => ({
+          id,
+          title,
+          updatedAt,
+          trashedAt,
+        }));
+
+      const trashBody: DocumentsResponse = { data: trashList };
+      return HttpResponse.json(trashBody);
+    }
+
     if (scope === 'favorites') {
       // From the most recently marked to the oldest, and only the favorites
-      // whose document still exists.
+      // whose document still exists and is not in the trash.
       const favoriteList = [...favorites]
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
         .map((favorite) =>
           documents.find((item) => item.id === favorite.documentId),
         )
-        .filter((item) => item !== undefined)
+        .filter(
+          (item): item is MockDocument =>
+            item !== undefined && item.trashedAt === null,
+        )
         .slice(0, FAVORITES_LIMIT)
         .map(({ id, title, updatedAt }) => ({
           id,
@@ -103,6 +136,7 @@ export const documentsHandlers = [
     }
 
     const list = [...documents]
+      .filter((document) => document.trashedAt === null)
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .slice(0, 100)
       .map(({ id, title, updatedAt }) => ({
@@ -143,6 +177,7 @@ export const documentsHandlers = [
       const { documents } = getDb();
       const document = documents.find((item) => item.id === params.documentId);
       if (!document) return notFound();
+      if (document.trashedAt !== null) return inTrash();
 
       const requestBody = (await request.json()) as Partial<UpdateDocumentBody>;
       if (typeof requestBody.title !== 'string') {
@@ -176,6 +211,80 @@ export const documentsHandlers = [
 
       const body: DocumentResponse = { data: toDocumentBody(document) };
       return HttpResponse.json(body);
+    },
+  ),
+
+  http.post(
+    `${env.API_URL}/documents/:documentId/trash`,
+    async ({ params, cookies }) => {
+      await networkDelay();
+      const forced = await devOverride('documents');
+      if (forced) return forced;
+
+      if (!cookies[SESSION_COOKIE_NAME]) return unauthenticated();
+
+      const { documents } = getDb();
+      const document = documents.find((item) => item.id === params.documentId);
+      if (!document) return notFound();
+
+      // Repeating does not renew the date, like the real API.
+      if (document.trashedAt === null) {
+        document.trashedAt = new Date().toISOString();
+      }
+
+      const body: DocumentResponse = { data: toDocumentBody(document) };
+      return HttpResponse.json(body);
+    },
+  ),
+
+  http.post(
+    `${env.API_URL}/documents/:documentId/restore`,
+    async ({ params, cookies }) => {
+      await networkDelay();
+      const forced = await devOverride('documents');
+      if (forced) return forced;
+
+      if (!cookies[SESSION_COOKIE_NAME]) return unauthenticated();
+
+      const { documents } = getDb();
+      const document = documents.find((item) => item.id === params.documentId);
+      if (!document) return notFound();
+
+      document.trashedAt = null;
+
+      const body: DocumentResponse = { data: toDocumentBody(document) };
+      return HttpResponse.json(body);
+    },
+  ),
+
+  http.delete(
+    `${env.API_URL}/documents/:documentId`,
+    async ({ params, cookies }) => {
+      await networkDelay();
+      const forced = await devOverride('documents');
+      if (forced) return forced;
+
+      if (!cookies[SESSION_COOKIE_NAME]) return unauthenticated();
+
+      const { documents, favorites } = getDb();
+      const document = documents.find((item) => item.id === params.documentId);
+      if (!document) return notFound();
+      if (document.trashedAt === null) return outsideTrash();
+
+      const documentIndex = documents.indexOf(document);
+      documents.splice(documentIndex, 1);
+
+      let favoriteIndex = favorites.findIndex(
+        (favorite) => favorite.documentId === document.id,
+      );
+      while (favoriteIndex !== -1) {
+        favorites.splice(favoriteIndex, 1);
+        favoriteIndex = favorites.findIndex(
+          (favorite) => favorite.documentId === document.id,
+        );
+      }
+
+      return new HttpResponse(null, { status: 204 });
     },
   ),
 

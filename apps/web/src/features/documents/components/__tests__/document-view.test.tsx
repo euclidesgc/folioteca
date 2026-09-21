@@ -1,12 +1,17 @@
-import { act } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, render } from '@testing-library/react';
 import { delay, http, HttpResponse } from 'msw';
+import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
+import { createRoutes } from '@/app/router';
 import { env } from '@/config/env';
 import { paths } from '@/config/paths';
+import { queryConfig } from '@/lib/react-query';
 import type { MockDocument } from '@/testing/mocks/db';
 import { getDb, seedInstalled, seedSampleDocuments } from '@/testing/mocks/db';
 import { server } from '@/testing/mocks/server';
+import { formatDateTime } from '@/utils/format-date-time';
 import {
   renderApp,
   screen,
@@ -19,17 +24,27 @@ import { DocumentView } from '../document-view';
 
 const TIMEOUT = 5000;
 
+// Lazy chunks and route changes resolve after the test's first await: give
+// those waits an explicit budget instead of the implicit default.
+const LAZY_TIMEOUT = { timeout: TIMEOUT };
+
 // BlockNote does not run under jsdom: the lazy editor is replaced by a marker
 // that can also be told to fail on its next render.
 const editor = vi.hoisted(() => ({ fails: false }));
 
 vi.mock('@/features/documents/components/document-editor', () => ({
-  default: function DocumentEditorDouble(): React.JSX.Element {
+  default: function DocumentEditorDouble({
+    editable = true,
+  }: {
+    editable?: boolean;
+  }): React.JSX.Element {
     // Stays broken until the test repairs it: React retries a failed render
     // before handing it to the boundary.
     if (editor.fails) throw new Error('falha ao renderizar o editor');
 
-    return <div data-testid="document-editor" />;
+    // The real editor does not run under jsdom: the double reports the
+    // `editable` prop it received so the read-only mode can be checked.
+    return <div data-testid="document-editor" data-editable={String(editable)} />;
   },
 }));
 
@@ -109,6 +124,29 @@ const firstSeededDocument = (): MockDocument => {
   const [document] = getDb().documents;
   if (!document) throw new Error('o banco simulado está sem documentos');
   return document;
+};
+
+// Moves the seeded document to the trash directly in the fake database.
+const trashInDb = (document: MockDocument): string => {
+  const trashedAt = new Date(2026, 8, 20, 15, 30).toISOString();
+  document.trashedAt = trashedAt;
+  return trashedAt;
+};
+
+const noticeText = (trashedAt: string): string =>
+  `Este documento está na lixeira desde ${formatDateTime(trashedAt)}. Restaure-o para voltar a editar.`;
+
+// The real routes of the app, in a memory router: the only way to see where
+// the page sends the person after the document is gone.
+const renderRoutes = (url: string): void => {
+  const queryClient = new QueryClient({ defaultOptions: queryConfig });
+  const router = createMemoryRouter(createRoutes(), { initialEntries: [url] });
+
+  render(
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
 };
 
 const emit = async (event: string, data: unknown): Promise<void> => {
@@ -458,4 +496,199 @@ test('opens no collaboration session for a document that was not found', async (
   expect(factory.createCollaborationProvider).not.toHaveBeenCalled();
   expect(screen.queryByText('Conectando…')).not.toBeInTheDocument();
   expect(screen.queryByTestId('document-editor')).not.toBeInTheDocument();
+});
+
+test('shows Mover para a lixeira before the favorite button for the owner', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  await screen.findByLabelText('Título');
+  const trash = screen.getByRole('button', { name: 'Mover para a lixeira' });
+  const favorite = screen.getByRole('button', {
+    name: 'Adicionar aos favoritos',
+  });
+
+  expect(trash.parentElement).toBe(favorite.parentElement);
+  expect(
+    trash.compareDocumentPosition(favorite) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeGreaterThan(0);
+});
+
+test('hides Mover para a lixeira when accessLevel is not owner', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+  seeded.accessLevel = 'edit';
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  await screen.findByLabelText('Título');
+
+  expect(
+    screen.queryByRole('button', { name: 'Mover para a lixeira' }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByRole('button', { name: 'Adicionar aos favoritos' }),
+  ).toBeInTheDocument();
+});
+
+test('trashed document shows the notice with the date and the two actions', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+  const trashedAt = trashInDb(seeded);
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  const notice = await screen.findByText(noticeText(trashedAt));
+  expect(notice).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Restaurar' })).toBeInTheDocument();
+  expect(
+    screen.getByRole('button', { name: 'Apagar definitivamente' }),
+  ).toBeInTheDocument();
+});
+
+test('trashed document shows a visible h1 and no title field, favorite button or save indicator', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+  trashInDb(seeded);
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  const heading = await screen.findByRole('heading', {
+    level: 1,
+    name: seeded.title,
+  });
+  expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  expect(heading).not.toHaveClass('sr-only');
+
+  expect(screen.queryByLabelText('Título')).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: /favoritos/ }),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByText('Conectando…')).not.toBeInTheDocument();
+});
+
+test('mounts the editor with editable false in the trash and true outside it', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+  trashInDb(seeded);
+
+  const trashed = renderApp(<DocumentView documentId={seeded.id} />);
+
+  await screen.findByRole('heading', { level: 1, name: seeded.title });
+  await connectAndSync();
+
+  expect(
+    await screen.findByTestId('document-editor', undefined, LAZY_TIMEOUT),
+  ).toHaveAttribute('data-editable', 'false');
+
+  trashed.unmount();
+  factory.reset();
+  seeded.trashedAt = null;
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  await screen.findByLabelText('Título');
+  await connectAndSync();
+
+  expect(
+    await screen.findByTestId('document-editor', undefined, LAZY_TIMEOUT),
+  ).toHaveAttribute('data-editable', 'true');
+});
+
+test('trashed document still opens the collaboration session', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+  const trashedAt = trashInDb(seeded);
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  await screen.findByText(noticeText(trashedAt));
+
+  await waitFor(
+    () => expect(factory.createCollaborationProvider).toHaveBeenCalled(),
+    { timeout: TIMEOUT },
+  );
+});
+
+test('moves focus to the trash notice after moving the document', async () => {
+  const user = userEvent.setup();
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  await screen.findByLabelText('Título');
+  await user.click(screen.getByRole('button', { name: 'Mover para a lixeira' }));
+
+  const dialog = await screen.findByRole('alertdialog');
+  await user.click(
+    within(dialog).getByRole('button', { name: 'Mover para a lixeira' }),
+  );
+
+  const notice = await screen.findByText(/Este documento está na lixeira desde/);
+  await waitFor(() =>
+    expect(notice.closest('div[tabindex="-1"]')).toHaveFocus(),
+  );
+});
+
+test('a document that opens already trashed does not steal focus', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+  const trashedAt = trashInDb(seeded);
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  const notice = await screen.findByText(noticeText(trashedAt));
+
+  expect(notice.closest('div[tabindex="-1"]')).not.toHaveFocus();
+  expect(document.body).toHaveFocus();
+});
+
+test('Restaurar brings back the title field and the action row', async () => {
+  const user = userEvent.setup();
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+  const trashedAt = trashInDb(seeded);
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  await screen.findByText(noticeText(trashedAt));
+  await user.click(screen.getByRole('button', { name: 'Restaurar' }));
+
+  expect(await screen.findByLabelText('Título')).toHaveValue(seeded.title);
+  expect(
+    screen.getByRole('button', { name: 'Mover para a lixeira' }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByText(/Este documento está na lixeira desde/),
+  ).not.toBeInTheDocument();
+});
+
+test('navigates to /trash after deleting permanently', async () => {
+  const user = userEvent.setup();
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+  const trashedAt = trashInDb(seeded);
+
+  renderRoutes(paths.document.getHref(seeded.id));
+
+  await screen.findByText(noticeText(trashedAt), undefined, LAZY_TIMEOUT);
+  await user.click(
+    screen.getByRole('button', { name: 'Apagar definitivamente' }),
+  );
+
+  const dialog = await screen.findByRole('alertdialog', undefined, LAZY_TIMEOUT);
+  await user.click(
+    within(dialog).getByRole('button', { name: 'Apagar definitivamente' }),
+  );
+
+  expect(
+    await screen.findByRole(
+      'heading',
+      { level: 1, name: 'Lixeira' },
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
 });

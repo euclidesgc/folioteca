@@ -1,7 +1,7 @@
 import type React from 'react';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 
 import { Button } from '@/components/ui/button/button';
 import { paths } from '@/config/paths';
@@ -9,11 +9,14 @@ import { useDocument } from '@/features/documents/api/get-document';
 import { DocumentTitleForm } from '@/features/documents/components/document-title-form';
 import { FavoriteButton } from '@/features/documents/components/favorite-button';
 import { SaveIndicator } from '@/features/documents/components/save-indicator';
+import { TrashDocumentButton } from '@/features/documents/components/trash-document-button';
+import { TrashedDocumentActions } from '@/features/documents/components/trashed-document-actions';
 import { useDocumentCollaboration } from '@/features/documents/hooks/use-document-collaboration';
 import { useUser } from '@/lib/auth';
 import { isNotFoundError } from '@/lib/errors';
 import { reportError } from '@/lib/report-error';
 import type { Document } from '@/types/api';
+import { formatDateTime } from '@/utils/format-date-time';
 
 // The editor is heavy and only this screen uses it: it arrives in its own
 // chunk, after the page is already usable.
@@ -99,23 +102,75 @@ function LoadedDocument({
   document: Document;
 }): React.JSX.Element {
   const user = useUser();
+  const navigate = useNavigate();
+  // The collaboration session is opened in the trash too: the content only
+  // ever arrives through Yjs, and the server marks the connection read-only.
   const { session, hasSynced, saveStatus } = useDocumentCollaboration(
     document.id,
   );
 
+  const trashedAt = document.trashedAt;
+  const isTrashed = trashedAt !== null;
+  const noticeRef = useRef<HTMLDivElement>(null);
+  const wasTrashedRef = useRef(isTrashed);
+
+  // The trigger the person just used disappears with the action row: without
+  // this the focus would fall back to the body. A document that already opens
+  // in the trash does not steal the focus.
+  useEffect(() => {
+    if (isTrashed && !wasTrashedRef.current) noticeRef.current?.focus();
+
+    wasTrashedRef.current = isTrashed;
+  }, [isTrashed]);
+
   return (
     <main id="main-content" className="mx-auto max-w-2xl p-8">
-      {/* The visible title is the editable field below; the heading keeps the
-          page named for screen readers. */}
-      <h1 className="sr-only">{document.title}</h1>
+      {trashedAt !== null ? (
+        <>
+          <div
+            ref={noticeRef}
+            tabIndex={-1}
+            className="mt-6 rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-800"
+          >
+            <p>
+              Este documento está na lixeira desde{' '}
+              {formatDateTime(trashedAt)}. Restaure-o para voltar
+              a editar.
+            </p>
+            <div className="mt-4">
+              <TrashedDocumentActions
+                document={document}
+                onDeleted={() => void navigate(paths.trash.getHref())}
+              />
+            </div>
+          </div>
 
-      <div className="mb-4 flex justify-end">
-        <FavoriteButton document={document} />
-      </div>
+          {/* With no editable title field, the heading becomes the visible
+              title of the page. */}
+          <h1 className="mt-6 text-2xl font-bold break-words">
+            {document.title}
+          </h1>
+        </>
+      ) : (
+        <>
+          {/* The visible title is the editable field below; the heading keeps
+              the page named for screen readers. */}
+          <h1 className="sr-only">{document.title}</h1>
 
-      <DocumentTitleForm document={document} />
+          <div className="mb-4 flex justify-end gap-2">
+            {/* The server applies the same rule: only the owner may move a
+                document to the trash. */}
+            {document.accessLevel === 'owner' ? (
+              <TrashDocumentButton document={document} />
+            ) : null}
+            <FavoriteButton document={document} />
+          </div>
 
-      <SaveIndicator status={saveStatus} />
+          <DocumentTitleForm document={document} />
+
+          <SaveIndicator status={saveStatus} />
+        </>
+      )}
 
       <ErrorBoundary
         FallbackComponent={EditorErrorFallback}
@@ -132,6 +187,7 @@ function LoadedDocument({
             <DocumentEditor
               fragment={session.fragment}
               provider={session.provider}
+              editable={!isTrashed}
               user={{
                 name: user.data?.person.name ?? 'Você',
                 color: USER_COLOR,

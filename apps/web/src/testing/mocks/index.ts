@@ -10,6 +10,7 @@ export const enableMocking = async (): Promise<void> => {
     seedInstalled,
     seedSampleDocuments,
     seedSampleFavorites,
+    seedSampleTrash,
     touchDocumentUpdatedAt,
   } = await import('./db');
 
@@ -27,6 +28,12 @@ export const enableMocking = async (): Promise<void> => {
   // documents seed: it marks the documents already in the database.
   const favoritesKey = window.localStorage.getItem('mock-favorites');
   if (favoritesKey === 'sample') seedSampleFavorites();
+
+  // See the `mock-trash` key documented in utils.ts. Read after the
+  // documents and the favorites seed: it moves documents already in the
+  // database.
+  const trashKey = window.localStorage.getItem('mock-trash');
+  if (trashKey === 'sample') seedSampleTrash();
 
   // The simulated editor writes to the in-memory provider, which has no HTTP
   // request for MSW to intercept: it reports a save straight to the fake

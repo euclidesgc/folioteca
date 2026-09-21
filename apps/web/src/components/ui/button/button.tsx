@@ -13,6 +13,8 @@ export const buttonVariants = cva(
           'border border-gray-300 text-gray-900 hover:bg-gray-50 focus-visible:outline-blue-600',
         ghost:
           'text-gray-700 hover:bg-gray-100 focus-visible:outline-blue-600',
+        destructive:
+          'bg-red-600 text-white hover:bg-red-700 focus-visible:outline-red-600',
       },
     },
     defaultVariants: { variant: 'primary' },

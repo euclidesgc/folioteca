@@ -28,6 +28,8 @@ export const networkDelay = (): Promise<void> =>
 //     owned by the signed-in person (needs an installation already seeded)
 //   localStorage.setItem('mock-favorites', 'sample')  -> marks the first documents
 //     as favorites (needs the documents already seeded)
+//   localStorage.setItem('mock-trash', 'sample')  -> moves the last documents
+//     to the trash (needs the documents already seeded)
 // Remove the key (or run localStorage.clear()) to go back to normal.
 const devKey = (key: string): string | null => {
   if (import.meta.env.MODE === 'test' || typeof window === 'undefined') {

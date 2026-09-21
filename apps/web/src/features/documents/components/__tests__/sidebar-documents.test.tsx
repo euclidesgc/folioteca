@@ -258,6 +258,29 @@ test('favorites scope truncates a 200 character title and keeps it in title', as
   expect(link.querySelector('span')).toHaveClass('truncate');
 });
 
+test('still renders the mine and favorites sections after the scope type was narrowed', async () => {
+  seedSampleDocuments();
+  seedSampleFavorites();
+
+  const { unmount } = renderApp(<SidebarDocuments />);
+
+  expect(
+    screen.getByRole('navigation', { name: 'Meus documentos recentes' }),
+  ).toBeInTheDocument();
+  await screen.findByRole('link', { name: /Ata da reunião de diretoria/ });
+
+  unmount();
+
+  renderApp(<SidebarDocuments scope="favorites" />);
+
+  expect(
+    screen.getByRole('navigation', { name: 'Documentos favoritos' }),
+  ).toBeInTheDocument();
+  expect(
+    await screen.findByRole('link', { name: /Ata da reunião de diretoria/ }),
+  ).toBeInTheDocument();
+});
+
 test('mine scope keeps its texts and Ver todos pointing to /my-documents', async () => {
   seedSampleDocuments();
   seedSampleFavorites();

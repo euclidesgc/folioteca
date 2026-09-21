@@ -9,9 +9,16 @@ import {
   seedInstalled,
   seedSampleDocuments,
   seedSampleFavorites,
+  seedSampleTrash,
 } from '@/testing/mocks/db';
 import { server } from '@/testing/mocks/server';
-import { renderApp, screen, userEvent, within } from '@/testing/test-utils';
+import {
+  renderApp,
+  screen,
+  userEvent,
+  waitFor,
+  within,
+} from '@/testing/test-utils';
 import { formatDateTime } from '@/utils/format-date-time';
 
 import { DocumentsList } from '../documents-list';
@@ -243,6 +250,186 @@ test('favorites scope truncates a 200 character title and keeps it in title', as
   const seeded = seededDocument(longTitle);
 
   renderApp(<DocumentsList scope="favorites" />);
+
+  const link = await screen.findByRole('link', { name: longTitle });
+  expect(link).toHaveAttribute('title', longTitle);
+  expect(link).toHaveClass('truncate');
+  expect(link).toHaveAttribute('href', paths.document.getHref(seeded.id));
+});
+
+// The order the trash API answers in: most recently moved first.
+const trashedTitlesInApiOrder = (): string[] =>
+  getDb()
+    .documents.filter((document) => document.trashedAt !== null)
+    .sort((a, b) => (b.trashedAt ?? '').localeCompare(a.trashedAt ?? ''))
+    .map((document) => document.title);
+
+test('trash scope requests scope=trash', async () => {
+  let scope: string | null = null;
+  server.use(
+    http.get(`${env.API_URL}/documents`, ({ request }) => {
+      scope = new URL(request.url).searchParams.get('scope');
+      return HttpResponse.json({ data: [] });
+    }),
+  );
+
+  renderApp(<DocumentsList scope="trash" />);
+
+  await screen.findByText(
+    'A lixeira está vazia. Os documentos que você excluir aparecem aqui.',
+  );
+  expect(scope).toBe('trash');
+});
+
+test('trash scope shows Carregando lixeira…', async () => {
+  server.use(
+    http.get(`${env.API_URL}/documents`, async () => {
+      await delay(200);
+      return HttpResponse.json({ data: [] });
+    }),
+  );
+
+  renderApp(<DocumentsList scope="trash" />);
+
+  expect(await screen.findByRole('status')).toHaveTextContent(
+    'Carregando lixeira…',
+  );
+
+  await screen.findByText(
+    'A lixeira está vazia. Os documentos que você excluir aparecem aqui.',
+  );
+});
+
+test('trash scope shows the empty text', async () => {
+  seedSampleDocuments();
+
+  renderApp(<DocumentsList scope="trash" />);
+
+  expect(
+    await screen.findByText(
+      'A lixeira está vazia. Os documentos que você excluir aparecem aqui.',
+    ),
+  ).toBeInTheDocument();
+});
+
+test('trash scope shows the error and retries', async () => {
+  const user = userEvent.setup();
+  seedSampleDocuments();
+  seedSampleTrash();
+  const [firstTrashed] = trashedTitlesInApiOrder();
+  server.use(
+    http.get(
+      `${env.API_URL}/documents`,
+      () =>
+        HttpResponse.json(
+          { message: 'Erro interno do servidor.' },
+          { status: 500 },
+        ),
+      { once: true },
+    ),
+  );
+
+  renderApp(<DocumentsList scope="trash" />);
+
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent('Não foi possível carregar a lixeira.');
+  expect(
+    within(alert).getByRole('button', { name: 'Tentar novamente' }),
+  ).toHaveClass('bg-red-600');
+
+  await user.click(
+    within(alert).getByRole('button', { name: 'Tentar novamente' }),
+  );
+
+  expect(
+    await screen.findByRole('link', { name: firstTrashed }),
+  ).toBeInTheDocument();
+});
+
+test('trash scope lists in the API order with link and Na lixeira desde with the trashedAt date', async () => {
+  seedSampleDocuments();
+  seedSampleTrash();
+  const expectedOrder = trashedTitlesInApiOrder();
+  const [firstTitle] = expectedOrder;
+  if (firstTitle === undefined) throw new Error('a lixeira simulada está vazia');
+  const seeded = seededDocument(firstTitle);
+
+  renderApp(<DocumentsList scope="trash" />);
+
+  const list = await screen.findByRole('list');
+  expect(
+    within(list)
+      .getAllByRole('link')
+      .map((link) => link.getAttribute('title')),
+  ).toEqual(expectedOrder);
+
+  const link = within(list).getByRole('link', { name: seeded.title });
+  expect(link).toHaveAttribute('href', paths.document.getHref(seeded.id));
+
+  const time = link.closest('li')?.querySelector('time');
+  expect(time).toHaveAttribute('datetime', seeded.trashedAt);
+  expect(time).toHaveTextContent(
+    `Na lixeira desde ${formatDateTime(seeded.trashedAt ?? '')}`,
+  );
+});
+
+test('trash scope shows Restaurar and Apagar definitivamente per item and the other scopes show none', async () => {
+  seedSampleDocuments();
+  seedSampleTrash();
+  const trashedCount = trashedTitlesInApiOrder().length;
+
+  const { unmount } = renderApp(<DocumentsList scope="trash" />);
+
+  const list = await screen.findByRole('list');
+  expect(within(list).getAllByRole('button', { name: 'Restaurar' })).toHaveLength(
+    trashedCount,
+  );
+  expect(
+    within(list).getAllByRole('button', { name: 'Apagar definitivamente' }),
+  ).toHaveLength(trashedCount);
+
+  unmount();
+
+  renderApp(<DocumentsList />);
+
+  await screen.findByRole('link', { name: 'Ata da reunião de diretoria' });
+  expect(
+    screen.queryByRole('button', { name: 'Restaurar' }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: 'Apagar definitivamente' }),
+  ).not.toBeInTheDocument();
+});
+
+test('restoring an item removes it from the trash list', async () => {
+  const user = userEvent.setup();
+  seedSampleDocuments();
+  seedSampleTrash();
+  const [firstTitle] = trashedTitlesInApiOrder();
+  if (firstTitle === undefined) throw new Error('a lixeira simulada está vazia');
+
+  renderApp(<DocumentsList scope="trash" />);
+
+  const link = await screen.findByRole('link', { name: firstTitle });
+  const item = link.closest('li');
+  if (!item) throw new Error('o item da lista não está na tela');
+
+  await user.click(within(item).getByRole('button', { name: 'Restaurar' }));
+
+  await waitFor(() =>
+    expect(
+      screen.queryByRole('link', { name: firstTitle }),
+    ).not.toBeInTheDocument(),
+  );
+});
+
+test('trash scope truncates a 200 character title and keeps it in title', async () => {
+  seedSampleDocuments();
+  const longTitle = 'a'.repeat(200);
+  const seeded = seededDocument(longTitle);
+  seeded.trashedAt = new Date().toISOString();
+
+  renderApp(<DocumentsList scope="trash" />);
 
   const link = await screen.findByRole('link', { name: longTitle });
   expect(link).toHaveAttribute('title', longTitle);
