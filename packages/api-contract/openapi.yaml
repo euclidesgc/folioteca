@@ -22,6 +22,68 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /installation:
+    get:
+      operationId: getInstallation
+      summary: Estado da instalação da instância
+      responses:
+        "200":
+          description: O estado da instalação foi consultado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InstallationStatusResponse"
+    post:
+      operationId: createInstallation
+      summary: Instala a instância e abre a sessão da pessoa administradora
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInstallationBody"
+      responses:
+        "201":
+          description: A instância foi instalada e a sessão foi aberta.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUserResponse"
+        "400":
+          description: Os dados informados são inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "403":
+          description: A instalação foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: A instância já foi instalada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      summary: Pessoa da sessão atual e a organização dela
+      responses:
+        "200":
+          description: A sessão é válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUserResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
   schemas:
     Health:
@@ -43,6 +105,78 @@ components:
           $ref: "#/components/schemas/Health"
       required:
         - data
+    InstallationStatus:
+      type: object
+      properties:
+        installed:
+          type: boolean
+      required:
+        - installed
+    InstallationStatusResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InstallationStatus"
+      required:
+        - data
+    CreateInstallationBody:
+      type: object
+      properties:
+        code:
+          type: string
+        organizationName:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - code
+        - organizationName
+        - name
+        - email
+        - password
+    CurrentUser:
+      type: object
+      properties:
+        person:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            email:
+              type: string
+            isAdmin:
+              type: boolean
+          required:
+            - id
+            - name
+            - email
+            - isAdmin
+        organization:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+          required:
+            - id
+            - name
+      required:
+        - person
+        - organization
+    CurrentUserResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CurrentUser"
+      required:
+        - data
     Error:
       type: object
       properties:
@@ -51,3 +185,23 @@ components:
       required:
         - message
       additionalProperties: true
+    ValidationError:
+      type: object
+      properties:
+        message:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+            required:
+              - field
+              - message
+      required:
+        - message
+        - errors

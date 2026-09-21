@@ -21,6 +21,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/installation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Estado da instalação da instância */
+        get: operations["getInstallation"];
+        put?: never;
+        /** Instala a instância e abre a sessão da pessoa administradora */
+        post: operations["createInstallation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pessoa da sessão atual e a organização dela */
+        get: operations["getCurrentUser"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -34,10 +69,45 @@ export interface components {
         HealthResponse: {
             data: components["schemas"]["Health"];
         };
+        InstallationStatus: {
+            installed: boolean;
+        };
+        InstallationStatusResponse: {
+            data: components["schemas"]["InstallationStatus"];
+        };
+        CreateInstallationBody: {
+            code: string;
+            organizationName: string;
+            name: string;
+            email: string;
+            password: string;
+        };
+        CurrentUser: {
+            person: {
+                id: string;
+                name: string;
+                email: string;
+                isAdmin: boolean;
+            };
+            organization: {
+                id: string;
+                name: string;
+            };
+        };
+        CurrentUserResponse: {
+            data: components["schemas"]["CurrentUser"];
+        };
         Error: {
             message: string;
         } & {
             [key: string]: unknown;
+        };
+        ValidationError: {
+            message: string;
+            errors: {
+                field: string;
+                message: string;
+            }[];
         };
     };
     responses: never;
@@ -68,6 +138,106 @@ export interface operations {
             };
             /** @description O banco de dados está indisponível. */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getInstallation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O estado da instalação foi consultado. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstallationStatusResponse"];
+                };
+            };
+        };
+    };
+    createInstallation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateInstallationBody"];
+            };
+        };
+        responses: {
+            /** @description A instância foi instalada e a sessão foi aberta. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUserResponse"];
+                };
+            };
+            /** @description Os dados informados são inválidos. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"];
+                };
+            };
+            /** @description A instalação foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A instância já foi instalada. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getCurrentUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A sessão é válida. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUserResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

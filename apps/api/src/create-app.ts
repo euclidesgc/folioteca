@@ -1,7 +1,9 @@
 import type { INestApplication } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import cookieParser from 'cookie-parser';
 
 import { AppModule } from './app.module';
+import { HttpExceptionFilter } from './common/http-exception.filter';
 
 /**
  * Módulo já compilado (por exemplo, o `TestingModule` do `@nestjs/testing`),
@@ -18,6 +20,8 @@ export type CreateAppOverrides = {
 /** Aplica ao app a configuração que vale tanto em produção quanto nos testes. */
 export function configureApp(app: INestApplication): INestApplication {
   app.setGlobalPrefix('api');
+  app.use(cookieParser());
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   return app;
 }

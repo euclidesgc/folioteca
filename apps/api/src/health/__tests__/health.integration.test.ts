@@ -66,8 +66,6 @@ test('GET /api/health returns 503 with the unavailable message when the database
     expect(response.status).toBe(503);
     expect(response.body).toEqual({
       message: 'Banco de dados indisponível.',
-      statusCode: 503,
-      error: 'Service Unavailable',
     });
   } finally {
     await app?.close();
