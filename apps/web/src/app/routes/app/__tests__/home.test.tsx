@@ -1,14 +1,20 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
-import { expect, test } from 'vitest';
+import { beforeEach, expect, test } from 'vitest';
 
 import { createRoutes } from '@/app/router';
 import { paths } from '@/config/paths';
 import { queryConfig } from '@/lib/react-query';
+import { seedInstalled } from '@/testing/mocks/db';
 import { renderApp, screen, within } from '@/testing/test-utils';
 
 import { Component as Home } from '../home';
+
+// The whole route tree only opens past the gate once installed and signed in.
+beforeEach(() => {
+  seedInstalled({ signedIn: true });
+});
 
 test('renders Boas-vindas à Folioteca as the only h1 with the support text', () => {
   renderApp(<Home />);

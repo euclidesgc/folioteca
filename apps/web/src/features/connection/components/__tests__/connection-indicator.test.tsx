@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw';
 import { afterEach, expect, test, vi } from 'vitest';
 
+import { useNotifications } from '@/components/ui/notifications/notifications-store';
 import { env } from '@/config/env';
 import { server } from '@/testing/mocks/server';
 import { renderApp, screen, waitFor } from '@/testing/test-utils';
@@ -78,4 +79,18 @@ test('does not render a retry button', async () => {
 
   await screen.findByRole('status');
   expect(screen.queryByRole('button')).not.toBeInTheDocument();
+});
+
+test('a failing health check never adds a notification', async () => {
+  server.use(
+    http.get(`${env.API_URL}/health`, () =>
+      HttpResponse.json({ message: 'Indisponível.' }, { status: 503 }),
+    ),
+  );
+
+  renderApp(<ConnectionIndicator />);
+
+  await screen.findByRole('alert');
+
+  expect(useNotifications.getState().notifications).toHaveLength(0);
 });

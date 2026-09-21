@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 
 import { MainErrorFallback } from '@/components/errors/main-error-fallback';
+import { Notifications } from '@/components/ui/notifications/notifications';
 import { queryConfig } from '@/lib/react-query';
 import { reportError } from '@/lib/report-error';
 
@@ -25,6 +26,7 @@ export function AppProvider({ children }: AppProviderProps): React.JSX.Element {
       }
     >
       <QueryClientProvider client={queryClient}>
+        <Notifications />
         {children}
       </QueryClientProvider>
     </ErrorBoundary>

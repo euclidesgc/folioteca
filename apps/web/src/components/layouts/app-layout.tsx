@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router';
 
+import { Button } from '@/components/ui/button/button';
 import { paths } from '@/config/paths';
 
 const navItems = [
@@ -71,16 +72,15 @@ export function AppLayout({
 
       <div className="flex items-center justify-between gap-4 p-4 md:hidden">
         <span className="font-semibold">Folioteca</span>
-        <button
+        <Button
           ref={menuButtonRef}
-          type="button"
+          variant="secondary"
           aria-expanded={isPanelOpen}
           aria-controls={panelId}
           onClick={() => setIsPanelOpen((current) => !current)}
-          className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
         >
           {isPanelOpen ? 'Fechar menu' : 'Abrir menu'}
-        </button>
+        </Button>
       </div>
 
       <aside className="border-b border-gray-200 bg-gray-50 md:flex md:w-64 md:shrink-0 md:flex-col md:border-b-0 md:border-r">

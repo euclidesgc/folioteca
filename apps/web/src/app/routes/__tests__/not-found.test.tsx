@@ -2,11 +2,17 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
-import { expect, test } from 'vitest';
+import { beforeEach, expect, test } from 'vitest';
 
 import { createRoutes } from '@/app/router';
 import { queryConfig } from '@/lib/react-query';
+import { seedInstalled } from '@/testing/mocks/db';
 import { screen } from '@/testing/test-utils';
+
+// The home page behind the gate needs an installed instance with a session.
+beforeEach(() => {
+  seedInstalled({ signedIn: true });
+});
 
 // The real route tree (root layout + lazy children + catch-all), so we can
 // check that the 404 page renders outside the app layout.

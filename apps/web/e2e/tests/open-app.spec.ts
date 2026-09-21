@@ -12,6 +12,14 @@ async function expectNoSeriousA11yViolations(page: Page): Promise<void> {
   expect(seriousOrCritical, JSON.stringify(seriousOrCritical, null, 2)).toEqual([]);
 }
 
+// These journeys start past the installation gate: the instance is already
+// installed and the browser is signed in.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() =>
+    window.localStorage.setItem('mock-installation', 'signed-in'),
+  );
+});
+
 test('opens the app with the sidebar, the welcome page and the Conectado indicator', async ({
   page,
 }) => {

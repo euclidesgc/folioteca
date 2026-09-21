@@ -3,6 +3,10 @@ export const paths = {
     path: '/',
     getHref: (): string => '/',
   },
+  install: {
+    path: '/install',
+    getHref: (): string => '/install',
+  },
   favorites: {
     path: '/favorites',
     getHref: (): string => '/favorites',

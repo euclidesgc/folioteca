@@ -1,14 +1,39 @@
 import type React from 'react';
-import { Link, Outlet, useRouteError } from 'react-router';
+import { Link, Navigate, Outlet, useRouteError } from 'react-router';
 
+import { SessionRequired } from '@/app/routes/app/session-required';
 import { AppLayout } from '@/components/layouts/app-layout';
+import { SidebarIdentity } from '@/components/layouts/sidebar-identity';
 import { paths } from '@/config/paths';
 import { ConnectionIndicator } from '@/features/connection/components/connection-indicator';
+import { useInstallation } from '@/features/installation/api/get-installation';
+import { useUser } from '@/lib/auth';
 import { reportError } from '@/lib/report-error';
 
 export function Root(): React.JSX.Element {
+  const installation = useInstallation();
+  const user = useUser();
+
+  // The gate above already resolved both queries.
+  if (!installation.data?.data.installed) {
+    return <Navigate to={paths.install.getHref()} replace />;
+  }
+
+  if (!user.data) {
+    return <SessionRequired />;
+  }
+
   return (
-    <AppLayout sidebarFooter={<ConnectionIndicator />}>
+    <AppLayout
+      sidebarFooter={
+        <>
+          <SidebarIdentity />
+          <div className="mt-3">
+            <ConnectionIndicator />
+          </div>
+        </>
+      }
+    >
       <Outlet />
     </AppLayout>
   );

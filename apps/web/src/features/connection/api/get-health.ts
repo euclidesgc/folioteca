@@ -4,7 +4,8 @@ import { api } from '@/lib/api-client';
 import type { QueryConfig } from '@/lib/react-query';
 import type { HealthResponse } from '@/types/api';
 
-export const getHealth = (): Promise<HealthResponse> => api.get('/health');
+export const getHealth = (): Promise<HealthResponse> =>
+  api.get('/health', { silentError: true });
 
 export const getHealthQueryOptions = () =>
   queryOptions({

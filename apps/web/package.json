@@ -13,13 +13,19 @@
   },
   "dependencies": {
     "@folioteca/api-contract": "workspace:*",
+    "@hookform/resolvers": "^5.9.1",
     "@tanstack/react-query": "^5.103.1",
     "axios": "^1.20.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-error-boundary": "^6.1.6",
+    "react-hook-form": "^7.88.0",
     "react-router": "^7.18.4",
-    "zod": "^4.6.5"
+    "tailwind-merge": "^3.7.0",
+    "zod": "^4.6.5",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",

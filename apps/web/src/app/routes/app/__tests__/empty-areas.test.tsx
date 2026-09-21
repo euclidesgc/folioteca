@@ -1,11 +1,17 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
-import { describe, expect, test } from 'vitest';
+import { beforeEach, describe, expect, test } from 'vitest';
 
 import { createRoutes } from '@/app/router';
 import { queryConfig } from '@/lib/react-query';
+import { seedInstalled } from '@/testing/mocks/db';
 import { renderApp, screen } from '@/testing/test-utils';
+
+// The whole route tree only opens past the gate once installed and signed in.
+beforeEach(() => {
+  seedInstalled({ signedIn: true });
+});
 
 import { Component as Favorites } from '../favorites';
 import { Component as MyDocuments } from '../my-documents';

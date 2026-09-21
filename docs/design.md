@@ -19,8 +19,8 @@ Fonte única da aparência. Este arquivo é seu: `/br:init` cria uma vez e nunca
 | Texto de apoio | `mt-2 text-gray-600` |
 | Lista | `<ul className="mt-6 divide-y divide-gray-200">`; item `flex items-center justify-between gap-4 py-3` |
 | Selo de status | `rounded-full px-2 py-0.5 text-sm` + par de cor (`bg-green-100 text-green-800`, `bg-amber-100 text-amber-800`, `bg-gray-100 text-gray-700`) |
-| Botão principal | `rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50` |
-| Botão secundário | `rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600` |
+| Botão principal | `inline-flex h-10 items-center justify-center gap-2 px-4 rounded-md bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50` |
+| Botão secundário | `inline-flex h-10 items-center justify-center gap-2 px-4 rounded-md border border-gray-300 text-sm font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600` |
 | Link de navegação | `font-medium text-blue-600 underline-offset-4 hover:underline` |
 | Carregando | `<p role="status" className="mt-6 text-gray-600">` |
 | Vazio | `<p className="mt-6 rounded-md border border-dashed border-gray-300 p-6 text-center text-gray-600">` |
@@ -36,3 +36,8 @@ Fonte única da aparência. Este arquivo é seu: `/br:init` cria uma vez e nunca
 | Item da barra lateral | `block rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600`; ativo: `bg-gray-200 text-gray-900` | 001 |
 | Link de pular conteúdo | `sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-blue-600 focus:outline-2 focus:outline-blue-600` | 001 |
 | Selo de erro | par `bg-red-100 text-red-800` para a receita "Selo de status" | 001 |
+| Contêiner de página estreita | `<main className="mx-auto max-w-md p-8">` | 002 |
+| Campo de formulário | rótulo `block text-sm font-medium text-gray-900`; campo `mt-1 block h-10 w-full rounded-md border border-gray-300 px-3 text-sm text-gray-900 placeholder:text-gray-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50 aria-[invalid=true]:border-red-500`; dica `mt-1 text-sm text-gray-600`; erro `mt-1 text-sm text-red-700` | 002 |
+| Alerta dentro de formulário | `rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800` | 002 |
+| Notificação | pilha `fixed right-4 top-4 z-50 flex w-[calc(100%-2rem)] max-w-sm flex-col gap-2`; item `rounded-md border bg-white p-4 shadow-lg` + borda por tipo (`border-red-200`, `border-green-200`, `border-amber-200`, `border-gray-200`) | 002 |
+| Identidade na barra lateral | `<dl>` com `dt` só para leitor de tela; organização `text-sm font-medium text-gray-900 truncate`; pessoa `text-sm text-gray-600 truncate`; `mt-3` até o indicador | 002 |

@@ -4,9 +4,37 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterAll, beforeAll, expect, test, vi } from 'vitest';
 
 import { queryConfig } from '@/lib/react-query';
+import { seedInstalled } from '@/testing/mocks/db';
 import { screen } from '@/testing/test-utils';
 
 import { ErrorBoundary, Root } from '../root';
+
+// Root runs below the gate, which has already resolved both queries.
+const renderRoot = (user: {
+  organization: { id: string; name: string };
+  person: { id: string; name: string; email: string; isAdmin: boolean };
+}) => {
+  const queryClient = new QueryClient({ defaultOptions: queryConfig });
+  queryClient.setQueryData(['installation'], { data: { installed: true } });
+  queryClient.setQueryData(['authenticated-user'], user);
+
+  const router = createMemoryRouter(
+    [
+      {
+        path: '/',
+        element: <Root />,
+        children: [{ index: true, element: <p>Conteúdo do início</p> }],
+      },
+    ],
+    { initialEntries: ['/'] },
+  );
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
+};
 
 // A child route that throws so the route ErrorBoundary takes over.
 const ThrowingChild = (): never => {
@@ -54,4 +82,29 @@ test('renders the alert with the three expected texts when a child route throws'
   expect(
     await screen.findByRole('link', { name: 'Voltar para o início' }),
   ).toHaveAttribute('href', '/');
+});
+
+test('renders the identity above the connection indicator in the sidebar footer', async () => {
+  seedInstalled({ signedIn: true });
+
+  renderRoot({
+    organization: { id: 'org-1', name: 'Biblioteca Municipal de Exemplo' },
+    person: {
+      id: 'person-1',
+      name: 'Ana Souza',
+      email: 'ana.souza@exemplo.com.br',
+      isAdmin: true,
+    },
+  });
+
+  const organization = await screen.findByText(
+    'Biblioteca Municipal de Exemplo',
+  );
+  expect(screen.getByText('Ana Souza')).toBeInTheDocument();
+
+  const connection = await screen.findByText('Conectado');
+  expect(
+    organization.compareDocumentPosition(connection) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
 });
