@@ -1,0 +1,94 @@
+name: Verify
+
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+
+# A newer push to the same PR or branch makes the older run pointless.
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Lint, types, tests and build
+    # GitHub-hosted on purpose: the repository is public, and a self-hosted
+    # runner would execute pull request code on the owner's machine.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        # Same image and auth mode as docker-compose.yml.
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: folioteca
+          POSTGRES_DB: folioteca_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U folioteca -d folioteca_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://folioteca@localhost:5433/folioteca_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm lint
+
+      - run: pnpm typecheck
+
+      # The API integration tests apply the migrations themselves (global setup).
+      - run: pnpm test
+
+      - run: pnpm build
+
+  e2e:
+    name: End-to-end journeys
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm --filter web exec playwright install --with-deps chromium
+
+      # Runs against the mocked API (MSW), so it needs no database.
+      - run: pnpm test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && failure() }}
+        with:
+          name: playwright-results
+          path: |
+            apps/web/e2e/test-results
+            apps/web/playwright-report
+          retention-days: 7
+          if-no-files-found: ignore
