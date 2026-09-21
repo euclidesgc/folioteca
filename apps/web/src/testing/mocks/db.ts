@@ -49,6 +49,19 @@ export const resetDb = (): void => {
   state = initialState();
 };
 
+// The collaboration server bumps the document `updatedAt` when it stores the
+// content; the local provider does the same here. Unknown id does nothing.
+export const touchDocumentUpdatedAt = (documentId: string): void => {
+  state = {
+    ...state,
+    documents: state.documents.map((document) =>
+      document.id === documentId
+        ? { ...document, updatedAt: new Date().toISOString() }
+        : document,
+    ),
+  };
+};
+
 // Example installation, matching the shape a real POST /installation creates.
 export const seedInstalled = ({ signedIn }: { signedIn: boolean }): void => {
   seedDb({

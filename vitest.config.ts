@@ -25,6 +25,12 @@ export default defineConfig({
         '**/*.d.ts',
         '**/*.config.{js,ts,mjs,cjs,mts}',
         '**/.{eslint,prettier}rc.{js,cjs,yml}',
+        // BlockNote does not run under jsdom (ProseMirror measures layout):
+        // these three are exercised by the `block-editor.spec.ts` end-to-end
+        // journey instead (decision D11 of SPEC 005).
+        'apps/web/src/features/documents/components/document-editor.tsx',
+        'apps/web/src/features/documents/components/editor-schema.ts',
+        'apps/web/src/features/documents/components/editor-dictionary.ts',
       ],
     },
   },

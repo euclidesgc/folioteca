@@ -1,11 +1,27 @@
 import type React from 'react';
+import { lazy, Suspense } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
 import { Link } from 'react-router';
 
 import { Button } from '@/components/ui/button/button';
 import { paths } from '@/config/paths';
 import { useDocument } from '@/features/documents/api/get-document';
 import { DocumentTitleForm } from '@/features/documents/components/document-title-form';
+import { SaveIndicator } from '@/features/documents/components/save-indicator';
+import { useDocumentCollaboration } from '@/features/documents/hooks/use-document-collaboration';
+import { useUser } from '@/lib/auth';
 import { isNotFoundError } from '@/lib/errors';
+import { reportError } from '@/lib/report-error';
+import type { Document } from '@/types/api';
+
+// The editor is heavy and only this screen uses it: it arrives in its own
+// chunk, after the page is already usable.
+const DocumentEditor = lazy(
+  () => import('@/features/documents/components/document-editor'),
+);
+
+// The colour of this person's collaboration cursor, from the Tailwind palette.
+const USER_COLOR = '#2563eb';
 
 type DocumentViewProps = {
   documentId: string;
@@ -71,7 +87,20 @@ export function DocumentView({
     );
   }
 
-  const document = documentQuery.data.data;
+  // A separate component so the collaboration session is only ever opened for
+  // a document that exists and was loaded.
+  return <LoadedDocument document={documentQuery.data.data} />;
+}
+
+function LoadedDocument({
+  document,
+}: {
+  document: Document;
+}): React.JSX.Element {
+  const user = useUser();
+  const { session, hasSynced, saveStatus } = useDocumentCollaboration(
+    document.id,
+  );
 
   return (
     <main id="main-content" className="mx-auto max-w-2xl p-8">
@@ -81,10 +110,62 @@ export function DocumentView({
 
       <DocumentTitleForm document={document} />
 
-      <p className="mt-6 rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-800">
-        O editor de conteúdo chega em uma próxima entrega. Por enquanto, você
-        pode dar um título ao documento.
-      </p>
+      <SaveIndicator status={saveStatus} />
+
+      <ErrorBoundary
+        FallbackComponent={EditorErrorFallback}
+        onError={(error, info) =>
+          reportError(error, { componentStack: info.componentStack })
+        }
+      >
+        <Suspense fallback={<EditorLoading />}>
+          {/* Mounting only after the first sync keeps an empty document from
+              flashing before the stored content arrives. A later disconnection
+              does not unmount it: the person keeps writing and the indicator
+              is what warns them. */}
+          {session && hasSynced ? (
+            <DocumentEditor
+              fragment={session.fragment}
+              provider={session.provider}
+              user={{
+                name: user.data?.person.name ?? 'Você',
+                color: USER_COLOR,
+              }}
+            />
+          ) : (
+            <EditorLoading />
+          )}
+        </Suspense>
+      </ErrorBoundary>
     </main>
+  );
+}
+
+function EditorLoading(): React.JSX.Element {
+  return (
+    <p role="status" className="mt-6 text-gray-600">
+      Carregando editor…
+    </p>
+  );
+}
+
+function EditorErrorFallback({
+  resetErrorBoundary,
+}: {
+  resetErrorBoundary: () => void;
+}): React.JSX.Element {
+  return (
+    <div
+      role="alert"
+      className="mt-6 rounded-md border border-red-200 bg-red-50 p-4"
+    >
+      <p className="text-red-800">Não foi possível carregar o editor.</p>
+      <Button
+        className="mt-3 bg-red-600 hover:bg-red-700 focus-visible:outline-red-600"
+        onClick={resetErrorBoundary}
+      >
+        Tentar novamente
+      </Button>
+    </div>
   );
 }

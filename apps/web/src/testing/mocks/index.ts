@@ -6,7 +6,8 @@ export const enableMocking = async (): Promise<void> => {
   if (!env.ENABLE_API_MOCKING) return;
 
   const { worker } = await import('./browser');
-  const { seedInstalled, seedSampleDocuments } = await import('./db');
+  const { seedInstalled, seedSampleDocuments, touchDocumentUpdatedAt } =
+    await import('./db');
 
   // Reproduces an installed instance in the browser without touching code.
   // See the `mock-installation` key documented in utils.ts.
@@ -17,6 +18,14 @@ export const enableMocking = async (): Promise<void> => {
   // See the `mock-documents` key documented in utils.ts.
   const documentsKey = window.localStorage.getItem('mock-documents');
   if (documentsKey === 'sample') seedSampleDocuments();
+
+  // The simulated editor writes to the in-memory provider, which has no HTTP
+  // request for MSW to intercept: it reports a save straight to the fake
+  // database, so the document dates move like they do against the real API.
+  const { setLocalStoredListener } = await import(
+    '@/features/documents/utils/local-collaboration-provider'
+  );
+  setLocalStoredListener(touchDocumentUpdatedAt);
 
   await worker.start({ onUnhandledRequest: 'bypass' });
 };

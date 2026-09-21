@@ -3,12 +3,22 @@ import { render } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { beforeEach, expect, test } from 'vitest';
 
+// The sources themselves, not what the bundler made of them: what matters is
+// how the route reaches the editor.
+import documentViewSource from '@/features/documents/components/document-view.tsx?raw';
+
+import documentRouteSource from '../routes/app/document.tsx?raw';
+
 import { queryConfig } from '@/lib/react-query';
 import { seedInstalled } from '@/testing/mocks/db';
 import { SESSION_COOKIE_NAME } from '@/testing/mocks/utils';
 import { screen } from '@/testing/test-utils';
 
 import { AppRouter, createAppRouter, createRoutes } from '../router';
+
+// Lazy routes resolve after their chunk loads: give those waits an explicit
+// budget instead of the implicit default.
+const LAZY_TIMEOUT = { timeout: 5000 };
 
 // The seed above signs the person in; these cases start signed out.
 const signOut = (): void => {
@@ -40,10 +50,11 @@ test('AppRouter renders the home page at the default location', async () => {
   );
 
   expect(
-    await screen.findByRole('heading', {
-      level: 1,
-      name: 'Boas-vindas à Folioteca',
-    }),
+    await screen.findByRole(
+      'heading',
+      { level: 1, name: 'Boas-vindas à Folioteca' },
+      LAZY_TIMEOUT,
+    ),
   ).toBeInTheDocument();
 });
 
@@ -61,7 +72,11 @@ test('/favorites without a session ends at /login?redirectTo=%2Ffavorites', asyn
   );
 
   expect(
-    await screen.findByRole('heading', { level: 1, name: 'Entrar' }),
+    await screen.findByRole(
+      'heading',
+      { level: 1, name: 'Entrar' },
+      LAZY_TIMEOUT,
+    ),
   ).toBeInTheDocument();
   expect(router.state.location.pathname).toBe('/login');
   expect(router.state.location.search).toBe('?redirectTo=%2Ffavorites');
@@ -78,6 +93,25 @@ test('registers /documents/:documentId inside the layout route', () => {
     (route) => route.path === 'documents/:documentId',
   );
   expect(documentRoute?.lazy).toBeTypeOf('function');
+});
+
+test('the document route does not import the editor statically', () => {
+  const sources = [documentRouteSource, documentViewSource];
+  const valueImports = sources.flatMap((source) =>
+    [...source.matchAll(/^import\s+(?!type\b)[^;]*?from\s+'([^']+)';/gm)].map(
+      (match) => match[1] ?? '',
+    ),
+  );
+
+  expect(
+    valueImports.filter((specifier) =>
+      /^(@blocknote|@hocuspocus|yjs|y-)/.test(specifier),
+    ),
+  ).toEqual([]);
+
+  // The editor arrives through the lazy boundary instead.
+  expect(documentViewSource).toMatch(/lazy\(\s*\(\)\s*=>\s*import\(/);
+  expect(documentViewSource).toContain('document-editor');
 });
 
 test('registers /login outside the layout route', () => {

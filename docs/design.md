@@ -45,3 +45,5 @@ Fonte única da aparência. Este arquivo é seu: `/br:init` cria uma vez e nunca
 | Data em lista | `<time className="shrink-0 text-sm text-gray-600">` | 004 |
 | Título editável | rótulo da receita "Campo de formulário"; campo com `h-12 text-2xl font-bold` no lugar de `h-10 text-sm` | 004 |
 | Aviso informativo | `<p className="mt-6 rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-800">` | 004 |
+| Indicador de salvamento | `<p role="status" className="mt-2 text-sm text-gray-600">`; no estado sem conexão, `text-amber-800` no lugar de `text-gray-600` | 005 |
+| Área do editor | `<section aria-label="Conteúdo do documento" className="mt-6 min-w-0 [&_.bn-editor]:px-0">` com a view do BlockNote em tema claro (`theme="light"`), sem sobrescrever cor nem fonte; a classe de compensação do recuo lateral é `[&_.bn-editor]:px-0`, que zera o recuo interno do editor para o texto alinhar com o campo do título | 005 |
