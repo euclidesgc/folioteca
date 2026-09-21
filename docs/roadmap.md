@@ -9,9 +9,11 @@
 | 005 | block-editor | escrever no documento com editor de blocos, com salvamento colaborativo automático | pedido inicial | 004 | in-review |
 | 006 | favorites | marcar documentos como favoritos e achá-los na barra lateral | pedido inicial | 004 | in-review |
 | 007 | trash | mandar documento para a lixeira, restaurar ou apagar de vez (só o proprietário) | pedido inicial | 004 | in-review |
-| 008 | org-units-tree | (administração) montar a árvore de unidades organizacionais a partir da raiz | pedido inicial | 003 | planned |
+| 064 | org-units-view | (administração) ver a árvore de unidades da organização numa página "Estrutura", navegável por teclado, numa área "Administração" que só a administração enxerga | 008 org-units-tree | 003 | in-progress |
+| 065 | org-units-create-rename | (administração) criar unidades filhas e renomear unidades, inclusive a raiz (que renomeia a organização) | 008 org-units-tree | 064 | planned |
+| 066 | org-units-delete | (administração) apagar unidade sem filhas, com confirmação; a raiz nunca | 008 org-units-tree | 065 | planned |
 | 009 | invitations | (administração) convidar pessoas por e-mail, e o convidado criar a conta pelo link | pedido inicial | 003 | planned |
-| 010 | unit-assignments | (administração) lotar pessoas em uma ou mais unidades e removê-las | pedido inicial | 008, 009 | planned |
+| 010 | unit-assignments | (administração) lotar pessoas em uma ou mais unidades e removê-las | pedido inicial | 066, 009 | planned |
 | 011 | admin-roles | (administração) promover e rebaixar administradores, nunca ficando sem nenhum | pedido inicial | 009 | planned |
 | 012 | unit-spaces | ver o espaço espelhado de cada unidade em que está lotado, com os membros diretos | pedido inicial | 010 | planned |
 | 013 | free-spaces | criar espaço livre e convidar pessoas da instância | pedido inicial | 009 | planned |
