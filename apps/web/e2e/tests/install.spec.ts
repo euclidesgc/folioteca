@@ -103,7 +103,7 @@ test('an installed instance shows the already installed notice on /install', asy
   await expectNoSeriousA11yViolations(page);
 });
 
-test('an installed instance without session shows the login notice on /', async ({
+test('an installed instance without session lands on the login page', async ({
   page,
 }) => {
   await page.addInitScript(() =>
@@ -111,7 +111,8 @@ test('an installed instance without session shows the login notice on /', async 
   );
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: 'Acesso por login em breve', level: 1 })).toBeVisible();
+  await expect(page).toHaveURL(/\/login(\?|$)/);
+  await expect(page.getByRole('heading', { name: 'Entrar', level: 1 })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Navegação principal' })).toHaveCount(0);
 
   await expectNoSeriousA11yViolations(page);

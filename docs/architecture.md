@@ -99,6 +99,25 @@ campos do corpo → hash da senha → transação de criação. "Só uma instala
 garantido no banco por `UNIQUE` + `CHECK` em `Organization.singleton`, não só
 pela checagem da API.
 
+`POST /auth/login` responde `200` com o mesmo corpo de `GET /auth/me`;
+`POST /auth/logout` responde `204`, é idempotente e não exige sessão. A ordem
+das checagens do login é: cabeçalho `X-Requested-With` → campos do corpo →
+busca da pessoa → verificação da senha → `401` → revoga a sessão anterior
+(se houver cookie) → cria a nova sessão. E-mail inexistente e senha errada
+devolvem o mesmo `401` "E-mail ou senha incorretos.", com **uma** verificação
+argon2 nos dois casos: quando a pessoa não existe, a verificação roda contra
+um hash falso gerado uma única vez na subida do processo (nunca um literal no
+código), para não expor por tempo de resposta se o e-mail existe. O login não
+aplica a política de tamanho mínimo de senha da instalação.
+
+Na web, todo fim de sessão é carga completa da página (`hardRedirect`, nunca
+navegação do roteador): usada pelo botão "Sair" e pelo interceptor de `401`
+global fora de `/auth/*` e fora de `/login`. O parâmetro `redirectTo` só
+aceita caminho interno; qualquer URL absoluta, esquema ou variação de barra
+cai no destino padrão. Limite conhecido: uma sessão revogada em outra aba só
+é percebida na próxima carga de página ou na primeira chamada a um endpoint
+protegido, não em tempo real.
+
 ## 7. Testes
 
 Vitest em tudo. Na API, integração contra Postgres real (`docker compose`,

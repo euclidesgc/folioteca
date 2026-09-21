@@ -179,13 +179,13 @@ Caminhos relativos a `apps/web/`, salvo os que começam por `docs/` ou estão ma
 
 ## Fase 3 — Jornada "entrar e sair" provada de ponta a ponta e documentada
 
-- [ ] T3.1 — Documentação da autenticação na arquitetura
+- [x] T3.1 — Documentação da autenticação na arquitetura
   - Arquivos: `docs/architecture.md` (alterar)
   - O que fazer, em pt_BR, só na §6, sem reescrever o resto: `POST /auth/login` (200 com o corpo de `/auth/me`) e `POST /auth/logout` (204, idempotente, sem exigir sessão); 401 único "E-mail ou senha incorretos." para e-mail inexistente e senha errada, com **uma** verificação argon2 nos dois casos graças ao hash falso gerado na subida (nunca um literal); ordem das checagens do login (cabeçalho `X-Requested-With` → campos → pessoa → verificação → 401 → revoga a sessão anterior → cria a sessão); o login não aplica a política de tamanho mínimo da senha; na web, fim de sessão é sempre carga completa da página (`hardRedirect`), usada pelo "Sair" e pelo 401 global fora de `/auth/*` e fora de `/login`; `redirectTo` só aceita caminho interno; limite conhecido: sessão revogada em outra aba só é percebida na próxima carga ou na primeira chamada protegida.
   - Skills: —
   - Complexidade: baixa
 
-- [ ] T3.2 — Testes da fase 3 (e2e da jornada "entrar e sair")
+- [x] T3.2 — Testes da fase 3 (e2e da jornada "entrar e sair")
   - Arquivos: `apps/web/e2e/mock-credentials.ts` (criar); `apps/web/e2e/tests/login-logout.spec.ts` (criar); `apps/web/e2e/tests/install.spec.ts` (alterar)
   - O que fazer: localizar tudo por papel e texto em pt_BR; acessibilidade pelo helper existente `apps/web/e2e/a11y.ts`. Estado inicial por `page.addInitScript` gravando `mock-installation` no `localStorage`. A jornada entrar→sair usa `installed` (a chave `signed-in` recria o cookie a cada carga e desfaria o logout).
     - `mock-credentials.ts`: exporta `MOCK_EMAIL` (`ana.souza@exemplo.com.br`, o e-mail do seed) e `MOCK_PASSWORD`, montada pelo mesmo `join` de `src/testing/mocks/utils.ts` (o e2e é outro projeto TypeScript, como `mock-install-code.ts`). O arquivo é coberto pelo `tsc -b` da raiz e pelo lint por estar em `apps/web/e2e/`.
@@ -203,14 +203,14 @@ Caminhos relativos a `apps/web/`, salvo os que começam por `docs/` ou estão ma
 
 ### Critérios de aceite da fase 3
 
-- [ ] CA3.1 — `pnpm test:e2e` na raiz passa (o Playwright sobe o próprio servidor; não precisa de API nem de Postgres), e continuam passando **sem erro nem aviso** `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build`.
-- [ ] CA3.2 — `apps/web/e2e/tests/login-logout.spec.ts` contém, pelos nomes, os seis casos de T3.2, e `pnpm --filter web exec playwright test --list` os lista junto com os seis de `install.spec.ts` e os cinco de `open-app.spec.ts`. O arquivo chama a verificação do axe nas três paradas da tela de entrar (vazia, com erros de validação, com o alerta de credencial). Não há `test.skip`, `test.only` nem `disableRules`.
-- [ ] CA3.3 — O caso da jornada completa entra com o e-mail em maiúsculas, confere a URL `/favorites` e os dois nomes na barra lateral, clica "Sair", confere `/login` e prova que abrir `/` depois do logout continua em `/login`. A jornada usa `mock-installation=installed`, não `signed-in`.
-- [ ] CA3.4 — `apps/web/e2e/mock-credentials.ts` exporta `MOCK_EMAIL` e `MOCK_PASSWORD`, esta montada por `join`, com o mesmo valor em tempo de execução que `MOCK_PASSWORD` de `apps/web/src/testing/mocks/utils.ts`. Nenhuma senha literal em `apps/web/e2e/**`.
-- [ ] CA3.5 — Em `apps/web/e2e/tests/install.spec.ts` o caso do aviso de login foi trocado por `an installed instance without session lands on the login page`, e os outros cinco casos mantêm os nomes. `git diff develop... -- apps/web/e2e/tests/open-app.spec.ts` é vazio. `rg -n "Acesso por login em breve" apps docs/architecture.md docs/design.md` é vazio.
-- [ ] CA3.6 — Os arquivos de `apps/web/e2e/**` passam no `pnpm lint` e no `pnpm typecheck` e não são coletados pelo Vitest (`npx vitest run --project web` não lista nenhum `.spec.ts`).
-- [ ] CA3.7 — `docs/architecture.md` §6 registra: os dois endpoints com seus status (200 e 204 idempotente); o 401 único "E-mail ou senha incorretos." com o hash falso gerado na subida; a ordem das checagens do login, incluindo a revogação da sessão anterior; o fim de sessão por carga completa da página; a regra do `redirectTo` interno; e o limite conhecido da sessão revogada em outra aba.
-- [ ] CA3.8 — A fatia está utilizável de ponta a ponta: com `docker compose up -d` e `pnpm dev`, quem não tem sessão é levado a "Entrar", entra com e-mail e senha, chega ao endereço pedido e sai pelo "Sair" — comprovado, sem navegador aberto por pessoa, pela soma de CA1.8 (API real), CA2.12 (web com a API simulada pelo mesmo contrato tipado) e CA3.1.
+- [x] CA3.1 — `pnpm test:e2e` na raiz passa (o Playwright sobe o próprio servidor; não precisa de API nem de Postgres), e continuam passando **sem erro nem aviso** `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build`.
+- [x] CA3.2 — `apps/web/e2e/tests/login-logout.spec.ts` contém, pelos nomes, os seis casos de T3.2, e `pnpm --filter web exec playwright test --list` os lista junto com os seis de `install.spec.ts` e os cinco de `open-app.spec.ts`. O arquivo chama a verificação do axe nas três paradas da tela de entrar (vazia, com erros de validação, com o alerta de credencial). Não há `test.skip`, `test.only` nem `disableRules`.
+- [x] CA3.3 — O caso da jornada completa entra com o e-mail em maiúsculas, confere a URL `/favorites` e os dois nomes na barra lateral, clica "Sair", confere `/login` e prova que abrir `/` depois do logout continua em `/login`. A jornada usa `mock-installation=installed`, não `signed-in`.
+- [x] CA3.4 — `apps/web/e2e/mock-credentials.ts` exporta `MOCK_EMAIL` e `MOCK_PASSWORD`, esta montada por `join`, com o mesmo valor em tempo de execução que `MOCK_PASSWORD` de `apps/web/src/testing/mocks/utils.ts`. Nenhuma senha literal em `apps/web/e2e/**`.
+- [x] CA3.5 — Em `apps/web/e2e/tests/install.spec.ts` o caso do aviso de login foi trocado por `an installed instance without session lands on the login page`, e os outros cinco casos mantêm os nomes. `git diff develop... -- apps/web/e2e/tests/open-app.spec.ts` é vazio. `rg -n "Acesso por login em breve" apps docs/architecture.md docs/design.md` é vazio.
+- [x] CA3.6 — Os arquivos de `apps/web/e2e/**` passam no `pnpm lint` e no `pnpm typecheck` e não são coletados pelo Vitest (`npx vitest run --project web` não lista nenhum `.spec.ts`).
+- [x] CA3.7 — `docs/architecture.md` §6 registra: os dois endpoints com seus status (200 e 204 idempotente); o 401 único "E-mail ou senha incorretos." com o hash falso gerado na subida; a ordem das checagens do login, incluindo a revogação da sessão anterior; o fim de sessão por carga completa da página; a regra do `redirectTo` interno; e o limite conhecido da sessão revogada em outra aba.
+- [x] CA3.8 — A fatia está utilizável de ponta a ponta: com `docker compose up -d` e `pnpm dev`, quem não tem sessão é levado a "Entrar", entra com e-mail e senha, chega ao endereço pedido e sai pelo "Sair" — comprovado, sem navegador aberto por pessoa, pela soma de CA1.8 (API real), CA2.12 (web com a API simulada pelo mesmo contrato tipado) e CA3.1.
 
 ## DoD da entrega
 
