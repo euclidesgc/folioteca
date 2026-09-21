@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: folioteca-postgres
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5433:5432"
+    environment:
+      POSTGRES_USER: folioteca
+      POSTGRES_DB: folioteca
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - folioteca-postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U folioteca -d folioteca"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  folioteca-postgres-data:

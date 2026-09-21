@@ -1,0 +1,139 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+/// A organização é única na instância: `singleton` só aceita `true` e é único.
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  singleton Boolean  @unique @default(true)
+  createdAt DateTime @default(now())
+
+  orgUnits OrgUnit[]
+  people   Person[]
+}
+
+/// Unidade organizacional; a raiz tem `parentId` nulo.
+///
+/// Two unique indexes guard this table and Prisma cannot express either of
+/// them, so they live only in the handwritten migration `0007`:
+/// `OrgUnit_single_root_key` keeps a single root per database (partial index
+/// over `("parentId" IS NULL)`), and `OrgUnit_parentId_lower_name_key` keeps
+/// sibling names unique regardless of letter case (expression index over
+/// `lower("name")`). Because they are invisible to this schema, `migrate
+/// diff` would report a false "drift" and must never be run here.
+model OrgUnit {
+  id             String   @id @default(uuid())
+  organizationId String
+  parentId       String?
+  name           String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  parent       OrgUnit?     @relation("OrgUnitToParent", fields: [parentId], references: [id])
+  children     OrgUnit[]    @relation("OrgUnitToParent")
+  space        Space?
+
+  @@index([parentId])
+}
+
+model Person {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  email          String   @unique
+  passwordHash   String
+  isAdmin        Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  organization      Organization @relation(fields: [organizationId], references: [id])
+  space             Space?
+  sessions          Session[]
+  authoredDocuments Document[]   @relation("DocumentAuthor")
+  ownedDocuments    Document[]   @relation("DocumentOwner")
+  favorites         Favorite[]
+}
+
+enum SpaceType {
+  PERSONAL
+  UNIT
+  FREE
+}
+
+/// Espaço de documentos: pessoal, de unidade ou livre.
+model Space {
+  id        String    @id @default(uuid())
+  type      SpaceType
+  personId  String?   @unique
+  orgUnitId String?   @unique
+  createdAt DateTime  @default(now())
+
+  person    Person?    @relation(fields: [personId], references: [id])
+  orgUnit   OrgUnit?   @relation(fields: [orgUnitId], references: [id])
+  documents Document[]
+}
+
+/// Documento de um espaço: quem escreveu (`authorId`) e quem é dono (`ownerId`).
+/// `trashedAt` nulo significa fora da lixeira. Consequência aceita: mover para
+/// a lixeira e restaurar avançam o `updatedAt`, porque ele é `@updatedAt`.
+model Document {
+  id        String    @id @default(uuid())
+  title     String
+  spaceId   String
+  authorId  String
+  ownerId   String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  trashedAt DateTime?
+
+  content   DocumentContent?
+  favorites Favorite[]
+  space     Space            @relation(fields: [spaceId], references: [id], onDelete: Restrict)
+  author    Person           @relation("DocumentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  owner     Person           @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+
+  @@index([ownerId, updatedAt(sort: Desc)])
+  @@index([ownerId, trashedAt(sort: Desc)])
+  @@index([spaceId])
+}
+
+/// Marcação pessoal de documento. Não dá acesso: só marca o que já é legível.
+model Favorite {
+  personId   String
+  documentId String
+  createdAt  DateTime @default(now())
+
+  person   Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@id([personId, documentId])
+  @@index([personId, createdAt(sort: Desc)])
+  @@index([documentId])
+}
+
+/// Estado Yjs consolidado do documento, fora do modelo lido pelas listas.
+model DocumentContent {
+  documentId String   @id
+  state      Bytes
+  updatedAt  DateTime @updatedAt
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}
+
+/// Sessão opaca: só o sha256 do token é guardado.
+model Session {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  personId  String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([personId])
+}

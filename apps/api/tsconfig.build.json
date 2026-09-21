@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "declarationDir": null,
+    "outDir": "./dist",
+    "tsBuildInfoFile": null
+  },
+  "exclude": ["**/__tests__/**", "test", "**/*.test.ts", "vitest.config.mts"]
+}
