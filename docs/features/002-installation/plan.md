@@ -248,7 +248,7 @@ Caminhos relativos a `apps/web/`, salvo os que começam por `docs/` ou estão ma
 
 ## Fase 3 — Jornada "instalar a instância" provada de ponta a ponta e documentada
 
-- [ ] T3.1 — Documentação: arquitetura e README com as decisões da instalação
+- [x] T3.1 — Documentação: arquitetura e README com as decisões da instalação
   - Arquivos: `docs/architecture.md` (alterar); `README.md` (alterar)
   - O que fazer, em pt_BR, sem reescrever o resto:
     - `architecture.md` §2 (contrato): todo erro da API sai como `{ message }` em pt_BR, por um filtro global; validação responde 400 `{ message: "Dados inválidos.", errors: [{ field, message }] }`; validação feita com Zod (sem `class-validator`). §6 (autenticação): sessão opaca no cookie `folioteca_session` (`httpOnly`, `SameSite=Lax`, `Secure` em produção, 30 dias); o banco guarda só o `sha256` do token; senha com argon2id (`@node-rs/argon2`); defesa de CSRF por `X-Requested-With` como guard global; `INSTALL_CODE` opcional (mínimo de 16 caracteres; ausente bloqueia a instalação sem derrubar a API), comparado em tempo constante; ordem das checagens do `POST /installation` (cabeçalho → já instalada → código → campos → hash → transação); "só uma instalação" garantido por `UNIQUE` + `CHECK` em `Organization.singleton`.
@@ -256,7 +256,7 @@ Caminhos relativos a `apps/web/`, salvo os que começam por `docs/` ou estão ma
   - Skills: —
   - Complexidade: baixa
 
-- [ ] T3.2 — Testes da fase 3 (e2e da jornada "instalar a instância")
+- [x] T3.2 — Testes da fase 3 (e2e da jornada "instalar a instância")
   - Arquivos: `apps/web/e2e/tests/install.spec.ts` (criar); `apps/web/e2e/tests/open-app.spec.ts` (alterar)
   - O que fazer: localizar tudo por papel e texto em pt_BR. Mesmo helper de acessibilidade do `open-app.spec.ts` (`AxeBuilder`, tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, reprova impacto `critical` ou `serious`); se for compartilhado, vai para um arquivo em `apps/web/e2e/` coberto pelo lint e pelos tipos. Senha gerada em tempo de execução (`crypto.randomUUID()`); código válido importado de `MOCK_INSTALL_CODE`. Estado inicial por `page.addInitScript` gravando `mock-installation` no `localStorage`; sem projeto `setup`, sem `storageState`, sem recarregar a página depois de instalar (o banco simulado vive na memória da página).
     - `install.spec.ts`:
@@ -272,13 +272,13 @@ Caminhos relativos a `apps/web/`, salvo os que começam por `docs/` ou estão ma
 
 ### Critérios de aceite da fase 3
 
-- [ ] CA3.1 — `pnpm test:e2e` na raiz passa (o Playwright sobe o próprio servidor; não precisa de API nem de Postgres), e continuam passando **sem erro nem aviso** `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build`.
-- [ ] CA3.2 — `apps/web/e2e/tests/install.spec.ts` contém, pelos nomes, os seis casos de T3.2, e `pnpm --filter web exec playwright test --list` os lista junto com os cinco de `open-app.spec.ts`. O arquivo chama a verificação do axe em cada uma das seis paradas, com as tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, reprovando impacto `critical` ou `serious`. Não há `test.skip`, `test.only` nem `disableRules`.
-- [ ] CA3.3 — Nenhuma senha nem código literal nos arquivos de e2e: a senha vem de `crypto.randomUUID()` e o código de `MOCK_INSTALL_CODE`. O caso de instalação válida não recarrega a página (`rg -n "reload\(" apps/web/e2e` vazio) e confere a URL `/` e os dois nomes na barra lateral. `apps/web/playwright.config.ts` continua sem projeto `setup` e sem `storageState`.
-- [ ] CA3.4 — `apps/web/e2e/tests/open-app.spec.ts` tem um `beforeEach` que grava `mock-installation` = `signed-in` antes de a página carregar, e seus cinco casos mantêm os nomes originais.
-- [ ] CA3.5 — Os arquivos de `apps/web/e2e/**` passam no `pnpm lint` e no `pnpm typecheck` e não são coletados pelo Vitest (`npx vitest run --project web` não lista nenhum `.spec.ts`).
-- [ ] CA3.6 — `docs/architecture.md` registra, na §2, o formato `{ message }` e o 400 com `errors[{ field, message }]`; na §6, o cookie `folioteca_session` (`httpOnly`, `SameSite=Lax`, 30 dias), o `sha256` do token no banco, argon2id, o cabeçalho `X-Requested-With`, `INSTALL_CODE` opcional com mínimo de 16 caracteres e a ordem das checagens do `POST /installation`. O `README.md` explica `INSTALL_CODE` (sem valor de exemplo) e a chave `mock-installation` com os valores `installed` e `signed-in`.
-- [ ] CA3.7 — A fatia está utilizável de ponta a ponta: com `docker compose up -d`, `INSTALL_CODE` definido em `apps/api/.env` e `pnpm dev`, abrir a web numa instância vazia leva à instalação, e instalar leva ao início com sessão aberta — comprovado, sem navegador aberto por pessoa, pela soma de CA1.12 (API real, inclusive a corrida), CA2.15 (web com API simulada pelo mesmo contrato tipado) e CA3.1.
+- [x] CA3.1 — `pnpm test:e2e` na raiz passa (o Playwright sobe o próprio servidor; não precisa de API nem de Postgres), e continuam passando **sem erro nem aviso** `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build`.
+- [x] CA3.2 — `apps/web/e2e/tests/install.spec.ts` contém, pelos nomes, os seis casos de T3.2, e `pnpm --filter web exec playwright test --list` os lista junto com os cinco de `open-app.spec.ts`. O arquivo chama a verificação do axe em cada uma das seis paradas, com as tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, reprovando impacto `critical` ou `serious`. Não há `test.skip`, `test.only` nem `disableRules`.
+- [x] CA3.3 — Nenhuma senha nem código literal nos arquivos de e2e: a senha vem de `crypto.randomUUID()` e o código de `MOCK_INSTALL_CODE`. O caso de instalação válida não recarrega a página (`rg -n "reload\(" apps/web/e2e` vazio) e confere a URL `/` e os dois nomes na barra lateral. `apps/web/playwright.config.ts` continua sem projeto `setup` e sem `storageState`.
+- [x] CA3.4 — `apps/web/e2e/tests/open-app.spec.ts` tem um `beforeEach` que grava `mock-installation` = `signed-in` antes de a página carregar, e seus cinco casos mantêm os nomes originais.
+- [x] CA3.5 — Os arquivos de `apps/web/e2e/**` passam no `pnpm lint` e no `pnpm typecheck` e não são coletados pelo Vitest (`npx vitest run --project web` não lista nenhum `.spec.ts`).
+- [x] CA3.6 — `docs/architecture.md` registra, na §2, o formato `{ message }` e o 400 com `errors[{ field, message }]`; na §6, o cookie `folioteca_session` (`httpOnly`, `SameSite=Lax`, 30 dias), o `sha256` do token no banco, argon2id, o cabeçalho `X-Requested-With`, `INSTALL_CODE` opcional com mínimo de 16 caracteres e a ordem das checagens do `POST /installation`. O `README.md` explica `INSTALL_CODE` (sem valor de exemplo) e a chave `mock-installation` com os valores `installed` e `signed-in`.
+- [x] CA3.7 — A fatia está utilizável de ponta a ponta: com `docker compose up -d`, `INSTALL_CODE` definido em `apps/api/.env` e `pnpm dev`, abrir a web numa instância vazia leva à instalação, e instalar leva ao início com sessão aberta — comprovado, sem navegador aberto por pessoa, pela soma de CA1.12 (API real, inclusive a corrida), CA2.15 (web com API simulada pelo mesmo contrato tipado) e CA3.1.
 
 ## DoD da entrega
 

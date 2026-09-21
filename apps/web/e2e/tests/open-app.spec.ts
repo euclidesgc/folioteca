@@ -1,16 +1,6 @@
-import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
-const a11yTags = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
-
-async function expectNoSeriousA11yViolations(page: Page): Promise<void> {
-  const results = await new AxeBuilder({ page }).withTags(a11yTags).analyze();
-  const seriousOrCritical = results.violations.filter(
-    (violation) => violation.impact === 'critical' || violation.impact === 'serious',
-  );
-
-  expect(seriousOrCritical, JSON.stringify(seriousOrCritical, null, 2)).toEqual([]);
-}
+import { expectNoSeriousA11yViolations } from '../a11y';
 
 // These journeys start past the installation gate: the instance is already
 // installed and the browser is signed in.

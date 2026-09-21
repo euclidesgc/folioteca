@@ -22,6 +22,28 @@ pnpm --filter web exec playwright install chromium  # navegador dos testes e2e
 Copie o `.env.example` de cada app para `.env` antes de rodar. Nenhum segredo
 vai para variável `VITE_*`: tudo o que começa com `VITE_` é público.
 
+### Instalar a instância localmente
+
+Uma instância nova (sem organização criada ainda) exige um código de
+instalação. Defina `INSTALL_CODE` em `apps/api/.env` com pelo menos 16
+caracteres antes de rodar `pnpm dev`. Sem essa variável, a instalação fica
+bloqueada (a API continua no ar). Com a API e a web no ar, abra
+`http://localhost:5173`: sem instância instalada, o app leva direto para
+`/install`, onde o código entra no formulário.
+
+### Simular a API na web (desenvolvimento e e2e)
+
+Com `VITE_APP_ENABLE_API_MOCKING=true`, a web fala com uma API simulada por
+MSW no navegador, sem precisar da API real nem do Postgres. Os cenários de
+instalação são controlados pela chave `mock-installation` do `localStorage`:
+
+- ausente: instância não instalada, cai em `/install`;
+- `installed`: instância instalada, sem sessão (tela de entrada/login);
+- `signed-in`: instância instalada, sessão já aberta.
+
+Essa chave convive com `mock-error` (simula erro de resposta) e `mock-delay`
+(simula latência).
+
 ## Comandos de verificação
 
 Todos rodam na raiz:

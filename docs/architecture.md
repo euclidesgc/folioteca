@@ -24,6 +24,11 @@ adapter; migrar para o Prisma 7 é tarefa isolada. O NestJS é compilado com SWC
 no dev, no build e no Vitest — o esbuild não emite `design:paramtypes`, que os
 decorators do Nest (injeção de dependência) exigem.
 
+`apps/api/tsconfig.build.json` estende o `tsconfig.json` só para o `build`,
+com `outDir: ./dist` próprio: separa a saída do build do
+`tsBuildInfoFile` que o `tsc -b` da raiz usa para o cache de typecheck, para
+um build não invalidar o cache do outro.
+
 ## 2. Contrato primeiro
 
 Mudança de API começa em `packages/api-contract/openapi.yaml`. Os tipos da web
@@ -33,6 +38,10 @@ contra o contrato.
 
 - Alternativa: gerar o OpenAPI a partir dos decorators do NestJS. Custa menos
   digitação, mas o contrato passa a ser consequência do código, e não o começo.
+
+Todo erro da API sai como `{ message }` em pt_BR, por um filtro global; erro
+de validação responde 400 com `{ message: "Dados inválidos.", errors: [{
+field, message }] }`. A validação é feita com Zod (sem `class-validator`).
 
 ## 3. Decisão de acesso: caminho único
 
@@ -76,10 +85,19 @@ conexão; quem perde o acesso tem a conexão derrubada. O estado Yjs fica em
 
 ## 6. Autenticação
 
-Sessão opaca em cookie `httpOnly`, `SameSite=Lax`, `Secure` em produção; tabela
-`Session` no Postgres (apagar a linha revoga na hora). Senha com argon2id.
-Mutação exige cabeçalho `X-Requested-With` (defesa de CSRF). O código de
-instalação vem da variável `INSTALL_CODE` do servidor.
+Sessão opaca no cookie `folioteca_session` (`httpOnly`, `SameSite=Lax`,
+`Secure` em produção, validade de 30 dias); tabela `Session` no Postgres guarda
+só o `sha256` do token (apagar a linha revoga na hora). Senha com argon2id
+(`@node-rs/argon2`). Mutação exige cabeçalho `X-Requested-With` (defesa de
+CSRF), por um guard global.
+
+`INSTALL_CODE` é opcional na variável de ambiente do servidor, com mínimo de
+16 caracteres; ausente bloqueia a instalação sem derrubar a API. É comparado
+em tempo constante. A ordem das checagens do `POST /installation` é:
+cabeçalho `X-Requested-With` → instância já instalada → código de instalação →
+campos do corpo → hash da senha → transação de criação. "Só uma instalação" é
+garantido no banco por `UNIQUE` + `CHECK` em `Organization.singleton`, não só
+pela checagem da API.
 
 ## 7. Testes
 
@@ -87,6 +105,11 @@ Vitest em tudo. Na API, integração contra Postgres real (`docker compose`,
 banco `folioteca_test` na porta 5433), com o esquema aplicado por
 `prisma migrate deploy`. Na web, Testing Library + MSW; Playwright para as
 jornadas críticas, com axe (violação crítica ou séria reprova).
+
+A API simulada por MSW guarda o estado da sessão em `document.cookie`
+(mesmo nome de cookie que a API real, `folioteca_session`), não em memória à
+parte: assim o mesmo código da web lê a sessão do jeito real nos testes e no
+navegador.
 
 O e2e roda na porta 5174, contra a API simulada por MSW (`VITE_APP_ENABLE_API_MOCKING=true`),
 sem subir a API nem o Postgres. A API real é provada pelos testes de
