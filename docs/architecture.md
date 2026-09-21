@@ -113,6 +113,25 @@ só `documents/favorites.service.ts` toca a tabela `Favorite`, que toda
 leitura passa por `readableDocumentsWhere`, que `findUnique` é proibido ali e
 que `resolveAccess` é obrigatório.
 
+**Entrega `trash` (fatia 007).** A lixeira é a coluna `Document.trashedAt`.
+Há **duas portas de lista**: `readableDocumentsWhere` exclui a lixeira (toda
+lista existente e futura) e `trashedDocumentsWhere` é a única leitura que a
+enxerga, só do proprietário. Uma terceira pergunta, `canWrite`, responde "pode
+editar **e** não está na lixeira" e é usada por renomear e pela colaboração.
+Mover para a lixeira, restaurar e apagar em definitivo começam todos por
+`resolveAccess` e respondem o mesmo 404 único "Documento não encontrado." a
+quem não é proprietário. `POST …/trash` e `POST …/restore` são idempotentes
+(repetir não renova a data) e devolvem o documento. `PATCH` num documento na
+lixeira responde `409`, antes de validar o corpo. `DELETE` fora da lixeira
+responde `409`; na lixeira responde `204`, com `DocumentContent` e `Favorite`
+sumindo por cascade. A regra 8 do teste estrutural
+`document-access-boundary.test.ts` garante que só `documents.service.ts`
+chama `trashedDocumentsWhere`, que nenhuma leitura filtra `trashedAt` por
+fora, e que `readableDocumentsWhere` mantém `trashedAt: null`. A concordância
+das duas portas ganhou um novo enunciado: acesso diferente de `none` só
+acontece quando o documento está na lista legível **ou** na da lixeira, nunca
+nas duas.
+
 ## 4. Árvore de unidades
 
 `parentId` + consulta recursiva (`WITH RECURSIVE`). "Unidade e tudo abaixo"
@@ -183,7 +202,15 @@ pendente, para não perder edição por causa de um `deploy`.
 
 Limite conhecido: o acesso só é conferido **ao conectar**. Perder o acesso ou
 ser removido do documento não derruba quem já está com o socket aberto
-(resolver com a 015).
+(resolver com a 015). A gravação do conteúdo é condicional: só grava com
+`Document.trashedAt` nulo, checado na mesma transação — senão nada entra no
+banco e não há mensagem `stored`. Ao mover para a lixeira ou apagar em
+definitivo, o servidor fecha as conexões daquele documento por um ouvinte em
+memória (`DocumentsService.onDocumentClosed`), sem dependência circular entre
+os módulos; quem reconecta a um documento na lixeira entra só leitura. Outro
+limite conhecido: uma edição feita na última janela de debounce antes de
+mover para a lixeira pode ser descartada, e o ouvinte vale para um processo
+só.
 
 O workspace mantém **uma única cópia** de `yjs` (`pnpm why yjs -r` mostra uma
 versão só) — duas cópias do Yjs no mesmo processo corrompem o CRDT em vez de
