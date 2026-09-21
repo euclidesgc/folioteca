@@ -1,11 +1,11 @@
 import { render } from '@testing-library/react';
 import type React from 'react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { expect, test } from 'vitest';
 
 import { screen, userEvent } from '@/testing/test-utils';
 
-import { Tree, type TreeNode } from '../tree';
+import { Tree, type TreeHandle, type TreeNode } from '../tree';
 
 // Three levels, the shape the screen draws: a root, two units under it and
 // two teams under the first one.
@@ -398,4 +398,232 @@ test('renders an empty tree without nodes', () => {
     screen.getByRole('tree', { name: 'Estrutura de unidades' }),
   ).toBeInTheDocument();
   expect(screen.queryAllByRole('treeitem')).toHaveLength(0);
+});
+
+// The same tree with the optional slot of actions and the focus command: the
+// caller draws two buttons per node and asks for the focus from outside.
+function ActionsTreeHarness({
+  initialExpanded = ['root', 'acervo'],
+}: {
+  initialExpanded?: string[];
+}): React.JSX.Element {
+  const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(
+    () => new Set(initialExpanded),
+  );
+  const treeRef = useRef<TreeHandle>(null);
+  const [triggered, setTriggered] = useState<string[]>([]);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => treeRef.current?.focusNode('catalogacao')}
+      >
+        Focar Catalogação
+      </button>
+      <button
+        type="button"
+        onClick={() => treeRef.current?.focusNode('unidade-desconhecida')}
+      >
+        Focar id desconhecido
+      </button>
+      <Tree
+        ref={treeRef}
+        nodes={nodes}
+        expandedIds={expandedIds}
+        onExpandedChange={setExpandedIds}
+        aria-label="Estrutura de unidades"
+        renderActions={(node, { tabIndex }) => (
+          <>
+            <button
+              type="button"
+              tabIndex={tabIndex}
+              aria-label={`Criar unidade filha em ${node.label}`}
+              onClick={() =>
+                setTriggered((current) => [...current, `criar:${node.id}`])
+              }
+            >
+              +
+            </button>
+            <button
+              type="button"
+              tabIndex={tabIndex}
+              aria-label={`Renomear ${node.label}`}
+              onClick={() =>
+                setTriggered((current) => [...current, `renomear:${node.id}`])
+              }
+            >
+              ✎
+            </button>
+          </>
+        )}
+      />
+      <p>Ações acionadas: {triggered.join(' ')}</p>
+    </>
+  );
+}
+
+const createAction = (label: string): HTMLElement =>
+  screen.getByRole('button', { name: `Criar unidade filha em ${label}` });
+
+const renameAction = (label: string): HTMLElement =>
+  screen.getByRole('button', { name: `Renomear ${label}` });
+
+test('renders no actions container without renderActions', () => {
+  const { container } = render(<TreeHarness />);
+
+  expect(container.querySelector('[data-tree-actions]')).toBeNull();
+  expect(
+    screen.queryByRole('button', {
+      name: `Criar unidade filha em ${ROOT_LABEL}`,
+    }),
+  ).not.toBeInTheDocument();
+});
+
+test('renders the actions inside the row of each node', () => {
+  render(<ActionsTreeHarness />);
+
+  for (const label of [ROOT_LABEL, ACERVO_LABEL, CATALOGACAO_LABEL]) {
+    const row = item(label);
+    const actions = row.querySelector('[data-tree-actions]');
+
+    expect(actions).not.toBeNull();
+    expect(actions).toContainElement(createAction(label));
+    expect(actions).toContainElement(renameAction(label));
+    expect(
+      screen.getByTitle(label).compareDocumentPosition(actions as HTMLElement) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeGreaterThan(0);
+  }
+});
+
+test('gives tabIndex 0 only to the actions of the active node', async () => {
+  const user = userEvent.setup();
+  render(<ActionsTreeHarness />);
+
+  expect(createAction(ROOT_LABEL)).toHaveAttribute('tabindex', '0');
+  expect(renameAction(ROOT_LABEL)).toHaveAttribute('tabindex', '0');
+  expect(createAction(ACERVO_LABEL)).toHaveAttribute('tabindex', '-1');
+
+  focusNode(ROOT_LABEL);
+  await user.keyboard('{ArrowDown}');
+
+  expect(createAction(ACERVO_LABEL)).toHaveAttribute('tabindex', '0');
+  expect(renameAction(ACERVO_LABEL)).toHaveAttribute('tabindex', '0');
+  expect(createAction(ROOT_LABEL)).toHaveAttribute('tabindex', '-1');
+});
+
+test('Tab from the item moves to the first action and then to the second', async () => {
+  const user = userEvent.setup();
+  render(<ActionsTreeHarness />);
+
+  focusNode(ROOT_LABEL);
+
+  await user.tab();
+  expect(createAction(ROOT_LABEL)).toHaveFocus();
+
+  await user.tab();
+  expect(renameAction(ROOT_LABEL)).toHaveFocus();
+
+  await user.tab();
+  expect(screen.getByRole('tree')).not.toContainElement(
+    document.activeElement as HTMLElement,
+  );
+});
+
+test('Shift+Tab from the first action returns to the item', async () => {
+  const user = userEvent.setup();
+  render(<ActionsTreeHarness />);
+
+  createAction(ROOT_LABEL).focus();
+
+  await user.tab({ shift: true });
+
+  expect(item(ROOT_LABEL)).toHaveFocus();
+});
+
+test('Enter on an action does not toggle expansion', async () => {
+  const user = userEvent.setup();
+  render(<ActionsTreeHarness />);
+
+  createAction(ACERVO_LABEL).focus();
+  await user.keyboard('{Enter}');
+
+  expect(item(ACERVO_LABEL)).toHaveAttribute('aria-expanded', 'true');
+  expect(screen.getByTitle(CATALOGACAO_LABEL)).toBeInTheDocument();
+  expect(
+    screen.getByText('Ações acionadas: criar:acervo'),
+  ).toBeInTheDocument();
+});
+
+test('Space on an action does not toggle expansion', async () => {
+  const user = userEvent.setup();
+  render(<ActionsTreeHarness />);
+
+  renameAction(ACERVO_LABEL).focus();
+  await user.keyboard('[Space]');
+
+  expect(item(ACERVO_LABEL)).toHaveAttribute('aria-expanded', 'true');
+  expect(
+    screen.getByText('Ações acionadas: renomear:acervo'),
+  ).toBeInTheDocument();
+});
+
+test('arrow keys on an action do not move the focus', async () => {
+  const user = userEvent.setup();
+  render(<ActionsTreeHarness />);
+
+  createAction(ACERVO_LABEL).focus();
+  await user.keyboard('{ArrowDown}{ArrowUp}{ArrowRight}{ArrowLeft}');
+
+  expect(createAction(ACERVO_LABEL)).toHaveFocus();
+  expect(item(ACERVO_LABEL)).toHaveAttribute('aria-expanded', 'true');
+});
+
+test('click on an action does not toggle and makes the node active', async () => {
+  const user = userEvent.setup();
+  render(<ActionsTreeHarness />);
+
+  await user.click(createAction(ACERVO_LABEL));
+
+  expect(item(ACERVO_LABEL)).toHaveAttribute('aria-expanded', 'true');
+  expect(item(ACERVO_LABEL)).toHaveAttribute('tabindex', '0');
+  expect(createAction(ACERVO_LABEL)).toHaveFocus();
+  expect(
+    screen.getByText('Ações acionadas: criar:acervo'),
+  ).toBeInTheDocument();
+});
+
+test('focusNode focuses a visible node and moves the tab stop', async () => {
+  const user = userEvent.setup();
+  render(<ActionsTreeHarness />);
+
+  await user.click(screen.getByRole('button', { name: 'Focar Catalogação' }));
+
+  expect(item(CATALOGACAO_LABEL)).toHaveFocus();
+  expect(item(CATALOGACAO_LABEL)).toHaveAttribute('tabindex', '0');
+  expect(item(ROOT_LABEL)).toHaveAttribute('tabindex', '-1');
+});
+
+test('focusNode ignores a hidden node', async () => {
+  const user = userEvent.setup();
+  render(<ActionsTreeHarness initialExpanded={['root']} />);
+
+  const opener = screen.getByRole('button', { name: 'Focar Catalogação' });
+  await user.click(opener);
+
+  expect(screen.queryByTitle(CATALOGACAO_LABEL)).not.toBeInTheDocument();
+  expect(opener).toHaveFocus();
+  expect(item(ROOT_LABEL)).toHaveAttribute('tabindex', '0');
+});
+
+test('focusNode ignores an unknown id', async () => {
+  const user = userEvent.setup();
+  render(<ActionsTreeHarness />);
+
+  const opener = screen.getByRole('button', { name: 'Focar id desconhecido' });
+  await user.click(opener);
+
+  expect(opener).toHaveFocus();
+  expect(item(ROOT_LABEL)).toHaveAttribute('tabindex', '0');
 });

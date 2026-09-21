@@ -247,6 +247,39 @@ export const seedSampleOrgUnits = (): void => {
   state = { ...state, orgUnits: [...state.orgUnits, ...sample] };
 };
 
+// Adds a unit under `parentId`, the way POST /org-units does. The `UNIT`
+// space the real API creates in the same transaction is not simulated: no
+// screen of this slice reads it.
+export const addOrgUnit = ({
+  parentId,
+  name,
+}: {
+  parentId: string;
+  name: string;
+}): MockOrgUnit => {
+  const unit: MockOrgUnit = { id: crypto.randomUUID(), parentId, name };
+  state.orgUnits.push(unit);
+  return unit;
+};
+
+// Renames a unit already in the database. Renaming the root renames the
+// organization too, as the real API does in the same transaction.
+//
+// Both writes land on the objects that are already in the database, never on
+// copies of them (same reason as `touchDocumentUpdatedAt` above): the handler
+// looks the unit up before it awaits the request body and writes afterwards.
+export const renameOrgUnit = (id: string, name: string): MockOrgUnit => {
+  const unit = state.orgUnits.find((item) => item.id === id);
+  if (!unit) throw new Error(`Unknown org unit: ${id}`);
+
+  unit.name = name;
+  if (unit.parentId === null && state.installation) {
+    state.installation.organization.name = name;
+  }
+
+  return unit;
+};
+
 // How many documents `seedSampleTrash` moves to the trash.
 const SAMPLE_TRASH_COUNT = 2;
 

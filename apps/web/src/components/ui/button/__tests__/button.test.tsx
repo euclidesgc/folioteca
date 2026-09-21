@@ -77,6 +77,42 @@ test('does not fire onClick when disabled', async () => {
   expect(onClick).not.toHaveBeenCalled();
 });
 
+// The classes the button had before the `size` variant existed: without
+// `size`, nothing may change.
+const DEFAULT_CLASSES =
+  'inline-flex h-10 items-center justify-center gap-2 px-4 whitespace-nowrap rounded-md text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-blue-600 text-white hover:bg-blue-700 focus-visible:outline-blue-600';
+
+test('size icon renders a square button without horizontal padding', () => {
+  render(
+    <Button size="icon" aria-label="Renomear Acervo">
+      <svg aria-hidden="true" focusable="false" />
+    </Button>,
+  );
+
+  const button = screen.getByRole('button', { name: 'Renomear Acervo' });
+  expect(button).toHaveClass('size-10');
+  expect(button).toHaveClass('px-0');
+  expect(button).not.toHaveClass('px-4');
+});
+
+test('the default size keeps the current classes', () => {
+  render(
+    <>
+      <Button>Salvar</Button>
+      <Button size="md">Salvar com md</Button>
+    </>,
+  );
+
+  expect(screen.getByRole('button', { name: 'Salvar' })).toHaveClass(
+    DEFAULT_CLASSES,
+    { exact: true },
+  );
+  expect(screen.getByRole('button', { name: 'Salvar com md' })).toHaveClass(
+    DEFAULT_CLASSES,
+    { exact: true },
+  );
+});
+
 test('forwards ref and className', () => {
   const ref = createRef<HTMLButtonElement>();
   render(

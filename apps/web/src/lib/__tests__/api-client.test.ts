@@ -8,6 +8,8 @@ import { server } from '@/testing/mocks/server';
 
 import { api } from '../api-client';
 import {
+  ConflictError,
+  isConflictError,
   isNotFoundError,
   isUnauthenticatedError,
   NotFoundError,
@@ -242,6 +244,52 @@ test('isNotFoundError is true only for NotFoundError', () => {
   expect(isNotFoundError(new NotFoundError())).toBe(true);
   expect(isNotFoundError(new UnauthenticatedError())).toBe(false);
   expect(isNotFoundError(new Error('outro erro'))).toBe(false);
+});
+
+test('a 409 rejects with ConflictError and notifies', async () => {
+  server.use(
+    http.post(`${env.API_URL}/org-units`, () =>
+      HttpResponse.json(
+        { message: 'Já existe uma unidade com esse nome neste nível.' },
+        { status: 409 },
+      ),
+    ),
+  );
+
+  await expect(api.post('/org-units', {})).rejects.toBeInstanceOf(
+    ConflictError,
+  );
+
+  expect(notifications()).toHaveLength(1);
+  expect(notifications()[0]).toMatchObject({
+    type: 'error',
+    title: 'Algo deu errado',
+    message: 'Já existe uma unidade com esse nome neste nível.',
+  });
+});
+
+test('a 409 with silentError rejects with ConflictError and notifies nothing', async () => {
+  server.use(
+    http.post(`${env.API_URL}/org-units`, () =>
+      HttpResponse.json(
+        { message: 'Já existe uma unidade com esse nome neste nível.' },
+        { status: 409 },
+      ),
+    ),
+  );
+
+  await expect(
+    api.post('/org-units', {}, { silentError: true }),
+  ).rejects.toBeInstanceOf(ConflictError);
+
+  expect(notifications()).toHaveLength(0);
+});
+
+test('isConflictError is true only for ConflictError', () => {
+  expect(isConflictError(new ConflictError())).toBe(true);
+  expect(isConflictError(new NotFoundError())).toBe(false);
+  expect(isConflictError(new UnauthenticatedError())).toBe(false);
+  expect(isConflictError(new Error('outro erro'))).toBe(false);
 });
 
 test('no 401 case adds a notification', async () => {

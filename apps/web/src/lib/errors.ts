@@ -20,3 +20,13 @@ export class NotFoundError extends Error {
 
 export const isNotFoundError = (error: unknown): error is NotFoundError =>
   error instanceof NotFoundError;
+
+export class ConflictError extends Error {
+  constructor() {
+    super('Conflict');
+    this.name = 'ConflictError';
+  }
+}
+
+export const isConflictError = (error: unknown): error is ConflictError =>
+  error instanceof ConflictError;

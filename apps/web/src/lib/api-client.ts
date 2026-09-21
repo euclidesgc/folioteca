@@ -3,7 +3,7 @@ import Axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { useNotifications } from '@/components/ui/notifications/notifications-store';
 import { env } from '@/config/env';
 import { paths } from '@/config/paths';
-import { NotFoundError, UnauthenticatedError } from '@/lib/errors';
+import { ConflictError, NotFoundError, UnauthenticatedError } from '@/lib/errors';
 import { hardRedirect } from '@/lib/hard-redirect';
 
 // Type augmentation kept local to this file: no request of this app skips
@@ -88,6 +88,10 @@ api.interceptors.response.use(
 
     if (error.response?.status === 404) {
       return Promise.reject(new NotFoundError());
+    }
+
+    if (error.response?.status === 409) {
+      return Promise.reject(new ConflictError());
     }
 
     // Always reject: the caller (React Query) must know the request failed.

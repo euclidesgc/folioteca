@@ -16,8 +16,16 @@ export const buttonVariants = cva(
         destructive:
           'bg-red-600 text-white hover:bg-red-700 focus-visible:outline-red-600',
       },
+      // The default size is the one already in the base classes (`h-10 px-4`),
+      // so `md` adds nothing and every existing button keeps its exact
+      // classes; `icon` overrides both, giving a 40px square with no
+      // horizontal breathing room around a single icon.
+      size: {
+        md: '',
+        icon: 'size-10 px-0',
+      },
     },
-    defaultVariants: { variant: 'primary' },
+    defaultVariants: { variant: 'primary', size: 'md' },
   },
 );
 
@@ -29,6 +37,7 @@ export type ButtonProps = React.ComponentProps<'button'> &
 export const Button = ({
   className,
   variant,
+  size,
   type = 'button',
   isLoading = false,
   disabled,
@@ -38,7 +47,7 @@ export const Button = ({
   return (
     <button
       type={type}
-      className={cn(buttonVariants({ variant }), className)}
+      className={cn(buttonVariants({ variant, size }), className)}
       disabled={disabled || isLoading}
       aria-busy={isLoading || undefined}
       {...props}

@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useMemo, useRef, useState } from 'react';
+import { useImperativeHandle, useMemo, useRef, useState } from 'react';
 
 import { cn } from '@/utils/cn';
 
@@ -95,12 +95,24 @@ const withId = (ids: ReadonlySet<string>, id: string): ReadonlySet<string> => {
   return next;
 };
 
+// What whoever owns the tree can ask of it from the outside: move the tab
+// stop and the focus to a node it just caused to appear.
+export type TreeHandle = { focusNode: (id: string) => void };
+
 type TreeProps = {
   nodes: TreeNode[];
   expandedIds: ReadonlySet<string>;
   onExpandedChange: (next: ReadonlySet<string>) => void;
   'aria-label': string;
   className?: string;
+  // Actions of the node, drawn inside its row, after the label. `tabIndex` is
+  // the one the caller must give its buttons, so the whole tree keeps a single
+  // tab stop: it is `0` only on the node that holds the stop.
+  renderActions?: (
+    node: TreeNode,
+    state: { tabIndex: 0 | -1 },
+  ) => React.ReactNode;
+  ref?: React.Ref<TreeHandle>;
 };
 
 export const Tree = ({
@@ -109,6 +121,8 @@ export const Tree = ({
   onExpandedChange,
   'aria-label': ariaLabel,
   className,
+  renderActions,
+  ref,
 }: TreeProps): React.JSX.Element => {
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const itemsRef = useRef(new Map<string, HTMLLIElement>());
@@ -124,6 +138,25 @@ export const Tree = ({
     setFocusedId(id);
     itemsRef.current.get(id)?.focus();
   };
+
+  const visibleIds = useMemo(
+    () => new Set(visible.map((item) => item.node.id)),
+    [visible],
+  );
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      // A node that is not on screen — unknown id, or hidden under a
+      // collapsed ancestor — has no row to focus: the command does nothing.
+      focusNode: (id: string): void => {
+        if (!visibleIds.has(id)) return;
+        setFocusedId(id);
+        itemsRef.current.get(id)?.focus();
+      },
+    }),
+    [visibleIds],
+  );
 
   const toggle = (node: TreeNode): void => {
     if (node.children.length === 0) return;
@@ -210,6 +243,14 @@ export const Tree = ({
       return;
     }
 
+    // A click on an action of the node is the action's business: it must not
+    // toggle the expansion, and the tab stop moves without `.focus()`, so the
+    // button that was just clicked keeps the focus.
+    if ((event.target as HTMLElement).closest('[data-tree-actions]')) {
+      setFocusedId(node.id);
+      return;
+    }
+
     focusNode(node.id);
     toggle(node);
   };
@@ -269,9 +310,19 @@ export const Tree = ({
               ) : (
                 <span aria-hidden="true" className="size-4 shrink-0" />
               )}
-              <span className="min-w-0 truncate" title={node.label}>
+              <span className="min-w-0 flex-1 truncate" title={node.label}>
                 {node.label}
               </span>
+              {renderActions ? (
+                <div
+                  data-tree-actions=""
+                  className="flex shrink-0 items-center gap-1"
+                >
+                  {renderActions(node, {
+                    tabIndex: node.id === activeId ? 0 : -1,
+                  })}
+                </div>
+              ) : null}
             </div>
 
             {isExpanded ? renderList(node.children, level + 1, false) : null}
