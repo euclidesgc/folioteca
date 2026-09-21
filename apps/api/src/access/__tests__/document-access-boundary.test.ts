@@ -424,6 +424,154 @@ test('rule 5 flags a sample offender and accepts a sample compliant snippet', ()
   expect(report(compliant)).toEqual([]);
 });
 
+const FAVORITE_SERVICE_FILE = 'documents/favorites.service.ts';
+
+const FAVORITE_TABLE_PATTERN = /\.favorite\s*\./g;
+const FAVORITE_FIND_UNIQUE_PATTERN = /\.favorite\.findUnique\s*\(/g;
+const FAVORITE_READ_CALL_PATTERN = new RegExp(
+  `\\.favorite\\.(${READ_METHODS.join('|')})\\s*\\(`,
+  'g',
+);
+
+/**
+ * Regra 7: só `favorites.service.ts` toca a tabela `Favorite`, toda leitura
+ * dela passa por `readableDocumentsWhere`, `findUnique` é proibido e o
+ * arquivo decide pelo `resolveAccess`.
+ */
+function checkFavoriteTable({ file, source }: SourceFile): Violation[] {
+  const violations: Violation[] = [];
+
+  if (file !== FAVORITE_SERVICE_FILE) {
+    for (const match of source.matchAll(FAVORITE_TABLE_PATTERN)) {
+      violations.push({
+        file,
+        line: lineAt(source, match.index),
+        message: 'toca na tabela Favorite fora de favorites.service.ts',
+      });
+    }
+
+    for (const match of source.matchAll(RAW_QUERY_PATTERN)) {
+      const statementEnd = source.indexOf(';', match.index);
+      const statement = source.slice(
+        match.index,
+        statementEnd === -1 ? source.length : statementEnd,
+      );
+
+      if (statement.includes('"Favorite"')) {
+        violations.push({
+          file,
+          line: lineAt(source, match.index),
+          message:
+            'consulta crua na tabela "Favorite" fora de favorites.service.ts',
+        });
+      }
+    }
+
+    return violations;
+  }
+
+  if (!source.includes('resolveAccess(')) {
+    violations.push({ file, line: 1, message: 'não chama resolveAccess' });
+  }
+
+  for (const match of source.matchAll(FAVORITE_FIND_UNIQUE_PATTERN)) {
+    violations.push({
+      file,
+      line: lineAt(source, match.index),
+      message: 'usa favorite.findUnique, que passa por cima das portas',
+    });
+  }
+
+  for (const match of source.matchAll(FAVORITE_READ_CALL_PATTERN)) {
+    const openIndex = match.index + match[0].length - 1;
+    const call = source.slice(openIndex, endOfCall(source, openIndex) + 1);
+
+    if (!call.includes('readableDocumentsWhere(')) {
+      violations.push({
+        file,
+        line: lineAt(source, match.index),
+        message: `favorite.${match[1]} sem readableDocumentsWhere`,
+      });
+    }
+  }
+
+  return violations;
+}
+
+test('only favorites.service.ts touches the favorite table', () => {
+  const violations = sourceFiles
+    .flatMap(checkFavoriteTable)
+    .filter((violation) =>
+      violation.message.includes('fora de favorites.service.ts'),
+    );
+
+  expect(sourceFiles.map(({ file }) => file)).toContain(FAVORITE_SERVICE_FILE);
+  expect(report(violations)).toEqual([]);
+});
+
+test('every favorite read goes through readableDocumentsWhere and findUnique is forbidden', () => {
+  const violations = sourceFiles
+    .flatMap(checkFavoriteTable)
+    .filter(
+      (violation) =>
+        violation.message.includes('readableDocumentsWhere') ||
+        violation.message.includes('findUnique'),
+    );
+
+  expect(report(violations)).toEqual([]);
+});
+
+test('favorites.service.ts calls resolveAccess', () => {
+  const violations = sourceFiles
+    .flatMap(checkFavoriteTable)
+    .filter((violation) => violation.message.includes('resolveAccess'));
+
+  expect(report(violations)).toEqual([]);
+});
+
+test('rule 7 flags a sample offender and accepts a sample compliant snippet', () => {
+  const outsideOffender = checkFavoriteTable({
+    file: 'documents/documents.service.ts',
+    source: [
+      'const total = await this.prisma.favorite.count();',
+      'await this.prisma.$queryRaw`SELECT "personId" FROM "Favorite"`;',
+    ].join('\n'),
+  });
+
+  const insideOffender = checkFavoriteTable({
+    file: FAVORITE_SERVICE_FILE,
+    source: [
+      'await this.prisma.favorite.findUnique({ where: { personId } });',
+      'await this.prisma.favorite.findMany({ where: { personId } });',
+    ].join('\n'),
+  });
+
+  const compliantOutside = checkFavoriteTable({
+    file: 'documents/documents.service.ts',
+    source: 'await this.prisma.person.count();',
+  });
+
+  const compliantInside = checkFavoriteTable({
+    file: FAVORITE_SERVICE_FILE,
+    source: [
+      'const level = await this.access.resolveAccess(personId, documentId);',
+      'await this.prisma.favorite.findMany({ where: { personId, document: this.access.readableDocumentsWhere(personId) } });',
+    ].join('\n'),
+  });
+
+  expect(report(outsideOffender)).toEqual([
+    'documents/documents.service.ts:1 toca na tabela Favorite fora de favorites.service.ts',
+    'documents/documents.service.ts:2 consulta crua na tabela "Favorite" fora de favorites.service.ts',
+  ]);
+  expect(report(insideOffender)).toEqual([
+    'documents/favorites.service.ts:1 não chama resolveAccess',
+    'documents/favorites.service.ts:1 usa favorite.findUnique, que passa por cima das portas',
+    'documents/favorites.service.ts:2 favorite.findMany sem readableDocumentsWhere',
+  ]);
+  expect(report(compliantOutside)).toEqual([]);
+  expect(report(compliantInside)).toEqual([]);
+});
+
 test('rule 6 flags a sample offender and accepts a sample compliant snippet', () => {
   const offender = checkCollabGate({
     file: 'collab/collab.service.ts',

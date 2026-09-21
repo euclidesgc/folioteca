@@ -52,6 +52,7 @@ test('posts without a body and returns the created document', async () => {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             accessLevel: 'owner',
+            isFavorite: false,
           },
         } satisfies DocumentResponse,
         { status: 201 },

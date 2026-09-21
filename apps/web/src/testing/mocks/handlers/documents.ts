@@ -8,11 +8,17 @@ import type {
   UpdateDocumentBody,
 } from '@/types/api';
 
-import { getDb } from '../db';
+import { getDb, type MockDocument } from '../db';
 import { devOverride, networkDelay, SESSION_COOKIE_NAME } from '../utils';
 
 const DEFAULT_TITLE = 'Sem título';
 const TITLE_MAX_LENGTH = 200;
+
+// The fake database keeps documents without `isFavorite`; the body adds it.
+const toDocumentBody = (document: MockDocument): Document => ({
+  ...document,
+  isFavorite: false,
+});
 
 const unauthenticated = (): ReturnType<typeof HttpResponse.json> =>
   HttpResponse.json({ message: 'Sessão não encontrada.' }, { status: 401 });
@@ -33,7 +39,7 @@ export const documentsHandlers = [
 
     const { person } = installation;
     const now = new Date().toISOString();
-    const document: Document = {
+    const document: MockDocument = {
       id: crypto.randomUUID(),
       title: DEFAULT_TITLE,
       spaceId: `space-${person.id}`,
@@ -45,7 +51,7 @@ export const documentsHandlers = [
     };
     documents.push(document);
 
-    const body: DocumentResponse = { data: document };
+    const body: DocumentResponse = { data: toDocumentBody(document) };
     return HttpResponse.json(body, { status: 201 });
   }),
 
@@ -88,7 +94,7 @@ export const documentsHandlers = [
     const document = documents.find((item) => item.id === params.documentId);
     if (!document) return notFound();
 
-    const body: DocumentResponse = { data: document };
+    const body: DocumentResponse = { data: toDocumentBody(document) };
     return HttpResponse.json(body);
   }),
 
@@ -135,7 +141,7 @@ export const documentsHandlers = [
       document.title = trimmed === '' ? DEFAULT_TITLE : trimmed;
       document.updatedAt = new Date().toISOString();
 
-      const body: DocumentResponse = { data: document };
+      const body: DocumentResponse = { data: toDocumentBody(document) };
       return HttpResponse.json(body);
     },
   ),

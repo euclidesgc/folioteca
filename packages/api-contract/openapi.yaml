@@ -169,7 +169,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: [mine]
+            enum: [mine, favorites]
       responses:
         "200":
           description: Os documentos do escopo foram listados.
@@ -246,6 +246,67 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ValidationError"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: O documento não existe ou não está acessível.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /documents/{documentId}/favorite:
+    put:
+      operationId: addFavorite
+      summary: Marca o documento como favorito de quem chama
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: O documento ficou marcado como favorito.
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: O documento não existe ou não está acessível.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: removeFavorite
+      summary: Desmarca o documento como favorito de quem chama
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: O documento deixou de estar marcado como favorito.
         "401":
           description: Não há sessão válida.
           content:
@@ -391,6 +452,9 @@ components:
           format: date-time
         accessLevel:
           $ref: "#/components/schemas/AccessLevel"
+        isFavorite:
+          type: boolean
+          description: Se a pessoa da sessão marcou o documento como favorito.
       required:
         - id
         - title
@@ -400,6 +464,7 @@ components:
         - createdAt
         - updatedAt
         - accessLevel
+        - isFavorite
     DocumentSummary:
       type: object
       properties:

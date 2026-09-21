@@ -111,6 +111,104 @@ test('saveContent rethrows any other error', async () => {
   ).rejects.toThrow('banco fora do ar');
 });
 
+/** Registro de documento como o Prisma devolve, com a relação incluída. */
+function documentRecord(favorites: { personId: string }[]): unknown {
+  return {
+    id: 'documento',
+    title: 'Plano de obras',
+    spaceId: 'espaco',
+    authorId: 'pessoa',
+    ownerId: 'pessoa',
+    createdAt: new Date('2026-01-01T10:00:00.000Z'),
+    updatedAt: new Date('2026-02-01T10:00:00.000Z'),
+    favorites,
+  };
+}
+
+/** Serviço com `findFirst` e `update` devolvendo o registro informado. */
+function createFavoriteService(record: unknown): DocumentsService {
+  const prisma = {
+    document: {
+      findFirst: vi.fn().mockResolvedValue(record),
+      update: vi.fn().mockResolvedValue(record),
+    },
+  } as unknown as PrismaService;
+
+  const access = {
+    resolveAccess: vi.fn().mockResolvedValue('owner'),
+    readableDocumentsWhere: vi.fn().mockReturnValue({ ownerId: 'pessoa' }),
+  } as unknown as AccessService;
+
+  return new DocumentsService(prisma, access);
+}
+
+/** Serviço cujo `create` roda dentro de uma transação simulada. */
+function createCreatingService(): DocumentsService {
+  const tx = {
+    space: { upsert: vi.fn().mockResolvedValue({ id: 'espaco' }) },
+    document: {
+      create: vi.fn().mockResolvedValue(documentRecord([])),
+    },
+  };
+
+  const prisma = {
+    $transaction: vi
+      .fn()
+      .mockImplementation((run: (client: typeof tx) => unknown) => run(tx)),
+  } as unknown as PrismaService;
+
+  const access = {
+    resolveAccess: vi.fn(),
+    readableDocumentsWhere: vi.fn(),
+  } as unknown as AccessService;
+
+  return new DocumentsService(prisma, access);
+}
+
+test('get reports isFavorite true when the favorites relation has a row', async () => {
+  const service = createFavoriteService(documentRecord([{ personId: 'pessoa' }]));
+
+  const document = await service.get('pessoa', 'documento');
+
+  expect(document.isFavorite).toBe(true);
+});
+
+test('get reports isFavorite false when the relation is empty', async () => {
+  const service = createFavoriteService(documentRecord([]));
+
+  const document = await service.get('pessoa', 'documento');
+
+  expect(document.isFavorite).toBe(false);
+});
+
+test('rename reports isFavorite from the include', async () => {
+  const service = createFavoriteService(documentRecord([{ personId: 'pessoa' }]));
+
+  const document = await service.rename('pessoa', 'documento', {
+    title: 'Plano de obras',
+  });
+
+  expect(document.isFavorite).toBe(true);
+});
+
+test('create reports isFavorite false', async () => {
+  const service = createCreatingService();
+
+  const document = await service.create({
+    id: 'pessoa',
+  } as Parameters<DocumentsService['create']>[0]);
+
+  expect(document.isFavorite).toBe(false);
+});
+
+test('the favorites array never leaks into the body', async () => {
+  const service = createFavoriteService(documentRecord([{ personId: 'pessoa' }]));
+
+  const document = await service.get('pessoa', 'documento');
+
+  expect(Object.keys(document)).not.toContain('favorites');
+});
+
 test('loadContent returns null when there is no content row', async () => {
   const service = createContentService({
     documentContent: { findUnique: vi.fn().mockResolvedValue(null) },

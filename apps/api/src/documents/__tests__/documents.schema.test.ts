@@ -69,6 +69,20 @@ test('accepts scope mine', () => {
   expect(result.data?.scope).toBe('mine');
 });
 
+test('accepts the favorites scope', () => {
+  const result = listDocumentsQuerySchema.safeParse({ scope: 'favorites' });
+
+  expect(result.success).toBe(true);
+  expect(result.data?.scope).toBe('favorites');
+});
+
+test('rejects a scope outside mine and favorites', () => {
+  const result = listDocumentsQuerySchema.safeParse({ scope: 'favoritos' });
+
+  expect(result.success).toBe(false);
+  expect(result.error?.issues[0]?.message).toBe('Informe um escopo válido.');
+});
+
 test('rejects a missing or unknown scope with Informe um escopo válido.', () => {
   const missing = listDocumentsQuerySchema.safeParse({});
   const unknown = listDocumentsQuerySchema.safeParse({ scope: 'todos' });

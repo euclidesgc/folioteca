@@ -31,6 +31,7 @@ type DocumentBody = {
   createdAt: string;
   updatedAt: string;
   accessLevel: string;
+  isFavorite: boolean;
 };
 
 type DocumentSummaryBody = {
@@ -154,8 +155,19 @@ test('POST /api/documents returns 201 with a Sem título document owned and auth
       createdAt: ANY_STRING,
       updatedAt: ANY_STRING,
       accessLevel: 'owner',
+      isFavorite: false,
     },
   });
+});
+
+test('a new document is not a favorite', async () => {
+  const created = await createDocument(cookieA);
+
+  const response = await getDocument(cookieA, created.id);
+
+  expect(created.isFavorite).toBe(false);
+  expect((response.body as { data: DocumentBody }).data.isFavorite).toBe(false);
+  expect(await prisma.favorite.count()).toBe(0);
 });
 
 test('the created document lives in the personal space of the caller', async () => {

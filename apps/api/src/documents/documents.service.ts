@@ -34,9 +34,20 @@ function isMissingDocumentError(error: unknown): boolean {
   );
 }
 
-/** Corpo público do documento: os campos do banco mais o nível de acesso. */
+/**
+ * Registro do documento com os favoritos já filtrados pela pessoa da chamada:
+ * a relação vem vazia ou com uma linha só.
+ */
+type DocumentWithFavorites = DocumentRecord & {
+  favorites: { personId: string }[];
+};
+
+/**
+ * Corpo público do documento: os campos do banco mais o nível de acesso e a
+ * marcação de favorito. A relação `favorites` não vaza no corpo.
+ */
 function toDocument(
-  document: DocumentRecord,
+  { favorites, ...document }: DocumentWithFavorites,
   accessLevel: AccessLevel,
 ): Document {
   return {
@@ -44,6 +55,7 @@ function toDocument(
     createdAt: document.createdAt.toISOString(),
     updatedAt: document.updatedAt.toISOString(),
     accessLevel,
+    isFavorite: favorites.length > 0,
   };
 }
 
@@ -78,7 +90,8 @@ export class DocumentsService {
       });
     });
 
-    return toDocument(document, 'owner');
+    // Documento recém-criado não é favorito de ninguém: nada a consultar.
+    return toDocument({ ...document, favorites: [] }, 'owner');
   }
 
   /** Documentos da pessoa, dos mais recentes para os mais antigos. */
@@ -116,6 +129,9 @@ export class DocumentsService {
       where: {
         AND: [{ id: documentId }, this.access.readableDocumentsWhere(personId)],
       },
+      include: {
+        favorites: { where: { personId }, select: { personId: true } },
+      },
     });
 
     if (document === null) {
@@ -149,6 +165,9 @@ export class DocumentsService {
     const document = await this.prisma.document.update({
       where: { id: documentId },
       data: { title: data.title },
+      include: {
+        favorites: { where: { personId }, select: { personId: true } },
+      },
     });
 
     return toDocument(document, accessLevel);

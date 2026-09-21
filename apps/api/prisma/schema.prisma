@@ -48,6 +48,7 @@ model Person {
   sessions          Session[]
   authoredDocuments Document[]   @relation("DocumentAuthor")
   ownedDocuments    Document[]   @relation("DocumentOwner")
+  favorites         Favorite[]
 }
 
 enum SpaceType {
@@ -79,13 +80,28 @@ model Document {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  content DocumentContent?
-  space   Space            @relation(fields: [spaceId], references: [id], onDelete: Restrict)
-  author  Person           @relation("DocumentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
-  owner   Person           @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  content   DocumentContent?
+  favorites Favorite[]
+  space     Space            @relation(fields: [spaceId], references: [id], onDelete: Restrict)
+  author    Person           @relation("DocumentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  owner     Person           @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Restrict)
 
   @@index([ownerId, updatedAt(sort: Desc)])
   @@index([spaceId])
+}
+
+/// Marcação pessoal de documento. Não dá acesso: só marca o que já é legível.
+model Favorite {
+  personId   String
+  documentId String
+  createdAt  DateTime @default(now())
+
+  person   Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@id([personId, documentId])
+  @@index([personId, createdAt(sort: Desc)])
+  @@index([documentId])
 }
 
 /// Estado Yjs consolidado do documento, fora do modelo lido pelas listas.

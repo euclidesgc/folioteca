@@ -6,8 +6,14 @@ import type { MockDocument } from '@/testing/mocks/db';
 import { getDb, seedInstalled, seedSampleDocuments } from '@/testing/mocks/db';
 import { server } from '@/testing/mocks/server';
 import { renderApp, screen, userEvent, waitFor } from '@/testing/test-utils';
+import type { Document } from '@/types/api';
 
 import { DocumentTitleForm } from '../document-title-form';
+
+const toDocument = (document: MockDocument): Document => ({
+  ...document,
+  isFavorite: false,
+});
 
 beforeEach(() => {
   seedInstalled({ signedIn: true });
@@ -54,7 +60,7 @@ const failOncePatch = (): void => {
 test('renders the Título field with maxLength 200 and autocomplete off', () => {
   const seeded = firstSeededDocument();
 
-  renderApp(<DocumentTitleForm document={seeded} />);
+  renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
 
   const field = screen.getByLabelText('Título');
   expect(field).toHaveValue(seeded.title);
@@ -66,7 +72,7 @@ test('Enter saves the title', async () => {
   const user = userEvent.setup();
   const seeded = firstSeededDocument();
 
-  renderApp(<DocumentTitleForm document={seeded} />);
+  renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
 
   const field = screen.getByLabelText('Título');
   await user.clear(field);
@@ -80,7 +86,7 @@ test('leaving the field saves the title', async () => {
   const user = userEvent.setup();
   const seeded = firstSeededDocument();
 
-  renderApp(<DocumentTitleForm document={seeded} />);
+  renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
 
   const field = screen.getByLabelText('Título');
   await user.clear(field);
@@ -101,7 +107,7 @@ test('Enter followed by blur saves only once', async () => {
     }),
   );
 
-  renderApp(<DocumentTitleForm document={seeded} />);
+  renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
 
   const field = screen.getByLabelText('Título');
   await user.clear(field);
@@ -117,7 +123,7 @@ test('an unchanged title sends nothing', async () => {
   const seeded = firstSeededDocument();
   const patchRequests = countPatchRequests();
 
-  renderApp(<DocumentTitleForm document={seeded} />);
+  renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
 
   const field = screen.getByLabelText('Título');
   await user.click(field);
@@ -132,7 +138,7 @@ test('an empty title comes back as Sem título', async () => {
   const user = userEvent.setup();
   const seeded = firstSeededDocument();
 
-  renderApp(<DocumentTitleForm document={seeded} />);
+  renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
 
   const field = screen.getByLabelText('Título');
   await user.clear(field);
@@ -147,7 +153,7 @@ test('saves a 200 character title', async () => {
   const seeded = firstSeededDocument();
   const longTitle = 'b'.repeat(200);
 
-  renderApp(<DocumentTitleForm document={seeded} />);
+  renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
 
   const field = screen.getByLabelText('Título');
   await user.clear(field);
@@ -170,7 +176,7 @@ test('a failed save keeps the typed text and shows the alert', async () => {
     ),
   );
 
-  renderApp(<DocumentTitleForm document={seeded} />);
+  renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
 
   const field = screen.getByLabelText('Título');
   await user.clear(field);
@@ -187,7 +193,7 @@ test('the alert clears on the next save', async () => {
   const seeded = firstSeededDocument();
   failOncePatch();
 
-  renderApp(<DocumentTitleForm document={seeded} />);
+  renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
 
   const field = screen.getByLabelText('Título');
   await user.clear(field);

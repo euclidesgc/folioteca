@@ -1,8 +1,11 @@
 import 'reflect-metadata';
 
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 
+import SwaggerParser from '@apidevtools/swagger-parser';
 import type { INestApplication } from '@nestjs/common';
+import type { Response } from 'supertest';
 
 import { createApp } from '../../create-app';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -11,6 +14,49 @@ import { httpRequest } from '../../../test/http';
 import { resetDatabase } from '../../../test/reset-database';
 
 const EMAIL = 'maria@exemplo.org';
+
+const openapiPath = path.resolve(
+  import.meta.dirname,
+  '../../../../../packages/api-contract/openapi.yaml',
+);
+
+type ContractDocument = {
+  paths?: Record<
+    string,
+    Partial<
+      Record<
+        'get' | 'post' | 'put' | 'patch' | 'delete',
+        { responses?: Record<string, { content?: unknown }> }
+      >
+    >
+  >;
+};
+
+/**
+ * O helper de contrato valida corpo contra schema; o 204 não tem corpo nem
+ * schema, então a conferência aqui é a do contrato: o status está documentado
+ * e sem conteúdo.
+ */
+async function expectDocumentedEmptyResponse(
+  requestPath: string,
+  method: 'put' | 'delete',
+  status: number,
+): Promise<void> {
+  const document = (await SwaggerParser.dereference(
+    openapiPath,
+  )) as ContractDocument;
+  const response = document.paths?.[requestPath]?.[method]?.responses?.[
+    String(status)
+  ];
+
+  expect(response).toBeDefined();
+  expect(response?.content).toBeUndefined();
+}
+
+/** `isFavorite` do documento no corpo da resposta. */
+function isFavoriteOf(response: Response): unknown {
+  return (response.body as { data: { isFavorite: unknown } }).data.isFavorite;
+}
 
 let app: INestApplication;
 let prisma: PrismaService;
@@ -187,4 +233,104 @@ test('PATCH document 400 matches ValidationError', async () => {
     status: 400,
     body: response.body,
   });
+});
+
+test('PUT favorite answers 204 as documented', async () => {
+  const documentId = await createDocumentId();
+
+  const response = await httpRequest(app)
+    .put(`/api/documents/${documentId}/favorite`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie)
+    .send();
+
+  expect(response.status).toBe(204);
+  expect(response.body).toEqual({});
+  await expectDocumentedEmptyResponse(
+    '/documents/{documentId}/favorite',
+    'put',
+    204,
+  );
+});
+
+test('DELETE favorite answers 204 as documented', async () => {
+  const documentId = await createDocumentId();
+  await httpRequest(app)
+    .put(`/api/documents/${documentId}/favorite`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie)
+    .send();
+
+  const response = await httpRequest(app)
+    .delete(`/api/documents/${documentId}/favorite`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie)
+    .send();
+
+  expect(response.status).toBe(204);
+  expect(response.body).toEqual({});
+  await expectDocumentedEmptyResponse(
+    '/documents/{documentId}/favorite',
+    'delete',
+    204,
+  );
+});
+
+test('favorite on an unknown document answers the documented 404', async () => {
+  const response = await httpRequest(app)
+    .put(`/api/documents/${randomUUID()}/favorite`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie)
+    .send();
+
+  expect(response.status).toBe(404);
+  await expectMatchesContract({
+    path: '/documents/{documentId}/favorite',
+    method: 'put',
+    status: 404,
+    body: response.body,
+  });
+});
+
+test('GET documents with scope favorites matches DocumentsResponse', async () => {
+  const documentId = await createDocumentId();
+  await httpRequest(app)
+    .put(`/api/documents/${documentId}/favorite`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie)
+    .send();
+
+  const response = await httpRequest(app)
+    .get('/api/documents?scope=favorites')
+    .set('Cookie', cookie);
+
+  expect(response.status).toBe(200);
+  await expectMatchesContract({
+    path: '/documents',
+    method: 'get',
+    status: 200,
+    body: response.body,
+  });
+});
+
+test('POST, GET and PATCH bodies carry isFavorite', async () => {
+  const created = await httpRequest(app)
+    .post('/api/documents')
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie)
+    .send();
+  const documentId = (created.body as { data: { id: string } }).data.id;
+
+  const read = await httpRequest(app)
+    .get(`/api/documents/${documentId}`)
+    .set('Cookie', cookie);
+  const renamed = await httpRequest(app)
+    .patch(`/api/documents/${documentId}`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie)
+    .send({ title: 'Plano de obras' });
+
+  expect(isFavoriteOf(created)).toBe(false);
+  expect(isFavoriteOf(read)).toBe(false);
+  expect(isFavoriteOf(renamed)).toBe(false);
 });
