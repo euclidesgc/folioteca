@@ -3,7 +3,7 @@
 | # | Fatia | O usuário consegue… | Origem | Depende de | Status |
 |---|---|---|---|---|---|
 | 001 | workspace-foundation | abrir o app e ver o layout com a barra lateral única e o estado da conexão com o servidor | pedido inicial | | in-review |
-| 002 | installation | fazer o primeiro cadastro com o código de instalação, criando a organização e o primeiro administrador; depois disso o cadastro público fecha | pedido inicial | 001 | in-progress |
+| 002 | installation | fazer o primeiro cadastro com o código de instalação, criando a organização e o primeiro administrador; depois disso o cadastro público fecha | pedido inicial | 001 | in-review |
 | 003 | login-logout | entrar e sair com e-mail e senha, com sessão em cookie httpOnly | pedido inicial | 002 | planned |
 | 004 | create-document | criar um documento privado no seu espaço pessoal, vê-lo na barra lateral, abrir e renomear | pedido inicial | 003 | planned |
 | 005 | block-editor | escrever no documento com editor de blocos, com salvamento colaborativo automático | pedido inicial | 004 | planned |
@@ -38,3 +38,7 @@
 | 034 | google-login | entrar com Google | pedido inicial | 003 | planned |
 | 035 | corporate-sso | entrar com o SSO corporativo (OIDC) | pedido inicial | 034 | planned |
 | 036 | product-hotsite | conhecer o produto num hotsite de apresentação | pedido inicial | | planned |
+| 037 | installation-rate-limit | ter o `POST /installation` protegido por limite de tentativas contra força bruta do código de instalação | dívida da 002 | | planned |
+| 038 | api-client-duplicate-defaults | ter `withCredentials` e `Accept` definidos uma única vez em apps/web/src/lib/api-client.ts | dívida da 002 | | planned |
+| 039 | route-error-report-in-effect | ter o ErrorBoundary de apps/web/src/app/routes/app/root.tsx chamando `reportError` num efeito, e não durante o render | dívida da 002 | | planned |
+| 040 | expired-sessions-cleanup | ter sessões vencidas removidas da tabela Session por rotina periódica | dívida da 002 | | planned |
