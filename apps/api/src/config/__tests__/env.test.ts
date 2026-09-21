@@ -9,6 +9,8 @@ test('parses a valid environment and defaults PORT to 3000', () => {
     DATABASE_URL: 'postgresql://folioteca@localhost:5433/folioteca',
     PORT: 3000,
     NODE_ENV: 'development',
+    COLLAB_ALLOWED_ORIGINS: [],
+    COLLAB_STORE_DEBOUNCE_MS: 2000,
   });
 });
 
@@ -48,4 +50,42 @@ test('defaults NODE_ENV to development', () => {
   });
 
   expect(result.NODE_ENV).toBe('development');
+});
+
+test('COLLAB_ALLOWED_ORIGINS defaults to an empty list', () => {
+  const result = parseEnv({
+    DATABASE_URL: 'postgresql://folioteca@localhost:5433/folioteca',
+  });
+
+  expect(result.COLLAB_ALLOWED_ORIGINS).toEqual([]);
+});
+
+test('COLLAB_ALLOWED_ORIGINS is split by comma and trimmed', () => {
+  const result = parseEnv({
+    DATABASE_URL: 'postgresql://folioteca@localhost:5433/folioteca',
+    COLLAB_ALLOWED_ORIGINS:
+      ' http://app.exemplo.org , https://seguro.exemplo.org ,, ',
+  });
+
+  expect(result.COLLAB_ALLOWED_ORIGINS).toEqual([
+    'http://app.exemplo.org',
+    'https://seguro.exemplo.org',
+  ]);
+});
+
+test('COLLAB_STORE_DEBOUNCE_MS defaults to 2000', () => {
+  const result = parseEnv({
+    DATABASE_URL: 'postgresql://folioteca@localhost:5433/folioteca',
+  });
+
+  expect(result.COLLAB_STORE_DEBOUNCE_MS).toBe(2000);
+});
+
+test('COLLAB_STORE_DEBOUNCE_MS rejects a non positive value', () => {
+  expect(() =>
+    parseEnv({
+      DATABASE_URL: 'postgresql://folioteca@localhost:5433/folioteca',
+      COLLAB_STORE_DEBOUNCE_MS: '0',
+    }),
+  ).toThrow(/COLLAB_STORE_DEBOUNCE_MS/);
 });

@@ -270,3 +270,177 @@ test('rule 3 flags a sample offender and accepts a sample compliant snippet', ()
   ]);
   expect(report(compliant)).toEqual([]);
 });
+
+const CONTENT_TABLE_PATTERN = /\.documentContent\s*\./g;
+const CONTENT_CALL_PATTERN = /\.(loadContent|saveContent)\s*\(/g;
+
+const CONTENT_SERVICE_FILE = 'documents/documents.service.ts';
+const COLLAB_SERVICE_FILE = 'collab/collab.service.ts';
+
+/** Regra 4: só `documents.service.ts` toca a tabela do conteúdo. */
+function checkContentTable({ file, source }: SourceFile): Violation[] {
+  const violations: Violation[] = [];
+
+  if (file === CONTENT_SERVICE_FILE) {
+    return violations;
+  }
+
+  for (const match of source.matchAll(CONTENT_TABLE_PATTERN)) {
+    violations.push({
+      file,
+      line: lineAt(source, match.index),
+      message: 'toca na tabela DocumentContent fora de documents.service.ts',
+    });
+  }
+
+  for (const match of source.matchAll(RAW_QUERY_PATTERN)) {
+    const statementEnd = source.indexOf(';', match.index);
+    const statement = source.slice(
+      match.index,
+      statementEnd === -1 ? source.length : statementEnd,
+    );
+
+    if (statement.includes('"DocumentContent"')) {
+      violations.push({
+        file,
+        line: lineAt(source, match.index),
+        message:
+          'consulta crua na tabela "DocumentContent" fora de documents.service.ts',
+      });
+    }
+  }
+
+  return violations;
+}
+
+/** Regra 5: só `collab.service.ts` chama `loadContent` e `saveContent`. */
+function checkContentCalls({ file, source }: SourceFile): Violation[] {
+  const violations: Violation[] = [];
+
+  if (file === COLLAB_SERVICE_FILE) {
+    return violations;
+  }
+
+  for (const match of source.matchAll(CONTENT_CALL_PATTERN)) {
+    violations.push({
+      file,
+      line: lineAt(source, match.index),
+      message: `chama ${match[1]} fora de collab.service.ts`,
+    });
+  }
+
+  return violations;
+}
+
+/** Regra 6: o `collab` decide por `resolveAccess` e não fala com o Prisma. */
+function checkCollabGate({ file, source }: SourceFile): Violation[] {
+  const violations: Violation[] = [];
+
+  if (!file.startsWith('collab/')) {
+    return violations;
+  }
+
+  if (file === COLLAB_SERVICE_FILE && !source.includes('resolveAccess(')) {
+    violations.push({
+      file,
+      line: 1,
+      message: 'não chama resolveAccess',
+    });
+  }
+
+  for (const match of source.matchAll(/prisma\./g)) {
+    violations.push({
+      file,
+      line: lineAt(source, match.index),
+      message: 'fala com o prisma dentro de collab/',
+    });
+  }
+
+  return violations;
+}
+
+test('only documents.service.ts touches the document content table', () => {
+  const violations = sourceFiles.flatMap(checkContentTable);
+
+  expect(sourceFiles.length).toBeGreaterThan(0);
+  expect(report(violations)).toEqual([]);
+});
+
+test('only collab.service.ts calls loadContent and saveContent', () => {
+  const violations = sourceFiles.flatMap(checkContentCalls);
+
+  expect(report(violations)).toEqual([]);
+});
+
+test('collab.service.ts calls resolveAccess and no collab file talks to prisma', () => {
+  const collabFiles = sourceFiles.filter(({ file }) =>
+    file.startsWith('collab/'),
+  );
+  const violations = collabFiles.flatMap(checkCollabGate);
+
+  expect(
+    collabFiles.map(({ file }) => file).includes(COLLAB_SERVICE_FILE),
+  ).toBe(true);
+  expect(report(violations)).toEqual([]);
+});
+
+test('rule 4 flags a sample offender and accepts a sample compliant snippet', () => {
+  const offender = checkContentTable({
+    file: 'collab/collab.service.ts',
+    source: [
+      'await this.prisma.documentContent.findUnique({ where: { documentId } });',
+      'await this.prisma.$queryRaw`SELECT state FROM "DocumentContent"`;',
+    ].join('\n'),
+  });
+
+  const compliant = checkContentTable({
+    file: 'collab/collab.service.ts',
+    source: 'await this.documents.loadContent(documentName);',
+  });
+
+  expect(report(offender)).toEqual([
+    'collab/collab.service.ts:1 toca na tabela DocumentContent fora de documents.service.ts',
+    'collab/collab.service.ts:2 consulta crua na tabela "DocumentContent" fora de documents.service.ts',
+  ]);
+  expect(report(compliant)).toEqual([]);
+});
+
+test('rule 5 flags a sample offender and accepts a sample compliant snippet', () => {
+  const source = 'await this.documents.saveContent(documentName, state);';
+
+  const offender = checkContentCalls({
+    file: 'documents/documents.controller.ts',
+    source,
+  });
+
+  const compliant = checkContentCalls({
+    file: 'collab/collab.service.ts',
+    source,
+  });
+
+  expect(report(offender)).toEqual([
+    'documents/documents.controller.ts:1 chama saveContent fora de collab.service.ts',
+  ]);
+  expect(report(compliant)).toEqual([]);
+});
+
+test('rule 6 flags a sample offender and accepts a sample compliant snippet', () => {
+  const offender = checkCollabGate({
+    file: 'collab/collab.service.ts',
+    source: 'await this.prisma.documentContent.findUnique({ where: { id } });',
+  });
+
+  const compliant = checkCollabGate({
+    file: 'collab/collab.service.ts',
+    source: [
+      'const level = await this.access.resolveAccess(personId, documentName);',
+      'const state = await this.documents.loadContent(documentName);',
+    ].join('\n'),
+  });
+
+  expect(report(offender)).toEqual([
+    'collab/collab.service.ts:1 não chama resolveAccess',
+    'collab/collab.service.ts:1 fala com o prisma dentro de collab/',
+  ]);
+  expect(report(compliant)).toEqual([]);
+});

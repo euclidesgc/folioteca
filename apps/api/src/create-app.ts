@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
 
 import { AppModule } from './app.module';
+import { attachCollab } from './collab/attach-collab';
 import { HttpExceptionFilter } from './common/http-exception.filter';
 
 /**
@@ -36,7 +37,13 @@ export async function createApp(
 
   configureApp(app);
 
+  // Para o `onModuleDestroy` do `collab` gravar o pendente no SIGTERM.
+  app.enableShutdownHooks();
+
   await app.init();
+
+  // Depois do `init`: o servidor HTTP e o `CollabService` já existem.
+  attachCollab(app);
 
   return app;
 }

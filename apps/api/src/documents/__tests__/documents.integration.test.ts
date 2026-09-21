@@ -8,6 +8,7 @@ import type { Response } from 'supertest';
 
 import { createApp } from '../../create-app';
 import { PrismaService } from '../../prisma/prisma.service';
+import { DocumentsService } from '../documents.service';
 import { createPersonWithSession } from '../../../test/create-person';
 import { httpRequest } from '../../../test/http';
 import { resetDatabase } from '../../../test/reset-database';
@@ -492,4 +493,84 @@ test('POST and PATCH return 403 without the X-Requested-With header', async () =
   expect(patch.status).toBe(403);
   expect(patch.body).toEqual({ message: 'Requisição recusada.' });
   expect(await prisma.document.count()).toBe(1);
+});
+
+/** Estado Yjs de mentira: as duas operações só movem bytes. */
+const STATE = new Uint8Array([1, 2, 3, 4]);
+const OTHER_STATE = new Uint8Array([9, 8, 7]);
+
+function documents(): DocumentsService {
+  return app.get(DocumentsService);
+}
+
+test('saveContent stores the state and bumps the document updatedAt', async () => {
+  const created = await createDocument(cookieA);
+  await setUpdatedAt(created.id, new Date('2026-01-01T10:00:00.000Z'));
+
+  await documents().saveContent(created.id, STATE);
+
+  const content = await prisma.documentContent.findFirstOrThrow({
+    where: { documentId: created.id },
+  });
+  const stored = await prisma.document.findFirstOrThrow({
+    where: { id: created.id },
+  });
+
+  expect(new Uint8Array(content.state)).toEqual(STATE);
+  expect(stored.updatedAt.getTime()).toBeGreaterThan(
+    new Date('2026-01-01T10:00:00.000Z').getTime(),
+  );
+});
+
+test('saveContent twice keeps a single content row with the latest state', async () => {
+  const created = await createDocument(cookieA);
+
+  await documents().saveContent(created.id, STATE);
+  await documents().saveContent(created.id, OTHER_STATE);
+
+  const content = await prisma.documentContent.findFirstOrThrow({
+    where: { documentId: created.id },
+  });
+
+  expect(await prisma.documentContent.count()).toBe(1);
+  expect(new Uint8Array(content.state)).toEqual(OTHER_STATE);
+});
+
+test('loadContent returns the stored bytes', async () => {
+  const created = await createDocument(cookieA);
+  await documents().saveContent(created.id, STATE);
+
+  const loaded = await documents().loadContent(created.id);
+
+  expect(loaded).not.toBeNull();
+  expect(new Uint8Array(loaded ?? new Uint8Array())).toEqual(STATE);
+});
+
+test('the documents list and the document read carry no content bytes', async () => {
+  const created = await createDocument(cookieA);
+  await documents().saveContent(created.id, STATE);
+
+  const list = await getDocuments(cookieA);
+  const read = await getDocument(cookieA, created.id);
+  const body = JSON.stringify({
+    list: list.body as unknown,
+    read: read.body as unknown,
+  });
+
+  expect(Object.keys((read.body as { data: DocumentBody }).data)).not.toContain(
+    'content',
+  );
+  expect(body).not.toContain('"content"');
+  expect(body).not.toContain('"state"');
+});
+
+test('deleting a document deletes its content', async () => {
+  const created = await createDocument(cookieA);
+  await documents().saveContent(created.id, STATE);
+
+  await prisma.document.delete({ where: { id: created.id } });
+
+  expect(
+    await prisma.documentContent.count({ where: { documentId: created.id } }),
+  ).toBe(0);
 });

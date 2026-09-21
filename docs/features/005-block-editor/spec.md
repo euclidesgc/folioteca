@@ -6,15 +6,10 @@ registrar). Parte de `docs/architecture.md` §3 (decisão de acesso: caminho
 `feature/004-create-document` (§9, entregas empilhadas); toda comparação de
 "arquivo intocado" é contra ela.
 
-> **Pendência que trava a Fase 1 — versões não verificadas.** Esta SPEC foi
-> escrita numa sessão sem terminal: `pnpm view <pacote> version peerDependencies`
-> **não foi executado**, e nenhum dos pacotes novos existe em `node_modules`
-> para leitura. Por isso **nenhum número de versão está fixado aqui** e os nomes
-> exatos de hooks e opções das bibliotecas (marcados com "conferir") vêm de
-> conhecimento prévio, não de leitura do pacote instalado. A primeira tarefa do
-> PLAN é a verificação de D1; o resultado é escrito de volta em D1 antes de
-> qualquer código. Os **comportamentos** exigidos não dependem disso: estão
-> presos pelos testes de integração de D9.
+> **Versões verificadas em 21/09/2026.** As versões estão fixadas em D1 e os
+> nomes de hooks e opções marcados "conferir" trazem, ao lado, o nome que a
+> versão instalada realmente usa (D2, D4 e D6). Os **comportamentos** exigidos
+> continuam presos pelos testes de integração de D9.
 
 ## Cobertura dos requisitos
 
@@ -35,8 +30,24 @@ registrar). Parte de `docs/architecture.md` §3 (decisão de acesso: caminho
 
 ## Decisões técnicas
 
-### D1 — Pacotes e a verificação obrigatória de versões
+### D1 — Pacotes e versões (verificadas)
 
+- Versões fixadas (conferidas no registro em 21/09/2026; a Fase 1 instalou as da API):
+
+  | Pacote | Versão | Peers e observações |
+  |---|---|---|
+  | `@blocknote/core`, `@blocknote/react`, `@blocknote/mantine` | 0.54.2 (as três iguais) | `react`/`react-dom` `^18 \|\| ^19`. O `mantine` pede `@mantine/core` e `@mantine/hooks` `^8.3.11 \|\| ^9.0.2` (instalar os dois como dependência direta da web) |
+  | `@hocuspocus/server`, `@hocuspocus/provider` | 4.7.0 (as duas iguais) | peers `yjs ^13.6.8`, `y-protocols ^1.0.6`; `engines.node >= 22` (Node 24 serve) |
+  | `yjs` | 13.6.32 | **uma única cópia** no workspace (`pnpm why yjs -r` confirmou) |
+  | `ws` | 8.21.3 | `@types/ws` em dev |
+  | `cookie` | 0.7.2 | mesma faixa que o `cookie-parser` já traz; tipos por `@types/cookie` 0.6.0 (o pacote 0.x não embute tipos, e o `@types/cookie` 1.x é um stub vazio) |
+
+- **Peers do `@blocknote/core` 0.54.2: todos opcionais.** `peerDependenciesMeta`
+  marca `yjs`, `y-prosemirror`, `y-protocols`, `@y/y`, `@y/prosemirror` e
+  `@y/protocols` como `optional: true`. Nada disso é obrigatório; a web instala
+  `yjs` (e `y-prosemirror`/`y-protocols`, se a colaboração os exigir em tempo de
+  execução) por escolha nossa, não por imposição de peer.
+- `pnpm install` na raiz termina sem aviso de peer com essas versões.
 - Escolha (pacotes): `apps/web` ganha `@blocknote/core`, `@blocknote/react`, `@blocknote/mantine`, `yjs`, `@hocuspocus/provider`. `apps/api` ganha `@hocuspocus/server`, `yjs`, `ws` e `@types/ws` (dev); `@hocuspocus/provider` entra em `devDependencies` da API (cliente real nos testes de integração).
 - Escolha (kit de interface): **`@blocknote/mantine`**. O CSS dele é fechado em si (`@blocknote/mantine/style.css`, importado só dentro do componente lazy) e não conversa com o Tailwind. O `@blocknote/shadcn` exige que o Tailwind varra `node_modules` (`@source`) e que o projeto defina os tokens de tema do shadcn (`--background`, `--primary`, …) no CSS global — isto é, um segundo sistema de design dentro do `docs/design.md` — e traz uma família de pacotes Radix. O projeto não usa shadcn.
   - **Não medido:** "qual pesa menos" não foi conferido em build. Como o editor inteiro mora em chunks lazy (D13), o peso não toca a rota inicial nos dois casos; o critério que decidiu foi o acoplamento com o Tailwind 4. O PLAN registra o tamanho dos chunks do editor no PR (skill `performance` §0).
@@ -56,8 +67,8 @@ registrar). Parte de `docs/architecture.md` §3 (decisão de acesso: caminho
 - Escolha: módulo `apps/api/src/collab/`. `CollabService` cria a instância do Hocuspocus (sem porta própria) e um `WebSocketServer` do `ws` com `noServer: true`. `attachCollab(app)` (em `collab/attach-collab.ts`), chamado por `createApp` **depois** de `app.init()`, registra `app.getHttpServer().on('upgrade', handler)`. O handler:
   1. caminho diferente de `/collab` → `socket.destroy()`;
   2. porta do upgrade (D3): Origin e sessão; falhou → resposta HTTP crua (`403`/`401`, sem corpo útil) e `socket.destroy()` — o WebSocket nem chega a existir;
-  3. passou → `wss.handleUpgrade(...)` e entrega ao Hocuspocus com `context = { personId }` (`handleConnection(websocket, request, context)` — conferir assinatura).
-  `/collab` fica **fora** do prefixo `/api` (é o que a §5 e a §8 já dizem). `CollabService.onModuleDestroy` fecha as conexões e força a gravação pendente (conferir: `closeConnections` + gravação no fechamento); `createApp` chama `app.enableShutdownHooks()` para isso valer no `SIGTERM` do Coolify.
+  3. passou → `wss.handleUpgrade(...)` e entrega ao Hocuspocus com `context = { personId }` (`handleConnection(websocket, request, context)` — **conferido na 4.7.0**: `Hocuspocus#handleConnection(incoming, request, defaultContext)`, onde `request` é um `Request` da Web, montado a partir do `IncomingMessage`; a integração precisa encaminhar ela mesma os eventos do socket, por `clientConnection.handleMessage(Uint8Array)` e `clientConnection.handleClose({ code, reason })`).
+  `/collab` fica **fora** do prefixo `/api` (é o que a §5 e a §8 já dizem). `CollabService.onModuleDestroy` fecha as conexões e força a gravação pendente (**conferido na 4.7.0**: `Hocuspocus#closeConnections()` + `Hocuspocus#flushPendingStores()`, esperando o hook `afterUnloadDocument` chegar a zero documentos — é a mesma receita do `Server#destroy` da biblioteca); `createApp` chama `app.enableShutdownHooks()` para isso valer no `SIGTERM` do Coolify. A instância é criada por `new Hocuspocus({...})`, que já nasce sem porta própria.
 - Alternativa descartada: `@nestjs/websockets` + `WsAdapter` — motivo: o gateway do Nest quer ser dono das mensagens; o Hocuspocus já é dono do protocolo. Seriam duas camadas para o mesmo socket.
 - Alternativa descartada: Hocuspocus em porta própria — motivo: outra porta para o proxy, o Coolify e o cookie (`SameSite`) cuidarem; a §5 pede "embutido no processo da API".
 
@@ -72,9 +83,9 @@ registrar). Parte de `docs/architecture.md` §3 (decisão de acesso: caminho
 
 ### D4 — Autorização por documento: `resolveAccess` a cada conexão
 
-- Escolha: nome do documento Yjs = `Document.id`. No hook do Hocuspocus que recebe o nome do documento **antes** de carregar e sincronizar (`onConnect`; conferir — se a versão instalada só expuser o nome em `onAuthenticate`, usa-se ele, com o provider enviando um marcador fixo que **não** é credencial, `token: 'cookie-session'`), `CollabService` chama `AccessService.resolveAccess(context.personId, documentName)`:
+- Escolha: nome do documento Yjs = `Document.id`. No hook do Hocuspocus que recebe o nome do documento **antes** de carregar e sincronizar (**conferido na 4.7.0**: é o `onConnect`, cujo payload já traz `documentName` e roda antes de `onAuthenticate` e de `createDocument`; **a web não precisa mandar marcador de token nenhum** — o provider envia a mensagem de autenticação com token vazio por conta própria, e é ela que dispara o `onConnect`), `CollabService` chama `AccessService.resolveAccess(context.personId, documentName)`:
   - `none` → lança; a conexão é recusada com o mesmo motivo para documento inexistente, de outra pessoa e id malformado (é o próprio `resolveAccess` que os torna indistinguíveis). Nenhum documento é carregado nem criado;
-  - `view` → conexão somente leitura (`connection.readOnly = true`; conferir o nome do campo). Inalcançável com dados reais nesta fatia; coberto por teste com `AccessService` substituído. A web não ramifica por ele (fora de escopo no PRD);
+  - `view` → conexão somente leitura (**conferido na 4.7.0**: `connectionConfig.readOnly = true` no payload do `onConnect`; o objeto é o mesmo que a conexão usa depois). Inalcançável com dados reais nesta fatia; coberto por teste com `AccessService` substituído. A web não ramifica por ele (fora de escopo no PRD);
   - `owner`/`edit` → leitura e escrita, via `canEdit` (já existe em `access-level.ts`).
 - Limite conhecido (registrado na arquitetura): o acesso é conferido **ao conectar**. "Quem perde o acesso tem a conexão derrubada" (§5) e "logout derruba o socket" não entram agora: nesta fatia o acesso não muda (só existe dono). Vira dívida para a fatia 015.
 - Alternativa descartada: conferir o acesso só no upgrade, com o id na URL — motivo: o provider multiplexa documentos numa conexão; o nome chega na mensagem, não na URL.
@@ -90,7 +101,7 @@ registrar). Parte de `docs/architecture.md` §3 (decisão de acesso: caminho
 - Escolha: `DocumentsService` ganha duas operações sem pessoa (quem autoriza é o `collab`, em D4):
   - `loadContent(documentId): Promise<Uint8Array | null>`;
   - `saveContent(documentId, state: Uint8Array): Promise<void>` — transação: `documentContent.upsert` + `document.update({ where: { id }, data: { updatedAt: new Date() } })`. Documento apagado no meio (P2025) é engolido com log, sem derrubar o processo.
-  Ficam em `documents.service.ts` porque a regra 3 do teste estrutural só admite gravação em `Document` ali. Hocuspocus: `onLoadDocument` aplica o estado (`Y.applyUpdate`); `onStoreDocument` grava `Y.encodeStateAsUpdate(document)`; `debounce: 2000`, `maxDebounce: 10000`. Depois de gravar, o servidor avisa as conexões do documento com uma mensagem sem estado (`broadcastStateless`; conferir) de corpo `{"type":"stored"}` — é o gatilho da invalidação na web (D12).
+  Ficam em `documents.service.ts` porque a regra 3 do teste estrutural só admite gravação em `Document` ali. Hocuspocus (**nomes conferidos na 4.7.0**): `onLoadDocument` recebe `{ document, documentName }` e aplica o estado (`Y.applyUpdate`); `onStoreDocument` grava `Y.encodeStateAsUpdate(document)`; as opções de espera são mesmo `debounce` e `maxDebounce` (2000 e 10000 em produção). Depois de gravar, o servidor avisa as conexões do documento com uma mensagem sem estado (**conferido**: `Document#broadcastStateless(payload: string)`) de corpo `{"type":"stored"}` — é o gatilho da invalidação na web (D12).
 - Alternativa descartada: gravar a cada atualização — motivo: uma escrita no Postgres por tecla.
 - Alternativa descartada: `collab` gravar direto pelo Prisma — motivo: quebra as regras 1 e 3 do teste estrutural; é exatamente o desvio que ele existe para pegar.
 

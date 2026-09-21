@@ -9,5 +9,6 @@ import { DocumentsService } from './documents.service';
   imports: [AuthModule, AccessModule],
   controllers: [DocumentsController],
   providers: [DocumentsService],
+  exports: [DocumentsService],
 })
 export class DocumentsModule {}

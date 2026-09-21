@@ -1,6 +1,6 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import type { components } from '@folioteca/api-contract';
-import type { Document as DocumentRecord } from '@prisma/client';
+import { Prisma, type Document as DocumentRecord } from '@prisma/client';
 
 import { canEdit } from '../access/access-level';
 import { AccessService } from '../access/access.service';
@@ -21,6 +21,19 @@ type AccessLevel = components['schemas']['AccessLevel'];
 const CANNOT_EDIT_MESSAGE =
   'Você não tem permissão para editar este documento.';
 
+/**
+ * Códigos do Prisma que significam "o documento sumiu no meio da gravação":
+ * registro não encontrado (`P2025`) e chave estrangeira violada (`P2003`).
+ */
+const MISSING_DOCUMENT_CODES = ['P2025', 'P2003'];
+
+function isMissingDocumentError(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    MISSING_DOCUMENT_CODES.includes(error.code)
+  );
+}
+
 /** Corpo público do documento: os campos do banco mais o nível de acesso. */
 function toDocument(
   document: DocumentRecord,
@@ -36,6 +49,8 @@ function toDocument(
 
 @Injectable()
 export class DocumentsService {
+  private readonly logger = new Logger(DocumentsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
@@ -137,5 +152,55 @@ export class DocumentsService {
     });
 
     return toDocument(document, accessLevel);
+  }
+
+  /**
+   * Estado Yjs guardado do documento, ou `null` se ainda não há nenhum. Não
+   * recebe pessoa: quem autoriza é o módulo `collab`, antes de chamar.
+   */
+  async loadContent(documentId: string): Promise<Uint8Array | null> {
+    const content = await this.prisma.documentContent.findUnique({
+      where: { documentId },
+      select: { state: true },
+    });
+
+    return content?.state ?? null;
+  }
+
+  /**
+   * Grava o estado Yjs e avança o `updatedAt` do documento na mesma
+   * transação. Não recebe pessoa: quem autoriza é o módulo `collab`.
+   */
+  async saveContent(documentId: string, state: Uint8Array): Promise<void> {
+    // O Prisma só aceita bytes respaldados por `ArrayBuffer`; o Yjs entrega
+    // uma visão que o TypeScript tipa como `ArrayBufferLike`.
+    const bytes = new Uint8Array(state);
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.documentContent.upsert({
+          where: { documentId },
+          create: { documentId, state: bytes },
+          update: { state: bytes },
+        });
+
+        await tx.document.update({
+          where: { id: documentId },
+          data: { updatedAt: new Date() },
+        });
+      });
+    } catch (error) {
+      // O documento pode ter sido apagado enquanto a gravação esperava o
+      // debounce: não há conteúdo a guardar e não é falha do processo.
+      if (isMissingDocumentError(error)) {
+        this.logger.warn(
+          `Conteúdo descartado: o documento ${documentId} não existe mais.`,
+        );
+
+        return;
+      }
+
+      throw error;
+    }
   }
 }

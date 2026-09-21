@@ -11,6 +11,9 @@ export default function setup(): void {
   // Sem código de instalação os testes não conseguiriam instalar a instância.
   process.env.INSTALL_CODE ??= randomBytes(24).toString('base64url');
 
+  // Debounce curto: os testes esperam a gravação do conteúdo acontecer.
+  process.env.COLLAB_STORE_DEBOUNCE_MS ??= '50';
+
   execSync('npx prisma migrate deploy', {
     cwd: apiRoot,
     stdio: 'inherit',
