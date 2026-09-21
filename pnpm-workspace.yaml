@@ -2,6 +2,9 @@ packages:
   - "apps/*"
   - "packages/*"
 
+overrides:
+  vite: 8.3.0
+
 onlyBuiltDependencies:
   - prisma
   - "@prisma/client"
@@ -19,3 +22,6 @@ allowBuilds:
   "@swc/core": true
   msw: true
   unrs-resolver: true
+
+minimumReleaseAgeExclude:
+  - react-error-boundary@6.1.6

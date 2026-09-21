@@ -8,5 +8,5 @@
     "declarationDir": "./node_modules/.cache/tsc",
     "tsBuildInfoFile": "./node_modules/.cache/tsc/tsconfig.tsbuildinfo"
   },
-  "include": ["src", "test", "vitest.config.ts"]
+  "include": ["src", "test", "vitest.config.mts"]
 }

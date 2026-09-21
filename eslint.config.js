@@ -37,11 +37,10 @@ export default tseslint.config(
       'import/resolver': {
         typescript: {
           alwaysTryTypes: true,
-          project: [
-            './tsconfig.node.json',
-            './apps/*/tsconfig.json',
-            './packages/*/tsconfig.json',
-          ],
+          tsconfig: {
+            configFile: './tsconfig.json',
+            references: 'auto',
+          },
         },
       },
     },

@@ -28,4 +28,11 @@ Fonte única da aparência. Este arquivo é seu: `/br:init` cria uma vez e nunca
 
 ## Padrões acrescentados pelas entregas
 
-<!-- uma linha por padrão novo: | Padrão | Classes | fatia que criou | -->
+| Padrão | Classes | Fatia |
+|---|---|---|
+| Moldura do app | `<div className="min-h-screen md:flex">`; conteúdo `min-w-0 flex-1` | 001 |
+| Barra lateral | `<aside className="border-b border-gray-200 bg-gray-50 md:flex md:w-64 md:shrink-0 md:flex-col md:border-b-0 md:border-r">`; blocos internos com `p-4` | 001 |
+| Barra de topo (tela estreita) | `flex items-center justify-between gap-4 p-4 md:hidden` | 001 |
+| Item da barra lateral | `block rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600`; ativo: `bg-gray-200 text-gray-900` | 001 |
+| Link de pular conteúdo | `sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-blue-600 focus:outline-2 focus:outline-blue-600` | 001 |
+| Selo de erro | par `bg-red-100 text-red-800` para a receita "Selo de status" | 001 |
