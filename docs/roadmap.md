@@ -9,7 +9,7 @@
 | 005 | block-editor | escrever no documento com editor de blocos, com salvamento colaborativo automático | pedido inicial | 004 | in-review |
 | 006 | favorites | marcar documentos como favoritos e achá-los na barra lateral | pedido inicial | 004 | in-review |
 | 007 | trash | mandar documento para a lixeira, restaurar ou apagar de vez (só o proprietário) | pedido inicial | 004 | in-review |
-| 064 | org-units-view | (administração) ver a árvore de unidades da organização numa página "Estrutura", navegável por teclado, numa área "Administração" que só a administração enxerga | 008 org-units-tree | 003 | in-progress |
+| 064 | org-units-view | (administração) ver a árvore de unidades da organização numa página "Estrutura", navegável por teclado, numa área "Administração" que só a administração enxerga | 008 org-units-tree | 003 | in-review |
 | 065 | org-units-create-rename | (administração) criar unidades filhas e renomear unidades, inclusive a raiz (que renomeia a organização) | 008 org-units-tree | 064 | planned |
 | 066 | org-units-delete | (administração) apagar unidade sem filhas, com confirmação; a raiz nunca | 008 org-units-tree | 065 | planned |
 | 009 | invitations | (administração) convidar pessoas por e-mail, e o convidado criar a conta pelo link | pedido inicial | 003 | planned |
@@ -67,3 +67,8 @@
 | 061 | destructive-button-variant-reuse | ter os botões vermelhos de erro usando a variante `destructive` do `Button` em vez de repetir as classes à mão | dívida da 007 | | planned |
 | 062 | web-authorization-lib | ter `src/lib/authorization.tsx` (skill authorization) no lugar da comparação direta de `accessLevel` em document-view.tsx | dívida da 007 | | planned |
 | 063 | e2e-mock-proxy-flake | investigar a falha esporádica do e2e com `ECONNREFUSED 127.0.0.1:3000` no modo de API simulada (pedido escapando do MSW para o proxy do Vite antes de o service worker assumir) | dívida da 007 | | planned |
+| 067 | org-units-read-for-members | ter a leitura da árvore de unidades disponível a quem não é administração quando a tela de espaços precisar dela (hoje `GET /org-units` é só admin; o guard desce para os métodos de escrita) | dívida da 064 | | planned |
+| 068 | org-units-large-tree | carregar a árvore por nível e ordenar no banco quando houver milhares de unidades (hoje lista inteira, ordenada em memória) | dívida da 064 | | planned |
+| 069 | tree-typeahead-and-actions | ter no componente `Tree` a busca por digitação, a tecla `*` e um slot de ações por nó | dívida da 064 | | planned |
+| 070 | mock-multiple-people | ter mais de uma pessoa no banco falso da API simulada, para admin e membro coexistirem numa sessão de desenvolvimento | dívida da 064 | | planned |
+| 071 | e2e-block-editor-bold-flake | estabilizar o caso do negrito em block-editor.spec.ts, que falha esporadicamente com vários workers em paralelo e passa no retry | dívida da 064 | | planned |
