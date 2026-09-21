@@ -437,6 +437,34 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /org-units:
+    get:
+      operationId: getOrgUnits
+      tags:
+        - org-units
+      summary: Lista plana das unidades da organização
+      description: >-
+        Lista plana de todas as unidades da organização, ordenada por nome, só
+        para a administração.
+      responses:
+        "200":
+          description: As unidades da organização foram listadas.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrgUnitsResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
   schemas:
     Health:
@@ -619,6 +647,31 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DocumentSummary"
+      required:
+        - data
+    OrgUnit:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identificador da unidade.
+        parentId:
+          type: [string, "null"]
+          description: Unidade pai; nulo na raiz da organização.
+        name:
+          type: string
+          description: Nome da unidade.
+      required:
+        - id
+        - parentId
+        - name
+    OrgUnitsResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrgUnit"
       required:
         - data
     UpdateDocumentBody:

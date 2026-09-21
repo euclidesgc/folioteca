@@ -8,6 +8,7 @@ import { CsrfGuard } from './common/csrf.guard';
 import { DocumentsModule } from './documents/documents.module';
 import { HealthModule } from './health/health.module';
 import { InstallationModule } from './installation/installation.module';
+import { OrgUnitsModule } from './org-units/org-units.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -18,6 +19,7 @@ import { PrismaModule } from './prisma/prisma.module';
     InstallationModule,
     AccessModule,
     DocumentsModule,
+    OrgUnitsModule,
     CollabModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: CsrfGuard }],
