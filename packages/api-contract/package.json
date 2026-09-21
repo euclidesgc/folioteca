@@ -1,0 +1,18 @@
+{
+  "name": "@folioteca/api-contract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/generated/openapi.d.ts"
+    }
+  },
+  "scripts": {
+    "generate": "openapi-typescript openapi.yaml -o src/generated/openapi.d.ts",
+    "build": "echo \"@folioteca/api-contract: pacote só de tipos, nada a construir\""
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.9.1"
+  }
+}

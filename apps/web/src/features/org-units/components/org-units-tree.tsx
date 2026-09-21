@@ -1,0 +1,271 @@
+import type React from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+
+import { Button } from '@/components/ui/button/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@/components/ui/dialog/dialog';
+import { useNotifications } from '@/components/ui/notifications/notifications-store';
+import { Tree, type TreeHandle } from '@/components/ui/tree/tree';
+import { useOrgUnits } from '@/features/org-units/api/get-org-units';
+import { CreateOrgUnitForm } from '@/features/org-units/components/create-org-unit-form';
+import { RenameOrgUnitForm } from '@/features/org-units/components/rename-org-unit-form';
+import {
+  buildTree,
+  collectExpandableIds,
+} from '@/features/org-units/utils/build-tree';
+import type { OrgUnit } from '@/types/api';
+
+// A tree with only the root (or nothing at all) says what this place is for.
+const ONLY_ROOT_LIMIT = 1;
+
+type DialogState = { mode: 'create' | 'rename'; unitId: string };
+
+// What the dialog asks of whichever form is inside it.
+type FormFocusHandle = { focusName: () => void };
+
+const PlusIcon = (): React.JSX.Element => (
+  <svg
+    aria-hidden="true"
+    focusable="false"
+    viewBox="0 0 20 20"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="size-4"
+  >
+    <path d="M10 4v12M4 10h12" />
+  </svg>
+);
+
+const PencilIcon = (): React.JSX.Element => (
+  <svg
+    aria-hidden="true"
+    focusable="false"
+    viewBox="0 0 20 20"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="size-4"
+  >
+    <path d="M13.5 3.5a2.12 2.12 0 0 1 3 3L7 16l-4 1 1-4 9.5-9.5Z" />
+  </svg>
+);
+
+// Mounts only with data, so the expansion starts fully open once, in the
+// initializer of the state — no `useEffect` to keep anything in sync.
+function LoadedOrgUnitsTree({
+  units,
+}: {
+  units: OrgUnit[];
+}): React.JSX.Element {
+  const nodes = useMemo(() => buildTree(units), [units]);
+  const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(() =>
+    collectExpandableIds(nodes),
+  );
+  // The state keeps the id: the unit itself is derived from the list at every
+  // render, so a unit that left the list closes the dialog by derivation.
+  const [dialog, setDialog] = useState<DialogState | null>(null);
+  // The node to be focused after the creation, and the mark that the closing
+  // under way is the one of a creation. Both live in refs, read by the effect
+  // and by `onCloseAutoFocus` at the moment they run — never in a closure
+  // captured by a past render.
+  const pendingFocusIdRef = useRef<string | null>(null);
+  const closedByCreationRef = useRef(false);
+
+  const treeRef = useRef<TreeHandle>(null);
+  const formFocusRef = useRef<FormFocusHandle>(null);
+  const addNotification = useNotifications((state) => state.addNotification);
+
+  const dialogUnit = dialog
+    ? (units.find((unit) => unit.id === dialog.unitId) ?? null)
+    : null;
+
+  const closeDialog = (): void => {
+    setDialog(null);
+  };
+
+  const handleCreated = (unit: OrgUnit): void => {
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      if (unit.parentId) next.add(unit.parentId);
+      return next;
+    });
+    closedByCreationRef.current = true;
+    pendingFocusIdRef.current = unit.id;
+    addNotification({ type: 'success', title: 'Unidade criada' });
+    closeDialog();
+  };
+
+  // The node that was just born has no row yet: it only appears when the
+  // reloaded list brings it. The focus waits for the list, never for a timer.
+  useEffect(() => {
+    const pendingFocusId = pendingFocusIdRef.current;
+    if (!pendingFocusId) return;
+    if (!units.some((unit) => unit.id === pendingFocusId)) return;
+
+    pendingFocusIdRef.current = null;
+    treeRef.current?.focusNode(pendingFocusId);
+  }, [units]);
+
+  const handleRenamed = (): void => {
+    addNotification({ type: 'success', title: 'Unidade renomeada' });
+    closeDialog();
+  };
+
+  return (
+    <>
+      {nodes.length > 0 ? (
+        <Tree
+          ref={treeRef}
+          nodes={nodes}
+          expandedIds={expandedIds}
+          onExpandedChange={setExpandedIds}
+          aria-label="Estrutura de unidades"
+          renderActions={(node, { tabIndex }) => (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                type="button"
+                tabIndex={tabIndex}
+                aria-label={`Criar unidade filha em ${node.label}`}
+                title={`Criar unidade filha em ${node.label}`}
+                onClick={() => setDialog({ mode: 'create', unitId: node.id })}
+              >
+                <PlusIcon />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                type="button"
+                tabIndex={tabIndex}
+                aria-label={`Renomear ${node.label}`}
+                title={`Renomear ${node.label}`}
+                onClick={() => setDialog({ mode: 'rename', unitId: node.id })}
+              >
+                <PencilIcon />
+              </Button>
+            </>
+          )}
+        />
+      ) : null}
+
+      {units.length <= ONLY_ROOT_LIMIT ? (
+        <p className="mt-6 rounded-md border border-dashed border-gray-300 p-6 text-center text-gray-600">
+          Por enquanto só existe a raiz. Use “Criar unidade filha” na linha dela
+          para começar a estrutura.
+        </p>
+      ) : null}
+
+      {/* One dialog for the whole tree, not one per node. */}
+      <Dialog
+        open={dialogUnit !== null}
+        onOpenChange={(open) => {
+          if (!open) closeDialog();
+        }}
+      >
+        {dialog && dialogUnit ? (
+          <DialogContent
+            onOpenAutoFocus={(event) => {
+              // The field, not the first focusable of the box.
+              event.preventDefault();
+              formFocusRef.current?.focusName();
+            }}
+            onCloseAutoFocus={(event) => {
+              // After creating, the focus belongs to the node that was just
+              // born, and the effect above takes it there as soon as the node
+              // exists: the box must not send it to the button, before or
+              // after that. In every other case it returns the focus to
+              // whoever opened the dialog.
+              if (!closedByCreationRef.current) return;
+              closedByCreationRef.current = false;
+              event.preventDefault();
+            }}
+          >
+            {dialog.mode === 'create' ? (
+              <>
+                <DialogTitle>Criar unidade filha</DialogTitle>
+                <DialogDescription>
+                  A nova unidade ficará dentro de “{dialogUnit.name}”.
+                </DialogDescription>
+                <CreateOrgUnitForm
+                  key={`create-${dialogUnit.id}`}
+                  parentId={dialogUnit.id}
+                  focusRef={formFocusRef}
+                  onSuccess={handleCreated}
+                  onCancel={closeDialog}
+                />
+              </>
+            ) : (
+              <>
+                <DialogTitle>Renomear unidade</DialogTitle>
+                <DialogDescription>
+                  Nome atual: “{dialogUnit.name}”.
+                  {dialogUnit.parentId === null
+                    ? ' Esta é a raiz: o novo nome também passa a ser o nome da organização.'
+                    : null}
+                </DialogDescription>
+                <RenameOrgUnitForm
+                  key={`rename-${dialogUnit.id}`}
+                  unit={dialogUnit}
+                  focusRef={formFocusRef}
+                  onSuccess={handleRenamed}
+                  onCancel={closeDialog}
+                />
+              </>
+            )}
+          </DialogContent>
+        ) : null}
+      </Dialog>
+    </>
+  );
+}
+
+export function OrgUnitsTree(): React.JSX.Element {
+  const orgUnitsQuery = useOrgUnits();
+
+  // A retry after a failed load goes back to "pending" in TanStack Query v5.
+  if (
+    orgUnitsQuery.isPending ||
+    (orgUnitsQuery.isError && orgUnitsQuery.isFetching)
+  ) {
+    return (
+      <p role="status" className="mt-6 text-gray-600">
+        Carregando estrutura…
+      </p>
+    );
+  }
+
+  // A 403 with the tab open lands here too: the person was demoted while the
+  // page was open.
+  if (orgUnitsQuery.isError) {
+    return (
+      <div
+        role="alert"
+        className="mt-6 rounded-md border border-red-200 bg-red-50 p-4"
+      >
+        <p className="text-red-800">
+          Não foi possível carregar a estrutura.
+        </p>
+        <Button
+          variant="destructive"
+          type="button"
+          className="mt-3"
+          onClick={() => void orgUnitsQuery.refetch()}
+        >
+          Tentar novamente
+        </Button>
+      </div>
+    );
+  }
+
+  return <LoadedOrgUnitsTree units={orgUnitsQuery.data.data} />;
+}
