@@ -99,3 +99,20 @@ test('invalidates the documents list', async () => {
     queryKey: getDocumentsQueryOptions().queryKey,
   });
 });
+
+test('invalidates the favorites list too', async () => {
+  const seeded = firstSeededDocument();
+  const { result, queryClient } = renderMutation();
+  const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
+
+  result.current.mutate({
+    documentId: seeded.id,
+    data: { title: 'Ata revisada' },
+  });
+
+  await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+  expect(invalidateQueries).toHaveBeenCalledWith({
+    queryKey: getDocumentsQueryOptions('favorites').queryKey,
+  });
+});

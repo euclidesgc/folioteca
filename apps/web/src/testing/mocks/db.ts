@@ -30,12 +30,21 @@ export type MockDocument = {
   accessLevel: 'owner' | 'edit' | 'view';
 };
 
+// A favorite is personal, and the fake database has a single person: the row
+// only needs the document it points at and when it was marked.
+export type MockFavorite = { documentId: string; createdAt: string };
+
 type DbState = {
   installation: MockInstallation | null;
   documents: MockDocument[];
+  favorites: MockFavorite[];
 };
 
-const initialState = (): DbState => ({ installation: null, documents: [] });
+const initialState = (): DbState => ({
+  installation: null,
+  documents: [],
+  favorites: [],
+});
 
 let state: DbState = initialState();
 
@@ -129,4 +138,24 @@ export const seedSampleDocuments = (): void => {
   }));
 
   state = { ...state, documents: [...state.documents, ...sample] };
+};
+
+// How many documents `seedSampleFavorites` marks: one more than the sidebar
+// shows, so the "Ver todos" link appears in development.
+const SAMPLE_FAVORITES_COUNT = 9;
+
+// Marks the first documents already in the database as favorites, from the
+// most recently marked to the oldest. Kept separate from `seedSampleDocuments`
+// because the existing e2e journeys expect no favorite by default.
+export const seedSampleFavorites = (): void => {
+  const now = Date.now();
+
+  const sample: MockFavorite[] = state.documents
+    .slice(0, SAMPLE_FAVORITES_COUNT)
+    .map((document, index) => ({
+      documentId: document.id,
+      createdAt: new Date(now - index * 1000 * 60 * 30).toISOString(),
+    }));
+
+  state = { ...state, favorites: [...state.favorites, ...sample] };
 };

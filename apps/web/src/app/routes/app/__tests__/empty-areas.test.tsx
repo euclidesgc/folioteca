@@ -13,22 +13,13 @@ beforeEach(() => {
   seedInstalled({ signedIn: true });
 });
 
-import { Component as Favorites } from '../favorites';
 import { Component as Spaces } from '../spaces';
 import { Component as Trash } from '../trash';
 
-// "Meus documentos" left this set when it stopped being an empty page: it
-// now has its own file, my-documents.test.tsx.
+// "Meus documentos" and "Favoritos" left this set when they stopped being
+// empty pages: their emptiness now comes from the API, and each has its own
+// file, my-documents.test.tsx and favorites.test.tsx.
 const areas = [
-  {
-    name: 'Favoritos',
-    Component: Favorites,
-    routePath: '/favorites',
-    title: 'Favoritos',
-    support: 'Os documentos que você marca como favoritos ficam à mão aqui.',
-    empty:
-      'Nenhum favorito ainda. Quando você marcar um documento como favorito, ele aparece aqui.',
-  },
   {
     name: 'Espaços',
     Component: Spaces,
@@ -48,6 +39,10 @@ const areas = [
     empty: 'A lixeira está vazia. Os documentos que você excluir aparecem aqui.',
   },
 ];
+
+// Lazy routes resolve after their chunk loads: give those waits an explicit
+// budget instead of the implicit default.
+const LAZY_TIMEOUT = { timeout: 5000 };
 
 const renderRoutes = (initialEntries: string[]) => {
   const queryClient = new QueryClient({ defaultOptions: queryConfig });
@@ -86,7 +81,7 @@ describe.each(areas)(
       renderRoutes([routePath]);
 
       expect(
-        await screen.findByRole('link', { name }),
+        await screen.findByRole('link', { name }, LAZY_TIMEOUT),
       ).toHaveAttribute('aria-current', 'page');
     });
   },

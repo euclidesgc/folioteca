@@ -30,6 +30,18 @@ test('uses the primary variant by default and the secondary variant when asked',
   );
 });
 
+test('renders the ghost variant', () => {
+  render(<Button variant="ghost">Adicionar aos favoritos</Button>);
+
+  const button = screen.getByRole('button', {
+    name: 'Adicionar aos favoritos',
+  });
+  expect(button).toHaveClass('text-gray-700');
+  expect(button).toHaveClass('hover:bg-gray-100');
+  expect(button).toHaveClass('focus-visible:outline-blue-600');
+  expect(button).not.toHaveClass('bg-blue-600');
+});
+
 test('is disabled and aria-busy while isLoading', () => {
   render(<Button isLoading>Instalando…</Button>);
 

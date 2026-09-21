@@ -47,3 +47,6 @@ Fonte única da aparência. Este arquivo é seu: `/br:init` cria uma vez e nunca
 | Aviso informativo | `<p className="mt-6 rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-800">` | 004 |
 | Indicador de salvamento | `<p role="status" className="mt-2 text-sm text-gray-600">`; no estado sem conexão, `text-amber-800` no lugar de `text-gray-600` | 005 |
 | Área do editor | `<section aria-label="Conteúdo do documento" className="mt-6 min-w-0 [&_.bn-editor]:px-0">` com a view do BlockNote em tema claro (`theme="light"`), sem sobrescrever cor nem fonte; a classe de compensação do recuo lateral é `[&_.bn-editor]:px-0`, que zera o recuo interno do editor para o texto alinhar com o campo do título | 005 |
+| Botão discreto (`ghost`) | base do botão + `text-gray-700 hover:bg-gray-100 focus-visible:outline-blue-600` | 006 |
+| Linha de ações do documento | `<div className="mb-4 flex justify-end">`, logo acima do título editável | 006 |
+| Estrela de favorito | `<svg aria-hidden="true" focusable="false" className="size-5">`, traço `currentColor`; favoritado: preenchida com `currentColor` e `text-amber-600`; não favoritado: sem preenchimento, na cor do texto do botão | 006 |

@@ -382,6 +382,25 @@ test('invalidates the documents list and the document on a stored message', asyn
   expect(invalidate).toHaveBeenCalledWith({ queryKey: ['documents', 'doc-1'] });
 });
 
+test('invalidates the favorites list on a stored message', async () => {
+  const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+
+  const { result } = renderHook(() => useDocumentCollaboration('doc-1'), {
+    wrapper,
+  });
+
+  await waitFor(() => expect(result.current.session).not.toBeNull(), {
+    timeout: TIMEOUT,
+  });
+  invalidate.mockClear();
+
+  await emit('stateless', { payload: JSON.stringify({ type: 'stored' }) });
+
+  expect(invalidate).toHaveBeenCalledWith({
+    queryKey: ['documents', { scope: 'favorites' }],
+  });
+});
+
 test('ignores stateless messages that are not stored or not JSON', async () => {
   const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
 

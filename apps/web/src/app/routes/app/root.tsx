@@ -23,7 +23,12 @@ export function Root(): React.JSX.Element {
     <ProtectedRoute>
       <AppLayout
         sidebarActions={<NewDocumentButton />}
-        sidebarSection={<SidebarDocuments />}
+        sidebarSection={
+          <>
+            <SidebarDocuments scope="favorites" />
+            <SidebarDocuments />
+          </>
+        }
         sidebarFooter={
           <>
             <SidebarIdentity />

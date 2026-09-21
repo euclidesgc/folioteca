@@ -4,7 +4,12 @@ import { beforeEach, expect, test } from 'vitest';
 import { env } from '@/config/env';
 import { paths } from '@/config/paths';
 import type { MockDocument } from '@/testing/mocks/db';
-import { getDb, seedInstalled, seedSampleDocuments } from '@/testing/mocks/db';
+import {
+  getDb,
+  seedInstalled,
+  seedSampleDocuments,
+  seedSampleFavorites,
+} from '@/testing/mocks/db';
 import { server } from '@/testing/mocks/server';
 import { renderApp, screen, userEvent, within } from '@/testing/test-utils';
 
@@ -154,4 +159,118 @@ test('marks the open document with aria-current page', async () => {
   expect(
     screen.getByRole('link', { name: new RegExp(other.title) }),
   ).not.toHaveAttribute('aria-current');
+});
+
+test('favorites scope names the nav Documentos favoritos and the heading Favoritos', async () => {
+  renderApp(<SidebarDocuments scope="favorites" />);
+
+  const nav = screen.getByRole('navigation', { name: 'Documentos favoritos' });
+  expect(
+    within(nav).getByRole('heading', { level: 2, name: 'Favoritos' }),
+  ).toBeInTheDocument();
+
+  await screen.findByText('Nenhum favorito ainda.');
+});
+
+test('favorites scope shows Carregando favoritos…', async () => {
+  server.use(
+    http.get(`${env.API_URL}/documents`, async () => {
+      await delay(200);
+      return HttpResponse.json({ data: [] });
+    }),
+  );
+
+  renderApp(<SidebarDocuments scope="favorites" />);
+
+  expect(await screen.findByRole('status')).toHaveTextContent(
+    'Carregando favoritos…',
+  );
+
+  await screen.findByText('Nenhum favorito ainda.');
+});
+
+test('favorites scope shows Nenhum favorito ainda.', async () => {
+  seedSampleDocuments();
+
+  renderApp(<SidebarDocuments scope="favorites" />);
+
+  expect(await screen.findByText('Nenhum favorito ainda.')).toBeInTheDocument();
+});
+
+test('favorites scope shows the error with a secondary retry button', async () => {
+  const user = userEvent.setup();
+  seedSampleDocuments();
+  seedSampleFavorites();
+  server.use(
+    http.get(
+      `${env.API_URL}/documents`,
+      () =>
+        HttpResponse.json(
+          { message: 'Erro interno do servidor.' },
+          { status: 500 },
+        ),
+      { once: true },
+    ),
+  );
+
+  renderApp(<SidebarDocuments scope="favorites" />);
+
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent('Não foi possível carregar seus favoritos.');
+
+  const retry = within(alert).getByRole('button', { name: 'Tentar novamente' });
+  expect(retry).toHaveClass('border-gray-300');
+
+  await user.click(retry);
+
+  expect(
+    await screen.findByRole('link', { name: /Ata da reunião de diretoria/ }),
+  ).toBeInTheDocument();
+});
+
+test('favorites scope shows 8 of 9 favorites and Ver todos pointing to /favorites', async () => {
+  seedSampleDocuments();
+  seedSampleFavorites();
+  expect(getDb().favorites).toHaveLength(9);
+
+  renderApp(<SidebarDocuments scope="favorites" />);
+
+  const list = await screen.findByRole('list');
+  expect(within(list).getAllByRole('listitem')).toHaveLength(8);
+
+  expect(screen.getByRole('link', { name: 'Ver todos' })).toHaveAttribute(
+    'href',
+    paths.favorites.getHref(),
+  );
+});
+
+test('favorites scope truncates a 200 character title and keeps it in title', async () => {
+  seedSampleDocuments();
+  seedSampleFavorites();
+  const longTitle = 'a'.repeat(200);
+  const seeded = seededDocument(longTitle);
+
+  renderApp(<SidebarDocuments scope="favorites" />);
+
+  const link = await screen.findByTitle(longTitle);
+  expect(link).toHaveAttribute('href', paths.document.getHref(seeded.id));
+  expect(link.querySelector('span')).toHaveClass('truncate');
+});
+
+test('mine scope keeps its texts and Ver todos pointing to /my-documents', async () => {
+  seedSampleDocuments();
+  seedSampleFavorites();
+
+  renderApp(<SidebarDocuments />);
+
+  const nav = screen.getByRole('navigation', {
+    name: 'Meus documentos recentes',
+  });
+  expect(
+    within(nav).getByRole('heading', { level: 2, name: 'Meus documentos' }),
+  ).toBeInTheDocument();
+
+  expect(
+    await screen.findByRole('link', { name: 'Ver todos' }),
+  ).toHaveAttribute('href', paths.myDocuments.getHref());
 });

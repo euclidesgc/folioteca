@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button/button';
 import { paths } from '@/config/paths';
 import { useDocument } from '@/features/documents/api/get-document';
 import { DocumentTitleForm } from '@/features/documents/components/document-title-form';
+import { FavoriteButton } from '@/features/documents/components/favorite-button';
 import { SaveIndicator } from '@/features/documents/components/save-indicator';
 import { useDocumentCollaboration } from '@/features/documents/hooks/use-document-collaboration';
 import { useUser } from '@/lib/auth';
@@ -107,6 +108,10 @@ function LoadedDocument({
       {/* The visible title is the editable field below; the heading keeps the
           page named for screen readers. */}
       <h1 className="sr-only">{document.title}</h1>
+
+      <div className="mb-4 flex justify-end">
+        <FavoriteButton document={document} />
+      </div>
 
       <DocumentTitleForm document={document} />
 

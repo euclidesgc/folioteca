@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import { getDocumentQueryOptions } from '@/features/documents/api/get-document';
-import { getDocumentsQueryOptions } from '@/features/documents/api/get-documents';
+import { invalidateDocumentLists } from '@/features/documents/api/get-documents';
 // Types only: `yjs`, the provider and the factory itself must stay out of the
 // initial download. The factory arrives through `import()` inside the effect.
 import type {
@@ -100,9 +100,7 @@ export const useDocumentCollaboration = (
       }: CollaborationEvents['stateless']): void => {
         if (!isStoredMessage(payload)) return;
 
-        void queryClient.invalidateQueries({
-          queryKey: getDocumentsQueryOptions().queryKey,
-        });
+        invalidateDocumentLists(queryClient);
         void queryClient.invalidateQueries({
           queryKey: getDocumentQueryOptions(documentId).queryKey,
         });

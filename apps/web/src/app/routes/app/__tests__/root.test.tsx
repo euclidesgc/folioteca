@@ -5,7 +5,7 @@ import { afterAll, beforeAll, expect, test, vi } from 'vitest';
 
 import { queryConfig } from '@/lib/react-query';
 import { seedInstalled } from '@/testing/mocks/db';
-import { screen } from '@/testing/test-utils';
+import { screen, within } from '@/testing/test-utils';
 
 import { ErrorBoundary, Root } from '../root';
 
@@ -158,6 +158,38 @@ test('shows the Novo documento button and the Meus documentos recentes section i
   expect(section).toBeInTheDocument();
   expect(
     await screen.findByText('Nenhum documento ainda.'),
+  ).toBeInTheDocument();
+});
+
+test('renders the favorites section above the my documents section', async () => {
+  seedInstalled({ signedIn: true });
+
+  renderRoot({
+    organization: { id: 'org-1', name: 'Biblioteca Municipal de Exemplo' },
+    person: {
+      id: 'person-1',
+      name: 'Ana Souza',
+      email: 'ana.souza@exemplo.com.br',
+      isAdmin: true,
+    },
+  });
+
+  const favorites = await screen.findByRole('navigation', {
+    name: 'Documentos favoritos',
+  });
+  const mine = screen.getByRole('navigation', {
+    name: 'Meus documentos recentes',
+  });
+
+  expect(
+    within(favorites).getByRole('heading', { level: 2, name: 'Favoritos' }),
+  ).toBeInTheDocument();
+  expect(
+    favorites.compareDocumentPosition(mine) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeGreaterThan(0);
+
+  expect(
+    await screen.findByText('Nenhum favorito ainda.'),
   ).toBeInTheDocument();
 });
 

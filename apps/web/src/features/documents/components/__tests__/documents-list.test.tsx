@@ -4,7 +4,12 @@ import { beforeEach, expect, test } from 'vitest';
 import { paths } from '@/config/paths';
 import { env } from '@/config/env';
 import type { MockDocument } from '@/testing/mocks/db';
-import { getDb, seedInstalled, seedSampleDocuments } from '@/testing/mocks/db';
+import {
+  getDb,
+  seedInstalled,
+  seedSampleDocuments,
+  seedSampleFavorites,
+} from '@/testing/mocks/db';
 import { server } from '@/testing/mocks/server';
 import { renderApp, screen, userEvent, within } from '@/testing/test-utils';
 import { formatDateTime } from '@/utils/format-date-time';
@@ -113,5 +118,134 @@ test('a 200 character title keeps the full text in the title attribute', async (
 
   const link = await screen.findByRole('link', { name: longTitle });
   expect(link).toHaveAttribute('title', longTitle);
+  expect(link).toHaveAttribute('href', paths.document.getHref(seeded.id));
+});
+
+// The order the favorites API answers in: most recently marked first.
+const favoriteTitlesInApiOrder = (): Array<string | undefined> => {
+  const { documents, favorites } = getDb();
+  return [...favorites]
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .map(
+      (favorite) =>
+        documents.find((item) => item.id === favorite.documentId)?.title,
+    );
+};
+
+test('favorites scope requests scope=favorites', async () => {
+  let scope: string | null = null;
+  server.use(
+    http.get(`${env.API_URL}/documents`, ({ request }) => {
+      scope = new URL(request.url).searchParams.get('scope');
+      return HttpResponse.json({ data: [] });
+    }),
+  );
+
+  renderApp(<DocumentsList scope="favorites" />);
+
+  await screen.findByText(
+    'Nenhum favorito ainda. Quando você marcar um documento como favorito, ele aparece aqui.',
+  );
+  expect(scope).toBe('favorites');
+});
+
+test('favorites scope shows Carregando favoritos…', async () => {
+  server.use(
+    http.get(`${env.API_URL}/documents`, async () => {
+      await delay(200);
+      return HttpResponse.json({ data: [] });
+    }),
+  );
+
+  renderApp(<DocumentsList scope="favorites" />);
+
+  expect(await screen.findByRole('status')).toHaveTextContent(
+    'Carregando favoritos…',
+  );
+
+  await screen.findByText(
+    'Nenhum favorito ainda. Quando você marcar um documento como favorito, ele aparece aqui.',
+  );
+});
+
+test('favorites scope shows the empty text', async () => {
+  seedSampleDocuments();
+
+  renderApp(<DocumentsList scope="favorites" />);
+
+  expect(
+    await screen.findByText(
+      'Nenhum favorito ainda. Quando você marcar um documento como favorito, ele aparece aqui.',
+    ),
+  ).toBeInTheDocument();
+});
+
+test('favorites scope shows the error and retries', async () => {
+  const user = userEvent.setup();
+  seedSampleDocuments();
+  seedSampleFavorites();
+  server.use(
+    http.get(
+      `${env.API_URL}/documents`,
+      () =>
+        HttpResponse.json(
+          { message: 'Erro interno do servidor.' },
+          { status: 500 },
+        ),
+      { once: true },
+    ),
+  );
+
+  renderApp(<DocumentsList scope="favorites" />);
+
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent('Não foi possível carregar seus favoritos.');
+  expect(
+    within(alert).getByRole('button', { name: 'Tentar novamente' }),
+  ).toHaveClass('bg-red-600');
+
+  await user.click(
+    within(alert).getByRole('button', { name: 'Tentar novamente' }),
+  );
+
+  expect(
+    await screen.findByRole('link', { name: 'Ata da reunião de diretoria' }),
+  ).toBeInTheDocument();
+});
+
+test('favorites scope lists in the API order with link and date', async () => {
+  seedSampleDocuments();
+  seedSampleFavorites();
+  const expectedOrder = favoriteTitlesInApiOrder();
+  const seeded = seededDocument('Ata da reunião de diretoria');
+
+  renderApp(<DocumentsList scope="favorites" />);
+
+  const list = await screen.findByRole('list');
+  expect(
+    within(list)
+      .getAllByRole('link')
+      .map((link) => link.getAttribute('title')),
+  ).toEqual(expectedOrder);
+
+  const link = within(list).getByRole('link', { name: seeded.title });
+  expect(link).toHaveAttribute('href', paths.document.getHref(seeded.id));
+
+  const time = link.closest('li')?.querySelector('time');
+  expect(time).toHaveAttribute('datetime', seeded.updatedAt);
+  expect(time).toHaveTextContent(formatDateTime(seeded.updatedAt));
+});
+
+test('favorites scope truncates a 200 character title and keeps it in title', async () => {
+  seedSampleDocuments();
+  seedSampleFavorites();
+  const longTitle = 'a'.repeat(200);
+  const seeded = seededDocument(longTitle);
+
+  renderApp(<DocumentsList scope="favorites" />);
+
+  const link = await screen.findByRole('link', { name: longTitle });
+  expect(link).toHaveAttribute('title', longTitle);
+  expect(link).toHaveClass('truncate');
   expect(link).toHaveAttribute('href', paths.document.getHref(seeded.id));
 });

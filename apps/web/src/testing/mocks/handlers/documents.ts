@@ -14,10 +14,15 @@ import { devOverride, networkDelay, SESSION_COOKIE_NAME } from '../utils';
 const DEFAULT_TITLE = 'Sem título';
 const TITLE_MAX_LENGTH = 200;
 
-// The fake database keeps documents without `isFavorite`; the body adds it.
+const FAVORITES_LIMIT = 100;
+
+// The fake database keeps documents without `isFavorite`; the body adds it,
+// read from the favorites of the single person of this fake database.
 const toDocumentBody = (document: MockDocument): Document => ({
   ...document,
-  isFavorite: false,
+  isFavorite: getDb().favorites.some(
+    (favorite) => favorite.documentId === document.id,
+  ),
 });
 
 const unauthenticated = (): ReturnType<typeof HttpResponse.json> =>
@@ -63,7 +68,7 @@ export const documentsHandlers = [
     if (!cookies[SESSION_COOKIE_NAME]) return unauthenticated();
 
     const scope = new URL(request.url).searchParams.get('scope');
-    if (scope !== 'mine') {
+    if (scope !== 'mine' && scope !== 'favorites') {
       return HttpResponse.json(
         {
           message: 'Dados inválidos.',
@@ -73,7 +78,24 @@ export const documentsHandlers = [
       );
     }
 
-    const { documents } = getDb();
+    const { documents, favorites } = getDb();
+
+    if (scope === 'favorites') {
+      // From the most recently marked to the oldest, and only the favorites
+      // whose document still exists.
+      const favoriteList = [...favorites]
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .map((favorite) =>
+          documents.find((item) => item.id === favorite.documentId),
+        )
+        .filter((item) => item !== undefined)
+        .slice(0, FAVORITES_LIMIT)
+        .map(({ id, title, updatedAt }) => ({ id, title, updatedAt }));
+
+      const favoritesBody: DocumentsResponse = { data: favoriteList };
+      return HttpResponse.json(favoritesBody);
+    }
+
     const list = [...documents]
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .slice(0, 100)
@@ -143,6 +165,58 @@ export const documentsHandlers = [
 
       const body: DocumentResponse = { data: toDocumentBody(document) };
       return HttpResponse.json(body);
+    },
+  ),
+
+  http.put(
+    `${env.API_URL}/documents/:documentId/favorite`,
+    async ({ params, cookies }) => {
+      await networkDelay();
+      const forced = await devOverride('documents');
+      if (forced) return forced;
+
+      if (!cookies[SESSION_COOKIE_NAME]) return unauthenticated();
+
+      const { documents, favorites } = getDb();
+      const document = documents.find((item) => item.id === params.documentId);
+      if (!document) return notFound();
+
+      // Idempotent, like the API: marking twice neither duplicates the row
+      // nor renews its date.
+      const alreadyFavorite = favorites.some(
+        (favorite) => favorite.documentId === document.id,
+      );
+      if (!alreadyFavorite) {
+        favorites.push({
+          documentId: document.id,
+          createdAt: new Date().toISOString(),
+        });
+      }
+
+      return new HttpResponse(null, { status: 204 });
+    },
+  ),
+
+  http.delete(
+    `${env.API_URL}/documents/:documentId/favorite`,
+    async ({ params, cookies }) => {
+      await networkDelay();
+      const forced = await devOverride('documents');
+      if (forced) return forced;
+
+      if (!cookies[SESSION_COOKIE_NAME]) return unauthenticated();
+
+      const { documents, favorites } = getDb();
+      const document = documents.find((item) => item.id === params.documentId);
+      if (!document) return notFound();
+
+      // Removing what was never a favorite also answers 204.
+      const index = favorites.findIndex(
+        (favorite) => favorite.documentId === document.id,
+      );
+      if (index !== -1) favorites.splice(index, 1);
+
+      return new HttpResponse(null, { status: 204 });
     },
   ),
 ];

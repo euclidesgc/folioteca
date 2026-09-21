@@ -135,7 +135,7 @@ test('shows Documento and Carregando documento… while loading', async () => {
   server.use(
     http.get(`${env.API_URL}/documents/:documentId`, async () => {
       await delay(200);
-      return HttpResponse.json({ data: seeded });
+      return HttpResponse.json({ data: { ...seeded, isFavorite: false } });
     }),
   );
 
@@ -370,6 +370,81 @@ test('Tentar novamente remounts the editor', async () => {
     }),
   ).toBeInTheDocument();
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
+test('shows the favorite button before the title field when the document is loaded', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  const field = await screen.findByLabelText('Título');
+  const favorite = screen.getByRole('button', {
+    name: 'Adicionar aos favoritos',
+  });
+  const heading = screen.getByRole('heading', { level: 1 });
+
+  expect(favorite).toHaveClass('text-gray-700');
+  expect(favorite.parentElement).toHaveClass('flex', 'justify-end');
+
+  // Order on the page: heading, action row, title field.
+  expect(
+    heading.compareDocumentPosition(favorite) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeGreaterThan(0);
+  expect(
+    favorite.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeGreaterThan(0);
+});
+
+test('shows no favorite button while loading, when not found and on error', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+  server.use(
+    http.get(`${env.API_URL}/documents/:documentId`, async () => {
+      await delay(200);
+      return HttpResponse.json({ data: { ...seeded, isFavorite: false } });
+    }),
+  );
+
+  const loading = renderApp(<DocumentView documentId={seeded.id} />);
+
+  expect(await screen.findByRole('status')).toHaveTextContent(
+    'Carregando documento…',
+  );
+  expect(screen.queryByRole('button', { name: /favoritos/ })).not.toBeInTheDocument();
+
+  await screen.findByLabelText('Título');
+  loading.unmount();
+
+  // Back to the seeded database, where the unknown id answers 404.
+  server.resetHandlers();
+
+  const notFound = renderApp(<DocumentView documentId="id-desconhecido" />);
+
+  await screen.findByRole('heading', {
+    level: 1,
+    name: 'Documento não encontrado',
+  });
+  expect(screen.queryByRole('button', { name: /favoritos/ })).not.toBeInTheDocument();
+
+  notFound.unmount();
+
+  server.use(
+    http.get(`${env.API_URL}/documents/:documentId`, () =>
+      HttpResponse.json(
+        { message: 'Erro interno do servidor.' },
+        { status: 500 },
+      ),
+    ),
+  );
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'Não foi possível carregar o documento.',
+  );
+  expect(screen.queryByRole('button', { name: /favoritos/ })).not.toBeInTheDocument();
 });
 
 test('opens no collaboration session for a document that was not found', async () => {

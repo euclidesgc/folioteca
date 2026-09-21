@@ -159,10 +159,12 @@ test(
 
     await user.click(listLink);
 
-    await waitFor(() =>
-      expect(screen.getByLabelText('Título')).toHaveValue(
-        'Ata da reunião de diretoria',
-      ),
+    await waitFor(
+      () =>
+        expect(screen.getByLabelText('Título')).toHaveValue(
+          'Ata da reunião de diretoria',
+        ),
+      LAZY_TIMEOUT,
     );
   },
 );
@@ -172,16 +174,24 @@ test(
   { timeout: 15_000 },
   async () => {
     const user = userEvent.setup();
+    // The sidebar also asks for the favorites list: only the first request of
+    // the "mine" scope fails, so the retry below is the one being measured.
+    let mineCalls = 0;
     server.use(
-      http.get(
-        `${env.API_URL}/documents`,
-        () =>
-          HttpResponse.json(
+      http.get(`${env.API_URL}/documents`, ({ request }) => {
+        const scope = new URL(request.url).searchParams.get('scope');
+        if (scope !== 'mine') return HttpResponse.json({ data: [] });
+
+        mineCalls += 1;
+        if (mineCalls === 1) {
+          return HttpResponse.json(
             { message: 'Erro interno do servidor.' },
             { status: 500 },
-          ),
-        { once: true },
-      ),
+          );
+        }
+
+        return HttpResponse.json({ data: [] });
+      }),
     );
 
     renderRoutes(paths.myDocuments.getHref());

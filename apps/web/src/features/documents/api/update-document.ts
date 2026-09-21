@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 
 import { getDocumentQueryOptions } from '@/features/documents/api/get-document';
-import { getDocumentsQueryOptions } from '@/features/documents/api/get-documents';
+import { invalidateDocumentLists } from '@/features/documents/api/get-documents';
 import { api } from '@/lib/api-client';
 import type { MutationConfig } from '@/lib/react-query';
 import type { DocumentResponse } from '@/types/api';
@@ -44,9 +44,7 @@ export const useUpdateDocument = ({
         getDocumentQueryOptions(response.data.id).queryKey,
         response,
       );
-      void queryClient.invalidateQueries({
-        queryKey: getDocumentsQueryOptions().queryKey,
-      });
+      invalidateDocumentLists(queryClient);
 
       onSuccess?.(response, variables, ...args);
     },
