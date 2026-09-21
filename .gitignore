@@ -1,3 +1,8 @@
 .debug/
 coverage/
 .vitest/
+node_modules
+dist
+.env
+apps/web/e2e/test-results/
+apps/web/e2e/report/

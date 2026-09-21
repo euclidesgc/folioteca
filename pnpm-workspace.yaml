@@ -1,0 +1,21 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+onlyBuiltDependencies:
+  - prisma
+  - "@prisma/client"
+  - "@prisma/engines"
+  - esbuild
+  - "@swc/core"
+  - msw
+
+# pnpm 11 pede a decisão explícita por pacote.
+allowBuilds:
+  prisma: true
+  "@prisma/client": true
+  "@prisma/engines": true
+  esbuild: true
+  "@swc/core": true
+  msw: true
+  unrs-resolver: true

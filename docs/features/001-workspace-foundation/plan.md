@@ -10,7 +10,7 @@ Desvio único em relação à tabela de arquivos da SPEC: a alteração de `docs
 
 ## Fase 1 — Monorepo, contrato e API de health verdes nos quatro comandos
 
-- [ ] T1.1 — Raiz do monorepo: workspace, lint, tipos e teste únicos na raiz
+- [x] T1.1 — Raiz do monorepo: workspace, lint, tipos e teste únicos na raiz
   - Arquivos: `package.json` (criar); `pnpm-workspace.yaml` (criar); `.nvmrc` (criar); `tsconfig.base.json` (criar); `tsconfig.json` (criar); `tsconfig.node.json` (criar); `eslint.config.js` (criar); `vitest.config.ts` (criar); `.gitignore` (alterar); `README.md` (criar)
   - O que fazer:
     - `package.json`: `private: true`, `packageManager` `pnpm@11.x`, `engines.node: ">=24"`, `type: "module"`. Scripts literais: `dev` = `pnpm --parallel --filter "./apps/*" dev`; `lint` = `eslint . --max-warnings 0`; `typecheck` = `tsc -b --noEmit`; `test` = `vitest run --coverage`; `test:e2e` = `pnpm --filter web test:e2e`; `build` = `pnpm -r build`. Dev-deps da raiz: `eslint`, `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-jsx-a11y`, `eslint-plugin-import` (com resolver de TypeScript), `eslint-plugin-check-file`, `typescript` 5.9, `vitest`, `@vitest/coverage-v8`.
@@ -26,13 +26,13 @@ Desvio único em relação à tabela de arquivos da SPEC: a alteração de `docs
   - Skills: project-structure, unit-testing
   - Complexidade: alta
 
-- [ ] T1.2 — Contrato OpenAPI e pacote de tipos gerados
+- [x] T1.2 — Contrato OpenAPI e pacote de tipos gerados
   - Arquivos: `packages/api-contract/package.json` (criar); `packages/api-contract/tsconfig.json` (criar); `packages/api-contract/openapi.yaml` (criar); `packages/api-contract/src/generated/openapi.d.ts` (criar, gerado e versionado)
   - O que fazer: pacote `@folioteca/api-contract`, `private`, só de tipos: `exports["."].types` → `./src/generated/openapi.d.ts`; script `generate` = `openapi-typescript openapi.yaml -o src/generated/openapi.d.ts`; script `build` ausente ou no-op (o `pnpm -r build` não pode falhar). `tsconfig.json` composto estendendo a base e incluindo `src/generated`. `openapi.yaml` OpenAPI 3.1: `servers: [{ url: /api }]`; `GET /health` com `200` → `HealthResponse` e `503` → `Error`; schemas: `Health` = `{ status: "ok" (enum), database: "up" (enum) }`, ambos obrigatórios; `HealthResponse` = `{ data: Health }`, `data` obrigatório; `Error` = `{ message: string }`, só `message` obrigatório, `additionalProperties: true`. Rodar `pnpm --filter @folioteca/api-contract generate` e versionar a saída sem editar à mão.
   - Skills: —
   - Complexidade: baixa
 
-- [ ] T1.3 — Banco local e esqueleto da API (NestJS + SWC + Prisma 6)
+- [x] T1.3 — Banco local e esqueleto da API (NestJS + SWC + Prisma 6)
   - Arquivos: `docker-compose.yml` (criar); `docker/postgres/init.sql` (criar); `apps/api/package.json` (criar); `apps/api/tsconfig.json` (criar); `apps/api/tsconfig.build.json` (criar); `apps/api/nest-cli.json` (criar); `apps/api/.swcrc` (criar); `apps/api/vitest.config.ts` (criar); `apps/api/.env.example` (criar); `apps/api/prisma/schema.prisma` (criar); `apps/api/prisma/migrations/0001_init/migration.sql` (criar); `apps/api/prisma/migrations/migration_lock.toml` (criar); `apps/api/test/global-setup.ts` (criar)
   - O que fazer:
     - `docker-compose.yml`: serviço com imagem `pgvector/pgvector:pg16`, porta `127.0.0.1:5433:5432`, `POSTGRES_USER=folioteca`, `POSTGRES_DB=folioteca`, `POSTGRES_HOST_AUTH_METHOD=trust`, volume nomeado e `./docker/postgres/init.sql` montado em `/docker-entrypoint-initdb.d/`. **Nenhuma senha** em arquivo versionado (URL com senha dispara o GitGuardian). `init.sql`: `CREATE DATABASE folioteca_test;`.
@@ -45,7 +45,7 @@ Desvio único em relação à tabela de arquivos da SPEC: a alteração de `docs
   - Skills: security, unit-testing
   - Complexidade: média
 
-- [ ] T1.4 — API: ambiente validado, app com prefixo `/api`, Prisma e `GET /health`
+- [x] T1.4 — API: ambiente validado, app com prefixo `/api`, Prisma e `GET /health`
   - Arquivos: `apps/api/src/config/env.ts` (criar); `apps/api/src/create-app.ts` (criar); `apps/api/src/main.ts` (criar); `apps/api/src/app.module.ts` (criar); `apps/api/src/prisma/prisma.module.ts` (criar); `apps/api/src/prisma/prisma.service.ts` (criar); `apps/api/src/health/health.module.ts` (criar); `apps/api/src/health/health.controller.ts` (criar)
   - O que fazer:
     - `env.ts`: schema zod com `DATABASE_URL` (string não vazia) e `PORT` (coerção para número, default `3000`); exporta `env`; variável inválida lança na importação, com mensagem que nomeia a variável.
@@ -56,7 +56,7 @@ Desvio único em relação à tabela de arquivos da SPEC: a alteração de `docs
   - Skills: security
   - Complexidade: média
 
-- [ ] T1.5 — Testes da fase 1
+- [x] T1.5 — Testes da fase 1
   - Arquivos: `apps/api/test/contract.ts` (criar); `apps/api/test/generated-types.test.ts` (criar); `apps/api/src/health/__tests__/health.integration.test.ts` (criar); `apps/api/src/health/__tests__/health.contract.test.ts` (criar); `apps/api/src/config/__tests__/env.test.ts` (criar)
   - O que fazer:
     - `contract.ts`: `export async function expectMatchesContract(args: { path: string; method: 'get' | 'post' | 'put' | 'patch' | 'delete'; status: number; body: unknown }): Promise<void>` — carrega e valida `packages/api-contract/openapi.yaml` com `@apidevtools/swagger-parser` (dereferenciado, em cache), acha o schema de `paths[path][method].responses[status].content['application/json'].schema` e valida `body` com `ajv` (modo 2020/3.1) + `ajv-formats`; falha com os erros do ajv na mensagem; falha também se caminho, método ou status não existirem no contrato.
@@ -70,19 +70,19 @@ Desvio único em relação à tabela de arquivos da SPEC: a alteração de `docs
 
 ### Critérios de aceite da fase 1
 
-- [ ] CA1.1 — Com `docker compose up -d` rodando, na raiz passam sem erro nem aviso: `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`; e também os comandos crus `npx eslint .`, `npx tsc -b` e `npx vitest run`.
-- [ ] CA1.2 — O `package.json` da raiz tem os seis scripts com o valor literal: `dev` = `pnpm --parallel --filter "./apps/*" dev`, `lint` = `eslint . --max-warnings 0`, `typecheck` = `tsc -b --noEmit`, `test` = `vitest run --coverage`, `test:e2e` = `pnpm --filter web test:e2e`, `build` = `pnpm -r build`; `engines.node` é `>=24` e `packageManager` começa com `pnpm@11`. `.nvmrc` contém `24`.
-- [ ] CA1.3 — `tsconfig.json` da raiz tem `files: []` e `references` para `packages/api-contract`, `apps/api` e `tsconfig.node.json`; `tsconfig.base.json` tem `strict: true` e `noUncheckedIndexedAccess: true`. O `vitest.config.ts` da raiz usa `test.projects`, cobertura `v8` e `thresholds.lines: 80`.
-- [ ] CA1.4 — `eslint.config.js` é o único config de lint do repositório, carrega `jsx-a11y`, `react-hooks`, `import/no-restricted-paths` restrito a `apps/web/src` e `check-file` em kebab-case. Não existe nenhum comentário `eslint-disable` no repositório.
-- [ ] CA1.5 — `docker-compose.yml` usa `pgvector/pgvector:pg16`, publica `127.0.0.1:5433:5432` e `POSTGRES_HOST_AUTH_METHOD=trust`; `docker/postgres/init.sql` cria `folioteca_test`. `rg -n "postgresql://[^@/]+:[^@/]+@" .` (fora de `node_modules`) não acha nada: nenhuma URL com senha versionada. `apps/api/.env.example` tem `DATABASE_URL=postgresql://folioteca@localhost:5433/folioteca` e `PORT=3000`.
-- [ ] CA1.6 — `packages/api-contract/openapi.yaml` é OpenAPI 3.1 com servidor `/api`, `GET /health` (200 `HealthResponse`, 503 `Error`) e os schemas `Health`, `HealthResponse`, `Error`. `packages/api-contract/package.json` chama-se `@folioteca/api-contract`, tem `exports["."].types` apontando para `./src/generated/openapi.d.ts` e o script `generate`. O arquivo gerado está versionado (`git ls-files packages/api-contract/src/generated/openapi.d.ts` o lista).
-- [ ] CA1.7 — `apps/api/prisma/schema.prisma` não tem nenhum `model` nem `previewFeatures`; `apps/api/prisma/migrations/0001_init/migration.sql` contém `CREATE EXTENSION IF NOT EXISTS vector;`. `prisma` e `@prisma/client` estão na faixa 6.x.
-- [ ] CA1.8 — Existe `createApp` em `apps/api/src/create-app.ts`, que aplica o prefixo global `api` e não chama `listen`; `apps/api/src/main.ts` usa essa função e sobe em `env.PORT`. `HealthController` responde `{ data: { status: 'ok', database: 'up' } }` e, na falha do `SELECT 1`, lança `ServiceUnavailableException` com a mensagem literal "Banco de dados indisponível.".
-- [ ] CA1.9 — `apps/api/.swcrc` tem `legacyDecorator` e `decoratorMetadata` ligados; `apps/api/nest-cli.json` usa o builder `swc`; `apps/api/vitest.config.ts` usa `unplugin-swc`, `globalSetup` e `fileParallelism: false`.
-- [ ] CA1.10 — Existe `expectMatchesContract({ path, method, status, body })` em `apps/api/test/contract.ts`, retornando `Promise<void>`, implementado com `@apidevtools/swagger-parser` e `ajv`.
-- [ ] CA1.11 — Existem e passam, pelos nomes: em `apps/api/test/generated-types.test.ts`, `generated types match the openapi contract`; em `apps/api/src/health/__tests__/health.integration.test.ts`, `GET /api/health returns 200 with status ok and database up`, `GET /health without the api prefix returns 404`, `the vector extension is installed in the database`, `GET /api/health returns 503 with the unavailable message when the database query rejects`; em `apps/api/src/health/__tests__/health.contract.test.ts`, `200 response matches the HealthResponse schema`, `503 response matches the Error schema`, `expectMatchesContract rejects a body that violates the schema`, `expectMatchesContract rejects a status that is not in the contract`; em `apps/api/src/config/__tests__/env.test.ts`, `parses a valid environment and defaults PORT to 3000` e `throws naming DATABASE_URL when it is missing`. Conferir com `npx vitest run --reporter=verbose`.
-- [ ] CA1.12 — O relatório de `pnpm test` mostra ≥ 80% de linhas em cada arquivo de `apps/api/src` (exceto `main.ts`).
-- [ ] CA1.13 — `README.md` está em pt_BR, lista `docker compose up -d`, `pnpm install`, `pnpm dev` e os comandos de verificação, e avisa que os testes exigem o Postgres no ar.
+- [x] CA1.1 — Com `docker compose up -d` rodando, na raiz passam sem erro nem aviso: `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`; e também os comandos crus `npx eslint .`, `npx tsc -b` e `npx vitest run`.
+- [x] CA1.2 — O `package.json` da raiz tem os seis scripts com o valor literal: `dev` = `pnpm --parallel --filter "./apps/*" dev`, `lint` = `eslint . --max-warnings 0`, `typecheck` = `tsc -b --noEmit`, `test` = `vitest run --coverage`, `test:e2e` = `pnpm --filter web test:e2e`, `build` = `pnpm -r build`; `engines.node` é `>=24` e `packageManager` começa com `pnpm@11`. `.nvmrc` contém `24`.
+- [x] CA1.3 — `tsconfig.json` da raiz tem `files: []` e `references` para `packages/api-contract`, `apps/api` e `tsconfig.node.json`; `tsconfig.base.json` tem `strict: true` e `noUncheckedIndexedAccess: true`. O `vitest.config.ts` da raiz usa `test.projects`, cobertura `v8` e `thresholds.lines: 80`.
+- [x] CA1.4 — `eslint.config.js` é o único config de lint do repositório, carrega `jsx-a11y`, `react-hooks`, `import/no-restricted-paths` restrito a `apps/web/src` e `check-file` em kebab-case. Não existe nenhum comentário `eslint-disable` no repositório.
+- [x] CA1.5 — `docker-compose.yml` usa `pgvector/pgvector:pg16`, publica `127.0.0.1:5433:5432` e `POSTGRES_HOST_AUTH_METHOD=trust`; `docker/postgres/init.sql` cria `folioteca_test`. `rg -n "postgresql://[^@/]+:[^@/]+@" .` (fora de `node_modules`) não acha nada: nenhuma URL com senha versionada. `apps/api/.env.example` tem `DATABASE_URL=postgresql://folioteca@localhost:5433/folioteca` e `PORT=3000`.
+- [x] CA1.6 — `packages/api-contract/openapi.yaml` é OpenAPI 3.1 com servidor `/api`, `GET /health` (200 `HealthResponse`, 503 `Error`) e os schemas `Health`, `HealthResponse`, `Error`. `packages/api-contract/package.json` chama-se `@folioteca/api-contract`, tem `exports["."].types` apontando para `./src/generated/openapi.d.ts` e o script `generate`. O arquivo gerado está versionado (`git ls-files packages/api-contract/src/generated/openapi.d.ts` o lista).
+- [x] CA1.7 — `apps/api/prisma/schema.prisma` não tem nenhum `model` nem `previewFeatures`; `apps/api/prisma/migrations/0001_init/migration.sql` contém `CREATE EXTENSION IF NOT EXISTS vector;`. `prisma` e `@prisma/client` estão na faixa 6.x.
+- [x] CA1.8 — Existe `createApp` em `apps/api/src/create-app.ts`, que aplica o prefixo global `api` e não chama `listen`; `apps/api/src/main.ts` usa essa função e sobe em `env.PORT`. `HealthController` responde `{ data: { status: 'ok', database: 'up' } }` e, na falha do `SELECT 1`, lança `ServiceUnavailableException` com a mensagem literal "Banco de dados indisponível.".
+- [x] CA1.9 — `apps/api/.swcrc` tem `legacyDecorator` e `decoratorMetadata` ligados; `apps/api/nest-cli.json` usa o builder `swc`; `apps/api/vitest.config.ts` usa `unplugin-swc`, `globalSetup` e `fileParallelism: false`.
+- [x] CA1.10 — Existe `expectMatchesContract({ path, method, status, body })` em `apps/api/test/contract.ts`, retornando `Promise<void>`, implementado com `@apidevtools/swagger-parser` e `ajv`.
+- [x] CA1.11 — Existem e passam, pelos nomes: em `apps/api/test/generated-types.test.ts`, `generated types match the openapi contract`; em `apps/api/src/health/__tests__/health.integration.test.ts`, `GET /api/health returns 200 with status ok and database up`, `GET /health without the api prefix returns 404`, `the vector extension is installed in the database`, `GET /api/health returns 503 with the unavailable message when the database query rejects`; em `apps/api/src/health/__tests__/health.contract.test.ts`, `200 response matches the HealthResponse schema`, `503 response matches the Error schema`, `expectMatchesContract rejects a body that violates the schema`, `expectMatchesContract rejects a status that is not in the contract`; em `apps/api/src/config/__tests__/env.test.ts`, `parses a valid environment and defaults PORT to 3000` e `throws naming DATABASE_URL when it is missing`. Conferir com `npx vitest run --reporter=verbose`.
+- [x] CA1.12 — O relatório de `pnpm test` mostra ≥ 80% de linhas em cada arquivo de `apps/api/src` (exceto `main.ts`).
+- [x] CA1.13 — `README.md` está em pt_BR, lista `docker compose up -d`, `pnpm install`, `pnpm dev` e os comandos de verificação, e avisa que os testes exigem o Postgres no ar.
 
 ## Fase 2 — App web navegável: moldura, cinco páginas, 404 e indicador de conexão
 

@@ -1,0 +1,53 @@
+openapi: 3.1.0
+info:
+  title: Folioteca API
+  version: 0.1.0
+servers:
+  - url: /api
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Estado da API e do banco de dados
+      responses:
+        "200":
+          description: A API e o banco de dados estão disponíveis.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: O banco de dados está indisponível.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  schemas:
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        database:
+          type: string
+          enum: [up]
+      required:
+        - status
+        - database
+    HealthResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Health"
+      required:
+        - data
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+      additionalProperties: true

@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.cache/tsc/tsconfig.build.tsbuildinfo"
+  },
+  "exclude": ["**/__tests__/**", "test", "**/*.test.ts", "vitest.config.ts"]
+}
