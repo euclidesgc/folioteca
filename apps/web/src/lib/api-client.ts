@@ -2,7 +2,9 @@ import Axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
 import { useNotifications } from '@/components/ui/notifications/notifications-store';
 import { env } from '@/config/env';
+import { paths } from '@/config/paths';
 import { UnauthenticatedError } from '@/lib/errors';
+import { hardRedirect } from '@/lib/hard-redirect';
 
 // Type augmentation kept local to this file: no request of this app skips
 // the notification interceptor without asking for it explicitly.
@@ -63,8 +65,22 @@ api.interceptors.response.use(
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return -- axios types the response interceptor's return as AxiosResponse; the body itself is typed by each fetcher's explicit return annotation
   (response) => response.data,
   (error: AxiosError) => {
-    // 401 never redirects here: there is no login screen yet in this slice.
     if (error.response?.status === 401) {
+      // The session expired mid-use: start over from the login screen,
+      // keeping the address the person was on. `/auth/*` answers 401 as part
+      // of its normal flow, and redirecting while already on /login would
+      // loop, so both are left out.
+      if (
+        !error.config?.url?.includes('/auth/') &&
+        !window.location.pathname.startsWith(paths.login.path)
+      ) {
+        hardRedirect(
+          paths.login.getHref(
+            window.location.pathname + window.location.search,
+          ),
+        );
+      }
+
       return Promise.reject(new UnauthenticatedError());
     }
 

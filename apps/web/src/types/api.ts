@@ -9,3 +9,4 @@ export type CreateInstallationBody =
   components['schemas']['CreateInstallationBody'];
 export type CurrentUser = components['schemas']['CurrentUser'];
 export type CurrentUserResponse = components['schemas']['CurrentUserResponse'];
+export type LoginBody = components['schemas']['LoginBody'];

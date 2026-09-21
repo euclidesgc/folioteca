@@ -20,6 +20,11 @@ export const createRoutes = (): RouteObject[] => [
         lazy: () => import('@/app/routes/install'),
       },
       {
+        // Outside the layout route: signing in happens without the sidebar.
+        path: paths.login.path,
+        lazy: () => import('@/app/routes/login'),
+      },
+      {
         path: paths.home.path,
         element: <Root />,
         ErrorBoundary: RootErrorBoundary,

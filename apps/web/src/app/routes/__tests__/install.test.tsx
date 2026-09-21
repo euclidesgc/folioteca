@@ -97,7 +97,7 @@ test('installed without session shows Instância já instalada and never mounts 
   ).not.toBeInTheDocument();
 });
 
-test('Ir para o início leads to the login notice', async () => {
+test('Ir para o início leads to the login page', async () => {
   const user = userEvent.setup();
   seedInstalled({ signedIn: false });
 
@@ -108,10 +108,7 @@ test('Ir para o início leads to the login notice', async () => {
   );
 
   expect(
-    await screen.findByRole('heading', {
-      level: 1,
-      name: 'Acesso por login em breve',
-    }),
+    await screen.findByRole('heading', { level: 1, name: 'Entrar' }),
   ).toBeInTheDocument();
 });
 

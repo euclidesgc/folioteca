@@ -123,7 +123,12 @@ export const installationHandlers = [
       isAdmin: true,
     };
 
-    seedDb({ installation: { organization, person } });
+    // The password is kept so POST /auth/login can check it later; it never
+    // goes back in a response.
+    seedDb({
+      // `validate` above already rejected a missing password.
+      installation: { organization, person, password: requestBody.password ?? '' },
+    });
 
     const responseBody: CurrentUserResponse = { data: { person, organization } };
 

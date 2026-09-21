@@ -9,6 +9,10 @@ export const MOCK_INSTALL_CODE = ['mock', 'install', 'code', '0'.repeat(16)].joi
   '-',
 );
 
+// Same reasoning as the install code above: assembled at runtime so no secret
+// scanner ever sees a credential-looking literal in the repository.
+export const MOCK_PASSWORD = ['mock', 'password', '0'.repeat(12)].join('-');
+
 // Short in tests, realistic in the browser so loading states are visible.
 export const networkDelay = (): Promise<void> =>
   delay(import.meta.env.MODE === 'test' ? 0 : 'real');
@@ -16,7 +20,8 @@ export const networkDelay = (): Promise<void> =>
 // Development keys, read from localStorage in the browser only:
 //   localStorage.setItem('mock-error', 'health')   -> the /health handler answers 500
 //   localStorage.setItem('mock-delay', 'infinite')  -> requests never resolve (loading state)
-//   localStorage.setItem('mock-installation', 'installed')  -> seeds an installation, signed out
+//   localStorage.setItem('mock-installation', 'installed')  -> seeds an installation, signed out;
+//     sign in with the seeded person's e-mail and the MOCK_PASSWORD above
 //   localStorage.setItem('mock-installation', 'signed-in')  -> seeds an installation, signed in
 // Remove the key (or run localStorage.clear()) to go back to normal.
 const devKey = (key: string): string | null => {

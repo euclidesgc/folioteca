@@ -72,6 +72,11 @@ export default tseslint.config(
         {
           zones: [
             {
+              target: './apps/web/src/features/auth',
+              from: './apps/web/src/features',
+              except: ['./auth'],
+            },
+            {
               target: './apps/web/src/features/connection',
               from: './apps/web/src/features',
               except: ['./connection'],

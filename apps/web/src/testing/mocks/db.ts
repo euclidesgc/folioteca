@@ -1,6 +1,8 @@
 // Fake, hand-written in-memory database: this feature only creates one
 // installation (never updates or deletes it), so `@mswjs/data` is overkill.
 
+import { MOCK_PASSWORD } from './utils';
+
 export type MockOrganization = { id: string; name: string };
 export type MockPerson = {
   id: string;
@@ -12,6 +14,9 @@ export type MockPerson = {
 export type MockInstallation = {
   organization: MockOrganization;
   person: MockPerson;
+  // Kept in the fake database only to answer POST /auth/login; it never
+  // reaches a response body.
+  password: string;
 };
 
 type DbState = {
@@ -43,6 +48,7 @@ export const seedInstalled = ({ signedIn }: { signedIn: boolean }): void => {
         email: 'ana.souza@exemplo.com.br',
         isAdmin: true,
       },
+      password: MOCK_PASSWORD,
     },
   });
 

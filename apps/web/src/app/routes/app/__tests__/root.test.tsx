@@ -36,6 +36,33 @@ const renderRoot = (user: {
   );
 };
 
+// Same frame, but the gate resolved the session to "nobody is signed in".
+const renderRootWithoutSession = () => {
+  const queryClient = new QueryClient({ defaultOptions: queryConfig });
+  queryClient.setQueryData(['installation'], { data: { installed: true } });
+  queryClient.setQueryData(['authenticated-user'], null);
+
+  const router = createMemoryRouter(
+    [
+      {
+        path: '/',
+        element: <Root />,
+        children: [{ index: true, element: <p>Conteúdo do início</p> }],
+      },
+      { path: '/login', element: <h1>Entrar</h1> },
+    ],
+    { initialEntries: ['/'] },
+  );
+
+  render(
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
+
+  return router;
+};
+
 // A child route that throws so the route ErrorBoundary takes over.
 const ThrowingChild = (): never => {
   throw new Error('boom');
@@ -107,4 +134,14 @@ test('renders the identity above the connection indicator in the sidebar footer'
     organization.compareDocumentPosition(connection) &
       Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
+});
+
+test('without a session redirects to the login page instead of rendering the layout', async () => {
+  const router = renderRootWithoutSession();
+
+  expect(
+    await screen.findByRole('heading', { level: 1, name: 'Entrar' }),
+  ).toBeInTheDocument();
+  expect(router.state.location.pathname).toBe('/login');
+  expect(screen.queryByText('Conteúdo do início')).not.toBeInTheDocument();
 });

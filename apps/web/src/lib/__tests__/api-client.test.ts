@@ -1,12 +1,21 @@
 import { http, HttpResponse } from 'msw';
-import { expect, test } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 
 import { useNotifications } from '@/components/ui/notifications/notifications-store';
 import { env } from '@/config/env';
+import { hardRedirect } from '@/lib/hard-redirect';
 import { server } from '@/testing/mocks/server';
 
 import { api } from '../api-client';
 import { isUnauthenticatedError, UnauthenticatedError } from '../errors';
+
+// jsdom does not navigate: the end of a session is checked by this one call.
+vi.mock('@/lib/hard-redirect', () => ({ hardRedirect: vi.fn() }));
+
+afterEach(() => {
+  vi.mocked(hardRedirect).mockClear();
+  window.history.replaceState({}, '', '/');
+});
 
 const GENERIC_MESSAGE =
   'Não foi possível concluir a operação. Tente novamente em instantes.';
@@ -23,18 +32,16 @@ test('returns the response body instead of the axios response', async () => {
   expect(result).toEqual({ ok: true });
 });
 
-test('rejects with UnauthenticatedError on 401 without redirecting', async () => {
+test('rejects with UnauthenticatedError on 401', async () => {
   server.use(
     http.get(`${env.API_URL}/secure`, () =>
       HttpResponse.json({ message: 'Não autenticado.' }, { status: 401 }),
     ),
   );
-  const hrefBefore = window.location.href;
 
   await expect(api.get('/secure')).rejects.toBeInstanceOf(
     UnauthenticatedError,
   );
-  expect(window.location.href).toBe(hrefBefore);
 });
 
 test('rejects with the original error on 500', async () => {
@@ -138,6 +145,70 @@ test('does not notify on 401', async () => {
   await expect(api.get('/secure')).rejects.toBeInstanceOf(
     UnauthenticatedError,
   );
+
+  expect(notifications()).toHaveLength(0);
+});
+
+test('a 401 outside /auth redirects to /login with the current path in redirectTo', async () => {
+  window.history.replaceState({}, '', '/favorites?x=1');
+  server.use(
+    http.get(`${env.API_URL}/secure`, () =>
+      HttpResponse.json({ message: 'Não autenticado.' }, { status: 401 }),
+    ),
+  );
+
+  await expect(api.get('/secure')).rejects.toBeInstanceOf(
+    UnauthenticatedError,
+  );
+
+  expect(hardRedirect).toHaveBeenCalledWith(
+    `/login?redirectTo=${encodeURIComponent('/favorites?x=1')}`,
+  );
+});
+
+test('a 401 from /auth/me does not redirect', async () => {
+  window.history.replaceState({}, '', '/favorites');
+  server.use(
+    http.get(`${env.API_URL}/auth/me`, () =>
+      HttpResponse.json({ message: 'Sessão não encontrada.' }, { status: 401 }),
+    ),
+  );
+
+  await expect(api.get('/auth/me')).rejects.toBeInstanceOf(
+    UnauthenticatedError,
+  );
+
+  expect(hardRedirect).not.toHaveBeenCalled();
+});
+
+test('a 401 while on /login does not redirect', async () => {
+  window.history.replaceState({}, '', '/login');
+  server.use(
+    http.get(`${env.API_URL}/secure`, () =>
+      HttpResponse.json({ message: 'Não autenticado.' }, { status: 401 }),
+    ),
+  );
+
+  await expect(api.get('/secure')).rejects.toBeInstanceOf(
+    UnauthenticatedError,
+  );
+
+  expect(hardRedirect).not.toHaveBeenCalled();
+});
+
+test('no 401 case adds a notification', async () => {
+  window.history.replaceState({}, '', '/favorites');
+  server.use(
+    http.get(`${env.API_URL}/secure`, () =>
+      HttpResponse.json({ message: 'Não autenticado.' }, { status: 401 }),
+    ),
+    http.get(`${env.API_URL}/auth/me`, () =>
+      HttpResponse.json({ message: 'Sessão não encontrada.' }, { status: 401 }),
+    ),
+  );
+
+  await expect(api.get('/secure')).rejects.toBeDefined();
+  await expect(api.get('/auth/me')).rejects.toBeDefined();
 
   expect(notifications()).toHaveLength(0);
 });

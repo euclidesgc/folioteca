@@ -52,16 +52,13 @@ it.each(['/', '/favorites', '/trash'])(
   },
 );
 
-test('installed without session shows Acesso por login em breve instead of the layout', async () => {
+test('installed without session shows the login page instead of the layout', async () => {
   seedInstalled({ signedIn: false });
 
   renderRoutes('/');
 
   expect(
-    await screen.findByRole('heading', {
-      level: 1,
-      name: 'Acesso por login em breve',
-    }),
+    await screen.findByRole('heading', { level: 1, name: 'Entrar' }),
   ).toBeInTheDocument();
   expect(
     screen.queryByRole('navigation', { name: 'Navegação principal' }),
