@@ -7,6 +7,7 @@ import {
   type ExceptionFilter,
 } from '@nestjs/common';
 import type { Response } from 'express';
+import { DomainNotFoundException } from './domain-not-found.exception';
 
 type ValidationIssue = {
   field: string;
@@ -28,7 +29,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function buildBody(exception: HttpException): ErrorBody {
   const status: number = exception.getStatus();
 
-  if (status === Number(HttpStatus.NOT_FOUND)) {
+  if (status === Number(HttpStatus.NOT_FOUND) && !(exception instanceof DomainNotFoundException)) {
     return { message: NOT_FOUND_MESSAGE };
   }
 

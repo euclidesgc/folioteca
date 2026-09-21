@@ -43,9 +43,11 @@ model Person {
   isAdmin        Boolean  @default(false)
   createdAt      DateTime @default(now())
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  space        Space?
-  sessions     Session[]
+  organization      Organization @relation(fields: [organizationId], references: [id])
+  space             Space?
+  sessions          Session[]
+  authoredDocuments Document[]   @relation("DocumentAuthor")
+  ownedDocuments    Document[]   @relation("DocumentOwner")
 }
 
 enum SpaceType {
@@ -62,8 +64,27 @@ model Space {
   orgUnitId String?   @unique
   createdAt DateTime  @default(now())
 
-  person  Person?  @relation(fields: [personId], references: [id])
-  orgUnit OrgUnit? @relation(fields: [orgUnitId], references: [id])
+  person    Person?    @relation(fields: [personId], references: [id])
+  orgUnit   OrgUnit?   @relation(fields: [orgUnitId], references: [id])
+  documents Document[]
+}
+
+/// Documento de um espaço: quem escreveu (`authorId`) e quem é dono (`ownerId`).
+model Document {
+  id        String   @id @default(uuid())
+  title     String
+  spaceId   String
+  authorId  String
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  space  Space  @relation(fields: [spaceId], references: [id], onDelete: Restrict)
+  author Person @relation("DocumentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  owner  Person @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+
+  @@index([ownerId, updatedAt(sort: Desc)])
+  @@index([spaceId])
 }
 
 /// Sessão opaca: só o sha256 do token é guardado.

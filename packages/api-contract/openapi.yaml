@@ -137,6 +137,133 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /documents:
+    post:
+      operationId: createDocument
+      summary: Cria um documento sem título no espaço pessoal de quem chama
+      responses:
+        "201":
+          description: O documento foi criado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    get:
+      operationId: getDocuments
+      summary: Lista os documentos do escopo informado
+      parameters:
+        - name: scope
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [mine]
+      responses:
+        "200":
+          description: Os documentos do escopo foram listados.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentsResponse"
+        "400":
+          description: Os dados informados são inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /documents/{documentId}:
+    get:
+      operationId: getDocument
+      summary: Documento e o nível de acesso de quem chama
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: O documento foi encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: O documento não existe ou não está acessível.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      operationId: updateDocument
+      summary: Renomeia o documento
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDocumentBody"
+      responses:
+        "200":
+          description: O documento foi renomeado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentResponse"
+        "400":
+          description: Os dados informados são inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: O documento não existe ou não está acessível.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
   schemas:
     Health:
@@ -240,6 +367,76 @@ components:
           $ref: "#/components/schemas/CurrentUser"
       required:
         - data
+    AccessLevel:
+      type: string
+      enum: [owner, edit, view]
+    Document:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        spaceId:
+          type: string
+        authorId:
+          type: string
+        ownerId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        accessLevel:
+          $ref: "#/components/schemas/AccessLevel"
+      required:
+        - id
+        - title
+        - spaceId
+        - authorId
+        - ownerId
+        - createdAt
+        - updatedAt
+        - accessLevel
+    DocumentSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - updatedAt
+    DocumentResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Document"
+      required:
+        - data
+    DocumentsResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentSummary"
+      required:
+        - data
+    UpdateDocumentBody:
+      type: object
+      properties:
+        title:
+          type: string
+      required:
+        - title
     Error:
       type: object
       properties:
