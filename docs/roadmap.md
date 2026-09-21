@@ -7,7 +7,7 @@
 | 003 | login-logout | entrar e sair com e-mail e senha, com sessão em cookie httpOnly | pedido inicial | 002 | in-review |
 | 004 | create-document | criar um documento privado no seu espaço pessoal, vê-lo na barra lateral, abrir e renomear | pedido inicial | 003 | in-review |
 | 005 | block-editor | escrever no documento com editor de blocos, com salvamento colaborativo automático | pedido inicial | 004 | in-review |
-| 006 | favorites | marcar documentos como favoritos e achá-los na barra lateral | pedido inicial | 004 | in-progress |
+| 006 | favorites | marcar documentos como favoritos e achá-los na barra lateral | pedido inicial | 004 | in-review |
 | 007 | trash | mandar documento para a lixeira, restaurar ou apagar de vez (só o proprietário) | pedido inicial | 004 | planned |
 | 008 | org-units-tree | (administração) montar a árvore de unidades organizacionais a partir da raiz | pedido inicial | 003 | planned |
 | 009 | invitations | (administração) convidar pessoas por e-mail, e o convidado criar a conta pelo link | pedido inicial | 003 | planned |
@@ -55,3 +55,7 @@
 | 051 | block-editor-search-text-extraction | extrair e gravar o texto do conteúdo do documento para a pesquisa | dívida da 005 | | planned |
 | 052 | api-prisma-migrate-dev-script | ter `prisma:migrate` em `apps/api/package.json` sem apontar para `prisma migrate dev`, que a regra do projeto proíbe rodar | dívida da 005 | | planned |
 | 053 | editor-a11y-upstream | (acessibilidade) ter o editor de blocos sem as violações do axe que hoje vêm de dentro do BlockNote/Mantine e estão excluídas só no escopo `.bn-container` do e2e: `aria-allowed-attr` (crítica; contenteditable com role="textbox" recebe aria-expanded com o menu "/" aberto), `aria-input-field-name` (séria; contenteditable e menu de sugestões sem nome acessível) e `scrollable-region-focusable` (séria; menu de sugestões rola sem ser focável); acompanhar em https://github.com/TypeCellOS/BlockNote/issues e remover as exclusões de apps/web/e2e/tests/block-editor.spec.ts e create-document.spec.ts quando corrigido. | dívida da 005 | | planned |
+| 054 | person-delete-with-personal-space | (dev) poder apagar uma pessoa que tem espaço pessoal: hoje `prisma.person.delete` falha porque a relação `Space.person` é `SetNull` e a restrição `Space_type_owner_check` recusa espaço PERSONAL sem dono; precisa de migration (cascade) antes da fatia de desligamento | dívida da 006 | | planned |
+| 055 | access-boundary-test-split | (dev) ter o teste estrutural `document-access-boundary.test.ts` dividido por tabela e cobrindo leitura de `Document` por relação | dívida da 006 | | planned |
+| 056 | orphan-favorites-cleanup | (dev) ter a linha de `Favorite` de quem perdeu o acesso ao documento limpa ou removível (hoje o DELETE responde 404 e a linha fica invisível) | dívida da 006 | | planned |
+| 057 | sidebar-see-all-accessible-names | (acessibilidade) ter os dois links "Ver todos" da barra lateral com nomes acessíveis distintos | dívida da 006 | | planned |
