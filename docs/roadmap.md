@@ -2,15 +2,15 @@
 
 | # | Fatia | O usuário consegue… | Origem | Depende de | Status |
 |---|---|---|---|---|---|
-| 001 | workspace-foundation | abrir o app e ver o layout com a barra lateral única e o estado da conexão com o servidor | pedido inicial | | in-review |
-| 002 | installation | fazer o primeiro cadastro com o código de instalação, criando a organização e o primeiro administrador; depois disso o cadastro público fecha | pedido inicial | 001 | in-review |
-| 003 | login-logout | entrar e sair com e-mail e senha, com sessão em cookie httpOnly | pedido inicial | 002 | in-review |
-| 004 | create-document | criar um documento privado no seu espaço pessoal, vê-lo na barra lateral, abrir e renomear | pedido inicial | 003 | in-review |
-| 005 | block-editor | escrever no documento com editor de blocos, com salvamento colaborativo automático | pedido inicial | 004 | in-review |
-| 006 | favorites | marcar documentos como favoritos e achá-los na barra lateral | pedido inicial | 004 | in-review |
-| 007 | trash | mandar documento para a lixeira, restaurar ou apagar de vez (só o proprietário) | pedido inicial | 004 | in-review |
-| 064 | org-units-view | (administração) ver a árvore de unidades da organização numa página "Estrutura", navegável por teclado, numa área "Administração" que só a administração enxerga | 008 org-units-tree | 003 | in-review |
-| 065 | org-units-create-rename | (administração) criar unidades filhas e renomear unidades, inclusive a raiz (que renomeia a organização) | 008 org-units-tree | 064 | in-review |
+| 001 | workspace-foundation | abrir o app e ver o layout com a barra lateral única e o estado da conexão com o servidor | pedido inicial | | done |
+| 002 | installation | fazer o primeiro cadastro com o código de instalação, criando a organização e o primeiro administrador; depois disso o cadastro público fecha | pedido inicial | 001 | done |
+| 003 | login-logout | entrar e sair com e-mail e senha, com sessão em cookie httpOnly | pedido inicial | 002 | done |
+| 004 | create-document | criar um documento privado no seu espaço pessoal, vê-lo na barra lateral, abrir e renomear | pedido inicial | 003 | done |
+| 005 | block-editor | escrever no documento com editor de blocos, com salvamento colaborativo automático | pedido inicial | 004 | done |
+| 006 | favorites | marcar documentos como favoritos e achá-los na barra lateral | pedido inicial | 004 | done |
+| 007 | trash | mandar documento para a lixeira, restaurar ou apagar de vez (só o proprietário) | pedido inicial | 004 | done |
+| 064 | org-units-view | (administração) ver a árvore de unidades da organização numa página "Estrutura", navegável por teclado, numa área "Administração" que só a administração enxerga | 008 org-units-tree | 003 | done |
+| 065 | org-units-create-rename | (administração) criar unidades filhas e renomear unidades, inclusive a raiz (que renomeia a organização) | 008 org-units-tree | 064 | done |
 | 066 | org-units-delete | (administração) apagar unidade sem filhas, com confirmação; a raiz nunca | 008 org-units-tree | 065 | planned |
 | 009 | invitations | (administração) convidar pessoas por e-mail, e o convidado criar a conta pelo link | pedido inicial | 003 | planned |
 | 010 | unit-assignments | (administração) lotar pessoas em uma ou mais unidades e removê-las | pedido inicial | 066, 009 | planned |
