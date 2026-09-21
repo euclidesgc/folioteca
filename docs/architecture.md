@@ -100,6 +100,19 @@ um 404 que **não** é `DomainNotFoundException` — rota inexistente, por
 exemplo — responde sempre "Recurso não encontrado.", sem vazar o texto que o
 framework geraria.
 
+**Entrega `favorites` (fatia 006).** Favorito é marcação pessoal e **não dá
+acesso** a documento; a tabela `Favorite` tem chave `(personId, documentId)` e
+some por cascade com o documento ou a pessoa. A lista de favoritos parte de
+`Favorite` e passa por `readableDocumentsWhere` — quem perde o acesso deixa de
+ver o favorito, sem apagar nem avisar, e ele volta se o acesso voltar.
+`PUT` e `DELETE /documents/{documentId}/favorite` são idempotentes e começam
+por `resolveAccess`, com 404 único "Documento não encontrado." para
+inexistente, alheio e id malformado; `isFavorite` vem no corpo do documento.
+A regra 7 do teste estrutural `document-access-boundary.test.ts` garante que
+só `documents/favorites.service.ts` toca a tabela `Favorite`, que toda
+leitura passa por `readableDocumentsWhere`, que `findUnique` é proibido ali e
+que `resolveAccess` é obrigatório.
+
 ## 4. Árvore de unidades
 
 `parentId` + consulta recursiva (`WITH RECURSIVE`). "Unidade e tudo abaixo"
