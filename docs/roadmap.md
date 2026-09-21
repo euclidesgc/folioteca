@@ -6,7 +6,7 @@
 | 002 | installation | fazer o primeiro cadastro com o código de instalação, criando a organização e o primeiro administrador; depois disso o cadastro público fecha | pedido inicial | 001 | in-review |
 | 003 | login-logout | entrar e sair com e-mail e senha, com sessão em cookie httpOnly | pedido inicial | 002 | in-review |
 | 004 | create-document | criar um documento privado no seu espaço pessoal, vê-lo na barra lateral, abrir e renomear | pedido inicial | 003 | in-review |
-| 005 | block-editor | escrever no documento com editor de blocos, com salvamento colaborativo automático | pedido inicial | 004 | in-progress |
+| 005 | block-editor | escrever no documento com editor de blocos, com salvamento colaborativo automático | pedido inicial | 004 | in-review |
 | 006 | favorites | marcar documentos como favoritos e achá-los na barra lateral | pedido inicial | 004 | planned |
 | 007 | trash | mandar documento para a lixeira, restaurar ou apagar de vez (só o proprietário) | pedido inicial | 004 | planned |
 | 008 | org-units-tree | (administração) montar a árvore de unidades organizacionais a partir da raiz | pedido inicial | 003 | planned |
@@ -50,3 +50,8 @@
 | 046 | prisma-uuid-columns | ter as colunas de id do Prisma com `@db.Uuid` em vez de `text` | dívida da 004 | | planned |
 | 047 | reset-database-table-list | ter `reset-database.ts` obtendo a lista de tabelas do próprio schema em vez de listá-las à mão | dívida da 004 | | planned |
 | 048 | documents-list-pagination | ter `GET /documents?scope=mine` com paginação em vez de cortar em 100 resultados | dívida da 004 | | planned |
+| 049 | collab-access-revoke-drops-socket | derrubar a conexão de `/collab` quando a pessoa perde o acesso ao documento em vez de só checar ao conectar | dívida da 005 | | planned |
+| 050 | block-editor-e2e-real-api | ter um projeto Playwright para a jornada do editor de blocos contra a API real e o Postgres, hoje só provada com o provider de colaboração local | dívida da 005 | | planned |
+| 051 | block-editor-search-text-extraction | extrair e gravar o texto do conteúdo do documento para a pesquisa | dívida da 005 | | planned |
+| 052 | api-prisma-migrate-dev-script | ter `prisma:migrate` em `apps/api/package.json` sem apontar para `prisma migrate dev`, que a regra do projeto proíbe rodar | dívida da 005 | | planned |
+| 053 | editor-a11y-upstream | (acessibilidade) ter o editor de blocos sem as violações do axe que hoje vêm de dentro do BlockNote/Mantine e estão excluídas só no escopo `.bn-container` do e2e: `aria-allowed-attr` (crítica; contenteditable com role="textbox" recebe aria-expanded com o menu "/" aberto), `aria-input-field-name` (séria; contenteditable e menu de sugestões sem nome acessível) e `scrollable-region-focusable` (séria; menu de sugestões rola sem ser focável); acompanhar em https://github.com/TypeCellOS/BlockNote/issues e remover as exclusões de apps/web/e2e/tests/block-editor.spec.ts e create-document.spec.ts quando corrigido. | dívida da 005 | | planned |

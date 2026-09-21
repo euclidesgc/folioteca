@@ -112,13 +112,75 @@ ao compartilhamento.
 ## 5. Editor e colaboração
 
 BlockNote (blocos com id estável, sobre ProseMirror/Tiptap) com Yjs. O servidor
-de colaboração é o Hocuspocus embutido no processo da API, em `/collab`: ele
-autentica pelo mesmo cookie de sessão e pergunta ao módulo de acesso a cada
-conexão; quem perde o acesso tem a conexão derrubada. O estado Yjs fica em
-`bytea` no Postgres; o texto extraído alimenta a pesquisa.
+de colaboração é o Hocuspocus embutido no processo da API, em `/collab`. O
+estado Yjs fica em `DocumentContent.state` (`bytea`) no Postgres; o texto
+extraído alimenta a pesquisa (fica para a 021).
 
 - Alternativa: Tiptap puro. Mais controle, mas o conceito de bloco com id (que a
   citação da IA e o comentário ancorado precisam) teria de ser construído.
+
+### Protocolo de `/collab`
+
+O endereço `/collab` fica fora do prefixo `/api`, no mesmo servidor HTTP da
+API, e é atendido pelo evento `upgrade` do Node (não é uma rota Nest nem um
+`WebSocketServer` próprio escutando porta).
+
+A cada tentativa de conexão, nesta ordem:
+
+1. **Caminho** — só `/collab` segue; qualquer outro caminho tem o socket cru
+   destruído.
+2. **Origin** — o cabeçalho `Origin` precisa existir e ser uma URL válida.
+   Com `COLLAB_ALLOWED_ORIGINS` definida, só uma origem da lista passa. Sem a
+   variável (vazia), a origem precisa ter o mesmo `host` do cabeçalho `Host`
+   do próprio pedido. Falhou → `403`. O motivo de checar Origin: o cookie de
+   sessão é `SameSite=Lax`, o que protege formulário e navegação, mas não
+   protege WebSocket — sem essa checagem, qualquer site poderia abrir a
+   conexão usando o cookie do navegador da vítima.
+3. **Cookie de sessão** — o mesmo cookie `folioteca_session` do resto da API,
+   lido do cabeçalho `Cookie`. Ausente ou sessão inválida → `401`. Não existe
+   token separado: a web não manda nenhuma credencial própria no upgrade, só
+   o cookie `httpOnly` que o navegador já envia sozinho.
+4. **`resolveAccess` por documento** — passadas as duas checagens acima, a
+   conexão chega ao Hocuspocus com a pessoa identificada, mas o acesso ainda é
+   verificado por documento: o nome do documento Yjs é o `Document.id`, e o
+   módulo de acesso decide **a cada conexão** (não uma vez só por sessão).
+   `'none'` recusa a conexão com o **mesmo motivo**, sem carregar nem criar
+   nada em `DocumentContent`: documento inexistente, de outra pessoa e id
+   malformado são indistinguíveis de fora (nenhum log do Hocuspocus denuncia
+   qual dos três foi). `'view'` autoriza a conexão só como leitura (o
+   servidor aceita a sincronização mas descarta o que essa conexão escreve).
+   `owner`/`edit` autorizam leitura e escrita.
+
+O conteúdo não tem endpoint HTTP: só chega ou sai pelo protocolo Yjs dentro de
+`/collab`. A gravação é assíncrona e debounced — `COLLAB_STORE_DEBOUNCE_MS`
+(2 s em produção) depois da última alteração, com teto de 5× esse valor
+(10 s) para garantir gravação mesmo sob edição contínua — e o `updatedAt` do
+documento avança na **mesma transação** que grava o estado. Depois de gravar,
+o servidor avisa todas as conexões daquele documento com a mensagem sem
+estado `{"type":"stored"}`; a web usa esse sinal para invalidar a lista de
+documentos e o documento aberto.
+
+"Salvo", no indicador da web, quer dizer que o servidor **confirmou o
+recebimento** da alteração (mensagem `stored`), não que a linha já está no
+banco: a gravação em si pode levar até `COLLAB_STORE_DEBOUNCE_MS` a mais. Se a
+conexão cair antes de gravar, o provider reenvia as alterações pendentes ao
+reconectar; um desligamento normal do processo (`onModuleDestroy`) fecha os
+sockets crus e o `WebSocketServer` só depois de gravar o que estiver
+pendente, para não perder edição por causa de um `deploy`.
+
+Limite conhecido: o acesso só é conferido **ao conectar**. Perder o acesso ou
+ser removido do documento não derruba quem já está com o socket aberto
+(resolver com a 015).
+
+O workspace mantém **uma única cópia** de `yjs` (`pnpm why yjs -r` mostra uma
+versão só) — duas cópias do Yjs no mesmo processo corrompem o CRDT em vez de
+sincronizar.
+
+Um teste estrutural (`document-access-boundary.test.ts`) mantém esse desenho:
+regra 4, só `documents.service.ts` toca a tabela `DocumentContent` por SQL
+bruto; regra 5, só `collab.service.ts` chama `loadContent`/`saveContent`;
+regra 6, `collab.service.ts` chama `resolveAccess` e nenhum arquivo de
+`src/collab/` fala com o Prisma diretamente.
 
 ## 6. Autenticação
 
@@ -171,6 +233,16 @@ O e2e roda na porta 5174, contra a API simulada por MSW (`VITE_APP_ENABLE_API_MO
 sem subir a API nem o Postgres. A API real é provada pelos testes de
 integração e de contrato da API, que exigem `docker compose up -d`.
 
+Com a API simulada, o editor de blocos usa um provider de colaboração **em
+memória** (sem Hocuspocus real): o estado Yjs de cada documento fica num mapa
+do próprio módulo da web, e instâncias abertas para o mesmo id replicam as
+alterações entre si. Isso prova a jornada de escrever, ver "Salvo" e
+reencontrar o texto do ponto de vista da interface, mas **não** prova o
+protocolo `/collab` em si — Origin, cookie de sessão, `resolveAccess` por
+documento, debounce real e persistência em `DocumentContent` só são provados
+pelos testes de integração da API contra o Hocuspocus real (falta um projeto
+Playwright contra a API real + Postgres, hoje uma dívida da 005).
+
 ## 8. Ambiente local
 
 `docker compose up -d` sobe o Postgres (imagem `pgvector/pgvector:pg16`, porta
@@ -179,8 +251,12 @@ E-mail em desenvolvimento vai para o log da API e para a tabela `OutboxEmail`.
 
 O Postgres local roda em `trust`, preso ao loopback (`127.0.0.1:5433`), sem
 senha versionada (uma URL com senha dispara falso positivo do GitGuardian). O
-proxy do Vite cobre hoje só `/api`; o de `/collab` entra junto com a fatia 005,
-que introduz o servidor de colaboração.
+proxy do Vite cobre `/api` e `/collab`. O de `/collab` é WebSocket
+(`ws: true`) e **não** troca o cabeçalho `Origin` pelo destino (sem
+`changeOrigin`): a checagem de Origin em `/collab` (ver §5) compara o
+`Origin` do navegador com o `Host` do pedido que chega na API, e
+`changeOrigin` reescreveria o `Host` para o do alvo do proxy, quebrando essa
+comparação em desenvolvimento.
 
 ## 9. Entregas empilhadas
 

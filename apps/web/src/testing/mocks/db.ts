@@ -51,15 +51,16 @@ export const resetDb = (): void => {
 
 // The collaboration server bumps the document `updatedAt` when it stores the
 // content; the local provider does the same here. Unknown id does nothing.
+//
+// The change is written into the document that is already in the database, and
+// never into a copy of it: the handlers look their document up before they
+// await (the network delay, the request body) and write to it afterwards, so
+// replacing the documents mid-await would throw their write away — the title
+// someone just typed among two keystrokes would silently go back to "Sem
+// título".
 export const touchDocumentUpdatedAt = (documentId: string): void => {
-  state = {
-    ...state,
-    documents: state.documents.map((document) =>
-      document.id === documentId
-        ? { ...document, updatedAt: new Date().toISOString() }
-        : document,
-    ),
-  };
+  const document = state.documents.find((item) => item.id === documentId);
+  if (document) document.updatedAt = new Date().toISOString();
 };
 
 // Example installation, matching the shape a real POST /installation creates.

@@ -7,6 +7,8 @@ import { withCollaboration } from '@blocknote/core/yjs';
 import { BlockNoteView } from '@blocknote/mantine';
 import { useCreateBlockNote } from '@blocknote/react';
 import type React from 'react';
+import { useEffect } from 'react';
+import { yUndoPluginKey } from 'y-prosemirror';
 import type * as Y from 'yjs';
 
 import { editorDictionary } from '@/features/documents/components/editor-dictionary';
@@ -39,6 +41,28 @@ export default function DocumentEditor({
       },
     }),
   );
+
+  // Undo/redo survive the editor being mounted more than once.
+  //
+  // The editor object is created once and kept, but its ProseMirror view is
+  // mounted, unmounted and mounted again (React's Strict Mode does exactly
+  // this in development, and so does any remount of this screen). y-prosemirror
+  // destroys the Yjs `UndoManager` together with the view, even though the
+  // manager belongs to the editor state, which survives: from the second mount
+  // on it no longer listens to the document, nothing reaches the undo stack and
+  // Ctrl+Z quietly does nothing. So the manager's lifetime is taken over here —
+  // it dies with the document, and the session that created the document
+  // destroys it. Rebuilding the undo extension instead is not an option: that
+  // rebuilds every ProseMirror plugin, and with them the Yjs binding the
+  // editor is writing through.
+  useEffect(() => {
+    const undoState = yUndoPluginKey.getState(editor.prosemirrorState);
+    if (!undoState) return;
+
+    undoState.undoManager.destroy = () => {
+      // Deliberately empty: see above.
+    };
+  }, [editor]);
 
   return (
     <section
