@@ -75,3 +75,5 @@ Detalhe nas skills `react-*`.
 - API muda no OpenAPI primeiro; `oasdiff` e clientes no mesmo PR.
 
 Detalhe nas skills `nest-*`.
+
+@AGENTS.md
