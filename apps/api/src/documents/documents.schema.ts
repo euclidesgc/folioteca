@@ -17,9 +17,11 @@ export const updateDocumentSchema = z.object({
 
 export type UpdateDocumentInput = z.infer<typeof updateDocumentSchema>;
 
-/** Escopo da listagem: os meus documentos ou os meus favoritos. */
+/** Escopo da listagem: os meus documentos, os meus favoritos ou a lixeira. */
 export const listDocumentsQuerySchema = z.object({
-  scope: z.enum(['mine', 'favorites'], { error: 'Informe um escopo válido.' }),
+  scope: z.enum(['mine', 'favorites', 'trash'], {
+    error: 'Informe um escopo válido.',
+  }),
 });
 
 export type ListDocumentsQuery = z.infer<typeof listDocumentsQuerySchema>;

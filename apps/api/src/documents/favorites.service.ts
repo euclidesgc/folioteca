@@ -93,10 +93,13 @@ export class FavoritesService {
       },
     });
 
+    // A porta de leitura já deixa a lixeira de fora: nenhum favorito listado
+    // está nela, e a coluna nem precisa ser selecionada.
     return favorites.map(({ document }) => ({
       id: document.id,
       title: document.title,
       updatedAt: document.updatedAt.toISOString(),
+      trashedAt: null,
     }));
   }
 }

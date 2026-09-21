@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import type { components } from '@folioteca/api-contract';
 import { Prisma, type Document as DocumentRecord } from '@prisma/client';
 
@@ -20,6 +25,12 @@ type AccessLevel = components['schemas']['AccessLevel'];
 
 const CANNOT_EDIT_MESSAGE =
   'Você não tem permissão para editar este documento.';
+
+const TRASHED_DOCUMENT_MESSAGE =
+  'Este documento está na lixeira. Restaure-o para editar.';
+
+const DELETE_OUTSIDE_TRASH_MESSAGE =
+  'Mova o documento para a lixeira antes de apagá-lo definitivamente.';
 
 /**
  * Códigos do Prisma que significam "o documento sumiu no meio da gravação":
@@ -54,6 +65,8 @@ function toDocument(
     ...document,
     createdAt: document.createdAt.toISOString(),
     updatedAt: document.updatedAt.toISOString(),
+    // Sem a conversão o `Date` do banco vazaria no corpo da resposta.
+    trashedAt: document.trashedAt?.toISOString() ?? null,
     accessLevel,
     isFavorite: favorites.length > 0,
   };
@@ -62,6 +75,13 @@ function toDocument(
 @Injectable()
 export class DocumentsService {
   private readonly logger = new Logger(DocumentsService.name);
+
+  /**
+   * Quem quer saber que um documento deixou de aceitar sessão aberta. O módulo
+   * `collab` se inscreve aqui; este serviço não o conhece (o import seria
+   * circular).
+   */
+  private readonly closedListeners: ((documentId: string) => void)[] = [];
 
   constructor(
     private readonly prisma: PrismaService,
@@ -110,10 +130,35 @@ export class DocumentsService {
       select: { id: true, title: true, updatedAt: true },
     });
 
+    // A porta de leitura já deixa a lixeira de fora: nada aqui está nela, e a
+    // coluna nem precisa ser selecionada.
     return documents.map((document) => ({
       id: document.id,
       title: document.title,
       updatedAt: document.updatedAt.toISOString(),
+      trashedAt: null,
+    }));
+  }
+
+  /** Documentos na lixeira da pessoa, dos movidos há menos tempo aos mais antigos. */
+  async listTrash(personId: string): Promise<DocumentSummary[]> {
+    const documents = await this.prisma.document.findMany({
+      where: this.access.trashedDocumentsWhere(personId),
+      orderBy: [{ trashedAt: 'desc' }, { id: 'desc' }],
+      take: 100,
+      select: {
+        id: true,
+        title: true,
+        updatedAt: true,
+        trashedAt: true,
+      },
+    });
+
+    return documents.map((document) => ({
+      id: document.id,
+      title: document.title,
+      updatedAt: document.updatedAt.toISOString(),
+      trashedAt: document.trashedAt?.toISOString() ?? null,
     }));
   }
 
@@ -127,7 +172,17 @@ export class DocumentsService {
 
     const document = await this.prisma.document.findFirst({
       where: {
-        AND: [{ id: documentId }, this.access.readableDocumentsWhere(personId)],
+        AND: [
+          { id: documentId },
+          {
+            // O dono precisa abrir o que está na lixeira para restaurar ou
+            // apagar; para todo o resto vale só a porta de leitura.
+            OR: [
+              this.access.readableDocumentsWhere(personId),
+              this.access.trashedDocumentsWhere(personId),
+            ],
+          },
+        ],
       },
       include: {
         favorites: { where: { personId }, select: { personId: true } },
@@ -143,7 +198,8 @@ export class DocumentsService {
 
   /**
    * Renomeia o documento. O acesso é conferido antes do corpo: um corpo
-   * inválido não pode revelar que um documento alheio existe.
+   * inválido não pode revelar que um documento alheio existe, nem que o
+   * documento está na lixeira.
    */
   async rename(
     personId: string,
@@ -160,6 +216,10 @@ export class DocumentsService {
       throw new ForbiddenException(CANNOT_EDIT_MESSAGE);
     }
 
+    if (!(await this.access.canWrite(personId, documentId))) {
+      throw new ConflictException(TRASHED_DOCUMENT_MESSAGE);
+    }
+
     const data = parseBody(updateDocumentSchema, body);
 
     const document = await this.prisma.document.update({
@@ -171,6 +231,88 @@ export class DocumentsService {
     });
 
     return toDocument(document, accessLevel);
+  }
+
+  /**
+   * Só o dono move, restaura e apaga. Qualquer outro nível — inclusive os de
+   * compartilhamento que virão — sai daqui como 404, igual a documento
+   * inexistente e a id malformado.
+   */
+  private async requireOwner(
+    personId: string,
+    documentId: string,
+  ): Promise<void> {
+    const accessLevel = await this.access.resolveAccess(personId, documentId);
+
+    if (accessLevel !== 'owner') {
+      throw documentNotFound();
+    }
+  }
+
+  /** Avisa quem acompanha que o documento não aceita mais sessão aberta. */
+  private notifyDocumentClosed(documentId: string): void {
+    for (const listener of this.closedListeners) {
+      listener(documentId);
+    }
+  }
+
+  /**
+   * Inscreve um ouvinte para os documentos que saíram do ar — movidos para a
+   * lixeira ou apagados. Chamado no arranque, uma vez por ouvinte.
+   */
+  onDocumentClosed(listener: (documentId: string) => void): void {
+    this.closedListeners.push(listener);
+  }
+
+  /**
+   * Move o documento para a lixeira. Mover de novo não renova a data: a
+   * gravação só alcança o que ainda está fora dela.
+   */
+  async trash(personId: string, documentId: string): Promise<Document> {
+    await this.requireOwner(personId, documentId);
+
+    await this.prisma.document.updateMany({
+      where: { id: documentId, trashedAt: null },
+      data: { trashedAt: new Date() },
+    });
+
+    this.notifyDocumentClosed(documentId);
+
+    return this.get(personId, documentId);
+  }
+
+  /**
+   * Tira o documento da lixeira. Conteúdo e favoritos nunca são tocados:
+   * voltam exatamente como estavam.
+   */
+  async restore(personId: string, documentId: string): Promise<Document> {
+    await this.requireOwner(personId, documentId);
+
+    await this.prisma.document.updateMany({
+      where: { id: documentId, trashedAt: { not: null } },
+      data: { trashedAt: null },
+    });
+
+    return this.get(personId, documentId);
+  }
+
+  /**
+   * Apaga o documento para sempre. Só o que já está na lixeira: nada some em
+   * um passo só. O conteúdo e as linhas de `Favorite` vão junto, pelo
+   * `onDelete: Cascade` do schema.
+   */
+  async delete(personId: string, documentId: string): Promise<void> {
+    await this.requireOwner(personId, documentId);
+
+    const { count } = await this.prisma.document.deleteMany({
+      where: { id: documentId, trashedAt: { not: null } },
+    });
+
+    if (count === 0) {
+      throw new ConflictException(DELETE_OUTSIDE_TRASH_MESSAGE);
+    }
+
+    this.notifyDocumentClosed(documentId);
   }
 
   /**
@@ -188,25 +330,39 @@ export class DocumentsService {
 
   /**
    * Grava o estado Yjs e avança o `updatedAt` do documento na mesma
-   * transação. Não recebe pessoa: quem autoriza é o módulo `collab`.
+   * transação, e só enquanto o documento está fora da lixeira. Não recebe
+   * pessoa: quem autoriza é o módulo `collab`. Devolve se o conteúdo foi
+   * mesmo guardado.
    */
-  async saveContent(documentId: string, state: Uint8Array): Promise<void> {
+  async saveContent(documentId: string, state: Uint8Array): Promise<boolean> {
     // O Prisma só aceita bytes respaldados por `ArrayBuffer`; o Yjs entrega
     // uma visão que o TypeScript tipa como `ArrayBufferLike`.
     const bytes = new Uint8Array(state);
 
     try {
-      await this.prisma.$transaction(async (tx) => {
+      return await this.prisma.$transaction(async (tx) => {
+        // A mesma gravação decide e marca: nenhuma linha alcançada significa
+        // documento na lixeira ou já apagado, e o conteúdo é descartado.
+        const { count } = await tx.document.updateMany({
+          where: { id: documentId, trashedAt: null },
+          data: { updatedAt: new Date() },
+        });
+
+        if (count === 0) {
+          this.logger.warn(
+            `Conteúdo descartado: o documento ${documentId} não aceita mais gravação.`,
+          );
+
+          return false;
+        }
+
         await tx.documentContent.upsert({
           where: { documentId },
           create: { documentId, state: bytes },
           update: { state: bytes },
         });
 
-        await tx.document.update({
-          where: { id: documentId },
-          data: { updatedAt: new Date() },
-        });
+        return true;
       });
     } catch (error) {
       // O documento pode ter sido apagado enquanto a gravação esperava o
@@ -216,7 +372,7 @@ export class DocumentsService {
           `Conteúdo descartado: o documento ${documentId} não existe mais.`,
         );
 
-        return;
+        return false;
       }
 
       throw error;

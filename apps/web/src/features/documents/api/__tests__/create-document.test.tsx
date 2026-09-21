@@ -51,6 +51,7 @@ test('posts without a body and returns the created document', async () => {
             ownerId: 'person-1',
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
+            trashedAt: null,
             accessLevel: 'owner',
             isFavorite: false,
           },

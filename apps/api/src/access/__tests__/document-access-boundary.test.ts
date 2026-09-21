@@ -112,11 +112,16 @@ function checkDocumentsReads({ file, source }: SourceFile): Violation[] {
     const openIndex = match.index + match[0].length - 1;
     const call = source.slice(openIndex, endOfCall(source, openIndex) + 1);
 
-    if (!call.includes('readableDocumentsWhere(')) {
+    // Duas portas de leitura, nunca um `where` solto: a da lixeira é tão
+    // legítima quanto a de sempre, e a regra 8 cuida de onde ela pode aparecer.
+    if (
+      !call.includes('readableDocumentsWhere(') &&
+      !call.includes('trashedDocumentsWhere(')
+    ) {
       violations.push({
         file,
         line: lineAt(source, match.index),
-        message: `document.${match[1]} sem readableDocumentsWhere`,
+        message: `document.${match[1]} sem readableDocumentsWhere nem trashedDocumentsWhere`,
       });
     }
   }
@@ -240,13 +245,15 @@ test('rule 2 flags a sample offender and accepts a sample compliant snippet', ()
 
   const compliant = checkDocumentsReads({
     file: 'documents/documents.service.ts',
-    source:
+    source: [
       'await this.prisma.document.findMany({ where: this.access.readableDocumentsWhere(personId) });',
+      'await this.prisma.document.findMany({ where: this.access.trashedDocumentsWhere(personId) });',
+    ].join('\n'),
   });
 
   expect(report(offender)).toEqual([
     'documents/documents.service.ts:1 usa document.findUnique, que passa por cima das portas',
-    'documents/documents.service.ts:2 document.findMany sem readableDocumentsWhere',
+    'documents/documents.service.ts:2 document.findMany sem readableDocumentsWhere nem trashedDocumentsWhere',
   ]);
   expect(report(compliant)).toEqual([]);
 });
@@ -570,6 +577,174 @@ test('rule 7 flags a sample offender and accepts a sample compliant snippet', ()
   ]);
   expect(report(compliantOutside)).toEqual([]);
   expect(report(compliantInside)).toEqual([]);
+});
+
+const ACCESS_SERVICE_FILE = 'access/access.service.ts';
+const DOCUMENTS_SERVICE_FILE = 'documents/documents.service.ts';
+
+/** Chamada da porta da lixeira: sempre precedida de ponto, nunca a definição. */
+const TRASHED_GATE_CALL_PATTERN = /\.trashedDocumentsWhere\s*\(/g;
+
+/** Leitura de `Document` ou de `Favorite`, em qualquer arquivo de `src/`. */
+const ANY_READ_CALL_PATTERN = new RegExp(
+  `\\.(?:document|favorite)\\.(${READ_METHODS.join('|')})\\s*\\(`,
+  'g',
+);
+
+const READABLE_GATE_DEFINITION_PATTERN =
+  /readableDocumentsWhere\s*\([^)]*\)\s*:[^{]*\{/;
+
+/** Índice da chave que fecha o bloco aberto em `openIndex`. */
+function endOfBlock(source: string, openIndex: number): number {
+  let depth = 0;
+
+  for (let index = openIndex; index < source.length; index += 1) {
+    const char = source[index];
+
+    if (char === '{') {
+      depth += 1;
+    } else if (char === '}') {
+      depth -= 1;
+
+      if (depth === 0) {
+        return index;
+      }
+    }
+  }
+
+  return source.length;
+}
+
+/**
+ * Regra 8: a porta da lixeira só é chamada pelo serviço de documentos, nenhuma
+ * leitura de `Document` ou de `Favorite` fala de `trashedAt` por fora dela, e a
+ * porta de leitura de sempre continua excluindo a lixeira.
+ */
+function checkTrashGate({ file, source }: SourceFile): Violation[] {
+  const violations: Violation[] = [];
+
+  if (file !== DOCUMENTS_SERVICE_FILE) {
+    for (const match of source.matchAll(TRASHED_GATE_CALL_PATTERN)) {
+      violations.push({
+        file,
+        line: lineAt(source, match.index),
+        message: 'chama trashedDocumentsWhere fora de documents.service.ts',
+      });
+    }
+  }
+
+  // A decisão de acesso é a única leitura que enxerga `trashedAt` sem a porta:
+  // é ela que alimenta as portas, e a checagem seguinte prende o que ela
+  // devolve. Todo o resto do `src/` responde pela regra.
+  const readsUnderRule =
+    file === ACCESS_SERVICE_FILE ? '' : source;
+
+  for (const match of readsUnderRule.matchAll(ANY_READ_CALL_PATTERN)) {
+    const openIndex = match.index + match[0].length - 1;
+    const call = source.slice(openIndex, endOfCall(source, openIndex) + 1);
+
+    if (call.includes('trashedAt') && !call.includes('trashedDocumentsWhere(')) {
+      violations.push({
+        file,
+        line: lineAt(source, match.index),
+        message: `leitura ${match[1]} fala de trashedAt sem trashedDocumentsWhere`,
+      });
+    }
+  }
+
+  if (file === ACCESS_SERVICE_FILE) {
+    const definition = READABLE_GATE_DEFINITION_PATTERN.exec(source);
+
+    if (definition === null) {
+      violations.push({
+        file,
+        line: 1,
+        message: 'não define readableDocumentsWhere',
+      });
+    } else {
+      const openIndex = definition.index + definition[0].length - 1;
+      const body = source.slice(openIndex, endOfBlock(source, openIndex) + 1);
+
+      if (!body.includes('trashedAt: null')) {
+        violations.push({
+          file,
+          line: lineAt(source, definition.index),
+          message: 'readableDocumentsWhere não exclui a lixeira',
+        });
+      }
+    }
+  }
+
+  return violations;
+}
+
+test('only documents.service.ts calls trashedDocumentsWhere', () => {
+  const violations = sourceFiles
+    .flatMap(checkTrashGate)
+    .filter((violation) => violation.message.includes('chama'));
+
+  expect(sourceFiles.map(({ file }) => file)).toContain(ACCESS_SERVICE_FILE);
+  expect(report(violations)).toEqual([]);
+});
+
+test('no document or favorite read mentions trashedAt without trashedDocumentsWhere', () => {
+  const violations = sourceFiles
+    .flatMap(checkTrashGate)
+    .filter((violation) => violation.message.includes('fala de trashedAt'));
+
+  expect(report(violations)).toEqual([]);
+});
+
+test('readableDocumentsWhere keeps trashedAt null', () => {
+  const violations = sourceFiles
+    .flatMap(checkTrashGate)
+    .filter((violation) => violation.message.includes('readableDocumentsWhere'));
+
+  expect(report(violations)).toEqual([]);
+});
+
+test('rule 8 flags a sample offender and accepts a sample compliant snippet', () => {
+  const callOffender = checkTrashGate({
+    file: FAVORITE_SERVICE_FILE,
+    source: [
+      'await this.prisma.favorite.findMany({ where: { document: this.access.trashedDocumentsWhere(personId) } });',
+      'await this.prisma.document.findFirst({ where: { id, trashedAt: null } });',
+    ].join('\n'),
+  });
+
+  const gateOffender = checkTrashGate({
+    file: ACCESS_SERVICE_FILE,
+    source: [
+      'readableDocumentsWhere(personId: string): Prisma.DocumentWhereInput {',
+      '  return { ownerId: personId };',
+      '}',
+    ].join('\n'),
+  });
+
+  const compliantService = checkTrashGate({
+    file: DOCUMENTS_SERVICE_FILE,
+    source:
+      'await this.prisma.document.findMany({ where: this.access.trashedDocumentsWhere(personId), select: { trashedAt: true } });',
+  });
+
+  const compliantGate = checkTrashGate({
+    file: ACCESS_SERVICE_FILE,
+    source: [
+      'readableDocumentsWhere(personId: string): Prisma.DocumentWhereInput {',
+      '  return { ownerId: personId, trashedAt: null };',
+      '}',
+    ].join('\n'),
+  });
+
+  expect(report(callOffender)).toEqual([
+    'documents/favorites.service.ts:1 chama trashedDocumentsWhere fora de documents.service.ts',
+    'documents/favorites.service.ts:2 leitura findFirst fala de trashedAt sem trashedDocumentsWhere',
+  ]);
+  expect(report(gateOffender)).toEqual([
+    'access/access.service.ts:1 readableDocumentsWhere não exclui a lixeira',
+  ]);
+  expect(report(compliantService)).toEqual([]);
+  expect(report(compliantGate)).toEqual([]);
 });
 
 test('rule 6 flags a sample offender and accepts a sample compliant snippet', () => {

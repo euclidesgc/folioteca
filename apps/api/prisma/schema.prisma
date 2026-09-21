@@ -71,14 +71,17 @@ model Space {
 }
 
 /// Documento de um espaço: quem escreveu (`authorId`) e quem é dono (`ownerId`).
+/// `trashedAt` nulo significa fora da lixeira. Consequência aceita: mover para
+/// a lixeira e restaurar avançam o `updatedAt`, porque ele é `@updatedAt`.
 model Document {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   title     String
   spaceId   String
   authorId  String
   ownerId   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  trashedAt DateTime?
 
   content   DocumentContent?
   favorites Favorite[]
@@ -87,6 +90,7 @@ model Document {
   owner     Person           @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Restrict)
 
   @@index([ownerId, updatedAt(sort: Desc)])
+  @@index([ownerId, trashedAt(sort: Desc)])
   @@index([spaceId])
 }
 

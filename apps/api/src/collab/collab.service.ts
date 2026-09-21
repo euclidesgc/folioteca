@@ -5,7 +5,6 @@ import { Hocuspocus } from '@hocuspocus/server';
 import type { RawData, WebSocket, WebSocketServer } from 'ws';
 import { applyUpdate, encodeStateAsUpdate } from 'yjs';
 
-import { canEdit } from '../access/access-level';
 import { AccessService } from '../access/access.service';
 import { SessionService } from '../auth/session.service';
 import { env } from '../config/env';
@@ -80,8 +79,10 @@ function toWebRequest(request: IncomingMessage): Request {
  * Servidor de colaboração embutido: uma instância do Hocuspocus sem porta
  * própria, alimentada pelos sockets que `attachCollab` aceita em `/collab`.
  *
- * Limite conhecido: o acesso é conferido ao conectar. Derrubar o socket de
- * quem perdeu o acesso no meio da sessão fica para a fatia 015.
+ * Limite conhecido: o acesso é conferido ao conectar. A lixeira é a exceção —
+ * mover ou apagar fecha as conexões daquele documento, e quem reconecta entra
+ * somente leitura. Derrubar o socket de quem perdeu o acesso por outro motivo
+ * no meio da sessão fica para a fatia 015.
  */
 @Injectable()
 export class CollabService implements OnModuleDestroy {
@@ -114,7 +115,12 @@ export class CollabService implements OnModuleDestroy {
           throw new AccessRefusedError();
         }
 
-        connectionConfig.readOnly = !canEdit(accessLevel);
+        // O dono de documento na lixeira conecta e lê; o que ele escrever é
+        // descartado pelo Hocuspocus, sem chegar ao banco.
+        connectionConfig.readOnly = !(await this.access.canWrite(
+          context.personId,
+          documentName,
+        ));
       },
 
       onLoadDocument: async ({ document, documentName }) => {
@@ -126,13 +132,23 @@ export class CollabService implements OnModuleDestroy {
       },
 
       onStoreDocument: async ({ document, documentName }) => {
-        await this.documents.saveContent(
+        const stored = await this.documents.saveContent(
           documentName,
           encodeStateAsUpdate(document),
         );
 
-        document.broadcastStateless(STORED_MESSAGE);
+        if (stored) {
+          document.broadcastStateless(STORED_MESSAGE);
+        }
       },
+    });
+
+    // Sem fechar, o documento Yjs em memória guardaria as edições feitas
+    // depois da lixeira e as gravaria ao restaurar. Fechando, ele descarrega
+    // (e a gravação do descarregamento é recusada) e a web reconecta sozinha,
+    // já como somente leitura.
+    this.documents.onDocumentClosed((documentId) => {
+      this.hocuspocus.closeConnections(documentId);
     });
   }
 

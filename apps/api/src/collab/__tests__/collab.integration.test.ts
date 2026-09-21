@@ -409,7 +409,10 @@ test('a view connection receives the content and its writes never reach the serv
     .overrideProvider(AccessService)
     .useValue({
       resolveAccess: () => Promise.resolve('view'),
+      // Quem só vê nunca grava: a conexão nasce somente leitura.
+      canWrite: () => Promise.resolve(false),
       readableDocumentsWhere: () => ({}),
+      trashedDocumentsWhere: () => ({}),
     })
     .compile();
 
@@ -439,6 +442,135 @@ test('a view connection receives the content and its writes never reach the serv
   }
 
   expect(await storedText(created.id)).toBe('Plano de obras');
+});
+
+/** Move o documento para a lixeira pela API, com o cookie da dona. */
+async function trashDocument(documentId: string): Promise<number> {
+  const response = await httpRequest(app)
+    .post(`/api/documents/${documentId}/trash`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send();
+
+  return response.status;
+}
+
+/** Tira o documento da lixeira pela API, com o cookie da dona. */
+async function restoreDocument(documentId: string): Promise<number> {
+  const response = await httpRequest(app)
+    .post(`/api/documents/${documentId}/restore`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send();
+
+  return response.status;
+}
+
+test('closes the open connection when the document goes to the trash and stores nothing written afterwards', async () => {
+  const created = await createDocument(cookieA);
+  const connection = open({ documentId: created.id, cookie: cookieA });
+
+  await connection.synced;
+  writeText(connection.ydoc, 'Plano de obras');
+  await waitFor(() => hasContentRow(created.id), {
+    message: 'A linha de conteúdo não apareceu',
+  });
+
+  expect(await trashDocument(created.id)).toBe(200);
+
+  await waitFor(() => !connection.provider.isAuthenticated, {
+    message: 'A conexão aberta não foi fechada pela ida para a lixeira',
+  });
+
+  writeText(connection.ydoc, ' — escrito depois da lixeira');
+
+  // Um documento fora da lixeira grava normalmente: quando a gravação dele
+  // sai, a janela do documento na lixeira já passou.
+  const control = await createDocument(cookieA);
+  const controlConnection = open({ documentId: control.id, cookie: cookieA });
+  await controlConnection.synced;
+  writeText(controlConnection.ydoc, 'Documento de controle');
+  await waitFor(() => hasContentRow(control.id), {
+    message: 'A linha de conteúdo do documento de controle não apareceu',
+  });
+
+  expect(await storedText(created.id)).toBe('Plano de obras');
+});
+
+test('a new connection to a trashed document syncs the content, discards writes and gets no stored message', async () => {
+  const created = await createDocument(cookieA);
+  const first = open({ documentId: created.id, cookie: cookieA });
+
+  await first.synced;
+  writeText(first.ydoc, 'Plano de obras');
+  await waitFor(() => hasContentRow(created.id), {
+    message: 'A linha de conteúdo não apareceu',
+  });
+  await first.close();
+
+  expect(await trashDocument(created.id)).toBe(200);
+
+  const viewer = open({ documentId: created.id, cookie: cookieA });
+  await viewer.synced;
+
+  await waitFor(() => readText(viewer.ydoc) === 'Plano de obras', {
+    message: 'A conexão com o documento na lixeira não recebeu o conteúdo',
+  });
+
+  expect(viewer.provider.authorizedScope).toBe('readonly');
+
+  writeText(viewer.ydoc, ' — rascunho na lixeira');
+
+  const control = await createDocument(cookieA);
+  const controlConnection = open({ documentId: control.id, cookie: cookieA });
+  await controlConnection.synced;
+  writeText(controlConnection.ydoc, 'Documento de controle');
+  await waitFor(
+    () => controlConnection.statelessPayloads.includes(STORED_MESSAGE),
+    { message: 'A gravação do documento de controle não foi confirmada' },
+  );
+
+  expect(await storedText(created.id)).toBe('Plano de obras');
+  expect(viewer.statelessPayloads).not.toContain(STORED_MESSAGE);
+});
+
+test('after restore the text written in the trash does not come back and a new connection stores normally', async () => {
+  const created = await createDocument(cookieA);
+  const first = open({ documentId: created.id, cookie: cookieA });
+
+  await first.synced;
+  writeText(first.ydoc, 'Plano de obras');
+  await waitFor(() => hasContentRow(created.id), {
+    message: 'A linha de conteúdo não apareceu',
+  });
+
+  expect(await trashDocument(created.id)).toBe(200);
+
+  await waitFor(() => !first.provider.isAuthenticated, {
+    message: 'A conexão aberta não foi fechada pela ida para a lixeira',
+  });
+
+  writeText(first.ydoc, ' — rascunho na lixeira');
+  await first.close();
+
+  expect(await restoreDocument(created.id)).toBe(200);
+
+  const second = open({ documentId: created.id, cookie: cookieA });
+  await second.synced;
+
+  await waitFor(() => readText(second.ydoc) === 'Plano de obras', {
+    message: 'A conexão depois da restauração não recebeu o conteúdo guardado',
+  });
+
+  writeText(second.ydoc, ' e viadutos');
+
+  await waitFor(
+    async () => (await storedText(created.id)) === 'Plano de obras e viadutos',
+    { message: 'A gravação depois da restauração não chegou ao banco' },
+  );
+
+  expect(readText(second.ydoc)).toBe('Plano de obras e viadutos');
+  expect(await storedText(created.id)).toBe('Plano de obras e viadutos');
 });
 
 test('closing the app stores the pending content', { timeout: 15000 }, async () => {

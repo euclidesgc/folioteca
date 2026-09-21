@@ -53,12 +53,15 @@ export class DocumentsController {
   ): Promise<DocumentsResponse> {
     const { scope } = parseBody(listDocumentsQuerySchema, query);
 
-    const documents =
-      scope === 'favorites'
-        ? await this.favorites.list(person.id)
-        : await this.documents.listMine(person.id, query);
+    if (scope === 'favorites') {
+      return { data: await this.favorites.list(person.id) };
+    }
 
-    return { data: documents };
+    if (scope === 'trash') {
+      return { data: await this.documents.listTrash(person.id) };
+    }
+
+    return { data: await this.documents.listMine(person.id, query) };
   }
 
   @Get(':documentId')
@@ -80,6 +83,42 @@ export class DocumentsController {
     const document = await this.documents.rename(person.id, documentId, body);
 
     return { data: document };
+  }
+
+  @Post(':documentId/trash')
+  @HttpCode(200)
+  async trashDocument(
+    @CurrentPerson() person: PersonWithOrganization,
+    @Param('documentId') documentId: string,
+  ): Promise<DocumentResponse> {
+    const document = await this.documents.trash(person.id, documentId);
+
+    return { data: document };
+  }
+
+  @Post(':documentId/restore')
+  @HttpCode(200)
+  async restoreDocument(
+    @CurrentPerson() person: PersonWithOrganization,
+    @Param('documentId') documentId: string,
+  ): Promise<DocumentResponse> {
+    const document = await this.documents.restore(person.id, documentId);
+
+    return { data: document };
+  }
+
+  /**
+   * Rota mais específica do que `:documentId/favorite`? Não: o Nest casa o
+   * caminho inteiro, então `DELETE :documentId/favorite` continua chegando ao
+   * seu próprio manipulador.
+   */
+  @Delete(':documentId')
+  @HttpCode(204)
+  async deleteDocument(
+    @CurrentPerson() person: PersonWithOrganization,
+    @Param('documentId') documentId: string,
+  ): Promise<void> {
+    await this.documents.delete(person.id, documentId);
   }
 
   @Put(':documentId/favorite')

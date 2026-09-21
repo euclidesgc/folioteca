@@ -30,6 +30,7 @@ type DocumentBody = {
   ownerId: string;
   createdAt: string;
   updatedAt: string;
+  trashedAt: string | null;
   accessLevel: string;
   isFavorite: boolean;
 };
@@ -38,6 +39,7 @@ type DocumentSummaryBody = {
   id: string;
   title: string;
   updatedAt: string;
+  trashedAt: string | null;
 };
 
 type ValidationErrorBody = {
@@ -154,6 +156,7 @@ test('POST /api/documents returns 201 with a Sem título document owned and auth
       ownerId: personA.id,
       createdAt: ANY_STRING,
       updatedAt: ANY_STRING,
+      trashedAt: null,
       accessLevel: 'owner',
       isFavorite: false,
     },
@@ -168,6 +171,21 @@ test('a new document is not a favorite', async () => {
   expect(created.isFavorite).toBe(false);
   expect((response.body as { data: DocumentBody }).data.isFavorite).toBe(false);
   expect(await prisma.favorite.count()).toBe(0);
+});
+
+test('a new document is not in the trash', async () => {
+  const created = await createDocument(cookieA);
+
+  const read = await getDocument(cookieA, created.id);
+  const trash = await getDocuments(cookieA, '?scope=trash');
+  const stored = await prisma.document.findFirstOrThrow({
+    where: { id: created.id },
+  });
+
+  expect(created.trashedAt).toBeNull();
+  expect((read.body as { data: DocumentBody }).data.trashedAt).toBeNull();
+  expect(trash.body).toEqual({ data: [] });
+  expect(stored.trashedAt).toBeNull();
 });
 
 test('the created document lives in the personal space of the caller', async () => {
@@ -230,6 +248,7 @@ test('GET /api/documents?scope=mine lists by updatedAt desc with id, title and u
   expect(Object.keys(data[0] ?? {}).sort()).toEqual([
     'id',
     'title',
+    'trashedAt',
     'updatedAt',
   ]);
 });

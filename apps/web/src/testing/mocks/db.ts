@@ -27,6 +27,7 @@ export type MockDocument = {
   ownerId: string;
   createdAt: string;
   updatedAt: string;
+  trashedAt: string | null;
   accessLevel: 'owner' | 'edit' | 'view';
 };
 
@@ -134,6 +135,7 @@ export const seedSampleDocuments = (): void => {
         ? now - 1000 * 60 * 60 * 24 * 365 * 3
         : now - index * 1000 * 60 * 60,
     ).toISOString(),
+    trashedAt: null,
     accessLevel: 'owner',
   }));
 

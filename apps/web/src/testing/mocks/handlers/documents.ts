@@ -52,6 +52,7 @@ export const documentsHandlers = [
       ownerId: person.id,
       createdAt: now,
       updatedAt: now,
+      trashedAt: null,
       accessLevel: 'owner',
     };
     documents.push(document);
@@ -90,7 +91,12 @@ export const documentsHandlers = [
         )
         .filter((item) => item !== undefined)
         .slice(0, FAVORITES_LIMIT)
-        .map(({ id, title, updatedAt }) => ({ id, title, updatedAt }));
+        .map(({ id, title, updatedAt }) => ({
+          id,
+          title,
+          updatedAt,
+          trashedAt: null,
+        }));
 
       const favoritesBody: DocumentsResponse = { data: favoriteList };
       return HttpResponse.json(favoritesBody);
@@ -99,7 +105,12 @@ export const documentsHandlers = [
     const list = [...documents]
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .slice(0, 100)
-      .map(({ id, title, updatedAt }) => ({ id, title, updatedAt }));
+      .map(({ id, title, updatedAt }) => ({
+        id,
+        title,
+        updatedAt,
+        trashedAt: null,
+      }));
 
     const body: DocumentsResponse = { data: list };
     return HttpResponse.json(body);

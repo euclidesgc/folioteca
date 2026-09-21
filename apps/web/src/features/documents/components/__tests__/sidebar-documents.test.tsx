@@ -34,6 +34,7 @@ const summariesOfSize = (size: number): { data: MockDocument[] } => ({
     ownerId: 'person-1',
     createdAt: new Date(2026, 8, 21, 10, 0).toISOString(),
     updatedAt: new Date(2026, 8, 21, 10, 0).toISOString(),
+    trashedAt: null,
     accessLevel: 'owner' as const,
   })),
 });

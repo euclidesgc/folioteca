@@ -64,6 +64,21 @@ async function createDocument(person: Person, title: string): Promise<string> {
   return document.id;
 }
 
+/** Cria um documento já na lixeira da pessoa, direto pelo Prisma. */
+async function createTrashedDocument(
+  person: Person,
+  title: string,
+): Promise<string> {
+  const documentId = await createDocument(person, title);
+
+  await prisma.document.update({
+    where: { id: documentId },
+    data: { trashedAt: new Date('2026-03-01T10:00:00.000Z') },
+  });
+
+  return documentId;
+}
+
 test('resolveAccess returns owner for the person who owns the document', async () => {
   const owner = await install();
   const documentId = await createDocument(owner, 'Documento da Maria');
@@ -150,7 +165,64 @@ test('readableDocumentsWhere lists only the documents of the person', async () =
   expect(readable).toEqual([{ id: mine }]);
 });
 
-test('both gates agree for every person and document pair', async () => {
+test('the owner of a trashed document still resolves to owner', async () => {
+  const owner = await install();
+  const documentId = await createTrashedDocument(owner, 'Documento na lixeira');
+
+  expect(await access.resolveAccess(owner.id, documentId)).toBe('owner');
+});
+
+test('another person resolves to none for a trashed document', async () => {
+  const owner = await install();
+  const documentId = await createTrashedDocument(owner, 'Documento na lixeira');
+  const { person: other } = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+
+  expect(await access.resolveAccess(other.id, documentId)).toBe('none');
+});
+
+test('canWrite is true outside the trash and false in the trash, for another person and for a malformed id', async () => {
+  const owner = await install();
+  const active = await createDocument(owner, 'Documento da Maria');
+  const trashed = await createTrashedDocument(owner, 'Documento na lixeira');
+  const { person: other } = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+
+  expect(await access.canWrite(owner.id, active)).toBe(true);
+  expect(await access.canWrite(owner.id, trashed)).toBe(false);
+  expect(await access.canWrite(other.id, active)).toBe(false);
+  expect(await access.canWrite(owner.id, randomUUID())).toBe(false);
+  expect(await access.canWrite(owner.id, 'nao-e-uuid')).toBe(false);
+});
+
+test('readableDocumentsWhere excludes trashed documents and trashedDocumentsWhere includes only the trashed documents of the owner', async () => {
+  const owner = await install();
+  const active = await createDocument(owner, 'Documento da Maria');
+  const trashed = await createTrashedDocument(owner, 'Documento na lixeira');
+  const { person: other } = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+  await createTrashedDocument(other, 'Documento do João na lixeira');
+
+  const readable = await prisma.document.findMany({
+    where: access.readableDocumentsWhere(owner.id),
+    select: { id: true },
+  });
+  const inTrash = await prisma.document.findMany({
+    where: access.trashedDocumentsWhere(owner.id),
+    select: { id: true },
+  });
+
+  expect(readable).toEqual([{ id: active }]);
+  expect(inTrash).toEqual([{ id: trashed }]);
+});
+
+test('the doors agree: resolveAccess is not none exactly when the document is in the readable or in the trashed list, never in both', async () => {
   const owner = await install();
   const { person: other } = await createPersonWithSession(app, {
     name: 'João Lima',
@@ -164,7 +236,9 @@ test('both gates agree for every person and document pair', async () => {
 
   const documentIds = [
     await createDocument(owner, 'Documento da Maria'),
+    await createTrashedDocument(owner, 'Documento da Maria na lixeira'),
     await createDocument(other, 'Documento do João'),
+    await createTrashedDocument(other, 'Documento do João na lixeira'),
   ];
 
   const people = [owner, other, admin];
@@ -175,14 +249,21 @@ test('both gates agree for every person and document pair', async () => {
         where: access.readableDocumentsWhere(person.id),
         select: { id: true },
       });
+      const trashed = await prisma.document.findMany({
+        where: access.trashedDocumentsWhere(person.id),
+        select: { id: true },
+      });
       const readableIds = readable.map((document) => document.id);
+      const trashedIds = trashed.map((document) => document.id);
 
       return Promise.all(
         documentIds.map(async (documentId) => ({
           personId: person.id,
           documentId,
-          resolved: (await access.resolveAccess(person.id, documentId)) !== 'none',
-          listed: readableIds.includes(documentId),
+          resolved:
+            (await access.resolveAccess(person.id, documentId)) !== 'none',
+          readable: readableIds.includes(documentId),
+          trashed: trashedIds.includes(documentId),
         })),
       );
     }),
@@ -190,8 +271,10 @@ test('both gates agree for every person and document pair', async () => {
 
   const disagreements = pairs
     .flat()
-    .filter((pair) => pair.resolved !== pair.listed);
+    .filter((pair) => pair.resolved !== (pair.readable || pair.trashed));
+  const inBothLists = pairs.flat().filter((pair) => pair.readable && pair.trashed);
 
   expect(disagreements).toEqual([]);
-  expect(pairs.flat()).toHaveLength(6);
+  expect(inBothLists).toEqual([]);
+  expect(pairs.flat()).toHaveLength(12);
 });

@@ -76,7 +76,14 @@ test('accepts the favorites scope', () => {
   expect(result.data?.scope).toBe('favorites');
 });
 
-test('rejects a scope outside mine and favorites', () => {
+test('accepts the trash scope', () => {
+  const result = listDocumentsQuerySchema.safeParse({ scope: 'trash' });
+
+  expect(result.success).toBe(true);
+  expect(result.data?.scope).toBe('trash');
+});
+
+test('rejects a scope outside mine, favorites and trash', () => {
   const result = listDocumentsQuerySchema.safeParse({ scope: 'favoritos' });
 
   expect(result.success).toBe(false);

@@ -169,7 +169,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: [mine, favorites]
+            enum: [mine, favorites, trash]
       responses:
         "200":
           description: Os documentos do escopo foram listados.
@@ -246,6 +246,118 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ValidationError"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: O documento não existe ou não está acessível.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: O documento está na lixeira e não pode ser editado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteDocument
+      summary: Apaga definitivamente o documento que está na lixeira
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: O documento foi apagado definitivamente.
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: O documento não existe ou não está acessível.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: O documento não está na lixeira.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /documents/{documentId}/trash:
+    post:
+      operationId: trashDocument
+      summary: Move o documento para a lixeira
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: O documento está na lixeira.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: O documento não existe ou não está acessível.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /documents/{documentId}/restore:
+    post:
+      operationId: restoreDocument
+      summary: Restaura o documento que está na lixeira
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: O documento saiu da lixeira.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentResponse"
         "401":
           description: Não há sessão válida.
           content:
@@ -452,6 +564,12 @@ components:
           format: date-time
         accessLevel:
           $ref: "#/components/schemas/AccessLevel"
+        trashedAt:
+          type: [string, "null"]
+          format: date-time
+          description: >-
+            Quando o documento foi movido para a lixeira; nulo se não está
+            nela.
         isFavorite:
           type: boolean
           description: Se a pessoa da sessão marcou o documento como favorito.
@@ -463,6 +581,7 @@ components:
         - ownerId
         - createdAt
         - updatedAt
+        - trashedAt
         - accessLevel
         - isFavorite
     DocumentSummary:
@@ -475,10 +594,17 @@ components:
         updatedAt:
           type: string
           format: date-time
+        trashedAt:
+          type: [string, "null"]
+          format: date-time
+          description: >-
+            Quando o documento foi movido para a lixeira; nulo se não está
+            nela.
       required:
         - id
         - title
         - updatedAt
+        - trashedAt
     DocumentResponse:
       type: object
       properties:

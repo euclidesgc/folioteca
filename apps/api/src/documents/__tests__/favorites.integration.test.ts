@@ -29,6 +29,7 @@ type DocumentBody = {
   ownerId: string;
   createdAt: string;
   updatedAt: string;
+  trashedAt: string | null;
   accessLevel: string;
   isFavorite: boolean;
 };
@@ -37,6 +38,7 @@ type DocumentSummaryBody = {
   id: string;
   title: string;
   updatedAt: string;
+  trashedAt: string | null;
 };
 
 type ValidationErrorBody = {
@@ -172,7 +174,12 @@ test('PUT marks the document as favorite, lists it and reports isFavorite true',
   expect(list.status).toBe(200);
   expect(list.body).toEqual({
     data: [
-      { id: created.id, title: created.title, updatedAt: ANY_STRING },
+      {
+        id: created.id,
+        title: created.title,
+        updatedAt: ANY_STRING,
+        trashedAt: null,
+      },
     ],
   });
   expect((read.body as { data: DocumentBody }).data.isFavorite).toBe(true);

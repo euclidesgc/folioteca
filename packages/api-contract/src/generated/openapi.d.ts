@@ -119,11 +119,46 @@ export interface paths {
         get: operations["getDocument"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Apaga definitivamente o documento que está na lixeira */
+        delete: operations["deleteDocument"];
         options?: never;
         head?: never;
         /** Renomeia o documento */
         patch: operations["updateDocument"];
+        trace?: never;
+    };
+    "/documents/{documentId}/trash": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Move o documento para a lixeira */
+        post: operations["trashDocument"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/documents/{documentId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restaura o documento que está na lixeira */
+        post: operations["restoreDocument"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/documents/{documentId}/favorite": {
@@ -202,6 +237,11 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             accessLevel: components["schemas"]["AccessLevel"];
+            /**
+             * Format: date-time
+             * @description Quando o documento foi movido para a lixeira; nulo se não está nela.
+             */
+            trashedAt: string | null;
             /** @description Se a pessoa da sessão marcou o documento como favorito. */
             isFavorite: boolean;
         };
@@ -210,6 +250,11 @@ export interface components {
             title: string;
             /** Format: date-time */
             updatedAt: string;
+            /**
+             * Format: date-time
+             * @description Quando o documento foi movido para a lixeira; nulo se não está nela.
+             */
+            trashedAt: string | null;
         };
         DocumentResponse: {
             data: components["schemas"]["Document"];
@@ -453,7 +498,7 @@ export interface operations {
     getDocuments: {
         parameters: {
             query: {
-                scope: "mine" | "favorites";
+                scope: "mine" | "favorites" | "trash";
             };
             header?: never;
             path?: never;
@@ -568,6 +613,62 @@ export interface operations {
             };
         };
     };
+    deleteDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O documento foi apagado definitivamente. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O documento não existe ou não está acessível. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O documento não está na lixeira. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     updateDocument: {
         parameters: {
             query?: never;
@@ -599,6 +700,113 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ValidationError"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O documento não existe ou não está acessível. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O documento está na lixeira e não pode ser editado. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    trashDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O documento está na lixeira. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O documento não existe ou não está acessível. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    restoreDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O documento saiu da lixeira. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentResponse"];
                 };
             };
             /** @description Não há sessão válida. */

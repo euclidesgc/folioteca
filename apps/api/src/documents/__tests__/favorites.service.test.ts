@@ -164,11 +164,37 @@ test('list maps the related documents to summaries with ISO dates', async () => 
       id: 'documento-1',
       title: 'Plano de obras',
       updatedAt: '2026-03-01T10:00:00.000Z',
+      trashedAt: null,
     },
     {
       id: 'documento-2',
       title: 'Sem título',
       updatedAt: '2026-01-01T10:00:00.000Z',
+      trashedAt: null,
     },
   ]);
+});
+
+test('list reports trashedAt null in every summary', async () => {
+  const { service, findMany } = createService();
+  findMany.mockResolvedValue([
+    {
+      document: {
+        id: 'documento-1',
+        title: 'Plano de obras',
+        updatedAt: new Date('2026-03-01T10:00:00.000Z'),
+      },
+    },
+    {
+      document: {
+        id: 'documento-2',
+        title: 'Sem título',
+        updatedAt: new Date('2026-01-01T10:00:00.000Z'),
+      },
+    },
+  ]);
+
+  const summaries = await service.list('pessoa');
+
+  expect(summaries.map((summary) => summary.trashedAt)).toEqual([null, null]);
 });

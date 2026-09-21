@@ -39,7 +39,7 @@ type ContractDocument = {
  */
 async function expectDocumentedEmptyResponse(
   requestPath: string,
-  method: 'put' | 'delete',
+  method: 'put' | 'delete' | 'post',
   status: number,
 ): Promise<void> {
   const document = (await SwaggerParser.dereference(
@@ -56,6 +56,18 @@ async function expectDocumentedEmptyResponse(
 /** `isFavorite` do documento no corpo da resposta. */
 function isFavoriteOf(response: Response): unknown {
   return (response.body as { data: { isFavorite: unknown } }).data.isFavorite;
+}
+
+/** `trashedAt` do documento no corpo da resposta. */
+function trashedAtOf(response: Response): unknown {
+  return (response.body as { data: { trashedAt: unknown } }).data.trashedAt;
+}
+
+/** `trashedAt` de cada resumo na resposta de lista. */
+function summaryTrashedAt(response: Response): unknown[] {
+  return (response.body as { data: { trashedAt: unknown }[] }).data.map(
+    (summary) => summary.trashedAt,
+  );
 }
 
 let app: INestApplication;
@@ -333,4 +345,139 @@ test('POST, GET and PATCH bodies carry isFavorite', async () => {
   expect(isFavoriteOf(created)).toBe(false);
   expect(isFavoriteOf(read)).toBe(false);
   expect(isFavoriteOf(renamed)).toBe(false);
+});
+
+function trashDocument(documentId: string): Promise<Response> {
+  return httpRequest(app)
+    .post(`/api/documents/${documentId}/trash`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie)
+    .send();
+}
+
+function restoreDocument(documentId: string): Promise<Response> {
+  return httpRequest(app)
+    .post(`/api/documents/${documentId}/restore`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie)
+    .send();
+}
+
+function deleteDocument(documentId: string): Promise<Response> {
+  return httpRequest(app)
+    .delete(`/api/documents/${documentId}`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie)
+    .send();
+}
+
+test('POST trash answers the documented 200', async () => {
+  const documentId = await createDocumentId();
+
+  const response = await trashDocument(documentId);
+
+  expect(response.status).toBe(200);
+  await expectMatchesContract({
+    path: '/documents/{documentId}/trash',
+    method: 'post',
+    status: 200,
+    body: response.body,
+  });
+});
+
+test('POST restore answers the documented 200', async () => {
+  const documentId = await createDocumentId();
+  await trashDocument(documentId);
+
+  const response = await restoreDocument(documentId);
+
+  expect(response.status).toBe(200);
+  await expectMatchesContract({
+    path: '/documents/{documentId}/restore',
+    method: 'post',
+    status: 200,
+    body: response.body,
+  });
+});
+
+test('DELETE answers 204 in the trash and the documented 409 outside it', async () => {
+  const outside = await createDocumentId();
+  const inTrash = await createDocumentId();
+  await trashDocument(inTrash);
+
+  const conflict = await deleteDocument(outside);
+  const removed = await deleteDocument(inTrash);
+
+  expect(conflict.status).toBe(409);
+  await expectMatchesContract({
+    path: '/documents/{documentId}',
+    method: 'delete',
+    status: 409,
+    body: conflict.body,
+  });
+  expect(removed.status).toBe(204);
+  expect(removed.body).toEqual({});
+  await expectDocumentedEmptyResponse('/documents/{documentId}', 'delete', 204);
+});
+
+test('PATCH in the trash answers the documented 409', async () => {
+  const documentId = await createDocumentId();
+  await trashDocument(documentId);
+
+  const response = await httpRequest(app)
+    .patch(`/api/documents/${documentId}`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie)
+    .send({ title: 'Plano de obras' });
+
+  expect(response.status).toBe(409);
+  await expectMatchesContract({
+    path: '/documents/{documentId}',
+    method: 'patch',
+    status: 409,
+    body: response.body,
+  });
+});
+
+test('GET documents with scope trash matches DocumentsResponse', async () => {
+  const documentId = await createDocumentId();
+  await trashDocument(documentId);
+
+  const response = await httpRequest(app)
+    .get('/api/documents?scope=trash')
+    .set('Cookie', cookie);
+
+  expect(response.status).toBe(200);
+  await expectMatchesContract({
+    path: '/documents',
+    method: 'get',
+    status: 200,
+    body: response.body,
+  });
+});
+
+test('every document and summary body carries trashedAt', async () => {
+  const created = await httpRequest(app)
+    .post('/api/documents')
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie)
+    .send();
+  const documentId = (created.body as { data: { id: string } }).data.id;
+
+  const read = await httpRequest(app)
+    .get(`/api/documents/${documentId}`)
+    .set('Cookie', cookie);
+  const mine = await httpRequest(app)
+    .get('/api/documents?scope=mine')
+    .set('Cookie', cookie);
+  const trashed = await trashDocument(documentId);
+  const trashList = await httpRequest(app)
+    .get('/api/documents?scope=trash')
+    .set('Cookie', cookie);
+
+  expect(trashedAtOf(created)).toBeNull();
+  expect(trashedAtOf(read)).toBeNull();
+  expect(summaryTrashedAt(mine)).toEqual([null]);
+  expect(trashedAtOf(trashed)).toEqual(expect.any(String));
+  expect(summaryTrashedAt(trashList)).toEqual([expect.any(String)]);
 });
