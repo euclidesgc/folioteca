@@ -141,6 +141,19 @@ ao compartilhamento.
 - Alternativa: `ltree`. Consulta mais curta, mas "mover unidade" (fora do
   escopo hoje) reescreve caminhos.
 
+**Entrega `org-units-view` (fatia 064)**: `GET /org-units` devolve a lista
+plana inteira da organização, com `parentId` (é a forma do banco, e as
+próximas entregas devolvem uma unidade solta que a web encaixa no cache);
+ordenação em memória com colador `pt-BR` insensível a acento e caixa,
+desempate por `id` (não depende da collation do Postgres); a web monta a
+árvore sem reordenar; só administração nesta entrega; sem paginação (serve
+para centenas de unidades).
+
+Exceção de lint consciente em `apps/web/src/components/ui/tree/tree.tsx`:
+`jsx-a11y/role-has-required-aria-props` desativada linha a linha porque a
+árvore sem seleção não leva `aria-selected` (ARIA 1.2 permite o nó de árvore
+sem esse atributo fora de um contexto de seleção).
+
 ## 5. Editor e colaboração
 
 BlockNote (blocos com id estável, sobre ProseMirror/Tiptap) com Yjs. O servidor
@@ -256,6 +269,15 @@ aceita caminho interno; qualquer URL absoluta, esquema ou variação de barra
 cai no destino padrão. Limite conhecido: uma sessão revogada em outra aba só
 é percebida na próxima carga de página ou na primeira chamada a um endpoint
 protegido, não em tempo real.
+
+**Entrega `org-units-view` (fatia 064)**: `AdminGuard` sempre depois do
+`SessionGuard`; ordem observável CSRF → `401` (sem sessão) → `403` "Apenas a
+administração pode fazer isso."; `isAdmin` é relido do banco a cada pedido
+(rebaixar vale no pedido seguinte, sem mexer em sessão); `isAdmin` não dá
+acesso a documento. Na web o papel é derivado de `person.isAdmin` em
+`apps/web/src/lib/authorization.tsx` (único lugar), sem campo novo no
+contrato; não-admin não vê a área "Administração" e, pelo endereço, é levado
+ao início sem disparar a requisição.
 
 ## 7. Testes
 
