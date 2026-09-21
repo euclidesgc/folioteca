@@ -154,6 +154,42 @@ Exceção de lint consciente em `apps/web/src/components/ui/tree/tree.tsx`:
 árvore sem seleção não leva `aria-selected` (ARIA 1.2 permite o nó de árvore
 sem esse atributo fora de um contexto de seleção).
 
+**Entrega `org-units-create-rename` (fatia 065)**: dois índices únicos
+escritos à mão na migration `0007`, que o Prisma não expressa (por isso
+`migrate diff` acusaria "drift" e não é rodado nesta tabela) —
+`OrgUnit_single_root_key`, índice parcial sobre `("parentId" IS NULL)` que
+garante uma raiz só, e `OrgUnit_parentId_lower_name_key`, índice por expressão
+sobre `("parentId", lower("name"))` que garante nome único entre irmãs. Regra
+de nome: caixa colide ("Acervo"/"acervo", "ÁREA"/"área"), acento não
+("Área"/"Area"), o nome é aparado e normalizado para NFC antes de gravar, e a
+colisão de caixa depende do `LC_CTYPE` UTF-8 do banco (a imagem `postgres` do
+`docker compose` e do servidor). O `409` "Já existe uma unidade com esse nome
+neste nível." vem **do banco**, sem consulta prévia de duplicidade — o que
+fecha a corrida entre duas criações simultâneas com o mesmo nome. Criar grava
+a unidade e o espaço `UNIT` na mesma transação; renomear a raiz renomeia
+também a organização na mesma transação, e a web relê `/auth/me` para
+refletir o nome novo. `parentId` é imutável: o `PATCH` só aceita `name` e
+recusa qualquer outro campo com `400`. Um único `404` "Unidade não
+encontrada." cobre id malformado, unidade de outra organização e unidade
+inexistente. Modelo de teclado das ações do `Tree`: uma parada de `Tab` na
+entrada da árvore; do item ativo, `Tab` leva às ações desse nó; as teclas de
+navegação da árvore só respondem com o foco no item; `focusNode` move o foco
+para um nó de forma imperativa (usado depois de criar, ver abaixo).
+
+Fatos apurados na implementação: o `Dialog` compartilhado
+(`apps/web/src/components/ui/dialog/dialog.tsx`) guarda, num `useLayoutEffect`,
+quem tinha o foco no instante em que abre e o restaura ao fechar — o Radix
+não tem gatilho próprio para isso quando o modal é aberto por estado (sem
+`DialogTrigger`), e sem essa guarda o foco cairia no `body`; quem abre o
+diálogo pode sobrepor esse destino em `onCloseAutoFocus` chamando
+`preventDefault`. O foco pós-criação (`org-units-tree.tsx`) vai ao nó recém-
+criado só quando a árvore recarregada já o contém — o efeito observa a lista
+de unidades e só chama `focusNode` quando o id pendente aparece nela, nunca
+por temporizador. Os formulários de criar e renomear barram envio duplo por
+uma `ref` (`isSubmittingRef`), porque `isPending` da mutação só vira
+verdadeiro no próximo render e dois `Enter` no mesmo lote de eventos passariam
+os dois.
+
 ## 5. Editor e colaboração
 
 BlockNote (blocos com id estável, sobre ProseMirror/Tiptap) com Yjs. O servidor
@@ -278,6 +314,13 @@ acesso a documento. Na web o papel é derivado de `person.isAdmin` em
 `apps/web/src/lib/authorization.tsx` (único lugar), sem campo novo no
 contrato; não-admin não vê a área "Administração" e, pelo endereço, é levado
 ao início sem disparar a requisição.
+
+**Entrega `org-units-create-rename` (fatia 065)**: as rotas de escrita de
+`org-units` (`POST`, `PATCH`) herdam `SessionGuard` + `AdminGuard` da
+**classe** do controller (`@UseGuards` em `OrgUnitsController`, não em cada
+rota); ordem observável de falha: CSRF (`X-Requested-With` ausente) → `401`
+(sem sessão) → `403` (sessão sem `isAdmin`) → `404`/`400` (unidade ou corpo)
+→ `409` (nome duplicado).
 
 ## 7. Testes
 
