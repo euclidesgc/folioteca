@@ -8,7 +8,7 @@
 | 004 | create-document | criar um documento privado no seu espaço pessoal, vê-lo na barra lateral, abrir e renomear | pedido inicial | 003 | in-review |
 | 005 | block-editor | escrever no documento com editor de blocos, com salvamento colaborativo automático | pedido inicial | 004 | in-review |
 | 006 | favorites | marcar documentos como favoritos e achá-los na barra lateral | pedido inicial | 004 | in-review |
-| 007 | trash | mandar documento para a lixeira, restaurar ou apagar de vez (só o proprietário) | pedido inicial | 004 | in-progress |
+| 007 | trash | mandar documento para a lixeira, restaurar ou apagar de vez (só o proprietário) | pedido inicial | 004 | in-review |
 | 008 | org-units-tree | (administração) montar a árvore de unidades organizacionais a partir da raiz | pedido inicial | 003 | planned |
 | 009 | invitations | (administração) convidar pessoas por e-mail, e o convidado criar a conta pelo link | pedido inicial | 003 | planned |
 | 010 | unit-assignments | (administração) lotar pessoas em uma ou mais unidades e removê-las | pedido inicial | 008, 009 | planned |
@@ -59,3 +59,9 @@
 | 055 | access-boundary-test-split | (dev) ter o teste estrutural `document-access-boundary.test.ts` dividido por tabela e cobrindo leitura de `Document` por relação | dívida da 006 | | planned |
 | 056 | orphan-favorites-cleanup | (dev) ter a linha de `Favorite` de quem perdeu o acesso ao documento limpa ou removível (hoje o DELETE responde 404 e a linha fica invisível) | dívida da 006 | | planned |
 | 057 | sidebar-see-all-accessible-names | (acessibilidade) ter os dois links "Ver todos" da barra lateral com nomes acessíveis distintos | dívida da 006 | | planned |
+| 058 | trash-auto-expiration | ter os documentos da lixeira apagados automaticamente depois de N dias, com aviso na tela | dívida da 007 | | planned |
+| 059 | collab-close-across-instances | ter o fechamento das conexões de colaboração ao mover/apagar funcionando com mais de uma instância da API (hoje o ouvinte é em memória, de um processo só; a recusa de gravação já vale sempre) | dívida da 007 | | planned |
+| 060 | trash-debounce-edit-loss | não descartar a edição feita até o debounce de gravação (2 s) antes de mover o documento para a lixeira | dívida da 007 | | planned |
+| 061 | destructive-button-variant-reuse | ter os botões vermelhos de erro usando a variante `destructive` do `Button` em vez de repetir as classes à mão | dívida da 007 | | planned |
+| 062 | web-authorization-lib | ter `src/lib/authorization.tsx` (skill authorization) no lugar da comparação direta de `accessLevel` em document-view.tsx | dívida da 007 | | planned |
+| 063 | e2e-mock-proxy-flake | investigar a falha esporádica do e2e com `ECONNREFUSED 127.0.0.1:3000` no modo de API simulada (pedido escapando do MSW para o proxy do Vite antes de o service worker assumir) | dívida da 007 | | planned |
