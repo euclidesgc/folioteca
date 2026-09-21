@@ -23,7 +23,7 @@ Desvios em relação à tabela de arquivos da SPEC, ambos sem mudar escopo:
 
 Caminhos relativos à raiz do repositório.
 
-- [ ] T1.1 — Contrato OpenAPI de login e logout, com os tipos regenerados
+- [x] T1.1 — Contrato OpenAPI de login e logout, com os tipos regenerados
   - Arquivos: `packages/api-contract/openapi.yaml` (alterar); `packages/api-contract/src/generated/openapi.d.ts` (alterar, regenerado)
   - O que fazer (D1):
     - `POST /auth/login`, `operationId: login`, corpo `LoginBody` = `{ email: string; password: string }` (os dois obrigatórios). Respostas: `200` `CurrentUserResponse` (o mesmo schema de `GET /auth/me`) com o cabeçalho `Set-Cookie` documentado; `400` `ValidationError`; `401` `Error`; `403` `Error`.
@@ -32,7 +32,7 @@ Caminhos relativos à raiz do repositório.
   - Skills: —
   - Complexidade: baixa
 
-- [ ] T1.2 — Verificação de senha com hash falso memoizado e schema do corpo do login
+- [x] T1.2 — Verificação de senha com hash falso memoizado e schema do corpo do login
   - Arquivos: `apps/api/src/auth/password.service.ts` (alterar); `apps/api/src/auth/login.schema.ts` (criar)
   - O que fazer (D2, D3):
     - `PasswordService.verify(hash: string, password: string): Promise<boolean>` com `verify` de `@node-rs/argon2`; hash malformado devolve `false`, **não lança**.
@@ -41,7 +41,7 @@ Caminhos relativos à raiz do repositório.
   - Skills: security
   - Complexidade: média
 
-- [ ] T1.3 — Revogação de sessão e opções-base do cookie
+- [x] T1.3 — Revogação de sessão e opções-base do cookie
   - Arquivos: `apps/api/src/auth/session.service.ts` (alterar); `apps/api/src/auth/session-cookie.ts` (alterar)
   - O que fazer (D4):
     - `SessionService.revoke(token: string): Promise<void>`: `deleteMany` pelo `tokenHash` (`sha256` do token, a mesma função já usada por `create` e `findValid`); não falha se a linha não existir.
@@ -49,7 +49,7 @@ Caminhos relativos à raiz do repositório.
   - Skills: authentication, security
   - Complexidade: baixa
 
-- [ ] T1.4 — `AuthService` e os dois endpoints no `AuthController`
+- [x] T1.4 — `AuthService` e os dois endpoints no `AuthController`
   - Arquivos: `apps/api/src/auth/auth.service.ts` (criar); `apps/api/src/auth/auth.controller.ts` (alterar); `apps/api/src/auth/auth.module.ts` (alterar)
   - O que fazer (D2, D3, D4, D5):
     - `AuthService.login(body: unknown, currentToken?: string): Promise<{ user: CurrentUser; session: CreatedSession }>`, nesta ordem fixa (o `CsrfGuard` global já respondeu 403 "Requisição recusada." antes): (1) `parseBody(loginSchema, body)` → 400 "Dados inválidos." com `errors`; (2) busca a pessoa pelo e-mail normalizado, incluindo a organização; (3) **sempre** `passwordService.verify(person?.passwordHash ?? await passwordService.getDummyHash(), password)` — uma verificação argon2 também para e-mail inexistente; (4) pessoa ausente **ou** senha errada → `UnauthorizedException('E-mail ou senha incorretos.')`, a mesma mensagem nos dois casos; (5) se veio `currentToken`, `sessionService.revoke(currentToken)`; (6) `sessionService.create(person.id)`; devolve `toCurrentUser(person)` e a sessão.
@@ -59,7 +59,7 @@ Caminhos relativos à raiz do repositório.
   - Skills: authentication, security
   - Complexidade: alta
 
-- [ ] T1.5 — Testes da fase 1
+- [x] T1.5 — Testes da fase 1
   - Arquivos: `apps/api/src/auth/__tests__/login-logout.integration.test.ts` (criar); `apps/api/src/auth/__tests__/auth.contract.test.ts` (alterar); `apps/api/src/auth/__tests__/password.service.test.ts` (criar); `apps/api/src/auth/__tests__/login.schema.test.ts` (criar)
   - O que fazer: HTTP com `supertest` sobre o app de `createApp()` contra o Postgres real; `resetDatabase(prisma)` em `beforeEach`. A pessoa do teste nasce por `POST /api/installation` (código = `process.env.INSTALL_CODE`, senha = `crypto.randomUUID()`), com e-mail em minúsculas. Todo `POST` envia `X-Requested-With: XMLHttpRequest`, salvo o caso que prova a falta dele. Nenhum teste compara tempo de relógio.
     - `login-logout.integration.test.ts`: `POST /api/auth/login returns 200 with the same body as GET /api/auth/me`; `sets the folioteca_session cookie with HttpOnly, SameSite=Lax and Path=/`; `the login cookie opens GET /api/auth/me`; `accepts the email in a different case and with surrounding spaces`; `returns 401 E-mail ou senha incorretos. for a wrong password`; `returns the same status and the same body for an unknown email`; `verifies one argon2 hash even when the email does not exist` (`vi.spyOn` em `PasswordService.prototype.verify` ou na instância do app; exatamente **uma** chamada); `never returns passwordHash`; `returns 400 with Dados inválidos and one error per invalid field` (`it.each`: e-mail vazio → "Informe o e-mail."; e-mail malformado → "Informe um e-mail válido."; senha vazia → "Informe a senha."; senha de 129 → "A senha pode ter no máximo 128 caracteres.", conferindo `field` e a mensagem); `does not set a cookie when the login fails`; `returns 403 Requisição recusada. without the X-Requested-With header`; `logging in with an old session cookie revokes the old session` (depois do segundo login o cookie antigo recebe 401 em `/api/auth/me` e `Session` tem 1 linha); `POST /api/auth/logout returns 204, deletes the session row and clears the cookie` (`Set-Cookie` de `folioteca_session` vazio e vencido; `session.count()` = 0); `the same cookie gets 401 on GET /api/auth/me after logout`; `logout without a cookie returns 204`; `a repeated logout returns 204`; `logout returns 403 without the X-Requested-With header`.
@@ -71,16 +71,16 @@ Caminhos relativos à raiz do repositório.
 
 ### Critérios de aceite da fase 1
 
-- [ ] CA1.1 — Com `docker compose up -d` rodando, passam na raiz **sem erro nem aviso**: `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`. A saída de `pnpm test` não tem `console.error`, `console.warn` nem aviso do Nest ou do Prisma.
-- [ ] CA1.2 — `packages/api-contract/openapi.yaml` tem `POST /auth/login` (`operationId: login`; respostas 200 `CurrentUserResponse`, 400 `ValidationError`, 401 `Error`, 403 `Error`) com o corpo `LoginBody` (`email` e `password`, string, obrigatórios) e `POST /auth/logout` (`operationId: logout`; respostas 204 sem conteúdo e 403 `Error`). O teste que compara os tipos gerados com o contrato continua passando (o arquivo gerado não foi editado à mão).
-- [ ] CA1.3 — `apps/api/src/auth/password.service.ts` tem `verify(hash: string, password: string): Promise<boolean>`, que devolve `false` para hash malformado sem lançar, e `getDummyHash(): Promise<string>`, memoizado, gerado a partir de bytes aleatórios com os mesmos parâmetros de `hash` (argon2id, `memoryCost: 19456`, `timeCost: 2`, `parallelism: 1`). `rg -n "argon2id\\$" apps/api/src --glob '!**/__tests__/**'` não acha literal de hash.
-- [ ] CA1.4 — `apps/api/src/auth/login.schema.ts` exporta `loginSchema`, com o e-mail normalizado por `trim().toLowerCase()`, a senha sem `trim` e sem mínimo de 12, e as mensagens literais "Informe o e-mail.", "Informe um e-mail válido.", "Informe a senha." e "A senha pode ter no máximo 128 caracteres.".
-- [ ] CA1.5 — `SessionService.revoke(token: string): Promise<void>` em `apps/api/src/auth/session.service.ts` usa `deleteMany` pelo `sha256` do token. `apps/api/src/auth/session-cookie.ts` exporta `getSessionCookieBaseOptions()` (`httpOnly`, `sameSite: 'lax'`, `path: '/'`, `secure` só em produção), e `getSessionCookieOptions(expiresAt)` é construída sobre ela.
-- [ ] CA1.6 — `apps/api/src/auth/auth.service.ts` tem `login(body, currentToken?)` e `logout(token?)`. Lendo o código de `login`, a ordem é: validação (400) → busca da pessoa → **uma** chamada a `verify` com `person?.passwordHash ?? hash falso`, feita antes de qualquer decisão → 401 → revoga a sessão do cookie recebido → cria a sessão. A `UnauthorizedException('E-mail ou senha incorretos.')` é a única resposta para e-mail inexistente e para senha errada (não há ramo que responda antes do `verify`).
-- [ ] CA1.7 — `apps/api/src/auth/auth.controller.ts`: `@Post('login')` com `@HttpCode(200)`, grava o cookie com `getSessionCookieOptions` e responde `{ data: CurrentUser }`; `@Post('logout')` com `@HttpCode(204)`, **sem** `SessionGuard`, sempre chama `clearCookie` com `getSessionCookieBaseOptions()`. O controller não acessa o Prisma nem o `PasswordService`. `AuthService` está nos `providers` do `AuthModule`.
-- [ ] CA1.8 — Existem e passam, pelos nomes listados em T1.5: `login-logout.integration.test.ts` (17 casos, entre eles `returns the same status and the same body for an unknown email`, `verifies one argon2 hash even when the email does not exist`, `logging in with an old session cookie revokes the old session`, `the same cookie gets 401 on GET /api/auth/me after logout` e `a repeated logout returns 204`), os 4 casos novos de `auth.contract.test.ts`, `password.service.test.ts` (6) e `login.schema.test.ts` (8). Os testes de integração usam o Postgres real, sem mock do Prisma, e nenhum mede duração. Conferir com `npx vitest run --project api --reporter=verbose`.
-- [ ] CA1.9 — Nenhuma senha, token ou hash literal nos testes da fase (`rg -n "password: '|password: \"" apps/api/src/auth/__tests__` só acha valores vindos de variável, `randomUUID()` ou `'x'.repeat(n)`). Não há migration nova em `apps/api/prisma/migrations`.
-- [ ] CA1.10 — O relatório de cobertura de `pnpm test` lista `apps/api/src/auth/auth.service.ts`, `auth.controller.ts`, `password.service.ts`, `session.service.ts`, `session-cookie.ts`, `login.schema.ts` e `auth.module.ts` com ≥ 80% de linhas cada; arquivo ausente do relatório conta como reprovado (o `.d.ts` gerado é excluído do relatório e não conta).
+- [x] CA1.1 — Com `docker compose up -d` rodando, passam na raiz **sem erro nem aviso**: `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`. A saída de `pnpm test` não tem `console.error`, `console.warn` nem aviso do Nest ou do Prisma.
+- [x] CA1.2 — `packages/api-contract/openapi.yaml` tem `POST /auth/login` (`operationId: login`; respostas 200 `CurrentUserResponse`, 400 `ValidationError`, 401 `Error`, 403 `Error`) com o corpo `LoginBody` (`email` e `password`, string, obrigatórios) e `POST /auth/logout` (`operationId: logout`; respostas 204 sem conteúdo e 403 `Error`). O teste que compara os tipos gerados com o contrato continua passando (o arquivo gerado não foi editado à mão).
+- [x] CA1.3 — `apps/api/src/auth/password.service.ts` tem `verify(hash: string, password: string): Promise<boolean>`, que devolve `false` para hash malformado sem lançar, e `getDummyHash(): Promise<string>`, memoizado, gerado a partir de bytes aleatórios com os mesmos parâmetros de `hash` (argon2id, `memoryCost: 19456`, `timeCost: 2`, `parallelism: 1`). `rg -n "argon2id\\$" apps/api/src --glob '!**/__tests__/**'` não acha literal de hash.
+- [x] CA1.4 — `apps/api/src/auth/login.schema.ts` exporta `loginSchema`, com o e-mail normalizado por `trim().toLowerCase()`, a senha sem `trim` e sem mínimo de 12, e as mensagens literais "Informe o e-mail.", "Informe um e-mail válido.", "Informe a senha." e "A senha pode ter no máximo 128 caracteres.".
+- [x] CA1.5 — `SessionService.revoke(token: string): Promise<void>` em `apps/api/src/auth/session.service.ts` usa `deleteMany` pelo `sha256` do token. `apps/api/src/auth/session-cookie.ts` exporta `getSessionCookieBaseOptions()` (`httpOnly`, `sameSite: 'lax'`, `path: '/'`, `secure` só em produção), e `getSessionCookieOptions(expiresAt)` é construída sobre ela.
+- [x] CA1.6 — `apps/api/src/auth/auth.service.ts` tem `login(body, currentToken?)` e `logout(token?)`. Lendo o código de `login`, a ordem é: validação (400) → busca da pessoa → **uma** chamada a `verify` com `person?.passwordHash ?? hash falso`, feita antes de qualquer decisão → 401 → revoga a sessão do cookie recebido → cria a sessão. A `UnauthorizedException('E-mail ou senha incorretos.')` é a única resposta para e-mail inexistente e para senha errada (não há ramo que responda antes do `verify`).
+- [x] CA1.7 — `apps/api/src/auth/auth.controller.ts`: `@Post('login')` com `@HttpCode(200)`, grava o cookie com `getSessionCookieOptions` e responde `{ data: CurrentUser }`; `@Post('logout')` com `@HttpCode(204)`, **sem** `SessionGuard`, sempre chama `clearCookie` com `getSessionCookieBaseOptions()`. O controller não acessa o Prisma nem o `PasswordService`. `AuthService` está nos `providers` do `AuthModule`.
+- [x] CA1.8 — Existem e passam, pelos nomes listados em T1.5: `login-logout.integration.test.ts` (17 casos, entre eles `returns the same status and the same body for an unknown email`, `verifies one argon2 hash even when the email does not exist`, `logging in with an old session cookie revokes the old session`, `the same cookie gets 401 on GET /api/auth/me after logout` e `a repeated logout returns 204`), os 4 casos novos de `auth.contract.test.ts`, `password.service.test.ts` (6) e `login.schema.test.ts` (8). Os testes de integração usam o Postgres real, sem mock do Prisma, e nenhum mede duração. Conferir com `npx vitest run --project api --reporter=verbose`.
+- [x] CA1.9 — Nenhuma senha, token ou hash literal nos testes da fase (`rg -n "password: '|password: \"" apps/api/src/auth/__tests__` só acha valores vindos de variável, `randomUUID()` ou `'x'.repeat(n)`). Não há migration nova em `apps/api/prisma/migrations`.
+- [x] CA1.10 — O relatório de cobertura de `pnpm test` lista `apps/api/src/auth/auth.service.ts`, `auth.controller.ts`, `password.service.ts`, `session.service.ts`, `session-cookie.ts`, `login.schema.ts` e `auth.module.ts` com ≥ 80% de linhas cada; arquivo ausente do relatório conta como reprovado (o `.d.ts` gerado é excluído do relatório e não conta).
 
 ## Fase 2 — Web: tela "Entrar", rotas protegidas, 401 global e botão "Sair"
 

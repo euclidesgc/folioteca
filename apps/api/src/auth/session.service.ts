@@ -72,4 +72,11 @@ export class SessionService {
 
     return session.person;
   }
+
+  /** Encerra a sessão do token. Token desconhecido não é erro. */
+  async revoke(token: string): Promise<void> {
+    await this.prisma.session.deleteMany({
+      where: { tokenHash: hashToken(token) },
+    });
+  }
 }

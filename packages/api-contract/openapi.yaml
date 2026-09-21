@@ -84,6 +84,59 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /auth/login:
+    post:
+      operationId: login
+      summary: Abre a sessão da pessoa com e-mail e senha
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginBody"
+      responses:
+        "200":
+          description: A sessão foi aberta.
+          headers:
+            Set-Cookie:
+              description: Cookie de sessão `folioteca_session`.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUserResponse"
+        "400":
+          description: Os dados informados são inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "401":
+          description: O e-mail ou a senha estão incorretos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /auth/logout:
+    post:
+      operationId: logout
+      summary: Encerra a sessão atual
+      responses:
+        "204":
+          description: A sessão foi encerrada.
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
   schemas:
     Health:
@@ -136,6 +189,16 @@ components:
         - code
         - organizationName
         - name
+        - email
+        - password
+    LoginBody:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required:
         - email
         - password
     CurrentUser:
