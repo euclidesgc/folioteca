@@ -48,20 +48,57 @@ field, message }] }`. A validação é feita com Zod (sem `class-validator`).
 Um módulo `access` na API é o único lugar que responde "esta pessoa pode ler
 ou editar este documento?". Tem duas portas, com a mesma regra:
 
-- `resolveAccess(personId, documentId)` → `owner | edit | view | none`;
-- `readableDocumentsWhere(personId)` → filtro SQL usado por toda lista,
-  pesquisa e IA.
+- `resolveAccess(personId: string, documentId: string): Promise<AccessLevel>`;
+- `readableDocumentsWhere(personId: string): Prisma.DocumentWhereInput` →
+  filtro usado por toda lista, pesquisa e IA.
 
-Ordem: proprietário → compartilhamento direto com a pessoa (para mais ou para
-menos) → maior nível entre os alvos que a alcançam → sem acesso. Nada é
-materializado: a lotação e a participação em espaço são lidas na hora, por
-isso a revogação é imediata. Documento que a pessoa não pode ler responde 404,
-igual a documento inexistente (sem sinal do resto). Tudo neste módulo tem
-teste de integração contra Postgres real.
+`AccessLevel` é `owner | edit | view | none`. Ordem: proprietário →
+compartilhamento direto com a pessoa (para mais ou para menos) → maior nível
+entre os alvos que a alcançam → sem acesso. Nada é materializado: a lotação e
+a participação em espaço são lidas na hora, por isso a revogação é imediata.
+Documento que a pessoa não pode ler responde 404, igual a documento
+inexistente (sem sinal do resto). Tudo neste módulo tem teste de integração
+contra Postgres real.
 
 - Alternativa: tabela materializada de acesso. Lista mais rápida em instância
   grande, mas abre janela entre sair da unidade e perder o acesso. Só vale
   reconsiderar com medição.
+
+**Entrega `document` (fatia 004).** Só compartilhamento e árvore de unidades
+ainda não existem: hoje `resolveAccess` só devolve `owner` (dono) ou `none`
+(qualquer outra pessoa, inclusive administradora — `isAdmin` e lotação não
+entram na regra) e `readableDocumentsWhere` filtra só por `ownerId`. A
+assinatura das duas portas é definitiva; é o corpo que cresce nas próximas
+entregas.
+
+O 404 "Documento não encontrado." é único para as três situações que hoje dão
+`none`: documento inexistente, documento de outra pessoa e id malformado
+(nunca um id malformado vira 400 — ele chega ao serviço e `resolveAccess`
+devolve `none` sem consultar o banco). Em `PATCH /documents/:id` a ordem é
+fixa: CSRF (403, guard global) → sessão (401) → acesso (404) → nível sem
+`canEdit` (403) → corpo (400) → gravação. O acesso vem antes da validação do
+corpo de propósito: um corpo inválido em documento que a pessoa não pode ver
+não pode revelar que o documento existe.
+
+Um teste estrutural, `apps/api/src/access/__tests__/document-access-boundary.test.ts`,
+varre o código-fonte da API e reprova, apontando arquivo e linha, três coisas:
+acesso à tabela `Document` fora de `src/access/` e `src/documents/`;
+`.document.findUnique(` no módulo `documents`, e qualquer leitura de lista que
+não passe por `readableDocumentsWhere(`; e gravação na tabela `Document` fora
+de `documents.service.ts`. O mesmo teste prova, varrendo o cenário de três
+pessoas e documentos de duas delas, que as duas portas sempre concordam:
+`resolveAccess` só devolve algo diferente de `none` quando o documento
+aparece em `findMany({ where: readableDocumentsWhere(pessoa) })`.
+
+**Dois 404 diferentes.** `DomainNotFoundException`
+(`apps/api/src/common/domain-not-found.exception.ts`) marca um 404 de domínio
+— documento (ou outro recurso, nas próximas entregas) que a regra de negócio
+não encontrou — e preserva a mensagem própria de quem o lança (ex.:
+`documentNotFound()` → "Documento não encontrado."). O filtro global de
+exceções (`http-exception.filter.ts`) trata os dois 404 de forma diferente:
+um 404 que **não** é `DomainNotFoundException` — rota inexistente, por
+exemplo — responde sempre "Recurso não encontrado.", sem vazar o texto que o
+framework geraria.
 
 ## 4. Árvore de unidades
 

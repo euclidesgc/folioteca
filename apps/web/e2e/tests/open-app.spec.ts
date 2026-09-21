@@ -24,6 +24,8 @@ test('opens the app with the sidebar, the welcome page and the Conectado indicat
   await expect(nav.getByRole('link', { name: 'Espaços' })).toBeVisible();
   await expect(nav.getByRole('link', { name: 'Lixeira' })).toBeVisible();
 
+  await expect(page.getByRole('button', { name: 'Novo documento' })).toBeVisible();
+
   await expect(page.getByText('Conectado')).toBeVisible();
 
   await expectNoSeriousA11yViolations(page);
@@ -38,8 +40,11 @@ test('navigates through the four areas using only the keyboard', async ({ page }
 
   const nav = page.getByRole('navigation', { name: 'Navegação principal' });
 
-  // Skip link -> brand link -> Favoritos link.
+  // Skip link -> brand link -> Novo documento button -> Favoritos link.
   await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  const newDocumentButton = page.getByRole('button', { name: 'Novo documento' });
+  await expect(newDocumentButton).toBeFocused();
   await page.keyboard.press('Tab');
   const favoritesLink = nav.getByRole('link', { name: 'Favoritos' });
   await expect(favoritesLink).toBeFocused();

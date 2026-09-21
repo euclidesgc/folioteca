@@ -5,7 +5,7 @@
 | 001 | workspace-foundation | abrir o app e ver o layout com a barra lateral única e o estado da conexão com o servidor | pedido inicial | | in-review |
 | 002 | installation | fazer o primeiro cadastro com o código de instalação, criando a organização e o primeiro administrador; depois disso o cadastro público fecha | pedido inicial | 001 | in-review |
 | 003 | login-logout | entrar e sair com e-mail e senha, com sessão em cookie httpOnly | pedido inicial | 002 | in-review |
-| 004 | create-document | criar um documento privado no seu espaço pessoal, vê-lo na barra lateral, abrir e renomear | pedido inicial | 003 | in-progress |
+| 004 | create-document | criar um documento privado no seu espaço pessoal, vê-lo na barra lateral, abrir e renomear | pedido inicial | 003 | in-review |
 | 005 | block-editor | escrever no documento com editor de blocos, com salvamento colaborativo automático | pedido inicial | 004 | planned |
 | 006 | favorites | marcar documentos como favoritos e achá-los na barra lateral | pedido inicial | 004 | planned |
 | 007 | trash | mandar documento para a lixeira, restaurar ou apagar de vez (só o proprietário) | pedido inicial | 004 | planned |
@@ -45,3 +45,8 @@
 | 041 | login-rate-limit | ter o `POST /auth/login` protegido por limite de tentativas | dívida da 003 | | planned |
 | 042 | gate-error-with-cached-user | o AppGate/AuthLoader não trocar o app inteiro pela tela de erro quando a consulta do usuário falha mas já há dado em cache | dívida da 003 | | planned |
 | 043 | shared-mock-constants | ter as constantes da API simulada (código de instalação, e-mail e senha do seed) numa única fonte usada por src/testing e por e2e, hoje duplicadas por causa da separação dos projetos TypeScript | dívida da 003 | | planned |
+| 044 | client-loader-for-routes | ter as rotas usando `clientLoader` para buscar dados, hoje impossível porque router.tsx não entrega o queryClient às rotas | dívida da 004 | | planned |
+| 045 | mock-db-real-library | ter o banco fake da API simulada usando `@mswjs/data` em vez de ser escrito à mão | dívida da 004 | | planned |
+| 046 | prisma-uuid-columns | ter as colunas de id do Prisma com `@db.Uuid` em vez de `text` | dívida da 004 | | planned |
+| 047 | reset-database-table-list | ter `reset-database.ts` obtendo a lista de tabelas do próprio schema em vez de listá-las à mão | dívida da 004 | | planned |
+| 048 | documents-list-pagination | ter `GET /documents?scope=mine` com paginação em vez de cortar em 100 resultados | dívida da 004 | | planned |
