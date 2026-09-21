@@ -191,19 +191,19 @@ Caminhos relativos a `apps/web/`, salvo os que começam por `docs/` ou estão ma
 
 ## Fase 3 — Jornada "abrir o app" provada de ponta a ponta, com acessibilidade medida
 
-- [ ] T3.1 — Configuração do Playwright contra a API simulada, em porta própria
+- [x] T3.1 — Configuração do Playwright contra a API simulada, em porta própria
   - Arquivos: `apps/web/playwright.config.ts` (criar); `README.md` (alterar)
   - O que fazer: a partir do modelo da skill `e2e-testing`: `testDir: './e2e/tests'`, `outputDir: './e2e/test-results'`, relatório HTML em `./e2e/report` (`open: 'never'`), `use.baseURL: 'http://localhost:5174'`, `locale: 'pt-BR'`, `trace: 'on-first-retry'`; `webServer` com `command: 'pnpm dev --port 5174 --strictPort'`, `url: 'http://localhost:5174'`, `env: { VITE_APP_ENABLE_API_MOCKING: 'true' }`, `reuseExistingServer: !process.env.CI`. Um único projeto, `chromium`. **Sem** projeto `setup` e **sem** `storageState` (não há login). Não usar a 5173: um `pnpm dev` aberto sem mock seria reaproveitado. Conferir que o arquivo e `e2e/` estão cobertos por `apps/web/tsconfig.node.json`, pelo lint e excluídos do Vitest da web (feito em T2.1; ajustar se faltar). Instalar o navegador com `pnpm --filter web exec playwright install chromium` e registrar esse comando e o `pnpm test:e2e` no `README.md`.
   - Skills: e2e-testing
   - Complexidade: baixa
 
-- [ ] T3.2 — Arquitetura atualizada com as decisões da fundação
+- [x] T3.2 — Arquitetura atualizada com as decisões da fundação
   - Arquivos: `docs/architecture.md` (alterar)
   - O que fazer: em pt_BR, sem reescrever o resto. §1 (stack): registrar Prisma 6 (gerador `prisma-client-js`, sem driver adapter; migrar para o 7 é tarefa isolada) e NestJS compilado com SWC no dev, no build e no Vitest (esbuild não emite `design:paramtypes`). §7 (testes): e2e roda na porta 5174 contra a API simulada por MSW, sem API nem Postgres; a API real é provada pelos testes de integração e de contrato, que exigem `docker compose up -d`. §8 (ambiente local/segurança): Postgres local em `trust` preso a `127.0.0.1:5433`, sem senha versionada (motivo: falso positivo do GitGuardian); proxy do Vite só de `/api`, e o de `/collab` entra com a fatia 005.
   - Skills: —
   - Complexidade: baixa
 
-- [ ] T3.3 — Testes da fase 3 (e2e da jornada "abrir o app")
+- [x] T3.3 — Testes da fase 3 (e2e da jornada "abrir o app")
   - Arquivos: `apps/web/e2e/tests/open-app.spec.ts` (criar)
   - O que fazer: localizar tudo por papel e texto em pt_BR. Helper local `expectNoSeriousA11yViolations(page)` com `AxeBuilder` de `@axe-core/playwright`, tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, reprovando qualquer violação de impacto `critical` ou `serious`. Casos:
     - `opens the app with the sidebar, the welcome page and the Conectado indicator` — `/`: título do documento "Folioteca", `h1` "Boas-vindas à Folioteca", navegação "Navegação principal" com os quatro links, selo "Conectado"; axe.
@@ -216,13 +216,13 @@ Caminhos relativos a `apps/web/`, salvo os que começam por `docs/` ou estão ma
 
 ### Critérios de aceite da fase 3
 
-- [ ] CA3.1 — `pnpm test:e2e` na raiz passa (o Playwright sobe o próprio servidor; não precisa de API nem de Postgres), e continuam passando `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build`.
-- [ ] CA3.2 — `apps/web/playwright.config.ts` tem `webServer.command` = `pnpm dev --port 5174 --strictPort`, `VITE_APP_ENABLE_API_MOCKING` = `'true'` no `env` do `webServer`, `baseURL` `http://localhost:5174`, um único projeto `chromium`, nenhum projeto `setup` e nenhum `storageState`.
-- [ ] CA3.3 — `apps/web/e2e/tests/open-app.spec.ts` contém, pelos nomes, os cinco casos de T3.3, e `pnpm --filter web exec playwright test --list` os lista. O arquivo usa `AxeBuilder` com as tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, chama a verificação em quatro paradas (início, área vazia, 404, 360 px com o menu aberto) e reprova em impacto `critical` ou `serious`. Não há `test.skip`, `test.only` nem `disableRules`.
-- [ ] CA3.4 — O caso de teclado não usa `click()` para navegar entre as áreas (só `keyboard.press`), e o caso de 360 px mede a ausência de rolagem horizontal comparando `scrollWidth` com `clientWidth`.
-- [ ] CA3.5 — `apps/web/e2e/**` e `playwright.config.ts` passam no `pnpm lint` e no `pnpm typecheck` (estão no `include` de `apps/web/tsconfig.node.json`) e não são coletados pelo Vitest (`npx vitest run --project web` não lista `open-app.spec.ts`). `apps/web/e2e/test-results/` e `apps/web/e2e/report/` estão no `.gitignore` e fora do `git status`.
-- [ ] CA3.6 — `docs/architecture.md` registra: Prisma 6 e SWC (§1); e2e na 5174 com API simulada (§7); Postgres local em `trust` no loopback e proxy de `/collab` só a partir da fatia 005 (§8). O `README.md` lista `pnpm --filter web exec playwright install chromium` e `pnpm test:e2e`.
-- [ ] CA3.7 — A fatia está utilizável de ponta a ponta: com `docker compose up -d` e `pnpm dev`, a web em 5173 consulta `/api/health` pelo proxy até a API em 3000 — comprovado, sem navegador aberto por pessoa, pela soma de CA1.11 (API real), CA2.14 (web com API simulada pelo mesmo contrato tipado) e CA3.1.
+- [x] CA3.1 — `pnpm test:e2e` na raiz passa (o Playwright sobe o próprio servidor; não precisa de API nem de Postgres), e continuam passando `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build`.
+- [x] CA3.2 — `apps/web/playwright.config.ts` tem `webServer.command` = `pnpm dev --port 5174 --strictPort`, `VITE_APP_ENABLE_API_MOCKING` = `'true'` no `env` do `webServer`, `baseURL` `http://localhost:5174`, um único projeto `chromium`, nenhum projeto `setup` e nenhum `storageState`.
+- [x] CA3.3 — `apps/web/e2e/tests/open-app.spec.ts` contém, pelos nomes, os cinco casos de T3.3, e `pnpm --filter web exec playwright test --list` os lista. O arquivo usa `AxeBuilder` com as tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, chama a verificação em quatro paradas (início, área vazia, 404, 360 px com o menu aberto) e reprova em impacto `critical` ou `serious`. Não há `test.skip`, `test.only` nem `disableRules`.
+- [x] CA3.4 — O caso de teclado não usa `click()` para navegar entre as áreas (só `keyboard.press`), e o caso de 360 px mede a ausência de rolagem horizontal comparando `scrollWidth` com `clientWidth`.
+- [x] CA3.5 — `apps/web/e2e/**` e `playwright.config.ts` passam no `pnpm lint` e no `pnpm typecheck` (estão no `include` de `apps/web/tsconfig.node.json`) e não são coletados pelo Vitest (`npx vitest run --project web` não lista `open-app.spec.ts`). `apps/web/e2e/test-results/` e `apps/web/e2e/report/` estão no `.gitignore` e fora do `git status`.
+- [x] CA3.6 — `docs/architecture.md` registra: Prisma 6 e SWC (§1); e2e na 5174 com API simulada (§7); Postgres local em `trust` no loopback e proxy de `/collab` só a partir da fatia 005 (§8). O `README.md` lista `pnpm --filter web exec playwright install chromium` e `pnpm test:e2e`.
+- [x] CA3.7 — A fatia está utilizável de ponta a ponta: com `docker compose up -d` e `pnpm dev`, a web em 5173 consulta `/api/health` pelo proxy até a API em 3000 — comprovado, sem navegador aberto por pessoa, pela soma de CA1.11 (API real), CA2.14 (web com API simulada pelo mesmo contrato tipado) e CA3.1.
 
 ## DoD da entrega
 

@@ -19,6 +19,11 @@ A raiz tem `eslint.config.js`, `tsconfig.json` com referências e
 `vitest.config.ts` com projetos, para que `eslint .`, `tsc -b` e `vitest run`
 na raiz cubram o repositório inteiro — é o que o verificador do harness roda.
 
+`apps/api` usa Prisma na versão 6, gerador `prisma-client-js`, sem driver
+adapter; migrar para o Prisma 7 é tarefa isolada. O NestJS é compilado com SWC
+no dev, no build e no Vitest — o esbuild não emite `design:paramtypes`, que os
+decorators do Nest (injeção de dependência) exigem.
+
 ## 2. Contrato primeiro
 
 Mudança de API começa em `packages/api-contract/openapi.yaml`. Os tipos da web
@@ -83,11 +88,20 @@ banco `folioteca_test` na porta 5433), com o esquema aplicado por
 `prisma migrate deploy`. Na web, Testing Library + MSW; Playwright para as
 jornadas críticas, com axe (violação crítica ou séria reprova).
 
+O e2e roda na porta 5174, contra a API simulada por MSW (`VITE_APP_ENABLE_API_MOCKING=true`),
+sem subir a API nem o Postgres. A API real é provada pelos testes de
+integração e de contrato da API, que exigem `docker compose up -d`.
+
 ## 8. Ambiente local
 
 `docker compose up -d` sobe o Postgres (imagem `pgvector/pgvector:pg16`, porta
 5433). `pnpm dev` sobe API (3000) e web (5173, com proxy de `/api` e `/collab`).
 E-mail em desenvolvimento vai para o log da API e para a tabela `OutboxEmail`.
+
+O Postgres local roda em `trust`, preso ao loopback (`127.0.0.1:5433`), sem
+senha versionada (uma URL com senha dispara falso positivo do GitGuardian). O
+proxy do Vite cobre hoje só `/api`; o de `/collab` entra junto com a fatia 005,
+que introduz o servidor de colaboração.
 
 ## 9. Entregas empilhadas
 

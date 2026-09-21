@@ -16,6 +16,7 @@ docker compose up -d                       # sobe o Postgres local na porta 5433
 pnpm install
 cp apps/api/.env.example apps/api/.env     # copie o .env.example de cada app
 pnpm dev                                   # sobe a API (3000) e a web (5173)
+pnpm --filter web exec playwright install chromium  # navegador dos testes e2e
 ```
 
 Copie o `.env.example` de cada app para `.env` antes de rodar. Nenhum segredo
