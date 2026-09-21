@@ -192,11 +192,35 @@ export interface paths {
          */
         get: operations["getOrgUnits"];
         put?: never;
-        post?: never;
+        /**
+         * Cria uma unidade filha
+         * @description Grava a unidade e o espaço dela na mesma operação, só para a administração. O nome é aparado e é único entre as unidades irmãs sem diferenciar maiúsculas de minúsculas. As checagens acontecem nesta ordem: 401, 403, 404/400 e por fim 409.
+         */
+        post: operations["createOrgUnit"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/org-units/{orgUnitId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Renomeia a unidade
+         * @description Troca só o nome da unidade, só para a administração; a unidade mãe é imutável. O nome é aparado e é único entre as unidades irmãs sem diferenciar maiúsculas de minúsculas. Renomear a raiz renomeia também a organização. As checagens acontecem nesta ordem: 401, 403, 404/400 e por fim 409.
+         */
+        patch: operations["updateOrgUnit"];
         trace?: never;
     };
 }
@@ -292,6 +316,19 @@ export interface components {
         };
         OrgUnitsResponse: {
             data: components["schemas"]["OrgUnit"][];
+        };
+        OrgUnitResponse: {
+            data: components["schemas"]["OrgUnit"];
+        };
+        CreateOrgUnitInput: {
+            /** @description Unidade mãe da unidade nova. */
+            parentId: string;
+            /** @description Nome da unidade, aparado e único entre as irmãs sem diferenciar maiúsculas de minúsculas. */
+            name: string;
+        };
+        UpdateOrgUnitInput: {
+            /** @description Novo nome da unidade, aparado e único entre as irmãs sem diferenciar maiúsculas de minúsculas. Na raiz, passa a ser também o nome da organização. */
+            name: string;
         };
         UpdateDocumentBody: {
             title: string;
@@ -992,6 +1029,146 @@ export interface operations {
             };
             /** @description A requisição foi recusada. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createOrgUnit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateOrgUnitInput"];
+            };
+        };
+        responses: {
+            /** @description A unidade e o espaço dela foram criados. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrgUnitResponse"];
+                };
+            };
+            /** @description Os dados informados são inválidos. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unidade não encontrada: a unidade mãe não existe na organização ou o `parentId` está malformado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Já existe uma unidade com esse nome neste nível. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateOrgUnit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orgUnitId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateOrgUnitInput"];
+            };
+        };
+        responses: {
+            /** @description A unidade foi renomeada. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrgUnitResponse"];
+                };
+            };
+            /** @description Os dados informados são inválidos. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unidade não encontrada: o id da rota não existe na organização ou está malformado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Já existe uma unidade com esse nome neste nível. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

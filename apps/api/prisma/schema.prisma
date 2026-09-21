@@ -19,6 +19,14 @@ model Organization {
 }
 
 /// Unidade organizacional; a raiz tem `parentId` nulo.
+///
+/// Two unique indexes guard this table and Prisma cannot express either of
+/// them, so they live only in the handwritten migration `0007`:
+/// `OrgUnit_single_root_key` keeps a single root per database (partial index
+/// over `("parentId" IS NULL)`), and `OrgUnit_parentId_lower_name_key` keeps
+/// sibling names unique regardless of letter case (expression index over
+/// `lower("name")`). Because they are invisible to this schema, `migrate
+/// diff` would report a false "drift" and must never be run here.
 model OrgUnit {
   id             String   @id @default(uuid())
   organizationId String

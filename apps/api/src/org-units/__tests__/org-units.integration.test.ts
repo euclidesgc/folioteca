@@ -78,6 +78,419 @@ function getOrgUnits(cookie?: string): Promise<Response> {
   return cookie === undefined ? request : request.set('Cookie', cookie);
 }
 
+const NOT_FOUND_MESSAGE = 'Unidade não encontrada.';
+
+const NAME_TAKEN_MESSAGE = 'Já existe uma unidade com esse nome neste nível.';
+
+const INVALID_MESSAGE = 'Dados inválidos.';
+
+/** Envia `POST /api/org-units` com o cabeçalho que o CSRF do projeto exige. */
+function postOrgUnit(body: object, cookie?: string): Promise<Response> {
+  const request = httpRequest(app)
+    .post('/api/org-units')
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return (cookie === undefined ? request : request.set('Cookie', cookie)).send(
+    body,
+  );
+}
+
+/** Envia `PATCH /api/org-units/:id` com o cabeçalho do CSRF. */
+function patchOrgUnit(
+  orgUnitId: string,
+  body: object,
+  cookie?: string,
+): Promise<Response> {
+  const request = httpRequest(app)
+    .patch(`/api/org-units/${orgUnitId}`)
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return (cookie === undefined ? request : request.set('Cookie', cookie)).send(
+    body,
+  );
+}
+
+/** Id da unidade raiz criada pela instalação. */
+async function getRootId(): Promise<string> {
+  const root = await prisma.orgUnit.findFirstOrThrow({
+    where: { organizationId: adminPerson.organizationId, parentId: null },
+  });
+
+  return root.id;
+}
+
+function unitOf(response: Response): OrgUnitBody {
+  return (response.body as { data: OrgUnitBody }).data;
+}
+
+function messageOf(response: Response): string {
+  return (response.body as { message: string }).message;
+}
+
+test('creates a child under the root, lists it and creates its UNIT space', async () => {
+  const rootId = await getRootId();
+
+  const response = await postOrgUnit(
+    { parentId: rootId, name: 'Acervo' },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(201);
+  expect(unitOf(response)).toEqual({
+    id: ANY_STRING,
+    parentId: rootId,
+    name: 'Acervo',
+  });
+
+  const list = await getOrgUnits(adminCookie);
+  const names = (list.body as { data: OrgUnitBody[] }).data.map(
+    (unit) => unit.name,
+  );
+  expect(names).toContain('Acervo');
+
+  const space = await prisma.space.findFirst({
+    where: { orgUnitId: unitOf(response).id },
+  });
+  expect(space?.type).toBe('UNIT');
+});
+
+test('stores the name trimmed', async () => {
+  const rootId = await getRootId();
+
+  const response = await postOrgUnit(
+    { parentId: rootId, name: '   Área Técnica   ' },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(201);
+  expect(unitOf(response).name).toBe('Área Técnica');
+
+  const stored = await prisma.orgUnit.findUniqueOrThrow({
+    where: { id: unitOf(response).id },
+  });
+  expect(stored.name).toBe('Área Técnica');
+});
+
+test('answers 400 for an empty name and for a name of only spaces', async () => {
+  const rootId = await getRootId();
+
+  const empty = await postOrgUnit({ parentId: rootId, name: '' }, adminCookie);
+  const spaces = await postOrgUnit(
+    { parentId: rootId, name: '    ' },
+    adminCookie,
+  );
+
+  expect(empty.status).toBe(400);
+  expect(messageOf(empty)).toBe(INVALID_MESSAGE);
+  expect(spaces.status).toBe(400);
+  expect(messageOf(spaces)).toBe(INVALID_MESSAGE);
+});
+
+test('answers 400 for 121 characters and 201 for 120', async () => {
+  const rootId = await getRootId();
+
+  const tooLong = await postOrgUnit(
+    { parentId: rootId, name: 'a'.repeat(121) },
+    adminCookie,
+  );
+  const limit = await postOrgUnit(
+    { parentId: rootId, name: 'b'.repeat(120) },
+    adminCookie,
+  );
+
+  expect(tooLong.status).toBe(400);
+  expect(limit.status).toBe(201);
+  expect(unitOf(limit).name).toHaveLength(120);
+});
+
+test('answers 400 without parentId', async () => {
+  const response = await postOrgUnit({ name: 'Acervo' }, adminCookie);
+
+  expect(response.status).toBe(400);
+  expect(messageOf(response)).toBe(INVALID_MESSAGE);
+});
+
+test('answers 404 with the message for an unknown parentId', async () => {
+  const response = await postOrgUnit(
+    { parentId: randomUUID(), name: 'Acervo' },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(404);
+  expect(messageOf(response)).toBe(NOT_FOUND_MESSAGE);
+});
+
+test('answers 404 with the message for a malformed parentId', async () => {
+  const response = await postOrgUnit(
+    { parentId: 'nao-e-uuid', name: 'Acervo' },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(404);
+  expect(messageOf(response)).toBe(NOT_FOUND_MESSAGE);
+});
+
+test('answers 409 with the message for siblings differing only by case', async () => {
+  const rootId = await getRootId();
+
+  const first = await postOrgUnit(
+    { parentId: rootId, name: 'Acervo' },
+    adminCookie,
+  );
+  const second = await postOrgUnit(
+    { parentId: rootId, name: 'acervo' },
+    adminCookie,
+  );
+
+  expect(first.status).toBe(201);
+  expect(second.status).toBe(409);
+  expect(messageOf(second)).toBe(NAME_TAKEN_MESSAGE);
+});
+
+test('answers 409 for accented siblings differing only by case', async () => {
+  const rootId = await getRootId();
+
+  const first = await postOrgUnit(
+    { parentId: rootId, name: 'ÁREA' },
+    adminCookie,
+  );
+  const second = await postOrgUnit(
+    { parentId: rootId, name: 'área' },
+    adminCookie,
+  );
+
+  expect(first.status).toBe(201);
+  expect(second.status).toBe(409);
+  expect(messageOf(second)).toBe(NAME_TAKEN_MESSAGE);
+});
+
+test('accepts siblings differing only by accent', async () => {
+  const rootId = await getRootId();
+
+  const accented = await postOrgUnit(
+    { parentId: rootId, name: 'Área' },
+    adminCookie,
+  );
+  const plain = await postOrgUnit(
+    { parentId: rootId, name: 'Area' },
+    adminCookie,
+  );
+
+  expect(accented.status).toBe(201);
+  expect(plain.status).toBe(201);
+});
+
+test('accepts the same name under different parents', async () => {
+  const rootId = await getRootId();
+
+  const branch = await postOrgUnit(
+    { parentId: rootId, name: 'Área Técnica' },
+    adminCookie,
+  );
+
+  const underRoot = await postOrgUnit(
+    { parentId: rootId, name: 'Acervo' },
+    adminCookie,
+  );
+  const underBranch = await postOrgUnit(
+    { parentId: unitOf(branch).id, name: 'Acervo' },
+    adminCookie,
+  );
+
+  expect(underRoot.status).toBe(201);
+  expect(underBranch.status).toBe(201);
+});
+
+test('two identical concurrent creates end as one 201 and one 409 with a single row', async () => {
+  const rootId = await getRootId();
+  const body = { parentId: rootId, name: 'Acervo' };
+
+  const responses = await Promise.all([
+    postOrgUnit(body, adminCookie),
+    postOrgUnit(body, adminCookie),
+  ]);
+
+  expect(responses.map((response) => response.status).sort()).toEqual([
+    201, 409,
+  ]);
+
+  const count = await prisma.orgUnit.count({
+    where: { parentId: rootId, name: 'Acervo' },
+  });
+  expect(count).toBe(1);
+});
+
+test('renames a child and the list reflects it', async () => {
+  const rootId = await getRootId();
+  const created = await postOrgUnit(
+    { parentId: rootId, name: 'Acervo' },
+    adminCookie,
+  );
+
+  const response = await patchOrgUnit(
+    unitOf(created).id,
+    { name: 'Acervo Geral' },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(200);
+  expect(unitOf(response)).toEqual({
+    id: unitOf(created).id,
+    parentId: rootId,
+    name: 'Acervo Geral',
+  });
+
+  const list = await getOrgUnits(adminCookie);
+  const names = (list.body as { data: OrgUnitBody[] }).data.map(
+    (unit) => unit.name,
+  );
+  expect(names).toContain('Acervo Geral');
+  expect(names).not.toContain('Acervo');
+});
+
+test('answers 409 when renaming to a sibling name with different case', async () => {
+  const rootId = await getRootId();
+  await postOrgUnit({ parentId: rootId, name: 'Acervo' }, adminCookie);
+  const other = await postOrgUnit(
+    { parentId: rootId, name: 'Zeladoria' },
+    adminCookie,
+  );
+
+  const response = await patchOrgUnit(
+    unitOf(other).id,
+    { name: 'ACERVO' },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(409);
+  expect(messageOf(response)).toBe(NAME_TAKEN_MESSAGE);
+});
+
+test('renames only the case of its own name', async () => {
+  const rootId = await getRootId();
+  const created = await postOrgUnit(
+    { parentId: rootId, name: 'Acervo' },
+    adminCookie,
+  );
+
+  const response = await patchOrgUnit(
+    unitOf(created).id,
+    { name: 'ACERVO' },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(200);
+  expect(unitOf(response).name).toBe('ACERVO');
+});
+
+test('renaming the root renames the organization and auth me returns the new name', async () => {
+  const rootId = await getRootId();
+
+  const response = await patchOrgUnit(
+    rootId,
+    { name: 'Prefeitura Nova' },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(200);
+  expect(unitOf(response).name).toBe('Prefeitura Nova');
+
+  const organization = await prisma.organization.findUniqueOrThrow({
+    where: { id: adminPerson.organizationId },
+  });
+  expect(organization.name).toBe('Prefeitura Nova');
+
+  const me = await httpRequest(app)
+    .get('/api/auth/me')
+    .set('Cookie', adminCookie);
+
+  expect(me.status).toBe(200);
+  const body = me.body as { data: { organization: { name: string } } };
+  expect(body.data.organization.name).toBe('Prefeitura Nova');
+});
+
+test('PATCH answers 400 when the body carries parentId', async () => {
+  const rootId = await getRootId();
+  const created = await postOrgUnit(
+    { parentId: rootId, name: 'Acervo' },
+    adminCookie,
+  );
+
+  const response = await patchOrgUnit(
+    unitOf(created).id,
+    { name: 'Acervo Geral', parentId: rootId },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(400);
+  expect(messageOf(response)).toBe(INVALID_MESSAGE);
+  const body = response.body as { errors: { message: string }[] };
+  expect(body.errors[0]?.message).toBe('Campo não permitido.');
+});
+
+test('PATCH answers 404 for an unknown id', async () => {
+  const response = await patchOrgUnit(
+    randomUUID(),
+    { name: 'Acervo' },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(404);
+  expect(messageOf(response)).toBe(NOT_FOUND_MESSAGE);
+});
+
+test('PATCH answers 404 for a malformed id', async () => {
+  const response = await patchOrgUnit(
+    'nao-e-uuid',
+    { name: 'Acervo' },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(404);
+  expect(messageOf(response)).toBe(NOT_FOUND_MESSAGE);
+});
+
+test('a person who is not admin gets 403 on POST and on PATCH', async () => {
+  const rootId = await getRootId();
+  const { cookie } = await createPersonWithSession(app, {
+    name: 'João Souza',
+    email: 'joao@exemplo.org',
+  });
+
+  const created = await postOrgUnit(
+    { parentId: rootId, name: 'Acervo' },
+    cookie,
+  );
+  const renamed = await patchOrgUnit(rootId, { name: 'Outro' }, cookie);
+
+  expect(created.status).toBe(403);
+  expect(messageOf(created)).toBe(FORBIDDEN_MESSAGE);
+  expect(renamed.status).toBe(403);
+  expect(messageOf(renamed)).toBe(FORBIDDEN_MESSAGE);
+});
+
+test('answers 401 without a session cookie on POST and on PATCH', async () => {
+  const rootId = await getRootId();
+
+  const created = await postOrgUnit({ parentId: rootId, name: 'Acervo' });
+  const renamed = await patchOrgUnit(rootId, { name: 'Outro' });
+
+  expect(created.status).toBe(401);
+  expect(renamed.status).toBe(401);
+});
+
+test('the database refuses a second root', async () => {
+  await expect(
+    prisma.orgUnit.create({
+      data: {
+        organizationId: adminPerson.organizationId,
+        parentId: null,
+        name: 'Segunda Raiz',
+      },
+    }),
+  ).rejects.toMatchObject({ code: 'P2002' });
+});
+
 test('an admin right after installation gets 200 with the single root unit', async () => {
   const response = await getOrgUnits(adminCookie);
 

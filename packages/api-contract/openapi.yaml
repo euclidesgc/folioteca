@@ -465,6 +465,124 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+    post:
+      operationId: createOrgUnit
+      tags:
+        - org-units
+      summary: Cria uma unidade filha
+      description: >-
+        Grava a unidade e o espaço dela na mesma operação, só para a
+        administração. O nome é aparado e é único entre as unidades irmãs sem
+        diferenciar maiúsculas de minúsculas. As checagens acontecem nesta
+        ordem: 401, 403, 404/400 e por fim 409.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrgUnitInput"
+      responses:
+        "201":
+          description: A unidade e o espaço dela foram criados.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrgUnitResponse"
+        "400":
+          description: Os dados informados são inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            Unidade não encontrada: a unidade mãe não existe na organização ou
+            o `parentId` está malformado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Já existe uma unidade com esse nome neste nível.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /org-units/{orgUnitId}:
+    patch:
+      operationId: updateOrgUnit
+      tags:
+        - org-units
+      summary: Renomeia a unidade
+      description: >-
+        Troca só o nome da unidade, só para a administração; a unidade mãe é
+        imutável. O nome é aparado e é único entre as unidades irmãs sem
+        diferenciar maiúsculas de minúsculas. Renomear a raiz renomeia também
+        a organização. As checagens acontecem nesta ordem: 401, 403, 404/400 e
+        por fim 409.
+      parameters:
+        - name: orgUnitId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrgUnitInput"
+      responses:
+        "200":
+          description: A unidade foi renomeada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrgUnitResponse"
+        "400":
+          description: Os dados informados são inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            Unidade não encontrada: o id da rota não existe na organização ou
+            está malformado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Já existe uma unidade com esse nome neste nível.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
   schemas:
     Health:
@@ -674,6 +792,44 @@ components:
             $ref: "#/components/schemas/OrgUnit"
       required:
         - data
+    OrgUnitResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/OrgUnit"
+      required:
+        - data
+    CreateOrgUnitInput:
+      type: object
+      properties:
+        parentId:
+          type: string
+          description: Unidade mãe da unidade nova.
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: >-
+            Nome da unidade, aparado e único entre as irmãs sem diferenciar
+            maiúsculas de minúsculas.
+      required:
+        - parentId
+        - name
+      additionalProperties: false
+    UpdateOrgUnitInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: >-
+            Novo nome da unidade, aparado e único entre as irmãs sem
+            diferenciar maiúsculas de minúsculas. Na raiz, passa a ser também
+            o nome da organização.
+      required:
+        - name
+      additionalProperties: false
     UpdateDocumentBody:
       type: object
       properties:
