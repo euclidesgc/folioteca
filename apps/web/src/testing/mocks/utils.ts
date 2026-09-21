@@ -19,7 +19,8 @@ export const networkDelay = (): Promise<void> =>
 
 // Development keys, read from localStorage in the browser only:
 //   localStorage.setItem('mock-error', 'health')   -> the /health handler answers 500
-//     (also accepts 'installation', 'auth' or 'documents', matching the resource)
+//     (also accepts 'installation', 'auth', 'documents' or 'org-units', matching
+//     the resource)
 //   localStorage.setItem('mock-delay', 'infinite')  -> requests never resolve (loading state)
 //   localStorage.setItem('mock-installation', 'installed')  -> seeds an installation, signed out;
 //     sign in with the seeded person's e-mail and the MOCK_PASSWORD above
@@ -30,6 +31,10 @@ export const networkDelay = (): Promise<void> =>
 //     as favorites (needs the documents already seeded)
 //   localStorage.setItem('mock-trash', 'sample')  -> moves the last documents
 //     to the trash (needs the documents already seeded)
+//   localStorage.setItem('mock-role', 'member')  -> the seeded person is not an
+//     administrator (read before the installation is seeded)
+//   localStorage.setItem('mock-org-units', 'sample')  -> adds three levels of
+//     units under the root (needs an installation already seeded)
 // Remove the key (or run localStorage.clear()) to go back to normal.
 const devKey = (key: string): string | null => {
   if (import.meta.env.MODE === 'test' || typeof window === 'undefined') {

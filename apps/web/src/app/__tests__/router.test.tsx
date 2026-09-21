@@ -114,6 +114,23 @@ test('the document route does not import the editor statically', () => {
   expect(documentViewSource).toContain('document-editor');
 });
 
+test('registers the admin structure route before the catch-all', () => {
+  const routes = createRoutes();
+  const gatedRoutes = routes[0]?.children ?? [];
+  const layoutRoute = gatedRoutes.find((route) => route.path === '/');
+
+  const childPaths = layoutRoute?.children?.map((route) => route.path) ?? [];
+  expect(childPaths).toContain('admin/structure');
+
+  const structureRoute = layoutRoute?.children?.find(
+    (route) => route.path === 'admin/structure',
+  );
+  expect(structureRoute?.lazy).toBeTypeOf('function');
+
+  const topLevelPaths = routes.map((route) => route.path);
+  expect(topLevelPaths.indexOf('*')).toBe(topLevelPaths.length - 1);
+});
+
 test('registers /login outside the layout route', () => {
   const gatedRoutes = createRoutes()[0]?.children ?? [];
 

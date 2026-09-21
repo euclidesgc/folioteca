@@ -35,16 +35,22 @@ export type MockDocument = {
 // only needs the document it points at and when it was marked.
 export type MockFavorite = { documentId: string; createdAt: string };
 
+// An organization unit, in the same flat shape the API answers with:
+// `parentId` is null on the root of the organization.
+export type MockOrgUnit = { id: string; parentId: string | null; name: string };
+
 type DbState = {
   installation: MockInstallation | null;
   documents: MockDocument[];
   favorites: MockFavorite[];
+  orgUnits: MockOrgUnit[];
 };
 
 const initialState = (): DbState => ({
   installation: null,
   documents: [],
   favorites: [],
+  orgUnits: [],
 });
 
 let state: DbState = initialState();
@@ -73,19 +79,42 @@ export const touchDocumentUpdatedAt = (documentId: string): void => {
   if (document) document.updatedAt = new Date().toISOString();
 };
 
+// Id of the unit the installation creates, the root of the organization tree.
+export const ROOT_ORG_UNIT_ID = 'org-unit-root';
+
+// The real installation creates the root unit named after the organization;
+// both `seedInstalled` and the POST /installation handler mirror it.
+export const rootOrgUnit = (organizationName: string): MockOrgUnit => ({
+  id: ROOT_ORG_UNIT_ID,
+  parentId: null,
+  name: organizationName,
+});
+
 // Example installation, matching the shape a real POST /installation creates.
-export const seedInstalled = ({ signedIn }: { signedIn: boolean }): void => {
+export const seedInstalled = ({
+  signedIn,
+  isAdmin = true,
+}: {
+  signedIn: boolean;
+  isAdmin?: boolean;
+}): void => {
+  const organization = {
+    id: 'org-1',
+    name: 'Biblioteca Municipal de Exemplo',
+  };
+
   seedDb({
     installation: {
-      organization: { id: 'org-1', name: 'Biblioteca Municipal de Exemplo' },
+      organization,
       person: {
         id: 'person-1',
         name: 'Ana Souza',
         email: 'ana.souza@exemplo.com.br',
-        isAdmin: true,
+        isAdmin,
       },
       password: MOCK_PASSWORD,
     },
+    orgUnits: [rootOrgUnit(organization.name)],
   });
 
   if (signedIn) {
@@ -160,6 +189,62 @@ export const seedSampleFavorites = (): void => {
     }));
 
   state = { ...state, favorites: [...state.favorites, ...sample] };
+};
+
+// A 120-character name, to exercise truncation on a deep level of the tree.
+const LONG_ORG_UNIT_NAME =
+  'Coordenação de Projetos Especiais de Incentivo à Leitura e Formação de Leitores nas Comunidades do Entorno da Biblioteca';
+
+// Adds three levels of pt_BR units under the root created by the
+// installation, on top of whatever is already in the database. Kept separate
+// from `seedInstalled` because the existing e2e journeys expect only the root.
+export const seedSampleOrgUnits = (): void => {
+  if (!state.installation) return;
+
+  const sample: MockOrgUnit[] = [
+    {
+      id: 'org-unit-acervo',
+      parentId: ROOT_ORG_UNIT_ID,
+      name: 'Acervo e Processamento Técnico',
+    },
+    {
+      id: 'org-unit-catalogacao',
+      parentId: 'org-unit-acervo',
+      name: 'Catalogação',
+    },
+    {
+      id: 'org-unit-restauro',
+      parentId: 'org-unit-acervo',
+      name: 'Restauro e Conservação',
+    },
+    {
+      id: 'org-unit-atendimento',
+      parentId: ROOT_ORG_UNIT_ID,
+      name: 'Atendimento ao Público',
+    },
+    {
+      id: 'org-unit-emprestimos',
+      parentId: 'org-unit-atendimento',
+      name: 'Empréstimos e Devoluções',
+    },
+    {
+      id: 'org-unit-sala-infantil',
+      parentId: 'org-unit-atendimento',
+      name: 'Sala Infantil',
+    },
+    {
+      id: 'org-unit-administrativa',
+      parentId: ROOT_ORG_UNIT_ID,
+      name: 'Área Administrativa',
+    },
+    {
+      id: 'org-unit-projetos-especiais',
+      parentId: 'org-unit-atendimento',
+      name: LONG_ORG_UNIT_NAME,
+    },
+  ];
+
+  state = { ...state, orgUnits: [...state.orgUnits, ...sample] };
 };
 
 // How many documents `seedSampleTrash` moves to the trash.

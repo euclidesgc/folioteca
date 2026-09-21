@@ -2,6 +2,7 @@ import type React from 'react';
 import { Link, Navigate, Outlet, useRouteError } from 'react-router';
 
 import { AppLayout } from '@/components/layouts/app-layout';
+import { SidebarAdmin } from '@/components/layouts/sidebar-admin';
 import { SidebarIdentity } from '@/components/layouts/sidebar-identity';
 import { paths } from '@/config/paths';
 import { ConnectionIndicator } from '@/features/connection/components/connection-indicator';
@@ -27,6 +28,7 @@ export function Root(): React.JSX.Element {
           <>
             <SidebarDocuments scope="favorites" />
             <SidebarDocuments />
+            <SidebarAdmin />
           </>
         }
         sidebarFooter={

@@ -10,15 +10,29 @@ export const enableMocking = async (): Promise<void> => {
     seedInstalled,
     seedSampleDocuments,
     seedSampleFavorites,
+    seedSampleOrgUnits,
     seedSampleTrash,
     touchDocumentUpdatedAt,
   } = await import('./db');
 
+  // See the `mock-role` key documented in utils.ts. Read before the seed: the
+  // role belongs to the person the installation creates.
+  const isAdmin = window.localStorage.getItem('mock-role') !== 'member';
+
   // Reproduces an installed instance in the browser without touching code.
   // See the `mock-installation` key documented in utils.ts.
   const installationKey = window.localStorage.getItem('mock-installation');
-  if (installationKey === 'installed') seedInstalled({ signedIn: false });
-  if (installationKey === 'signed-in') seedInstalled({ signedIn: true });
+  if (installationKey === 'installed') {
+    seedInstalled({ signedIn: false, isAdmin });
+  }
+  if (installationKey === 'signed-in') {
+    seedInstalled({ signedIn: true, isAdmin });
+  }
+
+  // See the `mock-org-units` key documented in utils.ts. Read after the
+  // installation seed: it hangs the sample units under the root unit.
+  const orgUnitsKey = window.localStorage.getItem('mock-org-units');
+  if (orgUnitsKey === 'sample') seedSampleOrgUnits();
 
   // See the `mock-documents` key documented in utils.ts.
   const documentsKey = window.localStorage.getItem('mock-documents');

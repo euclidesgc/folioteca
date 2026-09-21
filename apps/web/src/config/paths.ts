@@ -34,4 +34,10 @@ export const paths = {
     path: '/trash',
     getHref: (): string => '/trash',
   },
+  admin: {
+    structure: {
+      path: '/admin/structure',
+      getHref: (): string => '/admin/structure',
+    },
+  },
 };

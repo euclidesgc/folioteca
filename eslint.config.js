@@ -92,6 +92,11 @@ export default tseslint.config(
               except: ['./documents'],
             },
             {
+              target: './apps/web/src/features/org-units',
+              from: './apps/web/src/features',
+              except: ['./org-units'],
+            },
+            {
               target: './apps/web/src/features',
               from: './apps/web/src/app',
             },

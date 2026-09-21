@@ -51,6 +51,10 @@ export const createRoutes = (): RouteObject[] => [
             path: paths.trash.path.slice(1),
             lazy: () => import('@/app/routes/app/trash'),
           },
+          {
+            path: paths.admin.structure.path.slice(1),
+            lazy: () => import('@/app/routes/app/admin/structure'),
+          },
         ],
       },
     ],

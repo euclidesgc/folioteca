@@ -17,3 +17,6 @@ export type DocumentSummary = components['schemas']['DocumentSummary'];
 export type DocumentResponse = components['schemas']['DocumentResponse'];
 export type DocumentsResponse = components['schemas']['DocumentsResponse'];
 export type UpdateDocumentBody = components['schemas']['UpdateDocumentBody'];
+
+export type OrgUnit = components['schemas']['OrgUnit'];
+export type OrgUnitsResponse = components['schemas']['OrgUnitsResponse'];
