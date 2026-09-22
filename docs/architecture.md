@@ -534,6 +534,37 @@ seguinte), mas o front **não** percebe a mudança sem recarregar, porque
 `getUserQueryOptions` usa `staleTime: Infinity` — resolver isso é assunto da
 fatia **114**.
 
+**Entrega `admin-roles-promote` (fatia 114)**: `PUT /admins/{personId}` foi
+**pendurado no `AdminRolesController` que já existia**, sem controller novo e
+sem linha de guard nova — `SessionGuard` + `AdminGuard` continuam **na classe**,
+o método não traz `@UseGuards`, e o `organizationId` vem sempre do
+`@CurrentPerson()`, nunca da rota nem do corpo (a requisição não tem corpo). A
+promoção é **idempotente sem `if`**: `promote` grava com um `updateMany` que
+carrega o escopo inteiro no `where` (`id` e `organizationId`) e **nada é lido de
+`isAdmin` antes de escrever** — não existe ramo de "já era administrador", e
+promover quem já administra responde 200 igual à primeira vez. Pessoa
+inexistente, de outra organização ou com id malformado respondem **um único 404
+opaco**, com `PERSON_NOT_FOUND_MESSAGE`, vindo do `findFirst` com
+`organizationId` (o único `if` do serviço); **não há `isUuid`** nem validação de
+formato antes dele, pela mesma razão de `unit-assignments`: um 400 para id
+malformado separaria "não é id" de "não existe aqui" e transformaria a rota num
+oráculo. A identidade de caminho foi conferida **à mão contra o YAML inteiro**,
+porque `SwaggerParser.dereference` resolve `$ref` mas não valida o documento:
+`/admins/{personId}` não colide com nenhum outro caminho, e fica a regra de
+**nunca declarar segmento literal sob `/admins`** — um `/admins/count` casaria
+com `{personId}` conforme a ordem de declaração no Nest. A fatia **115** usa o
+**mesmo** caminho, com `DELETE`. **Nenhuma migration**: `Person.isAdmin` já
+existia e nenhum índice foi criado. No front, a busca de pessoas saiu de
+`features/unit-assignments/api/search-people.ts` para
+`src/hooks/use-people-search.ts`: duas features passaram a buscar pessoas com a
+**mesma chave de cache** (`['people', 'search', term]`), e import entre features
+é proibido — duas cópias da mesma chave seriam dois caches que se invalidam por
+acidente. Por fim, `getUserQueryOptions` **deixou de ser `staleTime: Infinity`**
+(agora 30 s, com `refetchOnWindowFocus: true`, exceção consciente e escrita na
+própria query ao padrão global `false`): é assim que o papel recém-promovido
+chega ao front **sem recarregar a página** — na navegação seguinte ou ao voltar
+para a aba —, encerrando a nota deixada pela fatia 011.
+
 ## 7. Testes
 
 Vitest em tudo. Na API, integração contra Postgres real (`docker compose`,
