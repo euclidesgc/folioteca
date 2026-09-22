@@ -176,6 +176,18 @@ entrada da árvore; do item ativo, `Tab` leva às ações desse nó; as teclas d
 navegação da árvore só respondem com o foco no item; `focusNode` move o foco
 para um nó de forma imperativa (usado depois de criar, ver abaixo).
 
+**Entrega `org-units-delete` (fatia 066)**: as FKs `OrgUnit.parentId` e
+`Space.orgUnitId` passaram a `ON DELETE RESTRICT` na migration `0008`,
+escrita à mão, e com `Document.spaceId` (já `RESTRICT`) a ordem obrigatória
+de apagar é documento → espaço → unidade, recusada pelo banco em qualquer
+atalho; a regra do serviço (raiz, filhas, documentos inclusive na lixeira)
+roda numa transação com **uma** consulta; a contagem de documentos vai pela
+relação do espaço (`space._count.documents`) por causa da fronteira da
+tabela `Document` (§3); `P2003` vira `409` "A unidade mudou enquanto era
+apagada. Recarregue a estrutura e tente de novo." (corrida entre contar e
+apagar); na web, um diálogo de confirmação no nível da árvore (sem gatilho)
+e o foco vai à mãe pelo `onCloseAutoFocus`.
+
 Fatos apurados na implementação: o `Dialog` compartilhado
 (`apps/web/src/components/ui/dialog/dialog.tsx`) guarda, num `useLayoutEffect`,
 quem tinha o foco no instante em que abre e o restaura ao fechar — o Radix
@@ -321,6 +333,11 @@ ao início sem disparar a requisição.
 rota); ordem observável de falha: CSRF (`X-Requested-With` ausente) → `401`
 (sem sessão) → `403` (sessão sem `isAdmin`) → `404`/`400` (unidade ou corpo)
 → `409` (nome duplicado).
+
+**Entrega `org-units-delete` (fatia 066)**: o `DELETE
+/org-units/{orgUnitId}` herda `SessionGuard` + `AdminGuard` da **classe** do
+controller, como `POST` e `PATCH`; ordem observável de falha: CSRF → `401`
+→ `403` → `404` → `409`.
 
 ## 7. Testes
 
