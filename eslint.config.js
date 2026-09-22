@@ -12,6 +12,10 @@ export default tseslint.config(
       '**/dist/**',
       '**/coverage/**',
       '**/generated/**',
+      // Written by Playwright when a run fails locally; thousands of bundled
+      // files that would otherwise fail the lint of the whole project.
+      'apps/web/e2e/report/**',
+      'apps/web/e2e/test-results/**',
       'apps/web/public/mockServiceWorker.js',
     ],
   },
