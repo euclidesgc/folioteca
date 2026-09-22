@@ -5,6 +5,8 @@ import { createHash } from 'node:crypto';
 import { ConflictException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
+import type { PasswordService } from '../../auth/password.service';
+import type { SessionService } from '../../auth/session.service';
 import type { PrismaService } from '../../prisma/prisma.service';
 import {
   ALREADY_A_PERSON_MESSAGE,
@@ -67,8 +69,13 @@ function createService(options: {
 
   const prisma = { $transaction: transaction } as unknown as PrismaService;
 
+  // A criação do convite não usa senha nem sessão; os dois vêm vazios só para
+  // o serviço poder ser construído.
+  const passwords = { hash: vi.fn() } as unknown as PasswordService;
+  const sessions = { create: vi.fn() } as unknown as SessionService;
+
   return {
-    service: new InvitationsService(prisma),
+    service: new InvitationsService(prisma, passwords, sessions),
     findFirst,
     deleteMany,
     createInvitation,

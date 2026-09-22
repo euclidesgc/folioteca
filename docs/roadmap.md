@@ -13,7 +13,7 @@
 | 065 | org-units-create-rename | (administração) criar unidades filhas e renomear unidades, inclusive a raiz (que renomeia a organização) | 008 org-units-tree | 064 | done |
 | 066 | org-units-delete | (administração) apagar unidade sem filhas, com confirmação; a raiz nunca | 008 org-units-tree | 065 | in-review |
 | 085 | invitations-create | (administração) convidar um e-mail e copiar o link gerado | 009 invitations | 003 | in-review |
-| 086 | invitations-accept | abrir o link do convite, criar nome e senha e entrar na aplicação | 009 invitations | 085 | planned |
+| 086 | invitations-accept | abrir o link do convite, criar nome e senha e entrar na aplicação | 009 invitations | 085 | in-progress |
 | 087 | invitations-revoke | (administração) revogar um convite pendente, e o link para de funcionar na hora | 009 invitations | 086, 088 | planned |
 | 088 | invitations-list | (administração) ver os convites pendentes com e-mail, criado em e expira em | 009 invitations | 085 | planned |
 | 089 | invitations-email | receber o convite por e-mail em vez de a administração copiar o link à mão (exige SMTP no projeto) | 009 invitations | 086 | planned |

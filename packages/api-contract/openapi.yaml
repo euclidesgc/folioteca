@@ -683,6 +683,107 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /invitations/{token}:
+    get:
+      operationId: getInvitation
+      tags:
+        - invitations
+      summary: Dados do convite para a tela de criar conta
+      description: >-
+        Rota pública: quem abre o link do convite ainda não tem conta, e o
+        servidor ignora qualquer sessão em curso. Devolve só o que quem recebeu
+        o link já sabe — o e-mail convidado e o nome da organização. Nenhum
+        identificador, nenhuma data e nenhum dado de quem convidou saem daqui.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: >-
+            Token do convite em claro, o mesmo do link recebido; o servidor
+            guarda apenas o hash dele e nunca o registra.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: O convite está pendente.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationPreviewResponse"
+        "404":
+          description: >-
+            O convite não está disponível. A mesma resposta para link
+            inexistente, expirado, já aceito ou revogado: nada no corpo, no
+            código ou no tempo de resposta distingue os casos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /invitations/{token}/accept:
+    post:
+      operationId: acceptInvitation
+      tags:
+        - invitations
+      summary: Aceita o convite, cria a pessoa e abre a sessão dela
+      description: >-
+        Rota pública: aceitar o convite é o que cria a conta, e o servidor
+        ignora qualquer sessão em curso. O e-mail não vem no corpo — é o do
+        convite. A pessoa nasce sem administração e com o espaço pessoal dela.
+        As checagens acontecem nesta ordem: CSRF (guarda global), 400 (corpo),
+        404 (convite) e por fim 409 (o e-mail já é de uma pessoa). Não existe
+        410 para convite expirado ou já aceito: distinguir esses casos do 404
+        seria o oráculo que o convite não pode dar.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: >-
+            Token do convite em claro, o mesmo do link recebido; o servidor
+            guarda apenas o hash dele e nunca o registra.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcceptInvitationInput"
+      responses:
+        "201":
+          description: >-
+            A conta foi criada e a sessão foi aberta. A resposta traz o
+            `Set-Cookie` da sessão, e o corpo é o mesmo de `GET /auth/me`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUserResponse"
+        "400":
+          description: Os dados informados são inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            O convite não está disponível. A mesma resposta para link
+            inexistente, expirado, já aceito ou revogado: nada no corpo, no
+            código ou no tempo de resposta distingue os casos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: O e-mail do convite já é de uma pessoa da organização.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
   schemas:
     Health:
@@ -978,6 +1079,40 @@ components:
           $ref: "#/components/schemas/CreatedInvitation"
       required:
         - data
+    InvitationPreview:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: E-mail convidado, o mesmo que a conta nova terá.
+        organizationName:
+          type: string
+          description: Nome da organização que convidou.
+      required:
+        - email
+        - organizationName
+      additionalProperties: false
+    InvitationPreviewResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InvitationPreview"
+      required:
+        - data
+    AcceptInvitationInput:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Nome de quem está criando a conta, aparado antes de gravar.
+        password:
+          type: string
+          description: Senha escolhida, de 12 a 128 caracteres.
+      required:
+        - name
+        - password
+      additionalProperties: false
     UpdateDocumentBody:
       type: object
       properties:

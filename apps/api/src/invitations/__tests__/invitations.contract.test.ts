@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 
 import type { INestApplication } from '@nestjs/common';
 import type { Response } from 'supertest';
@@ -17,6 +17,12 @@ const EMAIL = 'maria@exemplo.org';
 const GUEST_EMAIL = 'convidado@exemplo.org';
 
 const INVITATIONS_PATH = '/invitations';
+
+const INVITATION_PATH = '/invitations/{token}';
+
+const ACCEPT_PATH = '/invitations/{token}/accept';
+
+const GUEST_NAME = 'Convidado Souza';
 
 let app: INestApplication;
 let prisma: PrismaService;
@@ -56,6 +62,25 @@ function postInvitation(body: object, cookie?: string): Promise<Response> {
   return (cookie === undefined ? request : request.set('Cookie', cookie)).send(
     body,
   );
+}
+
+/** Cria um convite pela API e devolve o token em claro dele. */
+async function inviteToken(email: string): Promise<string> {
+  const response = await postInvitation({ email }, adminCookie);
+
+  return (response.body as { data: { token: string } }).data.token;
+}
+
+function getInvitation(token: string): Promise<Response> {
+  return httpRequest(app).get(`/api/invitations/${token}`);
+}
+
+/** Envia o aceite com o cabeçalho que o CSRF do projeto exige. */
+function postAccept(token: string, body: object): Promise<Response> {
+  return httpRequest(app)
+    .post(`/api/invitations/${token}/accept`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .send(body);
 }
 
 beforeAll(async () => {
@@ -131,6 +156,103 @@ test('POST invitations answers the documented 409', async () => {
   expect(response.status).toBe(409);
   await expectMatchesContract({
     path: INVITATIONS_PATH,
+    method: 'post',
+    status: 409,
+    body: response.body,
+  });
+});
+
+test('GET invitation answers the documented 200', async () => {
+  const token = await inviteToken(GUEST_EMAIL);
+
+  const response = await getInvitation(token);
+
+  expect(response.status).toBe(200);
+  await expectMatchesContract({
+    path: INVITATION_PATH,
+    method: 'get',
+    status: 200,
+    body: response.body,
+  });
+});
+
+test('GET invitation answers the documented 404', async () => {
+  const response = await getInvitation(randomBytes(32).toString('base64url'));
+
+  expect(response.status).toBe(404);
+  await expectMatchesContract({
+    path: INVITATION_PATH,
+    method: 'get',
+    status: 404,
+    body: response.body,
+  });
+});
+
+test('POST accept answers the documented 201', async () => {
+  const token = await inviteToken(GUEST_EMAIL);
+
+  const response = await postAccept(token, {
+    name: GUEST_NAME,
+    password: randomUUID(),
+  });
+
+  expect(response.status).toBe(201);
+  await expectMatchesContract({
+    path: ACCEPT_PATH,
+    method: 'post',
+    status: 201,
+    body: response.body,
+  });
+});
+
+test('POST accept answers the documented 400', async () => {
+  const token = await inviteToken(GUEST_EMAIL);
+
+  const response = await postAccept(token, {
+    name: '',
+    password: randomUUID(),
+  });
+
+  expect(response.status).toBe(400);
+  await expectMatchesContract({
+    path: ACCEPT_PATH,
+    method: 'post',
+    status: 400,
+    body: response.body,
+  });
+});
+
+test('POST accept answers the documented 404', async () => {
+  const response = await postAccept(randomBytes(32).toString('base64url'), {
+    name: GUEST_NAME,
+    password: randomUUID(),
+  });
+
+  expect(response.status).toBe(404);
+  await expectMatchesContract({
+    path: ACCEPT_PATH,
+    method: 'post',
+    status: 404,
+    body: response.body,
+  });
+});
+
+test('POST accept answers the documented 409', async () => {
+  const token = await inviteToken(GUEST_EMAIL);
+
+  await createPersonWithSession(app, {
+    name: 'João Souza',
+    email: GUEST_EMAIL,
+  });
+
+  const response = await postAccept(token, {
+    name: GUEST_NAME,
+    password: randomUUID(),
+  });
+
+  expect(response.status).toBe(409);
+  await expectMatchesContract({
+    path: ACCEPT_PATH,
     method: 'post',
     status: 409,
     body: response.body,

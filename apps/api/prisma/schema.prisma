@@ -131,19 +131,25 @@ model DocumentContent {
 /// guardado, como em `Session`: o link em claro existe uma única vez, na
 /// resposta da criação.
 ///
+/// `acceptedAt` nulo é convite pendente; preenchido é convite já usado, que a
+/// linha guarda como auditoria de quem entrou por convite.
+///
 /// Um índice único por expressão (`lower("email")`) garante "um convite
-/// pendente por e-mail" e o Prisma não sabe expressá-lo: ele vive só na
-/// migration `0009` escrita à mão. Como na `0007`, ele é invisível a este
-/// schema, e por isso o comando de diff de migrations do Prisma nunca pode
-/// ser rodado aqui: ele apagaria o índice.
+/// pendente por e-mail" e o Prisma não sabe expressá-lo: ele vive só nas
+/// migrations `0009` e `0010` escritas à mão. Desde a `0010` ele é **parcial**
+/// (`WHERE "acceptedAt" IS NULL`), para que um e-mail que já aceitou possa ser
+/// convidado de novo. Como na `0007`, ele é invisível a este schema, e por isso
+/// o comando de diff de migrations do Prisma nunca pode ser rodado aqui: ele
+/// apagaria o índice.
 model Invitation {
-  id             String   @id @default(uuid())
+  id             String    @id @default(uuid())
   organizationId String
   email          String
-  tokenHash      String   @unique
+  tokenHash      String    @unique
   invitedById    String
-  createdAt      DateTime @default(now())
+  createdAt      DateTime  @default(now())
   expiresAt      DateTime
+  acceptedAt     DateTime?
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   invitedBy    Person       @relation("InvitationInviter", fields: [invitedById], references: [id], onDelete: Restrict)

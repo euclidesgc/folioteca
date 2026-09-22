@@ -247,6 +247,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/invitations/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Dados do convite para a tela de criar conta
+         * @description Rota pública: quem abre o link do convite ainda não tem conta, e o servidor ignora qualquer sessão em curso. Devolve só o que quem recebeu o link já sabe — o e-mail convidado e o nome da organização. Nenhum identificador, nenhuma data e nenhum dado de quem convidou saem daqui.
+         */
+        get: operations["getInvitation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invitations/{token}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Aceita o convite, cria a pessoa e abre a sessão dela
+         * @description Rota pública: aceitar o convite é o que cria a conta, e o servidor ignora qualquer sessão em curso. O e-mail não vem no corpo — é o do convite. A pessoa nasce sem administração e com o espaço pessoal dela. As checagens acontecem nesta ordem: CSRF (guarda global), 400 (corpo), 404 (convite) e por fim 409 (o e-mail já é de uma pessoa). Não existe 410 para convite expirado ou já aceito: distinguir esses casos do 404 seria o oráculo que o convite não pode dar.
+         */
+        post: operations["acceptInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -384,6 +424,24 @@ export interface components {
         };
         CreatedInvitationResponse: {
             data: components["schemas"]["CreatedInvitation"];
+        };
+        InvitationPreview: {
+            /**
+             * Format: email
+             * @description E-mail convidado, o mesmo que a conta nova terá.
+             */
+            email: string;
+            /** @description Nome da organização que convidou. */
+            organizationName: string;
+        };
+        InvitationPreviewResponse: {
+            data: components["schemas"]["InvitationPreview"];
+        };
+        AcceptInvitationInput: {
+            /** @description Nome de quem está criando a conta, aparado antes de gravar. */
+            name: string;
+            /** @description Senha escolhida, de 12 a 128 caracteres. */
+            password: string;
         };
         UpdateDocumentBody: {
             title: string;
@@ -1339,6 +1397,101 @@ export interface operations {
                 };
             };
             /** @description O e-mail já é de uma pessoa da organização. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Token do convite em claro, o mesmo do link recebido; o servidor guarda apenas o hash dele e nunca o registra. */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O convite está pendente. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationPreviewResponse"];
+                };
+            };
+            /** @description O convite não está disponível. A mesma resposta para link inexistente, expirado, já aceito ou revogado: nada no corpo, no código ou no tempo de resposta distingue os casos. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    acceptInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Token do convite em claro, o mesmo do link recebido; o servidor guarda apenas o hash dele e nunca o registra. */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptInvitationInput"];
+            };
+        };
+        responses: {
+            /** @description A conta foi criada e a sessão foi aberta. A resposta traz o `Set-Cookie` da sessão, e o corpo é o mesmo de `GET /auth/me`. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUserResponse"];
+                };
+            };
+            /** @description Os dados informados são inválidos. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O convite não está disponível. A mesma resposta para link inexistente, expirado, já aceito ou revogado: nada no corpo, no código ou no tempo de resposta distingue os casos. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O e-mail do convite já é de uma pessoa da organização. */
             409: {
                 headers: {
                     [name: string]: unknown;
