@@ -24,6 +24,31 @@ test('200 response matches the HealthResponse schema', async () => {
   await app.close();
 });
 
+test('matches the Health schema with required commit', async () => {
+  const app = await createApp();
+
+  const response = await httpRequest(app).get('/api/health');
+
+  const body = response.body as { data: Record<string, unknown> };
+  expect(typeof body.data.commit).toBe('string');
+  await expectMatchesContract({
+    path: '/health',
+    method: 'get',
+    status: response.status,
+    body: response.body,
+  });
+  await expect(
+    expectMatchesContract({
+      path: '/health',
+      method: 'get',
+      status: 200,
+      body: { data: { status: 'ok', database: 'up' } },
+    }),
+  ).rejects.toThrow();
+
+  await app.close();
+});
+
 test('503 response matches the Error schema', async () => {
   const failingPrisma = {
     $queryRaw: vi.fn().mockRejectedValue(new Error('database unavailable')),
@@ -62,7 +87,7 @@ test('expectMatchesContract rejects a body that violates the schema', async () =
       path: '/health',
       method: 'get',
       status: 200,
-      body: { data: { status: 'unknown', database: 'up' } },
+      body: { data: { status: 'unknown', database: 'up', commit: 'abc1234' } },
     }),
   ).rejects.toThrow();
 });

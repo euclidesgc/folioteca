@@ -594,9 +594,12 @@ components:
         database:
           type: string
           enum: [up]
+        commit:
+          type: string
       required:
         - status
         - database
+        - commit
     HealthResponse:
       type: object
       properties:

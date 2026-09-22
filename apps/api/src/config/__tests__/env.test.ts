@@ -11,6 +11,7 @@ test('parses a valid environment and defaults PORT to 3000', () => {
     NODE_ENV: 'development',
     COLLAB_ALLOWED_ORIGINS: [],
     COLLAB_STORE_DEBOUNCE_MS: 2000,
+    SOURCE_COMMIT: 'unknown',
   });
 });
 
@@ -88,4 +89,30 @@ test('COLLAB_STORE_DEBOUNCE_MS rejects a non positive value', () => {
       COLLAB_STORE_DEBOUNCE_MS: '0',
     }),
   ).toThrow(/COLLAB_STORE_DEBOUNCE_MS/);
+});
+
+test('uses SOURCE_COMMIT when provided', () => {
+  const result = parseEnv({
+    DATABASE_URL: 'postgresql://folioteca@localhost:5433/folioteca',
+    SOURCE_COMMIT: 'abc1234',
+  });
+
+  expect(result.SOURCE_COMMIT).toBe('abc1234');
+});
+
+test('defaults SOURCE_COMMIT to unknown when absent', () => {
+  const result = parseEnv({
+    DATABASE_URL: 'postgresql://folioteca@localhost:5433/folioteca',
+  });
+
+  expect(result.SOURCE_COMMIT).toBe('unknown');
+});
+
+test('rejects empty SOURCE_COMMIT', () => {
+  expect(() =>
+    parseEnv({
+      DATABASE_URL: 'postgresql://folioteca@localhost:5433/folioteca',
+      SOURCE_COMMIT: '',
+    }),
+  ).toThrow(/SOURCE_COMMIT/);
 });
