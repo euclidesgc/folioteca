@@ -17,7 +17,7 @@
 | 087 | invitations-revoke | (administração) revogar um convite pendente, e o link para de funcionar na hora | 009 invitations | 086, 088 | in-review |
 | 088 | invitations-list | (administração) ver os convites pendentes com e-mail, criado em e expira em | 009 invitations | 085 | in-review |
 | 089 | invitations-email | receber o convite por e-mail em vez de a administração copiar o link à mão (exige SMTP no projeto) | 009 invitations | 086 | planned |
-| 010 | unit-assignments | (administração) lotar pessoas em unidades e ver quem está lotado | pedido inicial | 066, 086 | in-progress |
+| 010 | unit-assignments | (administração) lotar pessoas em unidades e ver quem está lotado | pedido inicial | 066, 086 | in-review |
 | 108 | unit-assignments-remove | (administração) remover uma pessoa de uma unidade, com confirmação | 010 unit-assignments | 010 | planned |
 | 011 | admin-roles | (administração) promover e rebaixar administradores, nunca ficando sem nenhum | pedido inicial | 086 | planned |
 | 012 | unit-spaces | ver o espaço espelhado de cada unidade em que está lotado, com os membros diretos | pedido inicial | 010 | planned |
@@ -108,3 +108,8 @@
 | 105 | invitations-history-view | (administração) conferir o histórico dos convites revogados e aceitos, hoje invisível: nenhuma tela mostra convite que não esteja pendente | dívida 087 | 088 | planned |
 | 106 | invitation-revoked-notice | ser avisado de que o convite foi revogado em vez de descobrir só ao tentar abrir o link | dívida 087 | 089 | planned |
 | 107 | invitations-create-stale-cleanup | não ver a tabela de convites crescer a cada novo convite para o mesmo e-mail: o `create` deixou de apagar os convites aceitos e revogados e passou a apagar só o pendente; reforça a necessidade da rotina de limpeza da 095 | dívida 087 | | planned |
+| 109 | delete-unit-with-assignments | (administração) apagar uma unidade que tem pessoas lotadas, hoje recusada com mensagem própria: enquanto a fatia 108 não existir, não há como tirar a lotação pela interface e a saída é mexer no banco | dívida 010 | 108 | planned |
+| 110 | people-search-text-index | ter a busca de pessoas com índice de texto (`pg_trgm`) em vez do `contains` que varre a tabela inteira, hoje aceitável e lento com muitas pessoas | dívida 010 | | planned |
+| 111 | unit-assignments-list-pagination-search | (administração) ver a lista de pessoas lotadas com paginação e busca interna, hoje inteira e sem filtro | dívida 010 | | planned |
+| 112 | person-delete-assignments-policy | decidir por escrito o que acontece com as lotações de uma pessoa quando apagar pessoa existir no produto, porque a FK `RESTRICT` da lotação vai recusar a exclusão | dívida 010 | | planned |
+| 113 | tree-row-actions-order-contract | ter a ordem das ações na linha da árvore documentada e provada num só lugar, hoje contrato implícito de três testes de teclado (dois e2e e um unitário) que quebram juntos se a ordem mudar, sem nada além dos comentários | dívida 010 | | planned |
