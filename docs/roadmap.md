@@ -71,7 +71,7 @@
 | 068 | org-units-large-tree | carregar a árvore por nível e ordenar no banco quando houver milhares de unidades (hoje lista inteira, ordenada em memória) | dívida da 064 | | planned |
 | 069 | tree-typeahead-and-actions | ter no componente `Tree` a busca por digitação e a tecla `*` | dívida da 064 | | planned |
 | 070 | mock-multiple-people | ter mais de uma pessoa no banco falso da API simulada, para admin e membro coexistirem numa sessão de desenvolvimento | dívida da 064 | | planned |
-| 071 | e2e-block-editor-bold-flake | estabilizar o caso do negrito em block-editor.spec.ts, que falha esporadicamente com vários workers em paralelo e passa no retry | dívida da 064 | | planned |
+| 071 | e2e-block-editor-bold-flake | estabilizar o caso do negrito em block-editor.spec.ts, que falha esporadicamente com vários workers em paralelo e passa no retry | dívida da 064 | | in-review |
 | 072 | db-locale-for-lower | conferir o `LC_CTYPE`/collation dos bancos de homologação e produção, porque o índice único de nomes irmãos usa `lower("name")` e o resultado com acento depende do locale (só dá para conferir pelo contêiner) | dívida da 065 | | planned |
 | 073 | org-unit-accent-siblings-ordering | decidir como exibir irmãs que diferem só por acento ("Área" e "Area" são aceitas, mas a listagem as ordena como iguais) | dívida da 065 | | planned |
 | 074 | uuid-pattern-duplicated | ter um único `isUuid` (apps/api/src/common/is-uuid.ts) usado também por access.service.ts, que ainda tem o padrão duplicado | dívida da 065 | | planned |
