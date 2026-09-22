@@ -39,5 +39,9 @@ export const paths = {
       path: '/admin/structure',
       getHref: (): string => '/admin/structure',
     },
+    invitations: {
+      path: '/admin/invitations',
+      getHref: (): string => '/admin/invitations',
+    },
   },
 };

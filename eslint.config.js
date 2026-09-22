@@ -97,6 +97,11 @@ export default tseslint.config(
               except: ['./org-units'],
             },
             {
+              target: './apps/web/src/features/invitations',
+              from: './apps/web/src/features',
+              except: ['./invitations'],
+            },
+            {
               target: './apps/web/src/features',
               from: './apps/web/src/app',
             },

@@ -10,6 +10,7 @@ export const enableMocking = async (): Promise<void> => {
     seedInstalled,
     seedSampleDocuments,
     seedSampleFavorites,
+    seedSampleInvitations,
     seedSampleOrgUnits,
     seedSampleTrash,
     touchDocumentUpdatedAt,
@@ -33,6 +34,11 @@ export const enableMocking = async (): Promise<void> => {
   // installation seed: it hangs the sample units under the root unit.
   const orgUnitsKey = window.localStorage.getItem('mock-org-units');
   if (orgUnitsKey === 'sample') seedSampleOrgUnits();
+
+  // See the `mock-invitations` key documented in utils.ts. Read after the
+  // installation seed: the invitation belongs to the installed organization.
+  const invitationsKey = window.localStorage.getItem('mock-invitations');
+  if (invitationsKey === 'sample') seedSampleInvitations();
 
   // See the `mock-documents` key documented in utils.ts.
   const documentsKey = window.localStorage.getItem('mock-documents');

@@ -39,11 +39,22 @@ export type MockFavorite = { documentId: string; createdAt: string };
 // `parentId` is null on the root of the organization.
 export type MockOrgUnit = { id: string; parentId: string | null; name: string };
 
+// A pending invitation. Neither the token nor its hash is kept: nothing in the
+// web checks a token in this slice, and the 201 is the only place the token
+// exists (the handler assembles it when it answers).
+export type MockInvitation = {
+  id: string;
+  email: string;
+  createdAt: string;
+  expiresAt: string;
+};
+
 type DbState = {
   installation: MockInstallation | null;
   documents: MockDocument[];
   favorites: MockFavorite[];
   orgUnits: MockOrgUnit[];
+  invitations: MockInvitation[];
 };
 
 const initialState = (): DbState => ({
@@ -51,6 +62,7 @@ const initialState = (): DbState => ({
   documents: [],
   favorites: [],
   orgUnits: [],
+  invitations: [],
 });
 
 let state: DbState = initialState();
@@ -313,6 +325,56 @@ export const renameOrgUnit = (id: string, name: string): MockOrgUnit => {
 export const removeOrgUnit = (id: string): void => {
   const index = state.orgUnits.findIndex((item) => item.id === id);
   if (index !== -1) state.orgUnits.splice(index, 1);
+};
+
+// The same seven days the real API gives an invitation.
+const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Not a secret: readable, low-entropy and assembled at runtime, so no secret
+// scanner ever sees a credential-looking literal in the repository (same
+// reasoning as `MOCK_PASSWORD`). The counter keeps two invitations of the same
+// session from sharing a token.
+let invitationTokenCount = 0;
+
+export const nextInvitationToken = (): string => {
+  invitationTokenCount += 1;
+  return ['mock', 'invitation', 'token', String(invitationTokenCount)].join('-');
+};
+
+// Adds a pending invitation, the way POST /invitations does: inviting the same
+// address again replaces the pending invitation, so only one survives.
+//
+// The old invitation is taken out of the array in place, never by replacing
+// the array (same reason as `touchDocumentUpdatedAt` above): the handler reads
+// the state before it awaits the request body and writes afterwards.
+export const addInvitation = ({
+  email,
+}: {
+  email: string;
+}): MockInvitation => {
+  const index = state.invitations.findIndex(
+    (item) => item.email.toLowerCase() === email.toLowerCase(),
+  );
+  if (index !== -1) state.invitations.splice(index, 1);
+
+  const createdAt = new Date();
+  const invitation: MockInvitation = {
+    id: crypto.randomUUID(),
+    email,
+    createdAt: createdAt.toISOString(),
+    expiresAt: new Date(createdAt.getTime() + INVITATION_TTL_MS).toISOString(),
+  };
+  state.invitations.push(invitation);
+
+  return invitation;
+};
+
+// Adds a pending invitation, so inviting the same address in the browser shows
+// the replacement. Kept separate from `seedInstalled` because the existing
+// journeys expect no invitation by default.
+export const seedSampleInvitations = (): void => {
+  if (!state.installation) return;
+  addInvitation({ email: 'convidado@exemplo.com.br' });
 };
 
 // How many documents `seedSampleTrash` moves to the trash.
