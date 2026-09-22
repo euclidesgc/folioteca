@@ -342,9 +342,9 @@ controller, como `POST` e `PATCH`; ordem observável de falha: CSRF → `401`
 **Entrega `invitations-create` (fatia 085)**: o token do convite tem 32 bytes
 em `base64url` e é guardado **só** como `sha256` (mesmo desenho de `Session`),
 devolvido uma única vez no corpo do `201` e nunca recuperável depois. O
-`hashToken` foi **duplicado** no módulo `invitations` de propósito, para não
-criar abstração com duas ocorrências; a fatia 086, terceira ocorrência, deve
-extrair para `apps/api/src/common/hash-token.ts`. "Um convite pendente por
+`hashToken` **foi extraído** para `apps/api/src/common/hash-token.ts` pela
+fatia 086 (terceira ocorrência); `session.service.ts` e
+`invitations.service.ts` importam de lá. "Um convite pendente por
 e-mail" é garantido no banco pelo índice único por expressão `lower("email")`
 da migration `0009`, não só pela checagem da API; convidar o mesmo e-mail de
 novo substitui o convite (apagar o anterior + criar o novo) numa **transação**,
@@ -352,8 +352,49 @@ de modo que o link antigo deixa de validar. `POST /invitations` herda
 `SessionGuard` + `AdminGuard` da **classe** do controller; ordem observável de
 falha: CSRF → `401` → `403` → `400` → `409`. O link do convite é montado pelo
 **navegador** (a API não conhece a origem da aplicação), e o caminho público
-`/invitations/:token` só existe a partir da 086 — por isso 085 e 086 são
+`/invitations/:token` **existe** a partir da 086 — por isso 085 e 086 são
 mescladas juntas.
+
+**Entrega `invitations-accept` (fatia 086)**: `GET /invitations/{token}` e
+`POST /invitations/{token}/accept` são as duas rotas **públicas** do módulo.
+Elas ficam num controller próprio, `PublicInvitationsController`, que não tem
+guard nenhum, enquanto `InvitationsController` guarda a rota de criar com
+`@UseGuards(SessionGuard, AdminGuard)` **na classe**. Os dois caminhos não
+cabem numa classe só: o Nest **soma** os guards da classe aos do método, então
+um `@UseGuards()` vazio no método não desfaz os da classe e a rota pública
+responderia 401. Separando, a garantia do projeto continua de pé — uma rota
+nova em `InvitationsController` nasce protegida, e a classe pública diz no
+nome o que é. O servidor **ignora o cookie** nelas: nada lê
+`request.cookies`, não há `@CurrentPerson`, e a sessão em curso de quem abrir o
+link nunca é lida, renovada nem encerrada — abrir um convite com sessão aberta
+devolve exatamente a mesma resposta de quem abre sem sessão. O `CsrfGuard`
+global continua valendo no `POST`: pública não é desprotegida.
+
+O token da URL chega **em claro** e nunca é consultado assim: a busca é por
+`sha256` (`tokenHash`, `@unique` desde a `0009`), e a conferência final é
+`timingSafeEqual` sobre os dois digests de 32 bytes, para que a última palavra
+sobre "é este token mesmo?" fique num caminho sem atalho por prefixo. As quatro
+recusas — inexistente, expirado, já aceito e (a partir da 087) revogado — saem
+de um único `findPending`, que devolve `null` sem `return` antecipado entre as
+checagens, e viram **um** `NotFoundException` com
+`INVITATION_UNAVAILABLE_MESSAGE`, constante única do módulo: corpo, código e
+cabeçalhos são idênticos byte a byte nos quatro casos, e nada no tempo de
+resposta os separa.
+
+A migration `0010` acrescenta `acceptedAt` a `Invitation` (nulo enquanto
+pendente; a linha aceita **não** é apagada, é registro de auditoria) e troca o
+índice `Invitation_lower_email_key` por um **parcial**, com
+`WHERE "acceptedAt" IS NULL` — sem isso, um e-mail que aceitou um convite nunca
+mais poderia ser convidado. O aceite é uma **transação**: pessoa com
+`isAdmin: false`, o espaço `PERSONAL` dela (nenhuma unidade e nenhum espaço de
+unidade), `acceptedAt` do convite e a sessão. O hash argon2id da senha fica
+**fora** da transação, de propósito, para não segurar conexão e linha por
+centenas de milissegundos — é o que a instalação já faz. O cookie é gravado
+pelo mesmo `getSessionCookieOptions` da instalação (`httpOnly`, `SameSite=Lax`,
+`Secure` em produção, 30 dias), sem atributo novo. Ordem observável de falha do
+`POST`: CSRF → `400` (corpo, validado **antes** da busca do convite) → `404`
+(convite) → `409` (o e-mail já é de uma pessoa, pelo `P2002` de
+`Person_email_key`).
 
 ## 7. Testes
 
