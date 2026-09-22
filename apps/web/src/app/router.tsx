@@ -25,6 +25,13 @@ export const createRoutes = (): RouteObject[] => [
         lazy: () => import('@/app/routes/login'),
       },
       {
+        // Public as well: whoever opens an invitation link has no account yet.
+        // Outside the layout route, outside `ProtectedRoute` and outside any
+        // installation check — the gate above only waits, it never redirects.
+        path: paths.invitationAccept.path,
+        lazy: () => import('@/app/routes/invitation-accept'),
+      },
+      {
         path: paths.home.path,
         element: <Root />,
         ErrorBoundary: RootErrorBoundary,

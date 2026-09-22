@@ -39,14 +39,17 @@ export type MockFavorite = { documentId: string; createdAt: string };
 // `parentId` is null on the root of the organization.
 export type MockOrgUnit = { id: string; parentId: string | null; name: string };
 
-// A pending invitation. Neither the token nor its hash is kept: nothing in the
-// web checks a token in this slice, and the 201 is the only place the token
-// exists (the handler assembles it when it answers).
+// An invitation. The token is kept in the clear on purpose: from slice 086 on
+// the browser has to check the link for the journey to exist at all, and this
+// "database" is an object in memory of the tab itself — there is no security
+// boundary here. `acceptedAt` is null while the invitation is pending.
 export type MockInvitation = {
   id: string;
   email: string;
   createdAt: string;
   expiresAt: string;
+  token: string;
+  acceptedAt: string | null;
 };
 
 type DbState = {
@@ -55,6 +58,11 @@ type DbState = {
   favorites: MockFavorite[];
   orgUnits: MockOrgUnit[];
   invitations: MockInvitation[];
+  // People created by accepting an invitation, and which of them is signed in.
+  // Null means the installed person, which is what every journey before 086
+  // expects.
+  people: MockPerson[];
+  signedInPersonId: string | null;
 };
 
 const initialState = (): DbState => ({
@@ -63,6 +71,8 @@ const initialState = (): DbState => ({
   favorites: [],
   orgUnits: [],
   invitations: [],
+  people: [],
+  signedInPersonId: null,
 });
 
 let state: DbState = initialState();
@@ -363,15 +373,70 @@ export const addInvitation = ({
     email,
     createdAt: createdAt.toISOString(),
     expiresAt: new Date(createdAt.getTime() + INVITATION_TTL_MS).toISOString(),
+    token: nextInvitationToken(),
+    acceptedAt: null,
   };
   state.invitations.push(invitation);
 
   return invitation;
 };
 
+// Accepts an invitation, the way POST /invitations/:token/accept does: the
+// invitation is marked as accepted, a person is created for its e-mail and that
+// person becomes the signed-in one.
+//
+// Both writes land on the objects already in the database, never on copies of
+// them (same reason as `touchDocumentUpdatedAt` above): the handler reads the
+// invitation before it awaits the request body and writes afterwards.
+export const acceptInvitation = ({
+  token,
+  name,
+}: {
+  token: string;
+  name: string;
+}): MockPerson => {
+  const invitation = state.invitations.find((item) => item.token === token);
+  if (!invitation) throw new Error('Unknown invitation');
+
+  invitation.acceptedAt = new Date().toISOString();
+
+  // Someone invited is never an administrator.
+  const person: MockPerson = {
+    id: `person-invited-${state.people.length + 1}`,
+    name,
+    email: invitation.email,
+    isAdmin: false,
+  };
+  state.people.push(person);
+  state.signedInPersonId = person.id;
+
+  return person;
+};
+
+// Who the session belongs to. Without an accepted invitation it is the
+// installed person, which keeps every journey before slice 086 identical.
+export const getSignedInPerson = (): MockPerson | null => {
+  const { installation, people, signedInPersonId } = state;
+  if (!installation) return null;
+  if (!signedInPersonId) return installation.person;
+
+  return (
+    people.find((person) => person.id === signedInPersonId) ??
+    installation.person
+  );
+};
+
+// Signs the session out, the way POST /auth/logout does: the person created by
+// an accepted invitation stops being the signed-in one.
+export const clearSignedInPerson = (): void => {
+  state.signedInPersonId = null;
+};
+
 // Adds a pending invitation, so inviting the same address in the browser shows
-// the replacement. Kept separate from `seedInstalled` because the existing
-// journeys expect no invitation by default.
+// the replacement, and so the invitation link can be opened in the browser (the
+// token of the first invitation of a page load is always the same).
+// Kept separate from `seedInstalled` because the existing journeys expect no
+// invitation by default.
 export const seedSampleInvitations = (): void => {
   if (!state.installation) return;
   addInvitation({ email: 'convidado@exemplo.com.br' });

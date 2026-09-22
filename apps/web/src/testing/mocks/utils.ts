@@ -40,7 +40,11 @@ export const networkDelay = (): Promise<void> =>
 //     by space
 //   localStorage.setItem('mock-invitations', 'sample')  -> seeds a pending
 //     invitation for convidado@exemplo.com.br (needs an installation already
-//     seeded), to see inviting the same address replace it
+//     seeded), to see inviting the same address replace it, and to open the
+//     invitation link: the seeded invitation is the first of the page load, so
+//     its token is 'mock-invitation-token-1' and the link is
+//     /invitations/mock-invitation-token-1 (the link of an invitation created
+//     in the browser is shown once, on the invitations screen)
 // Remove the key (or run localStorage.clear()) to go back to normal.
 const devKey = (key: string): string | null => {
   if (import.meta.env.MODE === 'test' || typeof window === 'undefined') {

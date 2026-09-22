@@ -14,6 +14,11 @@ export const paths = {
         ? `/login?redirectTo=${encodeURIComponent(redirectTo)}`
         : '/login',
   },
+  invitationAccept: {
+    path: '/invitations/:token',
+    getHref: (token: string): string =>
+      `/invitations/${encodeURIComponent(token)}`,
+  },
   favorites: {
     path: '/favorites',
     getHref: (): string => '/favorites',
