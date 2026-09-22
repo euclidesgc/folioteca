@@ -202,6 +202,37 @@ uma `ref` (`isSubmittingRef`), porque `isPending` da mutação só vira
 verdadeiro no próximo render e dois `Enter` no mesmo lote de eventos passariam
 os dois.
 
+**Entrega `unit-assignments` (fatia 010)**: a tabela `OrgUnitAssignment` não
+tem id próprio — sua **PK composta `(orgUnitId, personId)`** é a única garantia
+de que uma pessoa não se lota duas vezes na mesma unidade. Não há consulta
+prévia de duplicidade em lugar nenhum: o `409` "Esta pessoa já está lotada
+nesta unidade." nasce do `P2002` do banco, exatamente como o `409` de nome da
+065, e é isso que fecha a corrida entre duas lotações simultâneas do mesmo par.
+As duas FKs são `ON DELETE RESTRICT`, pela mesma regra da `0008`: apagar
+unidade passa a ter uma **quarta** recusa (além de raiz, filhas e documentos, a
+de ainda ter gente lotada), e apagar pessoa, quando existir, vai **ter** de
+decidir o que fazer com as lotações — o banco não decide por nós. A migration
+`0012` é escrita à mão, como as anteriores desta área.
+
+O contrato de `GET /org-units/{orgUnitId}/people` devolve `{ data, orgUnit }`
+numa requisição só: a tela precisa do nome da unidade no `<h1>` e da lista, e
+juntar os dois aqui dá **um** 404 em vez de dois caminhos de erro, sem
+depender de carregar a árvore inteira para descobrir o nome. `GET /people` tem
+limite **duro** de 10, sem parâmetro que o levante; `q` ausente, vazio ou só
+com espaços devolve lista vazia sem consultar nada; e `hasMore` sai de `take +
+1` (lê 11, responde 10), que custa zero consulta a mais e evita contar a
+instância inteira a cada tecla. Os dois `404` têm mensagens **diferentes** de
+propósito: o da unidade é o opaco de sempre, "Unidade não encontrada.", que
+não distingue id inexistente de unidade de outra organização; o da pessoa,
+"Pessoa não encontrada.", não precisa ser opaco, porque o id só pode ter vindo
+de uma busca que já é restrita à própria organização.
+
+**Lotação não dá acesso a documento**: estar lotado numa unidade não abre nem
+um documento a ninguém — o acesso continua vindo só do caminho único da §3, e
+chegará com espaço de unidade e compartilhamento com unidade. O teste
+estrutural de fronteira da §3 cobre os módulos novos **sem uma linha nova**:
+eles não tocam `Document` nem `resolveAccess`.
+
 ## 5. Editor e colaboração
 
 BlockNote (blocos com id estável, sobre ProseMirror/Tiptap) com Yjs. O servidor

@@ -90,10 +90,15 @@ test('an admin creates a child unit using only the keyboard', async ({
   await expect(salaInfantilItem).not.toBeVisible();
   await expect(atendimentoItem).toBeFocused();
 
-  // 4. From the item, Tab reaches the actions of the active node.
+  // 4. From the item, Tab reaches the actions of the active node. "Pessoas" is
+  // the first of them since slice 010, so creating is one Tab further.
   const createButton = page.getByRole('button', {
     name: 'Criar unidade filha em Atendimento ao Público',
   });
+  await page.keyboard.press('Tab');
+  await expect(
+    page.getByRole('link', { name: 'Pessoas de Atendimento ao Público' }),
+  ).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(createButton).toBeFocused();
 
