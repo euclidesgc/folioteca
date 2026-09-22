@@ -12,7 +12,7 @@
 | 064 | org-units-view | (administração) ver a árvore de unidades da organização numa página "Estrutura", navegável por teclado, numa área "Administração" que só a administração enxerga | 008 org-units-tree | 003 | done |
 | 065 | org-units-create-rename | (administração) criar unidades filhas e renomear unidades, inclusive a raiz (que renomeia a organização) | 008 org-units-tree | 064 | done |
 | 066 | org-units-delete | (administração) apagar unidade sem filhas, com confirmação; a raiz nunca | 008 org-units-tree | 065 | in-review |
-| 085 | invitations-create | (administração) convidar um e-mail e copiar o link gerado | 009 invitations | 003 | in-progress |
+| 085 | invitations-create | (administração) convidar um e-mail e copiar o link gerado | 009 invitations | 003 | in-review |
 | 086 | invitations-accept | abrir o link do convite, criar nome e senha e entrar na aplicação | 009 invitations | 085 | planned |
 | 087 | invitations-revoke | (administração) revogar um convite pendente, e o link para de funcionar na hora | 009 invitations | 086, 088 | planned |
 | 088 | invitations-list | (administração) ver os convites pendentes com e-mail, criado em e expira em | 009 invitations | 085 | planned |
@@ -89,3 +89,9 @@
 | 082 | mock-space-entity-filtering | ter a API simulada filtrando documentos por espaço em vez de repetir a convenção `space-${dono}` em três lugares | dívida 066 | | planned |
 | 083 | axe-dialog-error-state | poder executar a auditoria de acessibilidade (axe) no diálogo de confirmação em estado de erro (409), não só no inicial | dívida 066 | | planned |
 | 084 | delete-race-condition-integration-test | ter teste de integração concorrente para a corrida de exclusão (hoje só a unitária do `P2003`), com duas pessoas apagando a mesma unidade | dívida 066 | | planned |
+| 090 | shared-hash-token | ter um único `hashToken` (sha256 do token) num lugar comum, hoje duplicado entre o privado de apps/api/src/auth/session.service.ts e o módulo de convites | dívida 085 | | planned |
+| 091 | invitations-partial-unique-index | ter o índice único de convites como índice parcial, porque hoje é sobre `lower(email)` sem predicado e não distingue convite pendente de convite já usado ou revogado | dívida 085 | 086, 087 | planned |
+| 092 | shared-email-schema | ter um único schema de e-mail usado por instalação e convites, hoje duplicado: se as normalizações divergirem, a recusa de e-mail já cadastrado para de funcionar | dívida 085 | | planned |
+| 093 | conflict-error-message-propagation | ver a mensagem que o servidor mandou no conflito, porque o `ConflictError` do cliente HTTP não carrega a mensagem do corpo e a tela repete o literal local; usar o literal só como reserva | dívida 085 | | planned |
+| 094 | invitations-create-rate-limit | ter o endpoint que cria convite protegido por limite de taxa (primeiro endpoint que gera segredo sob demanda) | dívida 085 | | planned |
+| 095 | expired-invitations-cleanup | ter os convites vencidos removidos por rotina de limpeza, hoje inexistente | dívida 085 | | planned |
