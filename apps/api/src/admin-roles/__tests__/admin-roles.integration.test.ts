@@ -11,7 +11,10 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { createPersonWithSession } from '../../../test/create-person';
 import { httpRequest } from '../../../test/http';
 import { resetDatabase } from '../../../test/reset-database';
-import { AdminRolesService } from '../admin-roles.service';
+import {
+  AdminRolesService,
+  LAST_ADMIN_MESSAGE,
+} from '../admin-roles.service';
 
 const EMAIL = 'maria@exemplo.org';
 
@@ -384,4 +387,207 @@ test('the promoted session gets 200 on the next request without logging in again
   const after = await getAdmins(cookie);
   expect(after.status).toBe(200);
   expect(bodyOf(after).data.map((admin) => admin.id)).toContain(person.id);
+});
+
+/** `DELETE /api/admins/:personId`, com o cabeçalho de CSRF. */
+function demote(personId: string, cookie?: string): Promise<Response> {
+  const request = httpRequest(app)
+    .delete(`/api/admins/${personId}`)
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return cookie === undefined ? request : request.set('Cookie', cookie);
+}
+
+async function isAdminOf(personId: string): Promise<boolean> {
+  const stored = await prisma.person.findUniqueOrThrow({
+    where: { id: personId },
+    select: { isAdmin: true },
+  });
+
+  return stored.isAdmin;
+}
+
+test('an admin demotes another admin and gets 200 with the person', async () => {
+  const alvaroId = await createPerson('Álvaro', 'alvaro@exemplo.org', true);
+
+  const response = await demote(alvaroId, adminCookie);
+
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual({
+    data: { id: alvaroId, name: 'Álvaro', email: 'alvaro@exemplo.org' },
+  });
+  expect(await isAdminOf(alvaroId)).toBe(false);
+
+  const list = await getAdmins(adminCookie);
+  expect(list.status).toBe(200);
+  expect(bodyOf(list).data.map((person) => person.id)).toEqual([
+    adminPerson.id,
+  ]);
+});
+
+test('demoting twice answers 200 again with the same body', async () => {
+  const alvaroId = await createPerson('Álvaro', 'alvaro@exemplo.org', true);
+
+  const first = await demote(alvaroId, adminCookie);
+  const second = await demote(alvaroId, adminCookie);
+
+  expect(first.status).toBe(200);
+  expect(second.status).toBe(200);
+  expect(second.body).toEqual(first.body);
+
+  const list = await getAdmins(adminCookie);
+  expect(list.status).toBe(200);
+  expect(bodyOf(list).data.map((person) => person.id)).not.toContain(alvaroId);
+});
+
+test('demoting someone who never was an admin answers 200 even with a single admin left', async () => {
+  const joaoId = await createPerson('João Souza', 'joao@exemplo.org', false);
+
+  const response = await demote(joaoId, adminCookie);
+
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual({
+    data: { id: joaoId, name: 'João Souza', email: 'joao@exemplo.org' },
+  });
+  expect(await isAdminOf(adminPerson.id)).toBe(true);
+});
+
+test('the last admin answers 409 with LAST_ADMIN_MESSAGE and stays an admin', async () => {
+  const response = await demote(adminPerson.id, adminCookie);
+
+  expect(response.status).toBe(409);
+  expect((response.body as { message: string }).message).toBe(
+    LAST_ADMIN_MESSAGE,
+  );
+  expect(await isAdminOf(adminPerson.id)).toBe(true);
+});
+
+test('two simultaneous demotions leave exactly one admin', async () => {
+  const alvaroId = await createPerson('Álvaro', 'alvaro@exemplo.org', true);
+
+  // As duas promessas começam antes de qualquer `await`: é a corrida real.
+  const first = demote(adminPerson.id, adminCookie);
+  const second = demote(alvaroId, adminCookie);
+
+  const responses = await Promise.all([first, second]);
+  const statuses = responses.map((response) => response.status).sort();
+
+  expect(statuses).toEqual([200, 409]);
+
+  const refused = responses.find((response) => response.status === 409);
+  expect((refused?.body as { message: string }).message).toBe(
+    LAST_ADMIN_MESSAGE,
+  );
+
+  const remaining = await prisma.person.count({
+    where: { organizationId: adminPerson.organizationId, isAdmin: true },
+  });
+  expect(remaining).toBe(1);
+});
+
+test('an admin demotes themselves and the same session gets 403 on the next request', async () => {
+  await createPerson('Álvaro', 'alvaro@exemplo.org', true);
+
+  const before = await getAdmins(adminCookie);
+  expect(before.status).toBe(200);
+
+  const response = await demote(adminPerson.id, adminCookie);
+  expect(response.status).toBe(200);
+
+  const after = await getAdmins(adminCookie);
+  expect(after.status).toBe(403);
+  expect((after.body as { message: string }).message).toBe(FORBIDDEN_MESSAGE);
+});
+
+/**
+ * A organização é única por instância, então o caso de outra organização não
+ * chega a existir por HTTP: o 404 é provado com um id que não é desta
+ * organização, e o escopo da escrita é provado no serviço, contra o mesmo
+ * Postgres, com outro `organizationId`.
+ */
+test('a person of another organization answers 404 and stays an admin', async () => {
+  const alvaroId = await createPerson('Álvaro', 'alvaro@exemplo.org', true);
+
+  const response = await demote(randomUUID(), adminCookie);
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual(PERSON_NOT_FOUND_BODY);
+
+  const error = await adminRoles.demote(randomUUID(), alvaroId).then(
+    () => undefined,
+    (thrown: unknown) => thrown,
+  );
+
+  expect((error as Error).message).toBe(PERSON_NOT_FOUND_BODY.message);
+  expect(await isAdminOf(alvaroId)).toBe(true);
+});
+
+test('an unknown id and a malformed id answer the very same 404 on demote', async () => {
+  const unknown = await demote(randomUUID(), adminCookie);
+  const malformed = await demote(MALFORMED_ID, adminCookie);
+
+  expect(unknown.status).toBe(404);
+  expect(malformed.status).toBe(unknown.status);
+  expect(unknown.body).toEqual(PERSON_NOT_FOUND_BODY);
+  expect(malformed.body).toEqual(unknown.body);
+});
+
+test('a non-admin answers 403 on demote', async () => {
+  const { cookie } = await createPersonWithSession(app, {
+    name: 'João Souza',
+    email: 'joao@exemplo.org',
+  });
+  const targetId = await createPerson('Álvaro', 'alvaro@exemplo.org', true);
+
+  const response = await demote(targetId, cookie);
+
+  expect(response.status).toBe(403);
+  expect((response.body as { message: string }).message).toBe(
+    FORBIDDEN_MESSAGE,
+  );
+  expect(await isAdminOf(targetId)).toBe(true);
+});
+
+test('an anonymous request answers 401 on demote', async () => {
+  const targetId = await createPerson('Álvaro', 'alvaro@exemplo.org', true);
+
+  const response = await demote(targetId);
+
+  expect(response.status).toBe(401);
+  expect((response.body as { message: string }).message).toBe(
+    'Sessão não encontrada.',
+  );
+});
+
+test('a request without the CSRF header is refused before the 401 on demote', async () => {
+  const targetId = await createPerson('Álvaro', 'alvaro@exemplo.org', true);
+
+  const response = await httpRequest(app).delete(`/api/admins/${targetId}`);
+
+  expect(response.status).toBe(403);
+  expect(response.body).toEqual({ message: 'Requisição recusada.' });
+});
+
+test('the 200 body of a demotion has exactly the id, name and email keys', async () => {
+  const alvaroId = await createPerson('Álvaro', 'alvaro@exemplo.org', true);
+
+  const response = await demote(alvaroId, adminCookie);
+
+  expect(response.status).toBe(200);
+  expect(Object.keys((response.body as AdminBody).data).sort()).toEqual([
+    'email',
+    'id',
+    'name',
+  ]);
+
+  const serialized = JSON.stringify(response.body);
+  expect(serialized).not.toContain('passwordHash');
+  expect(serialized).not.toContain('isAdmin');
+
+  const stored = await prisma.person.findUniqueOrThrow({
+    where: { id: alvaroId },
+    select: { passwordHash: true },
+  });
+  expect(stored.passwordHash.length).toBeGreaterThan(0);
+  expect(serialized).not.toContain(stored.passwordHash);
 });

@@ -325,7 +325,11 @@ export interface paths {
          */
         put: operations["promoteAdmin"];
         post?: never;
-        delete?: never;
+        /**
+         * Tira o papel de administração de uma pessoa
+         * @description Tira o papel de administração da pessoa, só para a administração. A pessoa é sempre procurada **dentro da organização de quem chama**, nunca por id solto. Rebaixar quem já é membro responde 200, sem erro e sem escrita: tirar o papel é idempotente. A instância **nunca** fica sem nenhuma administração — tirar o papel da última administração é recusado com 409, e a pessoa continua administrando. Pessoa inexistente, de outra organização ou com id malformado respondem o **mesmo** 404, para a rota não contar quem existe na instância. A requisição não tem corpo, e as checagens acontecem nesta ordem: CSRF (guarda global), 401, 403, 404 e por fim 409.
+         */
+        delete: operations["demoteAdmin"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1835,6 +1839,64 @@ export interface operations {
             };
             /** @description Pessoa não encontrada (o `personId` não existe na organização de quem chama ou está malformado). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    demoteAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A pessoa deixou de administrar a instância. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Pessoa não encontrada (o `personId` não existe na organização de quem chama ou está malformado). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description É a única administração da instância: o papel não pode ser retirado. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

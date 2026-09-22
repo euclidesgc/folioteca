@@ -179,3 +179,96 @@ test('PUT admins personId answers the documented 404', async () => {
     body: response.body,
   });
 });
+
+const DEMOTE_CONTRACT_PATH = '/admins/{personId}';
+
+/** `DELETE /api/admins/:personId`, com o cabeçalho de CSRF. */
+function demoteAdmin(personId: string, cookie?: string): Promise<Response> {
+  const request = httpRequest(app)
+    .delete(`/api/admins/${personId}`)
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return cookie === undefined ? request : request.set('Cookie', cookie);
+}
+
+test('DELETE admins personId answers the documented 200', async () => {
+  const { person } = await createPersonWithSession(app, {
+    name: 'João Souza',
+    email: 'joao@exemplo.org',
+    isAdmin: true,
+  });
+
+  const response = await demoteAdmin(person.id, adminCookie);
+
+  expect(response.status).toBe(200);
+  await expectMatchesContract({
+    path: DEMOTE_CONTRACT_PATH,
+    method: 'delete',
+    status: 200,
+    body: response.body,
+  });
+});
+
+test('DELETE admins personId answers the documented 401', async () => {
+  const { person } = await createPersonWithSession(app, {
+    name: 'João Souza',
+    email: 'joao@exemplo.org',
+    isAdmin: true,
+  });
+
+  const response = await demoteAdmin(person.id);
+
+  expect(response.status).toBe(401);
+  await expectMatchesContract({
+    path: DEMOTE_CONTRACT_PATH,
+    method: 'delete',
+    status: 401,
+    body: response.body,
+  });
+});
+
+test('DELETE admins personId answers the documented 403', async () => {
+  const { person, cookie } = await createPersonWithSession(app, {
+    name: 'João Souza',
+    email: 'joao@exemplo.org',
+  });
+
+  const response = await demoteAdmin(person.id, cookie);
+
+  expect(response.status).toBe(403);
+  await expectMatchesContract({
+    path: DEMOTE_CONTRACT_PATH,
+    method: 'delete',
+    status: 403,
+    body: response.body,
+  });
+});
+
+test('DELETE admins personId answers the documented 404', async () => {
+  const response = await demoteAdmin(randomUUID(), adminCookie);
+
+  expect(response.status).toBe(404);
+  await expectMatchesContract({
+    path: DEMOTE_CONTRACT_PATH,
+    method: 'delete',
+    status: 404,
+    body: response.body,
+  });
+});
+
+test('DELETE admins personId answers the documented 409', async () => {
+  const admin = await prisma.person.findFirstOrThrow({
+    where: { email: EMAIL },
+    select: { id: true },
+  });
+
+  const response = await demoteAdmin(admin.id, adminCookie);
+
+  expect(response.status).toBe(409);
+  await expectMatchesContract({
+    path: DEMOTE_CONTRACT_PATH,
+    method: 'delete',
+    status: 409,
+    body: response.body,
+  });
+});

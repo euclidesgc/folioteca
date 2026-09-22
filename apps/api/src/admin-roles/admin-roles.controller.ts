@@ -1,4 +1,11 @@
-import { Controller, Get, Param, Put, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
 import type { components } from '@folioteca/api-contract';
 
 import { AdminGuard } from '../auth/admin.guard';
@@ -34,5 +41,13 @@ export class AdminRolesController {
     @Param('personId') personId: string,
   ): Promise<AdminResponse> {
     return this.adminRoles.promote(person.organizationId, personId);
+  }
+
+  @Delete(':personId')
+  async demoteAdmin(
+    @CurrentPerson() person: PersonWithOrganization,
+    @Param('personId') personId: string,
+  ): Promise<AdminResponse> {
+    return this.adminRoles.demote(person.organizationId, personId);
   }
 }

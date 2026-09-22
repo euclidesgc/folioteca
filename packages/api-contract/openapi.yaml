@@ -914,6 +914,63 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+    delete:
+      operationId: demoteAdmin
+      tags:
+        - admins
+      summary: Tira o papel de administração de uma pessoa
+      description: >-
+        Tira o papel de administração da pessoa, só para a administração. A
+        pessoa é sempre procurada **dentro da organização de quem chama**,
+        nunca por id solto. Rebaixar quem já é membro responde 200, sem erro e
+        sem escrita: tirar o papel é idempotente. A instância **nunca** fica
+        sem nenhuma administração — tirar o papel da última administração é
+        recusado com 409, e a pessoa continua administrando. Pessoa
+        inexistente, de outra organização ou com id malformado respondem o
+        **mesmo** 404, para a rota não contar quem existe na instância. A
+        requisição não tem corpo, e as checagens acontecem nesta ordem: CSRF
+        (guarda global), 401, 403, 404 e por fim 409.
+      parameters:
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A pessoa deixou de administrar a instância.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            Pessoa não encontrada (o `personId` não existe na organização de
+            quem chama ou está malformado).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: >-
+            É a única administração da instância: o papel não pode ser
+            retirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /invitations:
     post:
       operationId: createInvitation
