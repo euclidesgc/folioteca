@@ -510,6 +510,30 @@ pronto é padronizar o nome do parâmetro nos caminhos de mesma hierarquia — h
 não há nenhum par nessa situação, e as rotas terminam em segmentos literais
 distintos (`/accept`, `/revoke`), que o Nest também não confunde.
 
+**Entrega `admins-list` (fatia 011)**: `GET /admins` é um **recurso próprio**,
+com tag própria (`admins`) no contrato — é dele que as fatias 114 e 115 penduram
+`PUT` e `DELETE /admins/{personId}`. `SessionGuard` + `AdminGuard` ficam **na
+classe** do `AdminRolesController`, e nenhum método traz `@UseGuards`, para que
+a escrita das próximas fatias herde a regra sem ninguém precisar lembrar dela; o
+`organizationId` vem sempre da sessão (`@CurrentPerson()`), nunca da rota nem da
+query. O corpo tem `id`, `name` e `email` **e nada mais**, garantido por um
+`select` explícito do Prisma: `Person` tem `passwordHash`, e sem o `select` ele
+iria junto. A lista vem **inteira**, sem paginação e sem limite, e é ordenada
+**em memória** com um colador pt-BR e desempate por `id`, pela mesma razão da
+fatia 010: a collation do Postgres varia por instância, e sob `C` os nomes
+acentuados iriam para o fim. **Não há `count` no corpo** — a contagem que a
+tela mostra é `data.length`, porque duas fontes para o mesmo número podem
+discordar. A identidade de caminho foi conferida contra o YAML inteiro:
+`/admins` é um primeiro segmento inédito, e por isso não se escolheu
+`/people/admins`, que dependeria da ordem de declaração no Nest para o literal
+não ser casado por um futuro `/people/{personId}`. **Nenhuma migration** nesta
+fatia: `Person.isAdmin` já existia, e nenhum índice foi criado. Fica o registro
+sobre mudança de papel: o `isAdmin` é relido do banco a cada pedido, o que já
+basta para o `AdminGuard` (promoção e rebaixamento valem na requisição
+seguinte), mas o front **não** percebe a mudança sem recarregar, porque
+`getUserQueryOptions` usa `staleTime: Infinity` — resolver isso é assunto da
+fatia **114**.
+
 ## 7. Testes
 
 Vitest em tudo. Na API, integração contra Postgres real (`docker compose`,
