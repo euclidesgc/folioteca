@@ -13,7 +13,7 @@
 | 065 | org-units-create-rename | (administração) criar unidades filhas e renomear unidades, inclusive a raiz (que renomeia a organização) | 008 org-units-tree | 064 | done |
 | 066 | org-units-delete | (administração) apagar unidade sem filhas, com confirmação; a raiz nunca | 008 org-units-tree | 065 | in-review |
 | 085 | invitations-create | (administração) convidar um e-mail e copiar o link gerado | 009 invitations | 003 | in-review |
-| 086 | invitations-accept | abrir o link do convite, criar nome e senha e entrar na aplicação | 009 invitations | 085 | in-progress |
+| 086 | invitations-accept | abrir o link do convite, criar nome e senha e entrar na aplicação | 009 invitations | 085 | in-review |
 | 087 | invitations-revoke | (administração) revogar um convite pendente, e o link para de funcionar na hora | 009 invitations | 086, 088 | planned |
 | 088 | invitations-list | (administração) ver os convites pendentes com e-mail, criado em e expira em | 009 invitations | 085 | planned |
 | 089 | invitations-email | receber o convite por e-mail em vez de a administração copiar o link à mão (exige SMTP no projeto) | 009 invitations | 086 | planned |
@@ -89,9 +89,12 @@
 | 082 | mock-space-entity-filtering | ter a API simulada filtrando documentos por espaço em vez de repetir a convenção `space-${dono}` em três lugares | dívida 066 | | planned |
 | 083 | axe-dialog-error-state | poder executar a auditoria de acessibilidade (axe) no diálogo de confirmação em estado de erro (409), não só no inicial | dívida 066 | | planned |
 | 084 | delete-race-condition-integration-test | ter teste de integração concorrente para a corrida de exclusão (hoje só a unitária do `P2003`), com duas pessoas apagando a mesma unidade | dívida 066 | | planned |
-| 090 | shared-hash-token | ter um único `hashToken` (sha256 do token) num lugar comum, hoje duplicado entre o privado de apps/api/src/auth/session.service.ts e o módulo de convites | dívida 085 | | planned |
-| 091 | invitations-partial-unique-index | ter o índice único de convites como índice parcial, porque hoje é sobre `lower(email)` sem predicado e não distingue convite pendente de convite já usado ou revogado | dívida 085 | 086, 087 | planned |
+| 090 | shared-hash-token | ter um único `hashToken` (sha256 do token) num lugar comum, hoje duplicado entre o privado de apps/api/src/auth/session.service.ts e o módulo de convites | dívida 085 | | done |
+| 091 | invitations-partial-unique-index | ter o índice único de convites distinguindo também o convite revogado: hoje ele já é parcial sobre `lower(email)` com `WHERE "acceptedAt" IS NULL` (migration 0010) e falta só incluir `revokedAt` no predicado, quando a fatia 087 criar a revogação | dívida 085 | 087 | planned |
 | 092 | shared-email-schema | ter um único schema de e-mail usado por instalação e convites, hoje duplicado: se as normalizações divergirem, a recusa de e-mail já cadastrado para de funcionar | dívida 085 | | planned |
 | 093 | conflict-error-message-propagation | ver a mensagem que o servidor mandou no conflito, porque o `ConflictError` do cliente HTTP não carrega a mensagem do corpo e a tela repete o literal local; usar o literal só como reserva | dívida 085 | | planned |
 | 094 | invitations-create-rate-limit | ter o endpoint que cria convite protegido por limite de taxa (primeiro endpoint que gera segredo sob demanda) | dívida 085 | | planned |
-| 095 | expired-invitations-cleanup | ter os convites vencidos removidos por rotina de limpeza, hoje inexistente | dívida 085 | | planned |
+| 095 | expired-invitations-cleanup | ter os convites vencidos e também os já aceitos removidos por rotina de limpeza, hoje inexistente: sem ela a tabela de convites só acumula linhas mortas | dívida 085 | | planned |
+| 096 | invitations-accept-e2e-real-api | ter a jornada do convite provada de ponta a ponta contra a API real, hoje só contra a API simulada, que precisa gerar o mesmo token a cada carga de página porque o estado do MSW não atravessa contextos do navegador | dívida 086 | | planned |
+| 097 | mock-db-signed-in-person | ter os testes antigos do banco falso da API simulada revistos, porque `installation.person` deixou de ser sinônimo de "a pessoa da sessão" (agora existe `signedInPersonId`) e quem ainda assume isso pode passar sem provar nada | dívida 086 | | planned |
+| 098 | invitations-accept-timing | medir e, se for o caso, igualar o tempo de resposta do aceite de convite, hoje diferente entre recusa (404, sem hash de senha) e sucesso (201, com argon2id); não é oráculo de e-mail, mas vale acompanhar se o endpoint virar alvo | dívida 086 | | planned |
