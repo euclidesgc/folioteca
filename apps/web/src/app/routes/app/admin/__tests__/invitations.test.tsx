@@ -8,9 +8,9 @@ import { createRoutes } from '@/app/router';
 import { env } from '@/config/env';
 import { paths } from '@/config/paths';
 import { queryConfig } from '@/lib/react-query';
-import { seedInstalled } from '@/testing/mocks/db';
+import { addInvitation, seedInstalled } from '@/testing/mocks/db';
 import { server } from '@/testing/mocks/server';
-import { screen, userEvent, waitFor } from '@/testing/test-utils';
+import { screen, userEvent, waitFor, within } from '@/testing/test-utils';
 
 // Lazy routes resolve after their chunk loads: give those waits an explicit
 // budget instead of the implicit default.
@@ -154,4 +154,130 @@ test('creating a second invitation replaces the link block', async () => {
     }),
   ).not.toBeInTheDocument();
   expect(screen.getAllByLabelText('Link do convite')).toHaveLength(1);
+});
+
+// Two pending invitations in the fake database, with times far enough apart
+// for "newest first" to be unambiguous. The dates are built from local
+// components: the assertions do not depend on the time zone of the machine.
+const seedTwoInvitations = (): void => {
+  const older = addInvitation({ email: 'antigo.convidado@exemplo.com.br' });
+  older.createdAt = new Date(2026, 8, 18, 8, 0).toISOString();
+  older.expiresAt = new Date(2126, 8, 25, 8, 0).toISOString();
+
+  const newer = addInvitation({ email: 'recente.convidado@exemplo.com.br' });
+  newer.createdAt = new Date(2026, 8, 20, 8, 0).toISOString();
+  newer.expiresAt = new Date(2126, 8, 27, 8, 0).toISOString();
+};
+
+const pendingItems = (): (string | null)[] =>
+  within(screen.getByRole('list', { name: 'Convites pendentes' }))
+    .getAllByRole('listitem')
+    .map((item) => item.textContent);
+
+test('an admin sees the two seeded invitations, newest first', async () => {
+  seedTwoInvitations();
+
+  renderRoutes(paths.admin.invitations.getHref());
+
+  expect(
+    await screen.findByRole(
+      'heading',
+      { level: 2, name: 'Convites pendentes' },
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
+  await screen.findByRole(
+    'list',
+    { name: 'Convites pendentes' },
+    LAZY_TIMEOUT,
+  );
+
+  expect(pendingItems()).toEqual([
+    expect.stringContaining('recente.convidado@exemplo.com.br'),
+    expect.stringContaining('antigo.convidado@exemplo.com.br'),
+  ]);
+});
+
+test('creating an invitation puts the new one on top without a reload', async () => {
+  const user = userEvent.setup();
+  seedTwoInvitations();
+
+  renderRoutes(paths.admin.invitations.getHref());
+
+  const field = await screen.findByLabelText('E-mail', {}, LAZY_TIMEOUT);
+  await user.type(field, 'novo.convidado@exemplo.com.br');
+  await user.click(screen.getByRole('button', { name: 'Criar convite' }));
+
+  await screen.findByText(
+    'novo.convidado@exemplo.com.br',
+    {},
+    LAZY_TIMEOUT,
+  );
+  await waitFor(
+    () =>
+      expect(pendingItems()).toEqual([
+        expect.stringContaining('novo.convidado@exemplo.com.br'),
+        expect.stringContaining('recente.convidado@exemplo.com.br'),
+        expect.stringContaining('antigo.convidado@exemplo.com.br'),
+      ]),
+    LAZY_TIMEOUT,
+  );
+});
+
+test('a pending invitation for the same e-mail is not duplicated', async () => {
+  const user = userEvent.setup();
+  seedTwoInvitations();
+
+  renderRoutes(paths.admin.invitations.getHref());
+
+  const field = await screen.findByLabelText('E-mail', {}, LAZY_TIMEOUT);
+  await user.type(field, 'antigo.convidado@exemplo.com.br');
+  await user.click(screen.getByRole('button', { name: 'Criar convite' }));
+
+  // The server replaced the pending invitation of that address, so the
+  // reloaded list still has two items — the replaced one now on top.
+  await waitFor(
+    () =>
+      expect(pendingItems()).toEqual([
+        expect.stringContaining('antigo.convidado@exemplo.com.br'),
+        expect.stringContaining('recente.convidado@exemplo.com.br'),
+      ]),
+    LAZY_TIMEOUT,
+  );
+  expect(
+    within(
+      screen.getByRole('list', { name: 'Convites pendentes' }),
+    ).getAllByText('antigo.convidado@exemplo.com.br'),
+  ).toHaveLength(1);
+});
+
+test('a non-admin is sent home without requesting GET /invitations', async () => {
+  seedInstalled({ signedIn: true, isAdmin: false });
+
+  let listCalls = 0;
+  server.use(
+    http.get(`${env.API_URL}/invitations`, () => {
+      listCalls += 1;
+      return HttpResponse.json({ data: [] });
+    }),
+  );
+
+  const router = renderRoutes(paths.admin.invitations.getHref());
+
+  expect(
+    await screen.findByRole(
+      'heading',
+      { level: 1, name: 'Boas-vindas à Folioteca' },
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
+  await waitFor(
+    () => expect(router.state.location.pathname).toBe(paths.home.path),
+    LAZY_TIMEOUT,
+  );
+
+  expect(
+    screen.queryByRole('heading', { level: 2, name: 'Convites pendentes' }),
+  ).not.toBeInTheDocument();
+  expect(listCalls).toBe(0);
 });

@@ -15,6 +15,7 @@ import { devOverride, networkDelay, SESSION_COOKIE_NAME } from '../utils';
 // the aliases live where they are used.
 type CreatedInvitationResponse =
   components['schemas']['CreatedInvitationResponse'];
+type InvitationsResponse = components['schemas']['InvitationsResponse'];
 type InvitationPreviewResponse =
   components['schemas']['InvitationPreviewResponse'];
 type CurrentUserResponse = components['schemas']['CurrentUserResponse'];
@@ -41,13 +42,19 @@ const conflict = (): ReturnType<typeof HttpResponse.json> =>
 const invitationUnavailable = (): ReturnType<typeof HttpResponse.json> =>
   HttpResponse.json({ message: 'Convite indisponível.' }, { status: 404 });
 
-// The invitation a public route may answer about: the four refusals of the
-// server, all in one place (revoking arrives in slice 087).
+// What "pending" means, the same two rules the server applies: not accepted
+// and not expired yet. Slice 087 adds `revokedAt` here.
+const isPending = (invitation: MockInvitation): boolean =>
+  invitation.acceptedAt === null &&
+  new Date(invitation.expiresAt).getTime() > Date.now();
+
+// The invitation a public route may answer about: the refusals of the server,
+// all in one place. It keeps answering `undefined` for a refused link, which
+// is the contract of the public 404, and is never used as the list filter.
 const findAvailableInvitation = (token: string): MockInvitation | undefined => {
   const invitation = getDb().invitations.find((item) => item.token === token);
   if (!invitation) return undefined;
-  if (new Date(invitation.expiresAt).getTime() <= Date.now()) return undefined;
-  if (invitation.acceptedAt !== null) return undefined;
+  if (!isPending(invitation)) return undefined;
 
   return invitation;
 };
@@ -78,6 +85,42 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const normalizeEmail = (email: string): string => email.trim().toLowerCase();
 
 export const invitationsHandlers = [
+  // Declared before the `/invitations/:token` handlers below: the two paths do
+  // not collide, and the order makes the reading obvious.
+  http.get(`${env.API_URL}/invitations`, async ({ cookies }) => {
+    await networkDelay();
+    const forced = await devOverride('invitations');
+    if (forced) return forced;
+
+    if (!cookies[SESSION_COOKIE_NAME]) return unauthenticated();
+
+    const { installation, invitations } = getDb();
+    if (!installation) return unauthenticated();
+    if (!installation.person.isAdmin) return forbidden();
+
+    const body: InvitationsResponse = {
+      data: [...invitations]
+        .filter(isPending)
+        // Newest first, over a copy of the array: sorting the state itself
+        // would reorder the fake database behind every other handler.
+        .sort(
+          (first, second) =>
+            new Date(second.createdAt).getTime() -
+            new Date(first.createdAt).getTime(),
+        )
+        // Assembled field by field, never with `...invitation`: that is what
+        // keeps the token (kept in the clear in this fake database) from
+        // leaking into the body by accident.
+        .map((invitation) => ({
+          id: invitation.id,
+          email: invitation.email,
+          createdAt: invitation.createdAt,
+          expiresAt: invitation.expiresAt,
+        })),
+    };
+    return HttpResponse.json(body);
+  }),
+
   http.post(`${env.API_URL}/invitations`, async ({ request, cookies }) => {
     await networkDelay();
     const forced = await devOverride('invitations');

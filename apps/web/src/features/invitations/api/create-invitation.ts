@@ -1,7 +1,8 @@
 import type { components } from '@folioteca/api-contract';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 
+import { getInvitationsQueryOptions } from '@/features/invitations/api/get-invitations';
 import { api } from '@/lib/api-client';
 import type { MutationConfig } from '@/lib/react-query';
 
@@ -38,9 +39,27 @@ type UseCreateInvitationOptions = {
   mutationConfig?: MutationConfig<typeof createInvitation>;
 };
 
-// No invalidation and no query at all: this slice has no list of invitations.
-// Slice 088 adds the invalidateQueries together with the GET /invitations.
+// The list is reloaded instead of written into the cache: inviting an address
+// that already had a pending invitation makes the server *replace* it, and the
+// client does not know which one disappeared. Only a fresh load matches the
+// database.
 export const useCreateInvitation = ({
   mutationConfig,
-}: UseCreateInvitationOptions = {}) =>
-  useMutation({ ...mutationConfig, mutationFn: createInvitation });
+}: UseCreateInvitationOptions = {}) => {
+  const queryClient = useQueryClient();
+  const { onSuccess, ...restConfig } = mutationConfig ?? {};
+
+  return useMutation({
+    ...restConfig,
+    mutationFn: createInvitation,
+    // Awaited on purpose: the mutation stays pending until the new list
+    // arrived, so whoever reads the screen already finds the new invitation.
+    onSuccess: async (response, ...args) => {
+      await queryClient.invalidateQueries({
+        queryKey: getInvitationsQueryOptions().queryKey,
+      });
+
+      onSuccess?.(response, ...args);
+    },
+  });
+};

@@ -7,6 +7,7 @@ import { paths } from '@/config/paths';
 import type { CreatedInvitation } from '@/features/invitations/api/create-invitation';
 import { CreateInvitationForm } from '@/features/invitations/components/create-invitation-form';
 import { InvitationLink } from '@/features/invitations/components/invitation-link';
+import { InvitationsList } from '@/features/invitations/components/invitations-list';
 import { buildInvitationLink } from '@/features/invitations/utils/build-invitation-link';
 import { Authorization, ROLES } from '@/lib/authorization';
 
@@ -42,6 +43,14 @@ export function Component(): React.JSX.Element {
             })}
           />
         ) : null}
+
+        <h2 className="mt-8 text-lg font-semibold">Convites pendentes</h2>
+        <p className="mt-2 text-gray-600">
+          O link de cada convite aparece uma única vez, quando ele é criado, e
+          não pode ser mostrado de novo. Para gerar um link novo, convide o
+          mesmo e-mail outra vez.
+        </p>
+        <InvitationsList />
       </ContentLayout>
     </Authorization>
   );

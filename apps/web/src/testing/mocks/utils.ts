@@ -44,7 +44,10 @@ export const networkDelay = (): Promise<void> =>
 //     invitation link: the seeded invitation is the first of the page load, so
 //     its token is 'mock-invitation-token-1' and the link is
 //     /invitations/mock-invitation-token-1 (the link of an invitation created
-//     in the browser is shown once, on the invitations screen)
+//     in the browser is shown once, on the invitations screen); the seeded
+//     invitation also fills the pending list of that screen
+//     (localStorage.setItem('mock-error', 'invitations') shows its error state
+//     and localStorage.setItem('mock-role', 'member') its 403)
 // Remove the key (or run localStorage.clear()) to go back to normal.
 const devKey = (key: string): string | null => {
   if (import.meta.env.MODE === 'test' || typeof window === 'undefined') {
