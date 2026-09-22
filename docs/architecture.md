@@ -439,6 +439,13 @@ as migrations atuais (`0001_init` … `0007_org_unit_name_uniqueness`). O
 (P3005/P3009); por isso a API aponta para um Postgres novo, e o antigo fica
 intocado até o dono decidir apagá-lo.
 
+O banco de hml é o `folioteca-db-hml-v2` (uuid `uo0dk4urxmabrnpus2f05num`).
+Ele foi criado com `postgres:16-alpine`, que não traz o pgvector, e a
+migration `0001_init` faz `CREATE EXTENSION vector`: com essa imagem a subida
+da API falha. A troca de imagem não passou pelo MCP do Coolify e a criação de
+outro banco deu erro 500, então a imagem é trocada pelo dono no painel para
+`pgvector/pgvector:pg16` (o banco está vazio, nada se perde).
+
 ### Variáveis por app
 
 Só nomes; os valores ficam no painel do Coolify.
@@ -447,7 +454,7 @@ Só nomes; os valores ficam no painel do Coolify.
 
 | Variável | Situação em hml | O que fazer |
 |---|---|---|
-| `DATABASE_URL` | existe, aponta para o banco antigo | o dono troca pela URL interna do banco novo `folioteca-db-hml-v2` (obrigatória: sem ela a subida falha nomeando a variável) |
+| `DATABASE_URL` | existe, aponta para o banco antigo | o dono troca pela URL interna do `folioteca-db-hml-v2`, depois de trocar a imagem dele para `pgvector/pgvector:pg16` (obrigatória: sem ela a subida falha nomeando a variável) |
 | `PORT` | existe | manter 3000 (padrão) |
 | `NODE_ENV` | existe | `production` |
 | `INSTALL_CODE` | falta | o dono cria, com pelo menos 16 caracteres; sem ela a API sobe, mas a instalação fica bloqueada |
@@ -483,7 +490,8 @@ Executado pela orquestração depois do merge, fora das fases de código.
 
 1. Banco novo `folioteca-db-hml-v2` (uuid `uo0dk4urxmabrnpus2f05num`,
    `postgres:16-alpine`, banco e usuário `folioteca`) no ambiente de hml,
-   **não público**.
+   **não público**. A imagem não tem pgvector e a troca pelo MCP não
+   funcionou; passou para o dono (item 1 abaixo).
 2. Na API: healthcheck em `/api/health`, porta 3000, start period 30s (antes
    era `/health`, que dá 404 pelo prefixo global `api`); apelido de rede
    `folioteca-api-hml`.
@@ -498,15 +506,18 @@ dono.
 
 **Dono (painel)** — valores secretos e remoções:
 
-1. Na API, trocar `DATABASE_URL` pela URL interna de `folioteca-db-hml-v2`
+1. No `folioteca-db-hml-v2`, trocar a imagem para `pgvector/pgvector:pg16`
+   e reiniciá-lo. Está vazio, nada se perde. Sem isso a migration
+   `0001_init` (`CREATE EXTENSION vector`) reprova e a API não sobe.
+2. Na API, trocar `DATABASE_URL` pela URL interna de `folioteca-db-hml-v2`
    (com a senha dele).
-2. Na API, criar `INSTALL_CODE` com pelo menos 16 caracteres.
-3. Nas duas apps, ligar "Include Source Commit in Build" (em Advanced). Sem
+3. Na API, criar `INSTALL_CODE` com pelo menos 16 caracteres.
+4. Nas duas apps, ligar "Include Source Commit in Build" (em Advanced). Sem
    ela, `/api/health` devolve `commit: "unknown"` e não dá para saber qual
    commit está no ar.
-4. Apagar as variáveis que sobram (lista acima) nas duas apps.
-5. Se quiser, apagar o banco antigo `folioteca-db-hml`.
-6. `folioteca-site-hml` fica como está.
+5. Apagar as variáveis que sobram (lista acima) nas duas apps.
+6. Se quiser, apagar o banco antigo `folioteca-db-hml`.
+7. `folioteca-site-hml` fica como está.
 
 **Ponto a observar:** a API tem limite de memória de 192M no Coolify e o
 histórico mostra 4 reinícios por queda. Se o contêiner voltar a morrer por
