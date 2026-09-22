@@ -24,6 +24,9 @@ export const HAS_CHILDREN_MESSAGE =
 export const HAS_DOCUMENTS_MESSAGE =
   'O espaço desta unidade ainda tem documentos, inclusive na lixeira. Trate-os antes de apagar a unidade.';
 
+export const HAS_PEOPLE_MESSAGE =
+  'Ainda há pessoas lotadas nesta unidade. Tire a lotação delas antes de apagar a unidade.';
+
 export const CHANGED_MESSAGE =
   'A unidade mudou enquanto era apagada. Recarregue a estrutura e tente de novo.';
 
@@ -172,9 +175,13 @@ export class OrgUnitsService {
   /**
    * Apaga a unidade e o espaço `UNIT` dela na mesma transação. Uma consulta só
    * traz tudo o que a regra precisa; a recusa segue a ordem raiz → filhas →
-   * documentos. A contagem de documentos vai pela relação do espaço (a tabela
-   * `Document` é de outro módulo) e **não** filtra `trashedAt`: documento na
-   * lixeira também segura a unidade.
+   * documentos → pessoas. A contagem de documentos vai pela relação do espaço
+   * (a tabela `Document` é de outro módulo) e **não** filtra `trashedAt`:
+   * documento na lixeira também segura a unidade.
+   *
+   * A contagem de lotações existe porque a chave estrangeira da lotação é
+   * `RESTRICT`: sem ela, a recusa do banco chegaria como `P2003` e viraria o
+   * 409 de corrida, que manda recarregar e não resolve nada.
    */
   async remove(organizationId: string, orgUnitId: string): Promise<void> {
     if (!isUuid(orgUnitId)) {
@@ -188,7 +195,7 @@ export class OrgUnitsService {
           select: {
             id: true,
             parentId: true,
-            _count: { select: { children: true } },
+            _count: { select: { children: true, assignments: true } },
             space: { select: { id: true, _count: { select: { documents: true } } } },
           },
         });
@@ -207,6 +214,10 @@ export class OrgUnitsService {
 
         if (unit.space && unit.space._count.documents > 0) {
           throw new ConflictException(HAS_DOCUMENTS_MESSAGE);
+        }
+
+        if (unit._count.assignments > 0) {
+          throw new ConflictException(HAS_PEOPLE_MESSAGE);
         }
 
         if (unit.space) {

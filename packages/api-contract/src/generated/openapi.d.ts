@@ -227,6 +227,50 @@ export interface paths {
         patch: operations["updateOrgUnit"];
         trace?: never;
     };
+    "/org-units/{orgUnitId}/people": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista as pessoas lotadas na unidade
+         * @description Lista as pessoas lotadas na unidade, só para a administração, ordenada por nome com o colador pt-BR. A unidade vem no mesmo envelope (`orgUnit`) para a página ter o nome dela numa requisição só, sem depender da árvore inteira e sem uma segunda origem de "não encontrada". Unidade inexistente, de outra organização e com id malformado respondem exatamente o mesmo 404.
+         */
+        get: operations["getOrgUnitPeople"];
+        put?: never;
+        /**
+         * Lota uma pessoa na unidade
+         * @description Lota a pessoa na unidade, só para a administração. A raiz aceita lotação como qualquer outra unidade. Lotação repetida responde 409 ("Esta pessoa já está lotada nesta unidade."), vindo do índice do banco e sem consulta prévia, para que dois envios simultâneos gerem uma linha só. Unidade inexistente, de outra organização e com id malformado respondem exatamente o mesmo 404; pessoa inexistente, de outra organização e com id malformado respondem "Pessoa não encontrada.". As checagens acontecem nesta ordem: CSRF (guarda global), 401, 403, 404 da unidade, 400 do corpo, 404 da pessoa e por fim 409.
+         */
+        post: operations["assignPersonToOrgUnit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/people": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Busca pessoas da organização por nome ou e-mail
+         * @description Busca pessoas da organização de quem chama, por parte do nome ou do e-mail, sem diferenciar maiúsculas de minúsculas, só para a administração. O limite é duro, de 10 resultados, e não há parâmetro de limite na rota: `hasMore` avisa que há mais do que o mostrado. `q` ausente, vazio ou só com espaços devolve lista vazia, sem tocar o banco e sem erro — o campo de busca nasce vazio e volta a ficar vazio.
+         */
+        get: operations["searchPeople"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/invitations": {
         parameters: {
             query?: never;
@@ -417,6 +461,44 @@ export interface components {
         UpdateOrgUnitInput: {
             /** @description Novo nome da unidade, aparado e único entre as irmãs sem diferenciar maiúsculas de minúsculas. Na raiz, passa a ser também o nome da organização. */
             name: string;
+        };
+        AssignedPerson: {
+            /** @description Identificador da pessoa. */
+            id: string;
+            /** @description Nome da pessoa. */
+            name: string;
+            /** @description E-mail da pessoa; quem lê é sempre a administração, e é ele que distingue dois nomes iguais. */
+            email: string;
+        };
+        OrgUnitSummary: {
+            /** @description Identificador da unidade. */
+            id: string;
+            /** @description Nome da unidade. */
+            name: string;
+        };
+        AssignedPeopleResponse: {
+            data: components["schemas"]["AssignedPerson"][];
+            orgUnit: components["schemas"]["OrgUnitSummary"];
+        };
+        AssignedPersonResponse: {
+            data: components["schemas"]["AssignedPerson"];
+        };
+        AssignPersonRequest: {
+            /** @description Identificador da pessoa a lotar na unidade. */
+            personId: string;
+        };
+        PersonSummary: {
+            /** @description Identificador da pessoa. */
+            id: string;
+            /** @description Nome da pessoa. */
+            name: string;
+            /** @description E-mail da pessoa. */
+            email: string;
+        };
+        PeopleResponse: {
+            data: components["schemas"]["PersonSummary"][];
+            /** @description Verdadeiro quando há mais pessoas casando o termo do que as mostradas. */
+            hasMore: boolean;
         };
         CreateInvitationInput: {
             /**
@@ -1384,6 +1466,166 @@ export interface operations {
             };
             /** @description Já existe uma unidade com esse nome neste nível. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getOrgUnitPeople: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orgUnitId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description As pessoas lotadas na unidade foram listadas. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignedPeopleResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unidade não encontrada: o id da rota não existe na organização ou está malformado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    assignPersonToOrgUnit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orgUnitId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignPersonRequest"];
+            };
+        };
+        responses: {
+            /** @description A pessoa foi lotada na unidade. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignedPersonResponse"];
+                };
+            };
+            /** @description Os dados informados são inválidos. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unidade não encontrada (o id da rota não existe na organização ou está malformado) ou pessoa não encontrada (o `personId` não existe na organização ou está malformado). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Esta pessoa já está lotada nesta unidade. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    searchPeople: {
+        parameters: {
+            query?: {
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description As pessoas encontradas foram listadas. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PeopleResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

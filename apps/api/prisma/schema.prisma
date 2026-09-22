@@ -35,12 +35,31 @@ model OrgUnit {
   name           String
   createdAt      DateTime @default(now())
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  parent       OrgUnit?     @relation("OrgUnitToParent", fields: [parentId], references: [id], onDelete: Restrict)
-  children     OrgUnit[]    @relation("OrgUnitToParent")
+  organization Organization        @relation(fields: [organizationId], references: [id])
+  parent       OrgUnit?            @relation("OrgUnitToParent", fields: [parentId], references: [id], onDelete: Restrict)
+  children     OrgUnit[]           @relation("OrgUnitToParent")
   space        Space?
+  assignments  OrgUnitAssignment[]
 
   @@index([parentId])
+}
+
+/// Lotação: a pessoa está lotada na unidade. Uma pessoa pode estar lotada em
+/// várias unidades, e a chave primária composta é a única garantia de que ela
+/// não se lota duas vezes na mesma — não há consulta prévia de duplicidade em
+/// lugar nenhum, o 409 nasce do índice. Esta linha **não dá acesso a
+/// documento**: nada em `access/` a lê, e é o teste estrutural de fronteira
+/// que segura isso.
+model OrgUnitAssignment {
+  orgUnitId String
+  personId  String
+  createdAt DateTime @default(now())
+
+  orgUnit OrgUnit @relation(fields: [orgUnitId], references: [id], onDelete: Restrict)
+  person  Person  @relation(fields: [personId], references: [id], onDelete: Restrict)
+
+  @@id([orgUnitId, personId])
+  @@index([personId])
 }
 
 model Person {
@@ -52,13 +71,14 @@ model Person {
   isAdmin        Boolean  @default(false)
   createdAt      DateTime @default(now())
 
-  organization      Organization @relation(fields: [organizationId], references: [id])
+  organization      Organization        @relation(fields: [organizationId], references: [id])
   space             Space?
   sessions          Session[]
-  authoredDocuments Document[]   @relation("DocumentAuthor")
-  ownedDocuments    Document[]   @relation("DocumentOwner")
+  authoredDocuments Document[]          @relation("DocumentAuthor")
+  ownedDocuments    Document[]          @relation("DocumentOwner")
   favorites         Favorite[]
-  sentInvitations   Invitation[] @relation("InvitationInviter")
+  sentInvitations   Invitation[]        @relation("InvitationInviter")
+  assignments       OrgUnitAssignment[]
 }
 
 enum SpaceType {

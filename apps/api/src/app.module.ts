@@ -10,7 +10,9 @@ import { HealthModule } from './health/health.module';
 import { InstallationModule } from './installation/installation.module';
 import { InvitationsModule } from './invitations/invitations.module';
 import { OrgUnitsModule } from './org-units/org-units.module';
+import { PeopleModule } from './people/people.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { UnitAssignmentsModule } from './unit-assignments/unit-assignments.module';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { PrismaModule } from './prisma/prisma.module';
     DocumentsModule,
     OrgUnitsModule,
     InvitationsModule,
+    UnitAssignmentsModule,
+    PeopleModule,
     CollabModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: CsrfGuard }],

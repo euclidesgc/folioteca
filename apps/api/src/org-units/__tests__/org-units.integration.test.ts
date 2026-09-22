@@ -14,6 +14,7 @@ import { resetDatabase } from '../../../test/reset-database';
 import {
   HAS_CHILDREN_MESSAGE,
   HAS_DOCUMENTS_MESSAGE,
+  HAS_PEOPLE_MESSAGE,
   ROOT_MESSAGE,
 } from '../org-units.service';
 
@@ -772,4 +773,72 @@ test('the database refuses to delete a space that still has a document', async (
   await expect(
     prisma.space.delete({ where: { id: await getSpaceId(unitId) } }),
   ).rejects.toMatchObject({ code: 'P2003' });
+});
+
+/** Lota alguém na unidade, direto pelo Prisma. */
+async function assignSomeoneTo(orgUnitId: string): Promise<void> {
+  await prisma.orgUnitAssignment.create({
+    data: { orgUnitId, personId: adminPerson.id },
+  });
+}
+
+test('deleting a unit with assigned people answers 409', async () => {
+  const unitId = await createUnit('Restauro');
+  await assignSomeoneTo(unitId);
+
+  const response = await deleteOrgUnit(unitId, adminCookie);
+
+  expect(response.status).toBe(409);
+  expect(messageOf(response)).toBe(
+    'Ainda há pessoas lotadas nesta unidade. Tire a lotação delas antes de apagar a unidade.',
+  );
+});
+
+test('the unit is still listed after the refused delete', async () => {
+  const unitId = await createUnit('Restauro');
+  await assignSomeoneTo(unitId);
+
+  const response = await deleteOrgUnit(unitId, adminCookie);
+
+  expect(response.status).toBe(409);
+  const list = await getOrgUnits(adminCookie);
+  const names = (list.body as { data: OrgUnitBody[] }).data.map(
+    (unit) => unit.name,
+  );
+  expect(names).toContain('Restauro');
+  expect(
+    await prisma.orgUnit.findUnique({ where: { id: unitId } }),
+  ).not.toBeNull();
+});
+
+test('the refusals keep the order root, children, documents, people', async () => {
+  const rootId = await getRootId();
+  const parentId = await createUnit('Acervo');
+  const childId = await createUnit('Processamento Técnico', parentId);
+
+  // A raiz com tudo junto continua recusando por ser a raiz.
+  await assignSomeoneTo(rootId);
+  const root = await deleteOrgUnit(rootId, adminCookie);
+  expect(messageOf(root)).toBe(ROOT_MESSAGE);
+
+  // Com filha, documento e gente lotada, a filha vem primeiro.
+  await createDocumentIn(parentId);
+  await assignSomeoneTo(parentId);
+  const withChildren = await deleteOrgUnit(parentId, adminCookie);
+  expect(messageOf(withChildren)).toBe(HAS_CHILDREN_MESSAGE);
+
+  // Sem filhas, com documento e gente lotada, o documento vem antes.
+  await createDocumentIn(childId);
+  await assignSomeoneTo(childId);
+  const withDocuments = await deleteOrgUnit(childId, adminCookie);
+  expect(withDocuments.status).toBe(409);
+  expect(messageOf(withDocuments)).toBe(HAS_DOCUMENTS_MESSAGE);
+
+  // Só a lotação restante: a quarta recusa, com a mensagem própria.
+  await prisma.document.deleteMany({
+    where: { spaceId: await getSpaceId(childId) },
+  });
+  const withPeople = await deleteOrgUnit(childId, adminCookie);
+  expect(withPeople.status).toBe(409);
+  expect(messageOf(withPeople)).toBe(HAS_PEOPLE_MESSAGE);
 });

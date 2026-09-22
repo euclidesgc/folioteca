@@ -308,7 +308,7 @@ const SPACE_ID = 'e0c1a6d2-8b4f-4f1e-9a3c-1b2d3e4f5a6b';
 type RemovableRecord = {
   id: string;
   parentId: string | null;
-  _count: { children: number };
+  _count: { children: number; assignments: number };
   space: { id: string; _count: { documents: number } } | null;
 };
 
@@ -319,7 +319,7 @@ function removable(
   return {
     id: UNIT_ID,
     parentId: PARENT_ID,
-    _count: { children: 0 },
+    _count: { children: 0, assignments: 0 },
     space: { id: SPACE_ID, _count: { documents: 0 } },
     ...overrides,
   };
@@ -409,7 +409,7 @@ test('remove looks the unit up by id and organization', async () => {
     select: {
       id: true,
       parentId: true,
-      _count: { select: { children: true } },
+      _count: { select: { children: true, assignments: true } },
       space: { select: { id: true, _count: { select: { documents: true } } } },
     },
   });
@@ -436,7 +436,7 @@ test('remove answers conflict with the root message for the root', async () => {
 
 test('remove answers conflict with the children message when the unit has children', async () => {
   const { service, deleteUnit } = createRemoveService({
-    found: removable({ _count: { children: 2 } }),
+    found: removable({ _count: { children: 2, assignments: 0 } }),
   });
 
   await expect(service.remove(ORGANIZATION_ID, UNIT_ID)).rejects.toThrow(
@@ -460,7 +460,7 @@ test('remove answers conflict with the documents message when the space has docu
 test('remove checks root before children and children before documents', async () => {
   const everything = {
     parentId: null,
-    _count: { children: 3 },
+    _count: { children: 3, assignments: 4 },
     space: { id: SPACE_ID, _count: { documents: 5 } },
   };
 
