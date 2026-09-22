@@ -3,6 +3,7 @@ import { beforeEach, expect, test } from 'vitest';
 
 import { useNotifications } from '@/components/ui/notifications/notifications-store';
 import { env } from '@/config/env';
+import { paths } from '@/config/paths';
 import { seedInstalled, seedSampleOrgUnits } from '@/testing/mocks/db';
 import { server } from '@/testing/mocks/server';
 import {
@@ -234,6 +235,9 @@ test('creating from the keyboard closes the dialog, expands the parent and focus
   expect(item('Acervo e Processamento Técnico')).toHaveFocus();
   expect(screen.queryByTitle('Catalogação')).not.toBeInTheDocument();
 
+  // "Pessoas" is the first action of the row, and "Criar unidade filha" the
+  // second.
+  await user.tab();
   await user.tab();
   expect(createAction('Acervo e Processamento Técnico')).toHaveFocus();
 
@@ -494,6 +498,9 @@ test('deleting from the keyboard removes the unit, notifies and focuses the pare
   await user.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}');
   expect(item('Restauro e Conservação')).toHaveFocus();
 
+  // "Pessoas" is the first action of the row, and "Criar unidade filha" the
+  // second.
+  await user.tab();
   await user.tab();
   expect(createAction('Restauro e Conservação')).toHaveFocus();
   await user.tab();
@@ -655,4 +662,69 @@ test('pressing Enter twice on Apagar sends a single request', async () => {
 
   await waitFor(() => expect(dialog).not.toBeInTheDocument(), LAZY_TIMEOUT);
   expect(deleteCalls).toBe(1);
+});
+
+test('every node has a Pessoas action', async () => {
+  seedSampleOrgUnits();
+
+  renderApp(<OrgUnitsTree />);
+
+  await screen.findByRole(
+    'tree',
+    { name: 'Estrutura de unidades' },
+    LAZY_TIMEOUT,
+  );
+
+  // Every node of the tree, the root included, and nobody else.
+  expect(
+    screen.getAllByRole('link').map((link) => link.getAttribute('aria-label')),
+  ).toEqual(READING_ORDER.map((label) => `Pessoas de ${label}`));
+});
+
+test('the root node also has the Pessoas action', async () => {
+  seedSampleOrgUnits();
+
+  renderApp(<OrgUnitsTree />);
+
+  await screen.findByRole(
+    'tree',
+    { name: 'Estrutura de unidades' },
+    LAZY_TIMEOUT,
+  );
+
+  const root = item('Biblioteca Municipal de Exemplo');
+  const action = within(root).getAllByRole('link', {
+    name: 'Pessoas de Biblioteca Municipal de Exemplo',
+  })[0];
+
+  expect(action).toBeDefined();
+  expect(action).toHaveAttribute(
+    'title',
+    'Pessoas de Biblioteca Municipal de Exemplo',
+  );
+  // The root has no "Apagar": the Pessoas action is not under that condition.
+  expect(
+    within(root).queryByRole('button', {
+      name: 'Apagar Biblioteca Municipal de Exemplo',
+    }),
+  ).not.toBeInTheDocument();
+});
+
+test('the Pessoas action links to the unit people route', async () => {
+  seedSampleOrgUnits();
+
+  renderApp(<OrgUnitsTree />);
+
+  await screen.findByRole(
+    'tree',
+    { name: 'Estrutura de unidades' },
+    LAZY_TIMEOUT,
+  );
+
+  expect(
+    screen.getByRole('link', { name: 'Pessoas de Catalogação' }),
+  ).toHaveAttribute(
+    'href',
+    paths.admin.orgUnitPeople.getHref('org-unit-catalogacao'),
+  );
 });

@@ -54,11 +54,17 @@ export type MockInvitation = {
   revokedAt: string | null;
 };
 
+// An assignment: the person is assigned to the unit. The pair is the row —
+// the real table has no id of its own, and its composite primary key is what
+// keeps the same person from being assigned twice to the same unit.
+export type MockAssignment = { orgUnitId: string; personId: string };
+
 type DbState = {
   installation: MockInstallation | null;
   documents: MockDocument[];
   favorites: MockFavorite[];
   orgUnits: MockOrgUnit[];
+  assignments: MockAssignment[];
   invitations: MockInvitation[];
   // People created by accepting an invitation, and which of them is signed in.
   // Null means the installed person, which is what every journey before 086
@@ -72,6 +78,7 @@ const initialState = (): DbState => ({
   documents: [],
   favorites: [],
   orgUnits: [],
+  assignments: [],
   invitations: [],
   people: [],
   signedInPersonId: null,
@@ -459,6 +466,77 @@ export const getSignedInPerson = (): MockPerson | null => {
 // an accepted invitation stops being the signed-in one.
 export const clearSignedInPerson = (): void => {
   state.signedInPersonId = null;
+};
+
+// Everybody of the organization: the installed person plus whoever was
+// created by accepting an invitation or seeded by `seedSamplePeople`.
+export const allPeople = (): MockPerson[] => {
+  const { installation, people } = state;
+  if (!installation) return [...people];
+
+  return [installation.person, ...people];
+};
+
+// Assigns a person to a unit, the way POST /org-units/:orgUnitId/people does.
+// `duplicate` is what the composite primary key of the real table answers with
+// a 409: there is no previous lookup anywhere, the pair itself is the rule.
+//
+// The row is pushed into the array that is already in the database, never into
+// a copy of it (same reason as `touchDocumentUpdatedAt` above): the handler
+// reads the state before it awaits the request body and writes afterwards.
+export const addAssignment = (
+  orgUnitId: string,
+  personId: string,
+): 'created' | 'duplicate' => {
+  const exists = state.assignments.some(
+    (item) => item.orgUnitId === orgUnitId && item.personId === personId,
+  );
+  if (exists) return 'duplicate';
+
+  state.assignments.push({ orgUnitId, personId });
+  return 'created';
+};
+
+// How many people `seedSamplePeople` adds: two more than the search shows, so
+// the "há mais resultados" warning shows up for real in the browser.
+const SAMPLE_PEOPLE_COUNT = 12;
+
+// Adds a batch of pt_BR people to the organization, on top of whatever is
+// already in the database. Kept separate from `seedInstalled` because the
+// existing journeys expect only the installed person.
+export const seedSamplePeople = (): void => {
+  if (!state.installation) return;
+
+  const names = [
+    'Álvaro Pinheiro',
+    'Ana Lúcia Ferreira',
+    'Beatriz Nogueira',
+    'Carlos Eduardo Tavares',
+    'Daniela Prado',
+    'Eduardo Silva',
+    'Fernanda Rocha',
+    'Gustavo Almeida',
+    'Helena Barros',
+    'Isabel Cardoso',
+    'João Pedro Silva',
+    'Zilda Marques',
+  ];
+  // The list above is the batch itself: the count is asserted here so the
+  // warning of "there is more than what is shown" keeps appearing.
+  const sample: MockPerson[] = names
+    .slice(0, SAMPLE_PEOPLE_COUNT)
+    .map((name, index) => ({
+      id: `person-sample-${index + 1}`,
+      name,
+      email: `${name
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .replace(/\s+/g, '.')}@exemplo.com.br`,
+      isAdmin: false,
+    }));
+
+  state.people.push(...sample);
 };
 
 // Adds a pending invitation, so inviting the same address in the browser shows

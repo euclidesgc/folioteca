@@ -44,6 +44,13 @@ export const paths = {
       path: '/admin/structure',
       getHref: (): string => '/admin/structure',
     },
+    // Under `/admin/structure` because that is where one comes from and where
+    // one goes back to: a sibling route would hide that relation in the URL.
+    orgUnitPeople: {
+      path: '/admin/structure/:orgUnitId/people',
+      getHref: (orgUnitId: string): string =>
+        `/admin/structure/${orgUnitId}/people`,
+    },
     invitations: {
       path: '/admin/invitations',
       getHref: (): string => '/admin/invitations',

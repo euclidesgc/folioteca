@@ -106,6 +106,11 @@ export default tseslint.config(
               except: ['./invitations'],
             },
             {
+              target: './apps/web/src/features/unit-assignments',
+              from: './apps/web/src/features',
+              except: ['./unit-assignments'],
+            },
+            {
               target: './apps/web/src/features',
               from: './apps/web/src/app',
             },

@@ -1,7 +1,8 @@
 import type React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router';
 
-import { Button } from '@/components/ui/button/button';
+import { Button, buttonVariants } from '@/components/ui/button/button';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog/confirmation-dialog';
 import {
   Dialog,
@@ -11,6 +12,7 @@ import {
 } from '@/components/ui/dialog/dialog';
 import { useNotifications } from '@/components/ui/notifications/notifications-store';
 import { Tree, type TreeHandle } from '@/components/ui/tree/tree';
+import { paths } from '@/config/paths';
 import { useDeleteOrgUnit } from '@/features/org-units/api/delete-org-unit';
 import { useOrgUnits } from '@/features/org-units/api/get-org-units';
 import { CreateOrgUnitForm } from '@/features/org-units/components/create-org-unit-form';
@@ -77,6 +79,27 @@ const TrashIcon = (): React.JSX.Element => (
     className="size-4"
   >
     <path d="M4 7h16M10 11v6M14 11v6M9 7V4.5h6V7M6 7l1 13h10l1-13" />
+  </svg>
+);
+
+// Two silhouettes, drawn here like the other three icons of this file: one
+// feature never imports from another, and six lines of SVG do not justify a
+// shared icon component yet.
+const UsersIcon = (): React.JSX.Element => (
+  <svg
+    aria-hidden="true"
+    focusable="false"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="size-4"
+  >
+    <circle cx="9.5" cy="8" r="3.25" />
+    <path d="M3.5 19.5c0-3.05 2.69-5.25 6-5.25s6 2.2 6 5.25" />
+    <path d="M16 5.2a3.25 3.25 0 0 1 0 6.3M17.5 14.6c1.9.7 3.2 2.4 3.2 4.6" />
   </svg>
 );
 
@@ -196,6 +219,19 @@ function LoadedOrgUnitsTree({
           aria-label="Estrutura de unidades"
           renderActions={(node, { tabIndex }) => (
             <>
+              {/* Navigation, so a link and never a button with `navigate`:
+                  it opens in another tab, it is copied, it shows its address.
+                  Rendered for every node, the root included — being assigned
+                  has nothing to do with having a mother. */}
+              <Link
+                to={paths.admin.orgUnitPeople.getHref(node.id)}
+                className={buttonVariants({ variant: 'ghost', size: 'icon' })}
+                tabIndex={tabIndex}
+                aria-label={`Pessoas de ${node.label}`}
+                title={`Pessoas de ${node.label}`}
+              >
+                <UsersIcon />
+              </Link>
               <Button
                 variant="ghost"
                 size="icon"
