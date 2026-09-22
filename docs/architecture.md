@@ -414,6 +414,41 @@ a mesma definição de "pendente" existe **duas vezes** — em `findPending` (em
 memória, para as rotas públicas) e em `list` (no `where` da consulta) — e a
 fatia 087 precisa acrescentar `revokedAt` **nas duas**.
 
+**Entrega `invitations-revoke` (fatia 087)**: `POST
+/invitations/{invitationId}/revoke` entra no `InvitationsController` e
+**herda** `SessionGuard` + `AdminGuard` da classe — de novo nenhuma linha de
+guard nova, e o `organizationId` vem do `@CurrentPerson()`, nunca da rota.
+Inexistente, de outra organização, já aceito, vencido e já revogado respondem
+**um** único 404 com `INVITATION_UNAVAILABLE_MESSAGE`, o mesmo corpo byte a
+byte das recusas públicas: qualquer código distinto (403 para "de outra
+organização", 409 para "já aceito") transformaria a rota num oráculo, que diria
+a quem chutasse ids quais existem na instância e quem aceitou um convite. A
+definição de "pendente" passa a existir **uma vez só** no servidor, no
+`pendingInvitationWhere` (`acceptedAt: null`, `revokedAt: null`, `expiresAt >
+agora`), usado por `findPending`, `list`, `create` e `revoke` — encerrando a
+nota deixada pela 088 e garantindo que o link revogado caia no mesmo `null` das
+outras recusas. `revoke` é um `updateMany` atômico, com `id`, `organizationId`
+e esse mesmo `where`, que grava só `revokedAt` e **nunca** apaga a linha
+(`count === 0` vira o 404); a revogação não toca `Person`, `Space` nem
+`Session`. A migration `0011` acrescenta a coluna `revokedAt` e troca o
+predicado do índice parcial para `WHERE "acceptedAt" IS NULL AND "revokedAt" IS
+NULL`, para que um endereço cujo convite foi revogado possa ser convidado de
+novo — as linhas existentes nascem com `revokedAt` nulo, então o conjunto
+coberto é exatamente o mesmo de antes e o índice único não pode falhar na
+troca. Sobre o contrato: o verbo é `POST …/revoke`, e não `DELETE
+/invitations/{invitationId}`, porque esse caminho tem a **mesma identidade**,
+pela regra do OpenAPI, de `/invitations/{token}` (a rota pública da 086, que
+não se renomeia sem fazer o contrato mentir), e porque a linha não é apagada, é
+marcada — `DELETE` prometeria uma remoção que o servidor não faz. Fica a nota
+de que o documento **já tem** os dois caminhos `/invitations/{…}` com nomes de
+parâmetro diferentes (`{token}` das rotas públicas e `{invitationId}` das
+administrativas, sempre com segmento literal depois), e que
+`SwaggerParser.dereference`, usado nos testes de contrato, resolve `$ref` mas
+não valida o documento: se um dia entrar um validador de verdade, o conserto
+pronto é padronizar o nome do parâmetro nos caminhos de mesma hierarquia — hoje
+não há nenhum par nessa situação, e as rotas terminam em segmentos literais
+distintos (`/accept`, `/revoke`), que o Nest também não confunde.
+
 ## 7. Testes
 
 Vitest em tudo. Na API, integração contra Postgres real (`docker compose`,
