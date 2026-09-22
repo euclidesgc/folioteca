@@ -396,6 +396,24 @@ pelo mesmo `getSessionCookieOptions` da instalação (`httpOnly`, `SameSite=Lax`
 (convite) → `409` (o e-mail já é de uma pessoa, pelo `P2002` de
 `Person_email_key`).
 
+**Entrega `invitations-list` (fatia 088)**: `GET /invitations` entra no
+`InvitationsController` e **herda** `SessionGuard` + `AdminGuard` da classe —
+nenhuma linha de guard nova foi escrita, que é exatamente o que a separação
+feita na 086 comprou. "Pendente" é `acceptedAt IS NULL` **e**
+`expiresAt > agora`, decidido no **banco**: o relógio do navegador é do
+usuário, e uma lista filtrada no cliente mostraria convite expirado para quem
+estivesse com a hora errada. A ordem é `createdAt DESC`, já atendida pelo
+índice da migration `0009` — **nenhuma migration nova nesta fatia**. O schema
+`Invitation` do contrato **não tem** `token`, porque o servidor guarda só o
+`sha256` e um campo opcional faria o tipo mentir sobre algo que ninguém pode
+devolver; por isso `Invitation` (o que a lista mostra) e `CreatedInvitation`
+(o que o `201` devolve uma única vez, com o token) são schemas **distintos**.
+O `select` do Prisma é explícito e não traz `tokenHash`, como segunda tranca:
+mesmo que alguém acrescente o campo ao schema, nada vaza pelo corpo. Atenção:
+a mesma definição de "pendente" existe **duas vezes** — em `findPending` (em
+memória, para as rotas públicas) e em `list` (no `where` da consulta) — e a
+fatia 087 precisa acrescentar `revokedAt` **nas duas**.
+
 ## 7. Testes
 
 Vitest em tudo. Na API, integração contra Postgres real (`docker compose`,
