@@ -477,6 +477,19 @@ export const allPeople = (): MockPerson[] => {
   return [installation.person, ...people];
 };
 
+// Everybody who administers the instance, the way GET /admins answers: the
+// pt-BR collator and the tie-break by `id` are the same pair of rules the
+// service applies, so the order proved by a test is the order delivered.
+const adminsCollator = new Intl.Collator('pt-BR', { sensitivity: 'base' });
+
+export const listAdmins = (): MockPerson[] =>
+  allPeople()
+    .filter((person) => person.isAdmin)
+    .sort(
+      (a, b) =>
+        adminsCollator.compare(a.name, b.name) || a.id.localeCompare(b.id),
+    );
+
 // Assigns a person to a unit, the way POST /org-units/:orgUnitId/people does.
 // `duplicate` is what the composite primary key of the real table answers with
 // a 409: there is no previous lookup anywhere, the pair itself is the rule.

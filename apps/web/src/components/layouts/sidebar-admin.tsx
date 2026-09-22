@@ -40,6 +40,14 @@ export function SidebarAdmin(): React.JSX.Element {
               Convites
             </NavLink>
           </li>
+          <li>
+            <NavLink
+              to={paths.admin.admins.getHref()}
+              className={adminItemClassName}
+            >
+              Administradores
+            </NavLink>
+          </li>
         </ul>
       </nav>
     </Authorization>

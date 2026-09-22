@@ -111,6 +111,11 @@ export default tseslint.config(
               except: ['./unit-assignments'],
             },
             {
+              target: './apps/web/src/features/admin-roles',
+              from: './apps/web/src/features',
+              except: ['./admin-roles'],
+            },
+            {
               target: './apps/web/src/features',
               from: './apps/web/src/app',
             },

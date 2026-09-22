@@ -20,7 +20,8 @@ export const networkDelay = (): Promise<void> =>
 // Development keys, read from localStorage in the browser only:
 //   localStorage.setItem('mock-error', 'health')   -> the /health handler answers 500
 //     (also accepts 'installation', 'auth', 'documents', 'org-units',
-//     'unit-assignments', 'people' or 'invitations', matching the resource)
+//     'unit-assignments', 'people', 'invitations' or 'admins', matching the
+//     resource)
 //   localStorage.setItem('mock-delay', 'infinite')  -> requests never resolve (loading state)
 //   localStorage.setItem('mock-installation', 'installed')  -> seeds an installation, signed out;
 //     sign in with the seeded person's e-mail and the MOCK_PASSWORD above
@@ -59,6 +60,13 @@ export const networkDelay = (): Promise<void> =>
 //     opening and answers the same error an invented link answers
 //     (localStorage.setItem('mock-error', 'invitations') shows its error state
 //     and localStorage.setItem('mock-role', 'member') its 403)
+//   the administrators page (/admin/admins) needs no seed of its own: with
+//     localStorage.setItem('mock-installation', 'signed-in') it shows one
+//     person, the installed one, which is the real state of any new
+//     installation — nothing here promotes example people, since promoting is
+//     a later slice (localStorage.setItem('mock-error', 'admins') shows its
+//     error state and localStorage.setItem('mock-role', 'member') shows the
+//     403 and the redirect back to the beginning)
 // Remove the key (or run localStorage.clear()) to go back to normal.
 const devKey = (key: string): string | null => {
   if (import.meta.env.MODE === 'test' || typeof window === 'undefined') {

@@ -55,5 +55,9 @@ export const paths = {
       path: '/admin/invitations',
       getHref: (): string => '/admin/invitations',
     },
+    admins: {
+      path: '/admin/admins',
+      getHref: (): string => '/admin/admins',
+    },
   },
 };

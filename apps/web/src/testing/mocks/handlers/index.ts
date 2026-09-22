@@ -1,3 +1,4 @@
+import { adminRolesHandlers } from './admin-roles';
 import { authHandlers } from './auth';
 import { documentsHandlers } from './documents';
 import { healthHandlers } from './health';
@@ -15,5 +16,6 @@ export const handlers = [
   ...orgUnitsHandlers,
   ...unitAssignmentsHandlers,
   ...peopleHandlers,
+  ...adminRolesHandlers,
   ...invitationsHandlers,
 ];
