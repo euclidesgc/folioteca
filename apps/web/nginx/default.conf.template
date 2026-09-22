@@ -13,6 +13,13 @@ server {
     listen 8080;
     server_name _;
 
+    # Resolução tardia do upstream: com o nome literal no `proxy_pass`, o nginx
+    # resolve na subida e morre ("host not found in upstream") se a API ainda
+    # não estiver no ar. Com variável, resolve a cada pedido pelo DNS interno
+    # do Docker. Sem parte de caminho no valor, o URI original segue intacto.
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    set $api_upstream ${API_UPSTREAM};
+
     root /usr/share/nginx/html;
     index index.html;
 
@@ -26,7 +33,7 @@ server {
     # Mesma origem: a sessão em cookie httpOnly e a checagem de `Origin`
     # contra `Host` no `/collab` funcionam sem CORS.
     location /api/ {
-        proxy_pass ${API_UPSTREAM};
+        proxy_pass $api_upstream;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $forwarded_proto;
@@ -34,7 +41,7 @@ server {
     }
 
     location /collab {
-        proxy_pass ${API_UPSTREAM};
+        proxy_pass $api_upstream;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";

@@ -399,6 +399,13 @@ O nginx da web serve o SPA (`try_files $uri /index.html`, cache longo em
 `Connection`) para `API_UPSTREAM`, preservando `Host` e `X-Forwarded-*`. É o
 mesmo desenho do proxy do Vite em desenvolvimento (ver §8).
 
+O upstream é resolvido tarde: o `proxy_pass` usa uma variável e o nginx
+consulta o DNS interno do Docker (`resolver 127.0.0.11 valid=10s`) a cada
+pedido. Com o nome literal, o nginx resolveria na subida e morreria com "host
+not found in upstream" se a API ainda não estivesse no ar; assim a web sobe e
+serve o SPA sozinha, e `/api` responde 502 até a API aparecer. O valor de
+`API_UPSTREAM` não leva caminho, para o URI original seguir intacto.
+
 Por que não CORS: a sessão é cookie httpOnly e o `/collab` compara o `Origin`
 do navegador com o `Host` do pedido (ver §5). Com a API em outro domínio
 seriam precisos CORS com credenciais, `SameSite=None` e uma lista em
@@ -440,7 +447,7 @@ Só nomes; os valores ficam no painel do Coolify.
 
 | Variável | Situação em hml | O que fazer |
 |---|---|---|
-| `DATABASE_URL` | existe, aponta para o banco antigo | o dono troca pela URL interna do banco novo (obrigatória: sem ela a subida falha nomeando a variável) |
+| `DATABASE_URL` | existe, aponta para o banco antigo | o dono troca pela URL interna do banco novo `folioteca-db-hml-v2` (obrigatória: sem ela a subida falha nomeando a variável) |
 | `PORT` | existe | manter 3000 (padrão) |
 | `NODE_ENV` | existe | `production` |
 | `INSTALL_CODE` | falta | o dono cria, com pelo menos 16 caracteres; sem ela a API sobe, mas a instalação fica bloqueada |
@@ -454,10 +461,11 @@ Sobram na API e não são mais lidas: `WEB_ORIGIN`, `BETTER_AUTH_SECRET`,
 `INSTALL_CODE`). O escopo de preview (`API_PORT`, `API_SESSION_SECRET`,
 `API_CORS_ORIGINS` e outras) não é usado.
 
-**Web (`folioteca-web-hml`)** — em runtime só `API_UPSTREAM`: o endereço
-interno da API na rede do Coolify, no formato
-`http://<uuid-da-app-api>:3000` (hoje `http://hvn6t37t7ul3xkhsg9h1etqo:3000`).
-Não é segredo.
+**Web (`folioteca-web-hml`)** — em runtime só `API_UPSTREAM`:
+`http://folioteca-api-hml:3000`. Contêiner de app no Coolify não tem nome
+estável (o nome muda a cada publicação), então a API ganhou o apelido de rede
+`folioteca-api-hml` (custom network aliases) e a web aponta para ele. Não é
+segredo.
 
 Nenhuma `VITE_*`: a web chama `/api` na mesma origem, o padrão de
 `VITE_APP_API_URL` em `apps/web/src/config/env.ts`. O Dockerfile da web não
@@ -471,27 +479,38 @@ a mesma origem descrita acima.
 
 Executado pela orquestração depois do merge, fora das fases de código.
 
-**Orquestração (MCP do Coolify)** — nada secreto:
+**Orquestração (MCP do Coolify)** — nada secreto. Feito:
 
-1. Criar um Postgres novo `pgvector/pgvector:pg16` no mesmo ambiente de hml,
+1. Banco novo `folioteca-db-hml-v2` (uuid `uo0dk4urxmabrnpus2f05num`,
+   `postgres:16-alpine`, banco e usuário `folioteca`) no ambiente de hml,
    **não público**.
-2. Na API: healthcheck em `/api/health`, porta 3000 (antes era `/health`, que
-   dá 404 pelo prefixo global `api`); ligar "Include Source Commit in Build";
-   `NODE_ENV=production` se faltar.
-3. Na web: porta exposta 8080; healthcheck em `/`, porta 8080; ligar "Include
-   Source Commit in Build"; criar `API_UPSTREAM` (runtime) com o endereço
-   interno da API.
-4. Depois que o dono concluir a parte dele, disparar o deploy das duas apps e
-   acompanhar até ficarem saudáveis.
+2. Na API: healthcheck em `/api/health`, porta 3000, start period 30s (antes
+   era `/health`, que dá 404 pelo prefixo global `api`); apelido de rede
+   `folioteca-api-hml`.
+3. Na web: porta exposta 8080; healthcheck em `/`, porta 8080; `API_UPSTREAM`
+   (runtime) = `http://folioteca-api-hml:3000`.
+
+Pendente: depois que o dono concluir a parte dele, disparar o deploy das duas
+apps e acompanhar até ficarem saudáveis.
+
+O MCP não expõe a opção "Include Source Commit in Build"; ela passou para o
+dono.
 
 **Dono (painel)** — valores secretos e remoções:
 
-1. Na API, trocar `DATABASE_URL` pela URL interna do banco novo (com a senha
-   dele).
+1. Na API, trocar `DATABASE_URL` pela URL interna de `folioteca-db-hml-v2`
+   (com a senha dele).
 2. Na API, criar `INSTALL_CODE` com pelo menos 16 caracteres.
-3. Apagar as variáveis que sobram (lista acima) nas duas apps.
-4. Se quiser, apagar o banco antigo `folioteca-db-hml`.
-5. `folioteca-site-hml` fica como está.
+3. Nas duas apps, ligar "Include Source Commit in Build" (em Advanced). Sem
+   ela, `/api/health` devolve `commit: "unknown"` e não dá para saber qual
+   commit está no ar.
+4. Apagar as variáveis que sobram (lista acima) nas duas apps.
+5. Se quiser, apagar o banco antigo `folioteca-db-hml`.
+6. `folioteca-site-hml` fica como está.
+
+**Ponto a observar:** a API tem limite de memória de 192M no Coolify e o
+histórico mostra 4 reinícios por queda. Se o contêiner voltar a morrer por
+memória (OOM), o dono sobe o limite para 384M.
 
 ### Como verificar depois do merge
 
