@@ -16,6 +16,8 @@ const EMAIL = 'maria@exemplo.org';
 
 const CONTRACT_PATH = '/org-units/{orgUnitId}/people';
 
+const REMOVE_CONTRACT_PATH = '/org-units/{orgUnitId}/people/{personId}';
+
 let app: INestApplication;
 let prisma: PrismaService;
 let adminCookie: string;
@@ -106,6 +108,18 @@ function assignPerson(
   );
 }
 
+function removePerson(
+  orgUnitId: string,
+  personId: string,
+  cookie?: string,
+): Promise<Response> {
+  const request = httpRequest(app)
+    .delete(`/api/org-units/${orgUnitId}/people/${personId}`)
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return cookie === undefined ? request : request.set('Cookie', cookie);
+}
+
 test('GET org unit people answers the documented 200/401/403/404', async () => {
   const rootId = await getRootId();
   const { cookie } = await createPersonWithSession(app, {
@@ -157,4 +171,65 @@ test('POST assign answers the documented 201/400/401/403/404/409', async () => {
       body: response.body,
     });
   }
+});
+
+test('DELETE org unit person answers the documented 401', async () => {
+  const rootId = await getRootId();
+  const personId = await createPersonId('ana@exemplo.org');
+
+  const response = await removePerson(rootId, personId);
+
+  expect(response.status).toBe(401);
+  await expectMatchesContract({
+    path: REMOVE_CONTRACT_PATH,
+    method: 'delete',
+    status: 401,
+    body: response.body,
+  });
+});
+
+test('DELETE org unit person answers the documented 403', async () => {
+  const rootId = await getRootId();
+  const personId = await createPersonId('ana@exemplo.org');
+  const { cookie } = await createPersonWithSession(app, {
+    name: 'João Souza',
+    email: 'joao@exemplo.org',
+  });
+
+  const response = await removePerson(rootId, personId, cookie);
+
+  expect(response.status).toBe(403);
+  await expectMatchesContract({
+    path: REMOVE_CONTRACT_PATH,
+    method: 'delete',
+    status: 403,
+    body: response.body,
+  });
+});
+
+test('DELETE org unit person answers the documented 404', async () => {
+  const rootId = await getRootId();
+
+  const response = await removePerson(rootId, randomUUID(), adminCookie);
+
+  expect(response.status).toBe(404);
+  await expectMatchesContract({
+    path: REMOVE_CONTRACT_PATH,
+    method: 'delete',
+    status: 404,
+    body: response.body,
+  });
+});
+
+test('DELETE org unit person answers 204 with an empty body', async () => {
+  const rootId = await getRootId();
+  const personId = await createPersonId('ana@exemplo.org');
+
+  await assignPerson(rootId, { personId }, adminCookie);
+
+  const response = await removePerson(rootId, personId, adminCookie);
+
+  expect(response.status).toBe(204);
+  expect(response.text).toBe('');
+  expect(response.body).toEqual({});
 });

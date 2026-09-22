@@ -745,6 +745,59 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /org-units/{orgUnitId}/people/{personId}:
+    delete:
+      operationId: removePersonFromOrgUnit
+      tags:
+        - org-units
+      summary: Tira a lotação da pessoa na unidade
+      description: >-
+        Tira a lotação da pessoa na unidade, só para a administração. Apaga
+        **apenas** a linha de lotação: `Person`, `OrgUnit` e `Space` não são
+        tocados, a pessoa continua na instância e continua lotada nas outras
+        unidades em que estiver. Unidade inexistente, de outra organização ou
+        com id malformado respondem "Unidade não encontrada."; pessoa
+        inexistente, de outra organização, com id malformado ou que já não está
+        lotada nesta unidade respondem "Pessoa não encontrada." — um 404 único,
+        para a rota não contar quem existe na instância. As checagens acontecem
+        nesta ordem: CSRF (guarda global), 401, 403, 404 da unidade e 404 da
+        pessoa.
+      parameters:
+        - name: orgUnitId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: A lotação foi apagada.
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            Unidade não encontrada (o id da rota não existe na organização ou
+            está malformado) ou pessoa não encontrada (o `personId` não existe
+            na organização, está malformado ou já não está lotado nesta
+            unidade).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /people:
     get:
       operationId: searchPeople

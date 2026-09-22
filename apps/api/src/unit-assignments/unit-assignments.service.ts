@@ -132,4 +132,38 @@ export class UnitAssignmentsService {
 
     return person;
   }
+
+  /**
+   * Tira a lotação. A ordem repete a de `assign`: unidade primeiro (404
+   * opaco), lotação depois. Não há consulta a `Person`: a linha de lotação só
+   * existe se a pessoa existe, então o `deleteMany` decide sozinho — pessoa
+   * inexistente, de outra organização, com id malformado e "já não estava
+   * lotada" caem todas no mesmo `count === 0`.
+   */
+  async remove(
+    organizationId: string,
+    orgUnitId: string,
+    personId: string,
+  ): Promise<void> {
+    if (!isUuid(orgUnitId)) {
+      throw orgUnitNotFound();
+    }
+
+    const orgUnit = await this.prisma.orgUnit.findFirst({
+      where: { id: orgUnitId, organizationId },
+      select: { id: true },
+    });
+
+    if (!orgUnit) {
+      throw orgUnitNotFound();
+    }
+
+    const { count } = await this.prisma.orgUnitAssignment.deleteMany({
+      where: { orgUnitId: orgUnit.id, personId },
+    });
+
+    if (count === 0) {
+      throw new DomainNotFoundException(PERSON_NOT_FOUND_MESSAGE);
+    }
+  }
 }

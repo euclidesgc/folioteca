@@ -251,6 +251,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/org-units/{orgUnitId}/people/{personId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Tira a lotação da pessoa na unidade
+         * @description Tira a lotação da pessoa na unidade, só para a administração. Apaga **apenas** a linha de lotação: `Person`, `OrgUnit` e `Space` não são tocados, a pessoa continua na instância e continua lotada nas outras unidades em que estiver. Unidade inexistente, de outra organização ou com id malformado respondem "Unidade não encontrada."; pessoa inexistente, de outra organização, com id malformado ou que já não está lotada nesta unidade respondem "Pessoa não encontrada." — um 404 único, para a rota não contar quem existe na instância. As checagens acontecem nesta ordem: CSRF (guarda global), 401, 403, 404 da unidade e 404 da pessoa.
+         */
+        delete: operations["removePersonFromOrgUnit"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/people": {
         parameters: {
             query?: never;
@@ -1586,6 +1606,54 @@ export interface operations {
             };
             /** @description Esta pessoa já está lotada nesta unidade. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    removePersonFromOrgUnit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orgUnitId: string;
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A lotação foi apagada. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unidade não encontrada (o id da rota não existe na organização ou está malformado) ou pessoa não encontrada (o `personId` não existe na organização, está malformado ou já não está lotado nesta unidade). */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

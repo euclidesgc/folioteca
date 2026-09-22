@@ -1,4 +1,13 @@
-import { Body, Controller, Get, HttpCode, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import type { components } from '@folioteca/api-contract';
 
 import { AdminGuard } from '../auth/admin.guard';
@@ -48,5 +57,19 @@ export class UnitAssignmentsController {
     );
 
     return { data: assigned };
+  }
+
+  @Delete(':personId')
+  @HttpCode(204)
+  async removePersonFromOrgUnit(
+    @CurrentPerson() person: PersonWithOrganization,
+    @Param('orgUnitId') orgUnitId: string,
+    @Param('personId') personId: string,
+  ): Promise<void> {
+    await this.unitAssignments.remove(
+      person.organizationId,
+      orgUnitId,
+      personId,
+    );
   }
 }

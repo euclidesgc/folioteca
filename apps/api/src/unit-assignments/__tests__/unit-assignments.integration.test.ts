@@ -7,6 +7,7 @@ import type { Person } from '@prisma/client';
 import type { Response } from 'supertest';
 
 import { createApp } from '../../create-app';
+import { HAS_PEOPLE_MESSAGE } from '../../org-units/org-units.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { createPersonWithSession } from '../../../test/create-person';
 import { httpRequest } from '../../../test/http';
@@ -112,6 +113,27 @@ function assignPerson(
   return (cookie === undefined ? request : request.set('Cookie', cookie)).send(
     body,
   );
+}
+
+/** `DELETE /api/org-units/:orgUnitId/people/:personId`, com o cabeçalho do CSRF. */
+function removePerson(
+  orgUnitId: string,
+  personId: string,
+  cookie?: string,
+): Promise<Response> {
+  const request = httpRequest(app)
+    .delete(`/api/org-units/${orgUnitId}/people/${personId}`)
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return cookie === undefined ? request : request.set('Cookie', cookie);
+}
+
+/** `DELETE /api/org-units/:orgUnitId`, a rota da 066 que a dívida 109 travava. */
+function deleteUnit(orgUnitId: string, cookie: string): Promise<Response> {
+  return httpRequest(app)
+    .delete(`/api/org-units/${orgUnitId}`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie);
 }
 
 /** `GET /api/people`, a terceira rota da fatia. */
@@ -583,4 +605,218 @@ test('a document of the unit space stays 404 after the assignment', async () => 
     .set('Cookie', cookie);
 
   expect(response.status).toBe(404);
+});
+
+test('removing an assigned person answers 204 with no body', async () => {
+  const orgUnitId = await createUnit('Acervo');
+  const anaId = await createPerson('Ana Lima', 'ana@exemplo.org');
+  const brunoId = await createPerson('Bruno Melo', 'bruno@exemplo.org');
+
+  await assignPerson(orgUnitId, { personId: anaId }, adminCookie);
+  await assignPerson(orgUnitId, { personId: brunoId }, adminCookie);
+
+  const response = await removePerson(orgUnitId, anaId, adminCookie);
+
+  expect(response.status).toBe(204);
+  expect(response.body).toEqual({});
+  expect(response.text).toBe('');
+  expect(
+    peopleOf(await getUnitPeople(orgUnitId, adminCookie)).data.map(
+      (person) => person.id,
+    ),
+  ).toEqual([brunoId]);
+});
+
+test('removing the same pair twice answers the same not found', async () => {
+  const orgUnitId = await createUnit('Acervo');
+  const personId = await createPerson('Ana Lima', 'ana@exemplo.org');
+
+  await assignPerson(orgUnitId, { personId }, adminCookie);
+
+  const first = await removePerson(orgUnitId, personId, adminCookie);
+  const second = await removePerson(orgUnitId, personId, adminCookie);
+  const third = await removePerson(orgUnitId, personId, adminCookie);
+
+  const secondBody: unknown = second.body;
+  const thirdBody: unknown = third.body;
+
+  expect(first.status).toBe(204);
+  expect(second.status).toBe(404);
+  expect(third.status).toBe(second.status);
+  expect(messageOf(second)).toBe(PERSON_NOT_FOUND_MESSAGE);
+  expect(secondBody).toEqual(PERSON_NOT_FOUND_BODY);
+  expect(thirdBody).toEqual(secondBody);
+});
+
+/** Os três jeitos de a unidade não ser encontrada, agora no `DELETE`. */
+const removeOrgUnitNotFoundCases: [
+  string,
+  (personId: string) => Promise<Result>,
+][] = [
+  [
+    'an unknown org unit',
+    async (personId) =>
+      resultOf(await removePerson(randomUUID(), personId, adminCookie)),
+  ],
+  [
+    'an org unit of another organization',
+    async (personId) => {
+      const rootId = await getRootId();
+
+      return resultOfRefusal(() =>
+        unitAssignments.remove(randomUUID(), rootId, personId),
+      );
+    },
+  ],
+  [
+    'a malformed org unit id',
+    async (personId) =>
+      resultOf(await removePerson(MALFORMED_ID, personId, adminCookie)),
+  ],
+];
+
+test.each(removeOrgUnitNotFoundCases)(
+  '%s answers the same org unit not found on DELETE',
+  async (_name, run) => {
+    const personId = await createPerson('Ana Lima', 'ana@exemplo.org');
+    const reference = resultOf(
+      await removePerson(randomUUID(), personId, adminCookie),
+    );
+
+    const result = await run(personId);
+
+    expect(reference.status).toBe(404);
+    expect(reference.body).toEqual(ORG_UNIT_NOT_FOUND_BODY);
+    expect(result.status).toBe(reference.status);
+    expect(result.body).toEqual(reference.body);
+  },
+);
+
+/** Os três jeitos de a pessoa não ser encontrada no `DELETE`. */
+const removePersonNotFoundCases: [string, () => Promise<string>][] = [
+  ['an unknown person', () => Promise.resolve(randomUUID())],
+  [
+    // A instância tem uma organização só (check `Organization_singleton_check`
+    // da `0002`), então o caso representável é um id que existe no banco mas
+    // não é pessoa desta organização.
+    'a person of another organization',
+    () => getRootId(),
+  ],
+  ['a malformed person id', () => Promise.resolve(MALFORMED_ID)],
+];
+
+test.each(removePersonNotFoundCases)(
+  '%s answers the same person not found on DELETE',
+  async (_name, resolvePersonId) => {
+    const orgUnitId = await createUnit('Acervo');
+    const assignedId = await createPerson('Ana Lima', 'ana@exemplo.org');
+
+    // A referência é o caso "já não estava lotada": a pessoa existe, foi
+    // lotada e removida. É o corpo que os outros três têm de repetir, e é o
+    // que prova que a rota não conta quem existe na instância.
+    await assignPerson(orgUnitId, { personId: assignedId }, adminCookie);
+    await removePerson(orgUnitId, assignedId, adminCookie);
+    const reference = resultOf(
+      await removePerson(orgUnitId, assignedId, adminCookie),
+    );
+
+    const result = resultOf(
+      await removePerson(orgUnitId, await resolvePersonId(), adminCookie),
+    );
+
+    expect(reference.status).toBe(404);
+    expect(reference.body).toEqual(PERSON_NOT_FOUND_BODY);
+    expect(result.status).toBe(reference.status);
+    expect(result.body).toEqual(reference.body);
+  },
+);
+
+test('a non-admin answers 403', async () => {
+  const orgUnitId = await createUnit('Acervo');
+  const personId = await createPerson('Ana Lima', 'ana@exemplo.org');
+  const { cookie } = await createPersonWithSession(app, {
+    name: 'João Souza',
+    email: 'joao@exemplo.org',
+  });
+
+  await assignPerson(orgUnitId, { personId }, adminCookie);
+
+  const response = await removePerson(orgUnitId, personId, cookie);
+
+  expect(response.status).toBe(403);
+  expect(messageOf(response)).toBe(FORBIDDEN_MESSAGE);
+  expect(
+    await prisma.orgUnitAssignment.count({ where: { orgUnitId, personId } }),
+  ).toBe(1);
+});
+
+test('an anonymous request answers 401', async () => {
+  const orgUnitId = await createUnit('Acervo');
+  const personId = await createPerson('Ana Lima', 'ana@exemplo.org');
+
+  await assignPerson(orgUnitId, { personId }, adminCookie);
+
+  const response = await removePerson(orgUnitId, personId);
+
+  expect(response.status).toBe(401);
+  expect(messageOf(response)).toBe('Sessão não encontrada.');
+  expect(
+    await prisma.orgUnitAssignment.count({ where: { orgUnitId, personId } }),
+  ).toBe(1);
+});
+
+test('a person assigned to two units stays in the other one', async () => {
+  const firstUnitId = await createUnit('Acervo');
+  const secondUnitId = await createUnit('Restauro');
+  const personId = await createPerson('Ana Lima', 'ana@exemplo.org');
+
+  await assignPerson(firstUnitId, { personId }, adminCookie);
+  await assignPerson(secondUnitId, { personId }, adminCookie);
+
+  const response = await removePerson(firstUnitId, personId, adminCookie);
+
+  expect(response.status).toBe(204);
+  expect(peopleOf(await getUnitPeople(firstUnitId, adminCookie)).data).toEqual(
+    [],
+  );
+  expect(
+    peopleOf(await getUnitPeople(secondUnitId, adminCookie)).data.map(
+      (person) => person.id,
+    ),
+  ).toEqual([personId]);
+  expect(await prisma.person.findUnique({ where: { id: personId } })).not.toBeNull();
+});
+
+test('an admin removes itself and stays an admin', async () => {
+  const firstUnitId = await createUnit('Acervo');
+  const secondUnitId = await createUnit('Restauro');
+
+  await assignPerson(firstUnitId, { personId: adminPerson.id }, adminCookie);
+  await assignPerson(secondUnitId, { personId: adminPerson.id }, adminCookie);
+
+  const first = await removePerson(firstUnitId, adminPerson.id, adminCookie);
+  const second = await removePerson(secondUnitId, adminPerson.id, adminCookie);
+
+  expect(first.status).toBe(204);
+  expect(second.status).toBe(204);
+});
+
+test('deleting a unit works again after the last person is removed', async () => {
+  const orgUnitId = await createUnit('Acervo');
+  const personId = await createPerson('Ana Lima', 'ana@exemplo.org');
+
+  await assignPerson(orgUnitId, { personId }, adminCookie);
+
+  const refused = await deleteUnit(orgUnitId, adminCookie);
+
+  expect(refused.status).toBe(409);
+  expect(messageOf(refused)).toBe(HAS_PEOPLE_MESSAGE);
+
+  const removed = await removePerson(orgUnitId, personId, adminCookie);
+  expect(removed.status).toBe(204);
+
+  const deleted = await deleteUnit(orgUnitId, adminCookie);
+
+  expect(deleted.status).toBe(204);
+  expect(await prisma.orgUnit.findUnique({ where: { id: orgUnitId } })).toBeNull();
 });

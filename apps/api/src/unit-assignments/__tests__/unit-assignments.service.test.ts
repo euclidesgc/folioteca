@@ -3,6 +3,7 @@ import 'reflect-metadata';
 import { ConflictException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
+import { DomainNotFoundException } from '../../common/domain-not-found.exception';
 import type { PrismaService } from '../../prisma/prisma.service';
 import {
   ALREADY_ASSIGNED_MESSAGE,
@@ -26,6 +27,7 @@ type Double = {
   findPerson: ReturnType<typeof vi.fn>;
   findAssignments: ReturnType<typeof vi.fn>;
   createAssignment: ReturnType<typeof vi.fn>;
+  deleteAssignments: ReturnType<typeof vi.fn>;
   assignment: Record<string, ReturnType<typeof vi.fn>>;
 };
 
@@ -39,6 +41,7 @@ function createService(options: {
   person?: PersonRecord | null;
   assignments?: { person: PersonRecord }[];
   createError?: unknown;
+  deletedCount?: number;
 }): Double {
   const findOrgUnit = vi
     .fn()
@@ -60,12 +63,18 @@ function createService(options: {
       ? vi.fn().mockResolvedValue({ personId: PERSON_ID })
       : vi.fn().mockRejectedValue(options.createError);
 
+  const deleteAssignments = vi
+    .fn()
+    .mockResolvedValue({ count: options.deletedCount ?? 1 });
+
   const assignment = {
     findMany: findAssignments,
     create: createAssignment,
+    deleteMany: deleteAssignments,
     findFirst: vi.fn(),
     findUnique: vi.fn(),
     count: vi.fn(),
+    delete: vi.fn(),
   };
 
   const prisma = {
@@ -80,6 +89,7 @@ function createService(options: {
     findPerson,
     findAssignments,
     createAssignment,
+    deleteAssignments,
     assignment,
   };
 }
@@ -194,4 +204,62 @@ test('list answers the org unit not found for a malformed id without querying', 
   ).rejects.toThrow(NOT_FOUND_MESSAGE);
 
   expect(findOrgUnit).not.toHaveBeenCalled();
+});
+
+test('remove deletes only the pair of the unit and the person', async () => {
+  const { service, deleteAssignments, findPerson, assignment } = createService(
+    {},
+  );
+
+  await service.remove(ORGANIZATION_ID, ORG_UNIT_ID, PERSON_ID);
+
+  // `toHaveBeenCalledWith` não tolera chave extra: o `where` é exatamente o
+  // par, sem nenhum outro campo.
+  expect(deleteAssignments).toHaveBeenCalledWith({
+    where: { orgUnitId: ORG_UNIT_ID, personId: PERSON_ID },
+  });
+  expect(findPerson).not.toHaveBeenCalled();
+  expect(assignment.delete).not.toHaveBeenCalled();
+});
+
+test('remove scopes the unit to the organization of the session', async () => {
+  const { service, findOrgUnit } = createService({});
+
+  await service.remove(ORGANIZATION_ID, ORG_UNIT_ID, PERSON_ID);
+
+  expect(findOrgUnit).toHaveBeenCalledWith({
+    where: { id: ORG_UNIT_ID, organizationId: ORGANIZATION_ID },
+    select: { id: true },
+  });
+});
+
+test('remove with no deleted row rejects with the person not found message', async () => {
+  const { service } = createService({ deletedCount: 0 });
+
+  await expect(
+    service.remove(ORGANIZATION_ID, ORG_UNIT_ID, PERSON_ID),
+  ).rejects.toThrow(new DomainNotFoundException(PERSON_NOT_FOUND_MESSAGE));
+});
+
+test('a malformed org unit id never reaches the database', async () => {
+  const { service, findOrgUnit, deleteAssignments } = createService({});
+
+  await expect(
+    service.remove(ORGANIZATION_ID, 'nao-e-uuid', PERSON_ID),
+  ).rejects.toThrow(NOT_FOUND_MESSAGE);
+
+  expect(findOrgUnit).not.toHaveBeenCalled();
+  expect(deleteAssignments).not.toHaveBeenCalled();
+});
+
+test('a malformed person id reaches the database and gets the same not found', async () => {
+  const { service, deleteAssignments } = createService({ deletedCount: 0 });
+
+  await expect(
+    service.remove(ORGANIZATION_ID, ORG_UNIT_ID, 'nao-e-uuid'),
+  ).rejects.toThrow(new DomainNotFoundException(PERSON_NOT_FOUND_MESSAGE));
+
+  expect(deleteAssignments).toHaveBeenCalledWith({
+    where: { orgUnitId: ORG_UNIT_ID, personId: 'nao-e-uuid' },
+  });
 });
