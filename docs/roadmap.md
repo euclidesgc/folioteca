@@ -11,7 +11,7 @@
 | 007 | trash | mandar documento para a lixeira, restaurar ou apagar de vez (só o proprietário) | pedido inicial | 004 | done |
 | 064 | org-units-view | (administração) ver a árvore de unidades da organização numa página "Estrutura", navegável por teclado, numa área "Administração" que só a administração enxerga | 008 org-units-tree | 003 | done |
 | 065 | org-units-create-rename | (administração) criar unidades filhas e renomear unidades, inclusive a raiz (que renomeia a organização) | 008 org-units-tree | 064 | done |
-| 066 | org-units-delete | (administração) apagar unidade sem filhas, com confirmação; a raiz nunca | 008 org-units-tree | 065 | in-progress |
+| 066 | org-units-delete | (administração) apagar unidade sem filhas, com confirmação; a raiz nunca | 008 org-units-tree | 065 | in-review |
 | 009 | invitations | (administração) convidar pessoas por e-mail, e o convidado criar a conta pelo link | pedido inicial | 003 | planned |
 | 010 | unit-assignments | (administração) lotar pessoas em uma ou mais unidades e removê-las | pedido inicial | 066, 009 | planned |
 | 011 | admin-roles | (administração) promover e rebaixar administradores, nunca ficando sem nenhum | pedido inicial | 009 | planned |
@@ -78,3 +78,10 @@
 | 075 | mock-unit-space | ter a API simulada criando o espaço UNIT junto com a unidade (a fatia de espaços de unidade vai precisar) | dívida da 065 | | planned |
 | 076 | organization-rename-convergence | convergir o renomear da organização (hoje feito ao renomear a raiz, dentro de org-units) com uma futura tela de dados da organização | dívida da 065 | | planned |
 | 077 | sidebar-aside-accessible-name | dar rótulo acessível ao `<aside>` da barra lateral (hoje o e2e localiza a identidade por `locator('aside')`) | dívida da 065 | | planned |
+| 078 | test-wait-explicit-timeout | ter nas centenas de esperas `findBy…`/`waitFor` de apps/web/src e specs de e2e (block-editor, install, create-document) um timeout explícito em vez de deixar esgotado em máquina ocupada, evitando flake de CI sob carga | dívida 066 | | planned |
+| 079 | move-document-across-spaces | mover documentos para outro espaço (hoje apagar unidade com documentos é recusado com 409 e não há forma de mover) | dívida 066 | | planned |
+| 080 | delete-unit-with-children-cascade | apagar uma unidade com filhas em cascata com confirmação reforçada (hoje recusado com 409) | dívida 066 | | planned |
+| 081 | unify-dialog-opener-keeper | ter um único modo de guardar quem abriu um diálogo em vez de dois (o keeper do `Dialog` compartilhado e a `ref` da feature org-units) | dívida 066 | | planned |
+| 082 | mock-space-entity-filtering | ter a API simulada filtrando documentos por espaço em vez de repetir a convenção `space-${dono}` em três lugares | dívida 066 | | planned |
+| 083 | axe-dialog-error-state | poder executar a auditoria de acessibilidade (axe) no diálogo de confirmação em estado de erro (409), não só no inicial | dívida 066 | | planned |
+| 084 | delete-race-condition-integration-test | ter teste de integração concorrente para a corrida de exclusão (hoje só a unitária do `P2003`), com duas pessoas apagando a mesma unidade | dívida 066 | | planned |
