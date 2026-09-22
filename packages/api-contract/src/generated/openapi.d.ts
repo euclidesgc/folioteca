@@ -335,6 +335,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/spaces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista os espaços de unidade de quem chama
+         * @description Lista só os espaços de unidade em que a pessoa da sessão está lotada diretamente: lotação numa unidade filha não traz a unidade pai, e não há herança em nenhum sentido. Ser administração não inclui nada a mais. A ordem é alfabética pelo nome da unidade com colador pt-BR, com desempate pelo id do espaço. A lista é relida a cada pedido, então uma lotação removida some já no pedido seguinte.
+         */
+        get: operations["listSpaces"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/invitations": {
         parameters: {
             query?: never;
@@ -577,6 +597,20 @@ export interface components {
         };
         AdminResponse: {
             data: components["schemas"]["AdminPerson"];
+        };
+        Space: {
+            /** @description Identificador do espaço (não da unidade). */
+            id: string;
+            /**
+             * @description Tipo do espaço; nesta versão, só espaço de unidade.
+             * @enum {string}
+             */
+            type: "unit";
+            /** @description Nome da unidade dona do espaço. */
+            name: string;
+        };
+        SpacesResponse: {
+            data: components["schemas"]["Space"][];
         };
         CreateInvitationInput: {
             /**
@@ -1897,6 +1931,35 @@ export interface operations {
             };
             /** @description É a única administração da instância: o papel não pode ser retirado. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listSpaces: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Os espaços de unidade foram listados. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpacesResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

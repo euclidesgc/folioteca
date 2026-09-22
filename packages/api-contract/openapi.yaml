@@ -971,6 +971,32 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /spaces:
+    get:
+      operationId: listSpaces
+      tags:
+        - spaces
+      summary: Lista os espaços de unidade de quem chama
+      description: >-
+        Lista só os espaços de unidade em que a pessoa da sessão está lotada
+        diretamente: lotação numa unidade filha não traz a unidade pai, e não
+        há herança em nenhum sentido. Ser administração não inclui nada a
+        mais. A ordem é alfabética pelo nome da unidade com colador pt-BR, com
+        desempate pelo id do espaço. A lista é relida a cada pedido, então uma
+        lotação removida some já no pedido seguinte.
+      responses:
+        "200":
+          description: Os espaços de unidade foram listados.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpacesResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /invitations:
     post:
       operationId: createInvitation
@@ -1566,6 +1592,34 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/AdminPerson"
+      required:
+        - data
+    Space:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identificador do espaço (não da unidade).
+        type:
+          type: string
+          enum:
+            - unit
+          description: Tipo do espaço; nesta versão, só espaço de unidade.
+        name:
+          type: string
+          description: Nome da unidade dona do espaço.
+      required:
+        - id
+        - type
+        - name
+      additionalProperties: false
+    SpacesResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Space"
       required:
         - data
     CreateInvitationInput:

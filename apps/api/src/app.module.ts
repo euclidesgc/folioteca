@@ -13,6 +13,7 @@ import { InvitationsModule } from './invitations/invitations.module';
 import { OrgUnitsModule } from './org-units/org-units.module';
 import { PeopleModule } from './people/people.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { SpacesModule } from './spaces/spaces.module';
 import { UnitAssignmentsModule } from './unit-assignments/unit-assignments.module';
 
 @Module({
@@ -28,6 +29,7 @@ import { UnitAssignmentsModule } from './unit-assignments/unit-assignments.modul
     UnitAssignmentsModule,
     PeopleModule,
     AdminRolesModule,
+    SpacesModule,
     CollabModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: CsrfGuard }],
