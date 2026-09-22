@@ -114,7 +114,7 @@
 | 112 | person-delete-assignments-policy | decidir por escrito o que acontece com as lotações de uma pessoa quando apagar pessoa existir no produto, porque a FK `RESTRICT` da lotação vai recusar a exclusão | dívida 010 | | planned |
 | 113 | tree-row-actions-order-contract | ter a ordem das ações na linha da árvore documentada e provada num só lugar, hoje contrato implícito de três testes de teclado (dois e2e e um unitário) que quebram juntos se a ordem mudar, sem nada além dos comentários | dívida 010 | | planned |
 | 114 | admin-roles-promote | (administração) promover alguém a administração, pela busca | 011 admin-roles | 011 | in-review |
-| 115 | admin-roles-demote | (administração) rebaixar uma administração, nunca ficando sem nenhuma | 011 admin-roles | 114 | planned |
+| 115 | admin-roles-demote | (administração) rebaixar uma administração, nunca ficando sem nenhuma | 011 admin-roles | 114 | in-progress |
 | 116 | admins-list-pagination-search | (administração) ver a lista de administradores (`GET /admins` e a página /admin/admins) com paginação e busca, hoje inteira e sem limite; terceira lista completa sem limite, junto com as da 100 e da 111 | dívida 011 | | planned |
 | 117 | query-states-component | (dev) ter em src/components/ui um componente único de estados de consulta (carregando, vazio, erro com "Tentar novamente", a regra `isPending \|\| (isError && isFetching)` e o `aria-live`), hoje copiado em OrgUnitsTree, InvitationsList, UnitPeopleList e AdminsList | dívida 011 | | planned |
 | 118 | admin-role-grant-history | (administração) saber desde quando cada pessoa administra a instância e quem a promoveu, hoje sem registro nenhum | dívida 011 | 114 | planned |
