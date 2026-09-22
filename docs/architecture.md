@@ -339,6 +339,22 @@ rota); ordem observável de falha: CSRF (`X-Requested-With` ausente) → `401`
 controller, como `POST` e `PATCH`; ordem observável de falha: CSRF → `401`
 → `403` → `404` → `409`.
 
+**Entrega `invitations-create` (fatia 085)**: o token do convite tem 32 bytes
+em `base64url` e é guardado **só** como `sha256` (mesmo desenho de `Session`),
+devolvido uma única vez no corpo do `201` e nunca recuperável depois. O
+`hashToken` foi **duplicado** no módulo `invitations` de propósito, para não
+criar abstração com duas ocorrências; a fatia 086, terceira ocorrência, deve
+extrair para `apps/api/src/common/hash-token.ts`. "Um convite pendente por
+e-mail" é garantido no banco pelo índice único por expressão `lower("email")`
+da migration `0009`, não só pela checagem da API; convidar o mesmo e-mail de
+novo substitui o convite (apagar o anterior + criar o novo) numa **transação**,
+de modo que o link antigo deixa de validar. `POST /invitations` herda
+`SessionGuard` + `AdminGuard` da **classe** do controller; ordem observável de
+falha: CSRF → `401` → `403` → `400` → `409`. O link do convite é montado pelo
+**navegador** (a API não conhece a origem da aplicação), e o caminho público
+`/invitations/:token` só existe a partir da 086 — por isso 085 e 086 são
+mescladas juntas.
+
 ## 7. Testes
 
 Vitest em tudo. Na API, integração contra Postgres real (`docker compose`,
