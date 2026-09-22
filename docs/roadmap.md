@@ -19,7 +19,7 @@
 | 089 | invitations-email | receber o convite por e-mail em vez de a administração copiar o link à mão (exige SMTP no projeto) | 009 invitations | 086 | planned |
 | 010 | unit-assignments | (administração) lotar pessoas em unidades e ver quem está lotado | pedido inicial | 066, 086 | in-review |
 | 108 | unit-assignments-remove | (administração) remover uma pessoa de uma unidade, com confirmação | 010 unit-assignments | 010 | in-review |
-| 011 | admin-roles | (administração) promover e rebaixar administradores, nunca ficando sem nenhum | pedido inicial | 086 | planned |
+| 011 | admins-list | (administração) ver quem administra a instância | pedido inicial | 086 | in-progress |
 | 012 | unit-spaces | ver o espaço espelhado de cada unidade em que está lotado, com os membros diretos | pedido inicial | 010 | planned |
 | 013 | free-spaces | criar espaço livre e convidar pessoas da instância | pedido inicial | 086 | planned |
 | 014 | space-permissions | definir se um espaço herda do pai ou tem permissões próprias, e restringir espaço livre | pedido inicial | 013 | planned |
@@ -113,3 +113,5 @@
 | 111 | unit-assignments-list-pagination-search | (administração) ver a lista de pessoas lotadas com paginação e busca interna, hoje inteira e sem filtro | dívida 010 | | planned |
 | 112 | person-delete-assignments-policy | decidir por escrito o que acontece com as lotações de uma pessoa quando apagar pessoa existir no produto, porque a FK `RESTRICT` da lotação vai recusar a exclusão | dívida 010 | | planned |
 | 113 | tree-row-actions-order-contract | ter a ordem das ações na linha da árvore documentada e provada num só lugar, hoje contrato implícito de três testes de teclado (dois e2e e um unitário) que quebram juntos se a ordem mudar, sem nada além dos comentários | dívida 010 | | planned |
+| 114 | admin-roles-promote | (administração) promover alguém a administração, pela busca | 011 admin-roles | 011 | planned |
+| 115 | admin-roles-demote | (administração) rebaixar uma administração, nunca ficando sem nenhuma | 011 admin-roles | 114 | planned |

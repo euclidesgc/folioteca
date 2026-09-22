@@ -291,6 +291,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista quem administra a organização de quem chama
+         * @description Lista todas as pessoas com `isAdmin` da organização de quem chama, só para a administração, sem paginação e sem limite. A ordem é alfabética por nome com colador pt-BR, e nenhuma pessoa de outra organização aparece. `GET` não passa pelo `CsrfGuard`, que só cobre método de escrita: a ordem de falha é 401 e depois 403.
+         */
+        get: operations["getAdmins"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/invitations": {
         parameters: {
             query?: never;
@@ -519,6 +539,17 @@ export interface components {
             data: components["schemas"]["PersonSummary"][];
             /** @description Verdadeiro quando há mais pessoas casando o termo do que as mostradas. */
             hasMore: boolean;
+        };
+        AdminPerson: {
+            /** @description Identificador da pessoa. */
+            id: string;
+            /** @description Nome da pessoa. */
+            name: string;
+            /** @description E-mail da pessoa; distingue duas pessoas com o mesmo nome. */
+            email: string;
+        };
+        AdminsResponse: {
+            data: components["schemas"]["AdminPerson"][];
         };
         CreateInvitationInput: {
             /**
@@ -1681,6 +1712,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PeopleResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdmins: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Os administradores foram listados. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminsResponse"];
                 };
             };
             /** @description Não há sessão válida. */

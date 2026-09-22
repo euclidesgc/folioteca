@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 
 import { AccessModule } from './access/access.module';
+import { AdminRolesModule } from './admin-roles/admin-roles.module';
 import { AuthModule } from './auth/auth.module';
 import { CollabModule } from './collab/collab.module';
 import { CsrfGuard } from './common/csrf.guard';
@@ -26,6 +27,7 @@ import { UnitAssignmentsModule } from './unit-assignments/unit-assignments.modul
     InvitationsModule,
     UnitAssignmentsModule,
     PeopleModule,
+    AdminRolesModule,
     CollabModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: CsrfGuard }],

@@ -835,6 +835,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /admins:
+    get:
+      operationId: getAdmins
+      tags:
+        - admins
+      summary: Lista quem administra a organização de quem chama
+      description: >-
+        Lista todas as pessoas com `isAdmin` da organização de quem chama, só
+        para a administração, sem paginação e sem limite. A ordem é
+        alfabética por nome com colador pt-BR, e nenhuma pessoa de outra
+        organização aparece. `GET` não passa pelo `CsrfGuard`, que só cobre
+        método de escrita: a ordem de falha é 401 e depois 403.
+      responses:
+        "200":
+          description: Os administradores foram listados.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminsResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /invitations:
     post:
       operationId: createInvitation
@@ -1400,6 +1431,31 @@ components:
       required:
         - data
         - hasMore
+    AdminPerson:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identificador da pessoa.
+        name:
+          type: string
+          description: Nome da pessoa.
+        email:
+          type: string
+          description: E-mail da pessoa; distingue duas pessoas com o mesmo nome.
+      required:
+        - id
+        - name
+        - email
+    AdminsResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminPerson"
+      required:
+        - data
     CreateInvitationInput:
       type: object
       properties:
