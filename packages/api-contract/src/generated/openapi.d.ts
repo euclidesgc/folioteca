@@ -251,6 +251,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/invitations/{invitationId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoga um convite pendente
+         * @description Só a administração. Marca o convite como revogado **sem apagar a linha**, que continua na base como auditoria do que foi convidado e cortado. O link enviado para de funcionar na hora: abrir ou aceitar aquele convite passa a responder o mesmo 404 de um link inexistente. Convite inexistente, de outra organização, já aceito, vencido ou já revogado respondem o **mesmo** 404, com o mesmo corpo: nada aqui diferencia os casos, para a rota não virar um oráculo sobre quais convites existem ou quem já aceitou. As checagens acontecem nesta ordem: CSRF (guarda global), 401, 403 e por fim 404.
+         */
+        post: operations["revokeInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/invitations/{token}": {
         parameters: {
             query?: never;
@@ -1462,6 +1482,54 @@ export interface operations {
             };
             /** @description O e-mail já é de uma pessoa da organização. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    revokeInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identificador do convite, o mesmo que a lista devolve. */
+                invitationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O convite foi revogado. A resposta não tem corpo. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O convite não está disponível. A mesma resposta para convite inexistente, de outra organização, já aceito, vencido ou já revogado. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

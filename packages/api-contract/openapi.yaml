@@ -711,6 +711,53 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /invitations/{invitationId}/revoke:
+    post:
+      operationId: revokeInvitation
+      tags:
+        - invitations
+      summary: Revoga um convite pendente
+      description: >-
+        Só a administração. Marca o convite como revogado **sem apagar a
+        linha**, que continua na base como auditoria do que foi convidado e
+        cortado. O link enviado para de funcionar na hora: abrir ou aceitar
+        aquele convite passa a responder o mesmo 404 de um link inexistente.
+        Convite inexistente, de outra organização, já aceito, vencido ou já
+        revogado respondem o **mesmo** 404, com o mesmo corpo: nada aqui
+        diferencia os casos, para a rota não virar um oráculo sobre quais
+        convites existem ou quem já aceitou. As checagens acontecem nesta
+        ordem: CSRF (guarda global), 401, 403 e por fim 404.
+      parameters:
+        - name: invitationId
+          in: path
+          required: true
+          description: Identificador do convite, o mesmo que a lista devolve.
+          schema:
+            type: string
+      responses:
+        "204":
+          description: O convite foi revogado. A resposta não tem corpo.
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            O convite não está disponível. A mesma resposta para convite
+            inexistente, de outra organização, já aceito, vencido ou já
+            revogado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /invitations/{token}:
     get:
       operationId: getInvitation

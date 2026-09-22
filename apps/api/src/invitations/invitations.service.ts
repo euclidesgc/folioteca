@@ -49,6 +49,18 @@ export const RACE_MESSAGE =
  */
 export const INVITATION_UNAVAILABLE_MESSAGE = 'Convite não encontrado.';
 
+/**
+ * A única definição de "convite pendente" do servidor: `findPending`, `list`,
+ * o `deleteMany` de `create` e `revoke` partem daqui, e é por isso que um
+ * estado novo (como `revokedAt`) entra em um lugar só.
+ */
+export const pendingInvitationWhere = (now: Date = new Date()) =>
+  ({
+    acceptedAt: null,
+    revokedAt: null,
+    expiresAt: { gt: now },
+  }) satisfies Prisma.InvitationWhereInput;
+
 /** Reconhece a violação do `@unique` de `Person.email`. */
 function isPersonEmailViolation(error: unknown): boolean {
   if (
@@ -94,21 +106,16 @@ export class InvitationsService {
   ) {}
 
   /**
-   * Convite pendente do token, ou `null`. Único ponto de recusa: as checagens
-   * rodam todas, em memória, sobre a mesma linha já carregada, sem consulta a
-   * mais e sem `return` antecipado entre elas — a 087 acrescenta `revokedAt`
-   * aqui, e o quarto caso cai no mesmo 404 sem mudar mais nada.
-   *
-   * "Pendente" é definido aqui e em `list`: `acceptedAt === null` e
-   * `expiresAt` no futuro. Aqui roda em memória, sobre uma linha só, para não
-   * dar pista de qual das checagens recusou; em `list` roda no banco, porque a
-   * lista precisa que o Prisma filtre. A 087 acrescenta `revokedAt` nos dois.
+   * Convite pendente do token, ou `null`. O estado do convite é decidido no
+   * banco, por `pendingInvitationWhere`: link inexistente, expirado, já aceito
+   * ou revogado chegam aqui como o mesmo `null`, e quem chama monta o mesmo
+   * 404 para os quatro.
    */
   private async findPending(token: string): Promise<Invitation | null> {
     const tokenHash = hashToken(token);
 
-    const invitation = await this.prisma.invitation.findUnique({
-      where: { tokenHash },
+    const invitation = await this.prisma.invitation.findFirst({
+      where: { tokenHash, ...pendingInvitationWhere() },
     });
 
     if (invitation === null) {
@@ -121,10 +128,8 @@ export class InvitationsService {
       Buffer.from(invitation.tokenHash, 'hex'),
       Buffer.from(tokenHash, 'hex'),
     );
-    const isValid = invitation.expiresAt.getTime() > Date.now();
-    const isUnused = invitation.acceptedAt === null;
 
-    return matchesToken && isValid && isUnused ? invitation : null;
+    return matchesToken ? invitation : null;
   }
 
   /** Só o que quem recebeu o link já sabe: o e-mail dele e a organização. */
@@ -229,7 +234,11 @@ export class InvitationsService {
           throw new ConflictException(ALREADY_A_PERSON_MESSAGE);
         }
 
-        await tx.invitation.deleteMany({ where: { email } });
+        // Só o convite pendente do mesmo e-mail sai: o aceito e o revogado
+        // ficam como auditoria, e o índice parcial não os enxerga mesmo.
+        await tx.invitation.deleteMany({
+          where: { email, ...pendingInvitationWhere() },
+        });
 
         return tx.invitation.create({
           data: { organizationId, email, tokenHash, invitedById, expiresAt },
@@ -259,11 +268,8 @@ export class InvitationsService {
   }
 
   /**
-   * Os convites pendentes da organização, do mais recente para o mais
-   * antigo. "Pendente" é definido aqui e em `findPending`: `acceptedAt ===
-   * null` e `expiresAt` no futuro. Aqui o filtro roda no banco, porque a
-   * lista precisa que o Prisma filtre; em `findPending` roda em memória,
-   * sobre uma linha só. A 087 acrescenta `revokedAt` nos dois.
+   * Os convites pendentes da organização, do mais recente para o mais antigo,
+   * por `pendingInvitationWhere`.
    *
    * O `select` é explícito e não inclui `tokenHash` nem `invitedById`: é a
    * segunda tranca contra vazar o token (a primeira é o schema do contrato).
@@ -272,8 +278,7 @@ export class InvitationsService {
     const rows = await this.prisma.invitation.findMany({
       where: {
         organizationId,
-        acceptedAt: null,
-        expiresAt: { gt: new Date() },
+        ...pendingInvitationWhere(),
       },
       orderBy: { createdAt: 'desc' },
       select: { id: true, email: true, createdAt: true, expiresAt: true },
@@ -285,5 +290,26 @@ export class InvitationsService {
       createdAt: row.createdAt.toISOString(),
       expiresAt: row.expiresAt.toISOString(),
     }));
+  }
+
+  /**
+   * Marca o convite como revogado, sem apagar a linha: ela continua sendo o
+   * registro de que aquele link existiu e foi cortado.
+   *
+   * `updateMany`, e não uma leitura seguida de escrita: o `where` e a escrita
+   * viram uma instrução só, então duas revogações simultâneas não conseguem os
+   * dois `count = 1` — a segunda encontra a linha fora do predicado e cai no
+   * mesmo 404 de um convite inexistente, de outra organização, já aceito ou
+   * vencido. A organização vem sempre de quem está na sessão, nunca da rota.
+   */
+  async revoke(organizationId: string, invitationId: string): Promise<void> {
+    const { count } = await this.prisma.invitation.updateMany({
+      where: { id: invitationId, organizationId, ...pendingInvitationWhere() },
+      data: { revokedAt: new Date() },
+    });
+
+    if (count === 0) {
+      throw new DomainNotFoundException(INVITATION_UNAVAILABLE_MESSAGE);
+    }
   }
 }

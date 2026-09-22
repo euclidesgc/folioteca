@@ -7,6 +7,7 @@ import type { Person } from '@prisma/client';
 import type { Response } from 'supertest';
 
 import { createApp } from '../../create-app';
+import { DomainNotFoundException } from '../../common/domain-not-found.exception';
 import { PrismaService } from '../../prisma/prisma.service';
 import { createPersonWithSession } from '../../../test/create-person';
 import { httpRequest } from '../../../test/http';
@@ -14,6 +15,8 @@ import { resetDatabase } from '../../../test/reset-database';
 import {
   ALREADY_A_PERSON_MESSAGE,
   INVITATION_TTL_MS,
+  INVITATION_UNAVAILABLE_MESSAGE,
+  InvitationsService,
 } from '../invitations.service';
 
 const EMAIL = 'maria@exemplo.org';
@@ -392,4 +395,242 @@ test('the list items expose exactly id, email, createdAt and expiresAt', async (
     'expiresAt',
     'id',
   ]);
+});
+
+/** O único corpo de recusa do convite, o mesmo para os cinco estados. */
+const UNAVAILABLE_BODY = { message: INVITATION_UNAVAILABLE_MESSAGE };
+
+const SECOND_GUEST_EMAIL = 'ana@exemplo.com.br';
+
+/** Envia a revogação com o cabeçalho que o CSRF do projeto exige. */
+function revokeInvitation(
+  invitationId: string,
+  cookie?: string,
+): Promise<Response> {
+  const request = httpRequest(app)
+    .post(`/api/invitations/${invitationId}/revoke`)
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return cookie === undefined ? request : request.set('Cookie', cookie);
+}
+
+/** Abre o link do convite, como quem o recebeu por e-mail. */
+function getInvitationByToken(token: string): Promise<Response> {
+  return httpRequest(app).get(`/api/invitations/${token}`);
+}
+
+/** Envia o aceite com o cabeçalho que o CSRF do projeto exige. */
+function postAccept(token: string, body: object): Promise<Response> {
+  return httpRequest(app)
+    .post(`/api/invitations/${token}/accept`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .send(body);
+}
+
+/** Cria um convite pela API e devolve o corpo dele. */
+async function invite(email: string): Promise<CreatedInvitationBody> {
+  return invitationOf(await postInvitation({ email }, adminCookie));
+}
+
+const unavailableCases: Array<[string, () => Promise<string>]> = [
+  [
+    'an accepted invitation',
+    async () => {
+      const created = await invite(GUEST_EMAIL);
+
+      await postAccept(created.token, {
+        name: 'Convidado Souza',
+        password: randomUUID(),
+      });
+
+      return created.id;
+    },
+  ],
+  [
+    'an expired invitation',
+    async () => {
+      const created = await invite(GUEST_EMAIL);
+
+      await prisma.invitation.update({
+        where: { id: created.id },
+        data: { expiresAt: new Date(Date.now() - 1_000) },
+      });
+
+      return created.id;
+    },
+  ],
+  ['an unknown id', () => Promise.resolve(randomUUID())],
+];
+
+describe('revoking an invitation', () => {
+  test('revoking a pending invitation answers 204 with no body', async () => {
+    const created = await invite(GUEST_EMAIL);
+
+    const response = await revokeInvitation(created.id, adminCookie);
+
+    expect(response.status).toBe(204);
+    expect(response.body).toEqual({});
+    expect(response.text).toBe('');
+  });
+
+  test('a revoked invitation disappears from the list', async () => {
+    const created = await invite(GUEST_EMAIL);
+
+    await revokeInvitation(created.id, adminCookie);
+
+    expect(listOf(await getInvitations(adminCookie))).toEqual([]);
+  });
+
+  test('the revoked link answers exactly what an unknown link answers', async () => {
+    const created = await invite(GUEST_EMAIL);
+
+    const unknown = await getInvitationByToken(randomUUID());
+
+    await revokeInvitation(created.id, adminCookie);
+
+    const revoked = await getInvitationByToken(created.token);
+
+    const unknownBody: unknown = unknown.body;
+    const revokedBody: unknown = revoked.body;
+
+    expect(revoked.status).toBe(unknown.status);
+    expect(revokedBody).toEqual(unknownBody);
+  });
+
+  test('accepting a revoked token answers the same not found', async () => {
+    const created = await invite(GUEST_EMAIL);
+
+    await revokeInvitation(created.id, adminCookie);
+
+    const response = await postAccept(created.token, {
+      name: 'Convidado Souza',
+      password: randomUUID(),
+    });
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual(UNAVAILABLE_BODY);
+  });
+
+  test('revoking twice answers the same not found', async () => {
+    const created = await invite(GUEST_EMAIL);
+
+    await revokeInvitation(created.id, adminCookie);
+
+    const response = await revokeInvitation(created.id, adminCookie);
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual(UNAVAILABLE_BODY);
+  });
+
+  test.each(unavailableCases)(
+    '%s answers the same not found',
+    async (_name, createInvitationId) => {
+      const invitationId = await createInvitationId();
+
+      const response = await revokeInvitation(invitationId, adminCookie);
+
+      expect(response.status).toBe(404);
+      expect(response.body).toEqual(UNAVAILABLE_BODY);
+    },
+  );
+
+  /**
+   * A organização é única por instância — a `0002` a tranca com o check
+   * `Organization_singleton_check` —, então uma segunda organização não pode
+   * ser gravada e o caso não chega a existir por HTTP. A recusa é provada onde
+   * ela mora: o serviço, contra o mesmo Postgres, com um `organizationId` que
+   * não é o do convite.
+   */
+  test('an invitation of another organization answers the same not found', async () => {
+    const created = await invite(GUEST_EMAIL);
+    const service = app.get(InvitationsService);
+
+    const error = await service.revoke(randomUUID(), created.id).then(
+      () => undefined,
+      (thrown: unknown) => thrown,
+    );
+
+    expect(error).toBeInstanceOf(DomainNotFoundException);
+    expect((error as Error).message).toBe(UNAVAILABLE_BODY.message);
+    expect(
+      await prisma.invitation.count({
+        where: { id: created.id, revokedAt: null },
+      }),
+    ).toBe(1);
+  });
+
+  test('a non-admin answers 403', async () => {
+    const created = await invite(GUEST_EMAIL);
+    const { cookie } = await createPersonWithSession(app, {
+      name: 'João Souza',
+      email: 'joao@exemplo.org',
+    });
+
+    const response = await revokeInvitation(created.id, cookie);
+
+    expect(response.status).toBe(403);
+    expect(messageOf(response)).toBe(FORBIDDEN_MESSAGE);
+    expect(
+      await prisma.invitation.count({ where: { id: created.id, revokedAt: null } }),
+    ).toBe(1);
+  });
+
+  test('an anonymous request answers 401', async () => {
+    const created = await invite(GUEST_EMAIL);
+
+    const response = await revokeInvitation(created.id);
+
+    expect(response.status).toBe(401);
+    expect(messageOf(response)).toBe(UNAUTHORIZED_MESSAGE);
+    expect(
+      await prisma.invitation.count({ where: { id: created.id, revokedAt: null } }),
+    ).toBe(1);
+  });
+
+  test('the same e-mail can be invited again after a revoke', async () => {
+    const first = await invite(SECOND_GUEST_EMAIL);
+
+    await revokeInvitation(first.id, adminCookie);
+
+    const again = await postInvitation(
+      { email: SECOND_GUEST_EMAIL },
+      adminCookie,
+    );
+
+    expect(again.status).toBe(201);
+    expect(listOf(await getInvitations(adminCookie))).toHaveLength(1);
+
+    const revoked = await prisma.invitation.findUniqueOrThrow({
+      where: { id: first.id },
+    });
+
+    expect(revoked.revokedAt).toBeInstanceOf(Date);
+  });
+
+  test('revoking keeps the session of who already accepted', async () => {
+    const accepted = await invite(GUEST_EMAIL);
+    const acceptance = await postAccept(accepted.token, {
+      name: 'Convidado Souza',
+      password: randomUUID(),
+    });
+
+    const guestCookies = (acceptance.headers['set-cookie'] ?? []) as string[];
+    const guestCookie = (
+      guestCookies.find((item) => item.startsWith('folioteca_session=')) ?? ''
+    ).split(';')[0];
+
+    const pending = await invite(SECOND_GUEST_EMAIL);
+    const people = await prisma.person.count();
+    const sessions = await prisma.session.count();
+
+    await revokeInvitation(pending.id, adminCookie);
+
+    const me = await httpRequest(app)
+      .get('/api/auth/me')
+      .set('Cookie', guestCookie ?? '');
+
+    expect(me.status).toBe(200);
+    expect(await prisma.person.count()).toBe(people);
+    expect(await prisma.session.count()).toBe(sessions);
+  });
 });

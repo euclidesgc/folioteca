@@ -8,9 +8,11 @@ import { Prisma } from '@prisma/client';
 import type { PasswordService } from '../../auth/password.service';
 import type { SessionService } from '../../auth/session.service';
 import type { PrismaService } from '../../prisma/prisma.service';
+import { DomainNotFoundException } from '../../common/domain-not-found.exception';
 import {
   ALREADY_A_PERSON_MESSAGE,
   INVITATION_TTL_MS,
+  INVITATION_UNAVAILABLE_MESSAGE,
   InvitationsService,
   RACE_MESSAGE,
 } from '../invitations.service';
@@ -105,6 +107,86 @@ function createListService(rows: Array<{
   };
 }
 
+/** Serviço com um Prisma falso só para `revoke`: `updateMany` é o que se espia. */
+function createRevokeService(count: number): {
+  service: InvitationsService;
+  updateMany: Mock;
+} {
+  const updateMany = vi.fn().mockResolvedValue({ count });
+
+  const prisma = {
+    invitation: { updateMany },
+  } as unknown as PrismaService;
+
+  const passwords = { hash: vi.fn() } as unknown as PasswordService;
+  const sessions = { create: vi.fn() } as unknown as SessionService;
+
+  return {
+    service: new InvitationsService(prisma, passwords, sessions),
+    updateMany,
+  };
+}
+
+/**
+ * Serviço com um Prisma falso que atende `list`, `findPending` (pelo
+ * `getPreview`) e `create` ao mesmo tempo, para comparar o filtro dos três.
+ */
+function createSharedFilterService(): {
+  service: InvitationsService;
+  findMany: Mock;
+  findFirst: Mock;
+  deleteMany: Mock;
+} {
+  const findMany = vi.fn().mockResolvedValue([]);
+  const findFirst = vi.fn().mockResolvedValue(null);
+  const deleteMany = vi.fn().mockResolvedValue({ count: 0 });
+  const createInvitation = vi.fn().mockResolvedValue({
+    id: INVITATION_ID,
+    email: EMAIL,
+    createdAt: CREATED_AT,
+    expiresAt: CREATED_AT,
+  });
+
+  const tx = {
+    person: { findFirst: vi.fn().mockResolvedValue(null) },
+    invitation: { deleteMany, create: createInvitation },
+  };
+
+  const prisma = {
+    invitation: { findMany, findFirst },
+    $transaction: vi
+      .fn()
+      .mockImplementation((run: (client: typeof tx) => unknown) => run(tx)),
+  } as unknown as PrismaService;
+
+  const passwords = { hash: vi.fn() } as unknown as PasswordService;
+  const sessions = { create: vi.fn() } as unknown as SessionService;
+
+  return {
+    service: new InvitationsService(prisma, passwords, sessions),
+    findMany,
+    findFirst,
+    deleteMany,
+  };
+}
+
+type PendingFilter = {
+  acceptedAt: unknown;
+  revokedAt: unknown;
+  expiresAt: unknown;
+};
+
+/** Só as chaves de "pendente" do `where` que o Prisma falso recebeu. */
+function pendingFilterOf(call: unknown): PendingFilter {
+  const { where } = call as { where: PendingFilter };
+
+  return {
+    acceptedAt: where.acceptedAt,
+    revokedAt: where.revokedAt,
+    expiresAt: where.expiresAt,
+  };
+}
+
 /** Violação do índice `lower("email")` como o Prisma a entrega. */
 function lowerEmailViolation(): Prisma.PrismaClientKnownRequestError {
   return new Prisma.PrismaClientKnownRequestError('índice único violado', {
@@ -125,7 +207,9 @@ test('create trims and lowercases the e-mail before any query', async () => {
     where: { email: EMAIL },
     select: { id: true },
   });
-  expect(deleteMany).toHaveBeenCalledWith({ where: { email: EMAIL } });
+  expect(deleteMany.mock.calls[0]?.[0]).toMatchObject({
+    where: { email: EMAIL },
+  });
   expect(createInvitation.mock.calls[0]?.[0]).toMatchObject({
     data: { email: EMAIL },
   });
@@ -299,4 +383,79 @@ test('list returns the dates as ISO strings', async () => {
       expiresAt: expiresAt.toISOString(),
     },
   ]);
+});
+
+test('revoke updates only the pending invitation of the organization', async () => {
+  const { service, updateMany } = createRevokeService(1);
+
+  await service.revoke(ORGANIZATION_ID, INVITATION_ID);
+
+  const call = updateMany.mock.calls[0]?.[0] as {
+    where: {
+      id: string;
+      organizationId: string;
+      acceptedAt: unknown;
+      revokedAt: unknown;
+      expiresAt: { gt: Date };
+    };
+  };
+
+  expect(call.where.id).toBe(INVITATION_ID);
+  expect(call.where.organizationId).toBe(ORGANIZATION_ID);
+  expect(call.where.acceptedAt).toBeNull();
+  expect(call.where.revokedAt).toBeNull();
+  expect(call.where.expiresAt.gt).toBeInstanceOf(Date);
+});
+
+test('revoke writes only revokedAt', async () => {
+  const { service, updateMany } = createRevokeService(1);
+
+  await service.revoke(ORGANIZATION_ID, INVITATION_ID);
+
+  const call = updateMany.mock.calls[0]?.[0] as {
+    data: Record<string, unknown>;
+  };
+
+  expect(Object.keys(call.data)).toEqual(['revokedAt']);
+  expect(call.data.revokedAt).toBeInstanceOf(Date);
+});
+
+test('revoke with no row rejects with the generic not found', async () => {
+  const { service } = createRevokeService(0);
+
+  await expect(
+    service.revoke(ORGANIZATION_ID, INVITATION_ID),
+  ).rejects.toThrow(
+    new DomainNotFoundException(INVITATION_UNAVAILABLE_MESSAGE),
+  );
+});
+
+test('list, findPending and create share the same pending filter', async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(CREATED_AT);
+
+  try {
+    const { service, findMany, findFirst, deleteMany } =
+      createSharedFilterService();
+
+    await service.list(ORGANIZATION_ID);
+    // `findPending` é privado: quem o alcança é o `getPreview`, que recusa
+    // porque o Prisma falso não devolve linha nenhuma.
+    await expect(service.getPreview('convite-de-teste')).rejects.toThrow(
+      INVITATION_UNAVAILABLE_MESSAGE,
+    );
+    await service.create(ORGANIZATION_ID, INVITED_BY_ID, { email: EMAIL });
+
+    const expected = {
+      acceptedAt: null,
+      revokedAt: null,
+      expiresAt: { gt: CREATED_AT },
+    };
+
+    expect(pendingFilterOf(findMany.mock.calls[0]?.[0])).toEqual(expected);
+    expect(pendingFilterOf(findFirst.mock.calls[0]?.[0])).toEqual(expected);
+    expect(pendingFilterOf(deleteMany.mock.calls[0]?.[0])).toEqual(expected);
+  } finally {
+    vi.useRealTimers();
+  }
 });

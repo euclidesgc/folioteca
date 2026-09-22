@@ -132,15 +132,18 @@ model DocumentContent {
 /// resposta da criação.
 ///
 /// `acceptedAt` nulo é convite pendente; preenchido é convite já usado, que a
-/// linha guarda como auditoria de quem entrou por convite.
+/// linha guarda como auditoria de quem entrou por convite. `revokedAt` segue a
+/// mesma ideia: a administração corta o convite marcando a data, e a linha
+/// nunca é apagada, para continuar respondendo "este link foi revogado quando".
 ///
 /// Um índice único por expressão (`lower("email")`) garante "um convite
 /// pendente por e-mail" e o Prisma não sabe expressá-lo: ele vive só nas
-/// migrations `0009` e `0010` escritas à mão. Desde a `0010` ele é **parcial**
-/// (`WHERE "acceptedAt" IS NULL`), para que um e-mail que já aceitou possa ser
-/// convidado de novo. Como na `0007`, ele é invisível a este schema, e por isso
-/// o comando de diff de migrations do Prisma nunca pode ser rodado aqui: ele
-/// apagaria o índice.
+/// migrations `0009`, `0010` e `0011` escritas à mão. Ele é **parcial**, e o
+/// predicado vigente, desde a `0011`, é
+/// `WHERE "acceptedAt" IS NULL AND "revokedAt" IS NULL`: um e-mail cujo convite
+/// foi aceito ou revogado pode ser convidado de novo. Como na `0007`, ele é
+/// invisível a este schema, e por isso o comando de diff de migrations do
+/// Prisma nunca pode ser rodado aqui: ele apagaria o índice.
 model Invitation {
   id             String    @id @default(uuid())
   organizationId String
@@ -150,6 +153,7 @@ model Invitation {
   createdAt      DateTime  @default(now())
   expiresAt      DateTime
   acceptedAt     DateTime?
+  revokedAt      DateTime?
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   invitedBy    Person       @relation("InvitationInviter", fields: [invitedById], references: [id], onDelete: Restrict)

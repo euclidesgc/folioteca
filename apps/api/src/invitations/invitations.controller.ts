@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  Param,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -53,5 +54,19 @@ export class InvitationsController {
     const data = await this.invitations.list(person.organizationId);
 
     return { data };
+  }
+
+  /**
+   * Revogar é uma ação nomeada sobre o convite, e não um `DELETE`: a linha
+   * continua no banco. O sucesso não tem corpo, e a recusa é o 404 único do
+   * serviço.
+   */
+  @Post(':invitationId/revoke')
+  @HttpCode(204)
+  async revokeInvitation(
+    @CurrentPerson() person: PersonWithOrganization,
+    @Param('invitationId') invitationId: string,
+  ): Promise<void> {
+    await this.invitations.revoke(person.organizationId, invitationId);
   }
 }

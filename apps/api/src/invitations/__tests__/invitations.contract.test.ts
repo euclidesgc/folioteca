@@ -22,6 +22,8 @@ const INVITATION_PATH = '/invitations/{token}';
 
 const ACCEPT_PATH = '/invitations/{token}/accept';
 
+const REVOKE_PATH = '/invitations/{invitationId}/revoke';
+
 const GUEST_NAME = 'Convidado Souza';
 
 let app: INestApplication;
@@ -90,6 +92,22 @@ function getInvitations(cookie?: string): Promise<Response> {
     .set('X-Requested-With', 'XMLHttpRequest');
 
   return cookie === undefined ? request : request.set('Cookie', cookie);
+}
+
+/** Envia a revogação com o cabeçalho que o CSRF do projeto exige. */
+function postRevoke(invitationId: string, cookie?: string): Promise<Response> {
+  const request = httpRequest(app)
+    .post(`/api/invitations/${invitationId}/revoke`)
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return cookie === undefined ? request : request.set('Cookie', cookie);
+}
+
+/** Cria um convite pela API e devolve o id dele. */
+async function inviteId(email: string): Promise<string> {
+  const response = await postInvitation({ email }, adminCookie);
+
+  return (response.body as { data: { id: string } }).data.id;
 }
 
 beforeAll(async () => {
@@ -309,4 +327,59 @@ test('GET invitations answers the documented 403', async () => {
     status: 403,
     body: response.body,
   });
+});
+
+test('POST revoke invitation answers the documented 401', async () => {
+  const invitationId = await inviteId(GUEST_EMAIL);
+
+  const response = await postRevoke(invitationId);
+
+  expect(response.status).toBe(401);
+  await expectMatchesContract({
+    path: REVOKE_PATH,
+    method: 'post',
+    status: 401,
+    body: response.body,
+  });
+});
+
+test('POST revoke invitation answers the documented 403', async () => {
+  const invitationId = await inviteId(GUEST_EMAIL);
+  const { cookie } = await createPersonWithSession(app, {
+    name: 'João Souza',
+    email: 'joao@exemplo.org',
+  });
+
+  const response = await postRevoke(invitationId, cookie);
+
+  expect(response.status).toBe(403);
+  await expectMatchesContract({
+    path: REVOKE_PATH,
+    method: 'post',
+    status: 403,
+    body: response.body,
+  });
+});
+
+test('POST revoke invitation answers the documented 404', async () => {
+  const response = await postRevoke(randomUUID(), adminCookie);
+
+  expect(response.status).toBe(404);
+  await expectMatchesContract({
+    path: REVOKE_PATH,
+    method: 'post',
+    status: 404,
+    body: response.body,
+  });
+});
+
+// O 204 não tem schema para validar: a existência da operação no documento é
+// garantida pelos três casos acima, que usam o mesmo caminho.
+test('POST revoke invitation answers 204 with an empty body', async () => {
+  const invitationId = await inviteId(GUEST_EMAIL);
+
+  const response = await postRevoke(invitationId, adminCookie);
+
+  expect(response.status).toBe(204);
+  expect(response.text).toBe('');
 });

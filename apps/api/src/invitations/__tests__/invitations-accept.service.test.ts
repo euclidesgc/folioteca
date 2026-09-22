@@ -39,11 +39,22 @@ type InvitationRow = {
   createdAt: Date;
   expiresAt: Date;
   acceptedAt: Date | null;
+  revokedAt: Date | null;
+};
+
+/** O `where` que `findPending` monta: hash do token mais "pendente". */
+type PendingQuery = {
+  where: {
+    tokenHash: string;
+    acceptedAt: null;
+    revokedAt: null;
+    expiresAt: { gt: Date };
+  };
 };
 
 type ServiceDouble = {
   service: InvitationsService;
-  findUnique: Mock;
+  findFirst: Mock;
   findOrganization: Mock;
   createPerson: Mock;
   createSpace: Mock;
@@ -76,19 +87,36 @@ function invitationRow(
     createdAt: new Date('2026-03-10T12:00:00.000Z'),
     expiresAt: new Date(Date.now() + 60_000),
     acceptedAt: null,
+    revokedAt: null,
     ...overrides,
   };
 }
 
 /**
- * Serviço com um Prisma falso: `invitation` é a linha que a busca por hash
- * devolve e `transactionError` faz a transação inteira falhar.
+ * Serviço com um Prisma falso: `invitation` é a linha que existe na tabela e
+ * `transactionError` faz a transação inteira falhar. O falso aplica o `where`
+ * que recebe, como o Postgres faria: desde a 087 quem decide se o convite está
+ * pendente é a consulta, não o serviço.
  */
 function createService(options: {
   invitation?: InvitationRow | null;
   transactionError?: unknown;
 }): ServiceDouble {
-  const findUnique = vi.fn().mockResolvedValue(options.invitation ?? null);
+  const findFirst = vi.fn().mockImplementation((args: PendingQuery) => {
+    const row = options.invitation ?? null;
+
+    if (row === null) {
+      return null;
+    }
+
+    const matches =
+      row.tokenHash === args.where.tokenHash &&
+      row.acceptedAt === args.where.acceptedAt &&
+      row.revokedAt === args.where.revokedAt &&
+      row.expiresAt.getTime() > args.where.expiresAt.gt.getTime();
+
+    return matches ? row : null;
+  });
   const findOrganization = vi
     .fn()
     .mockResolvedValue({ id: ORGANIZATION_ID, name: ORGANIZATION_NAME });
@@ -122,7 +150,7 @@ function createService(options: {
 
   const prisma = {
     $transaction: transaction,
-    invitation: { findUnique },
+    invitation: { findFirst },
     organization: { findUniqueOrThrow: findOrganization },
   } as unknown as PrismaService;
 
@@ -131,7 +159,7 @@ function createService(options: {
 
   return {
     service: new InvitationsService(prisma, passwords, sessions),
-    findUnique,
+    findFirst,
     findOrganization,
     createPerson,
     createSpace,
@@ -152,14 +180,14 @@ function personEmailViolation(): Prisma.PrismaClientKnownRequestError {
 }
 
 test('findPending returns null for an unknown token', async () => {
-  const { service, findUnique } = createService({ invitation: null });
+  const { service, findFirst } = createService({ invitation: null });
   const token = newToken();
 
   await expect(service.getPreview(token)).rejects.toThrow(
     new DomainNotFoundException(INVITATION_UNAVAILABLE_MESSAGE),
   );
 
-  expect(findUnique).toHaveBeenCalledWith({
+  expect(findFirst.mock.calls[0]?.[0]).toMatchObject({
     where: { tokenHash: hashToken(token) },
   });
 });
@@ -190,7 +218,7 @@ test('findPending returns null for an already accepted invitation', async () => 
 
 test('findPending runs every check without an extra query', async () => {
   const token = newToken();
-  const { service, findUnique, findOrganization } = createService({
+  const { service, findFirst, findOrganization } = createService({
     invitation: invitationRow(token, {
       expiresAt: new Date(Date.now() - 60_000),
       acceptedAt: new Date(),
@@ -201,7 +229,7 @@ test('findPending runs every check without an extra query', async () => {
     INVITATION_UNAVAILABLE_MESSAGE,
   );
 
-  expect(findUnique).toHaveBeenCalledTimes(1);
+  expect(findFirst).toHaveBeenCalledTimes(1);
   expect(findOrganization).not.toHaveBeenCalled();
 });
 
