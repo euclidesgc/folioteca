@@ -78,4 +78,5 @@
 | 075 | mock-unit-space | ter a API simulada criando o espaço UNIT junto com a unidade (a fatia de espaços de unidade vai precisar) | dívida da 065 | | planned |
 | 076 | organization-rename-convergence | convergir o renomear da organização (hoje feito ao renomear a raiz, dentro de org-units) com uma futura tela de dados da organização | dívida da 065 | | planned |
 | 077 | sidebar-aside-accessible-name | dar rótulo acessível ao `<aside>` da barra lateral (hoje o e2e localiza a identidade por `locator('aside')`) | dívida da 065 | | planned |
-| 132 | hml-auto-deploy-on-develop | (dev) ver cada merge em `develop` publicado automaticamente em homologação no Coolify (web e API), para testar sem interromper o desenvolvimento — prioridade máxima, pedido do dono em 22/09/2026 | pedido do dono | | in-progress |
+| 132 | hml-auto-deploy-on-develop | (dev) ver cada merge em `develop` publicado automaticamente em homologação no Coolify (web e API), para testar sem interromper o desenvolvimento — prioridade máxima, pedido do dono em 22/09/2026 | pedido do dono | | in-review |
+| 133 | ci-build-images | (dev) ter a integração contínua montando as imagens da API e da web (scripts/verify-images.sh) em cada PR, porque hoje um Dockerfile quebrado só aparece no deploy de homologação | dívida 132 | 132 | planned |
