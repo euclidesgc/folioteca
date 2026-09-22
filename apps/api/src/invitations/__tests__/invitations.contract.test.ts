@@ -83,6 +83,15 @@ function postAccept(token: string, body: object): Promise<Response> {
     .send(body);
 }
 
+/** Envia `GET /api/invitations` com o cabeçalho que o CSRF do projeto exige. */
+function getInvitations(cookie?: string): Promise<Response> {
+  const request = httpRequest(app)
+    .get('/api/invitations')
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return cookie === undefined ? request : request.set('Cookie', cookie);
+}
+
 beforeAll(async () => {
   app = await createApp();
   prisma = app.get(PrismaService);
@@ -255,6 +264,49 @@ test('POST accept answers the documented 409', async () => {
     path: ACCEPT_PATH,
     method: 'post',
     status: 409,
+    body: response.body,
+  });
+});
+
+test('GET invitations answers the documented 200', async () => {
+  await postInvitation({ email: GUEST_EMAIL }, adminCookie);
+
+  const response = await getInvitations(adminCookie);
+
+  expect(response.status).toBe(200);
+  await expectMatchesContract({
+    path: INVITATIONS_PATH,
+    method: 'get',
+    status: 200,
+    body: response.body,
+  });
+});
+
+test('GET invitations answers the documented 401', async () => {
+  const response = await getInvitations();
+
+  expect(response.status).toBe(401);
+  await expectMatchesContract({
+    path: INVITATIONS_PATH,
+    method: 'get',
+    status: 401,
+    body: response.body,
+  });
+});
+
+test('GET invitations answers the documented 403', async () => {
+  const { cookie } = await createPersonWithSession(app, {
+    name: 'João Souza',
+    email: 'joao@exemplo.org',
+  });
+
+  const response = await getInvitations(cookie);
+
+  expect(response.status).toBe(403);
+  await expectMatchesContract({
+    path: INVITATIONS_PATH,
+    method: 'get',
+    status: 403,
     body: response.body,
   });
 });

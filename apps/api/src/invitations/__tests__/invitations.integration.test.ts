@@ -98,8 +98,28 @@ function postInvitation(body: unknown, cookie?: string): Promise<Response> {
   );
 }
 
+/** Envia `GET /api/invitations` com o cabeçalho que o CSRF do projeto exige. */
+function getInvitations(cookie?: string): Promise<Response> {
+  const request = httpRequest(app)
+    .get('/api/invitations')
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return cookie === undefined ? request : request.set('Cookie', cookie);
+}
+
 function invitationOf(response: Response): CreatedInvitationBody {
   return (response.body as { data: CreatedInvitationBody }).data;
+}
+
+type InvitationListItemBody = {
+  id: string;
+  email: string;
+  createdAt: string;
+  expiresAt: string;
+};
+
+function listOf(response: Response): InvitationListItemBody[] {
+  return (response.body as { data: InvitationListItemBody[] }).data;
 }
 
 function messageOf(response: Response): string {
@@ -242,4 +262,134 @@ test('the database refuses two invitations for the same e-mail differing only in
       },
     }),
   ).rejects.toMatchObject({ code: 'P2002' });
+});
+
+test('an admin sees only the pending invitations', async () => {
+  const created = invitationOf(
+    await postInvitation({ email: GUEST_EMAIL }, adminCookie),
+  );
+
+  const response = await getInvitations(adminCookie);
+
+  expect(response.status).toBe(200);
+  const invitations = listOf(response);
+  expect(invitations).toHaveLength(1);
+  expect(invitations[0]?.id).toBe(created.id);
+  expect(invitations[0]?.email).toBe(GUEST_EMAIL);
+});
+
+test('an accepted invitation is not listed', async () => {
+  const created = invitationOf(
+    await postInvitation({ email: GUEST_EMAIL }, adminCookie),
+  );
+
+  await prisma.invitation.update({
+    where: { id: created.id },
+    data: { acceptedAt: new Date() },
+  });
+
+  const response = await getInvitations(adminCookie);
+
+  expect(listOf(response)).toEqual([]);
+});
+
+test('an expired invitation is not listed', async () => {
+  const created = invitationOf(
+    await postInvitation({ email: GUEST_EMAIL }, adminCookie),
+  );
+
+  await prisma.invitation.update({
+    where: { id: created.id },
+    data: { expiresAt: new Date(Date.now() - 1_000) },
+  });
+
+  const response = await getInvitations(adminCookie);
+
+  expect(listOf(response)).toEqual([]);
+});
+
+test('the invitations come from the newest to the oldest', async () => {
+  const first = invitationOf(
+    await postInvitation({ email: 'primeiro@exemplo.org' }, adminCookie),
+  );
+  const second = invitationOf(
+    await postInvitation({ email: 'segundo@exemplo.org' }, adminCookie),
+  );
+  const third = invitationOf(
+    await postInvitation({ email: 'terceiro@exemplo.org' }, adminCookie),
+  );
+
+  await prisma.invitation.update({
+    where: { id: first.id },
+    data: { createdAt: new Date('2026-01-01T00:00:00.000Z') },
+  });
+  await prisma.invitation.update({
+    where: { id: second.id },
+    data: { createdAt: new Date('2026-01-02T00:00:00.000Z') },
+  });
+  await prisma.invitation.update({
+    where: { id: third.id },
+    data: { createdAt: new Date('2026-01-03T00:00:00.000Z') },
+  });
+
+  const response = await getInvitations(adminCookie);
+
+  expect(listOf(response).map((item) => item.id)).toEqual([
+    third.id,
+    second.id,
+    first.id,
+  ]);
+});
+
+test('with no pending invitation the list answers 200 with an empty data array', async () => {
+  const response = await getInvitations(adminCookie);
+
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual({ data: [] });
+});
+
+test('a non-admin answers 403', async () => {
+  const { cookie } = await createPersonWithSession(app, {
+    name: 'João Souza',
+    email: 'joao@exemplo.org',
+  });
+
+  const response = await getInvitations(cookie);
+
+  expect(response.status).toBe(403);
+  expect(messageOf(response)).toBe(FORBIDDEN_MESSAGE);
+});
+
+test('an anonymous request answers 401', async () => {
+  const response = await getInvitations();
+
+  expect(response.status).toBe(401);
+  expect(messageOf(response)).toBe(UNAUTHORIZED_MESSAGE);
+});
+
+test('the list body never contains the invitation token', async () => {
+  const created = invitationOf(
+    await postInvitation({ email: GUEST_EMAIL }, adminCookie),
+  );
+  const tokenHash = createHash('sha256').update(created.token).digest('hex');
+
+  const response = await getInvitations(adminCookie);
+
+  const raw = JSON.stringify(response.body);
+  expect(raw).not.toContain(created.token);
+  expect(raw).not.toContain(tokenHash);
+});
+
+test('the list items expose exactly id, email, createdAt and expiresAt', async () => {
+  await postInvitation({ email: GUEST_EMAIL }, adminCookie);
+
+  const response = await getInvitations(adminCookie);
+  const invitations = listOf(response);
+
+  expect(Object.keys(invitations[0] ?? {}).sort()).toEqual([
+    'createdAt',
+    'email',
+    'expiresAt',
+    'id',
+  ]);
 });

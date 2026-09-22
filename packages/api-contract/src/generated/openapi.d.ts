@@ -234,7 +234,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Lista os convites pendentes da organização
+         * @description Só a administração. Devolve apenas os convites pendentes — nem aceitos, nem vencidos — do mais recente para o mais antigo. O token nunca sai aqui: o servidor guarda apenas o hash dele.
+         */
+        get: operations["listInvitations"];
         put?: never;
         /**
          * Cria um convite para entrar na organização
@@ -424,6 +428,28 @@ export interface components {
         };
         CreatedInvitationResponse: {
             data: components["schemas"]["CreatedInvitation"];
+        };
+        Invitation: {
+            /** @description Identificador do convite. */
+            id: string;
+            /**
+             * Format: email
+             * @description E-mail convidado, já normalizado.
+             */
+            email: string;
+            /**
+             * Format: date-time
+             * @description Quando o convite foi criado.
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description Quando o convite deixa de valer.
+             */
+            expiresAt: string;
+        };
+        InvitationsResponse: {
+            data: components["schemas"]["Invitation"][];
         };
         InvitationPreview: {
             /**
@@ -1338,6 +1364,44 @@ export interface operations {
             };
             /** @description Já existe uma unidade com esse nome neste nível. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listInvitations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Os convites pendentes da organização. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationsResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -1,4 +1,11 @@
-import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import type { components } from '@folioteca/api-contract';
 
 import { AdminGuard } from '../auth/admin.guard';
@@ -9,6 +16,7 @@ import { InvitationsService } from './invitations.service';
 
 type CreatedInvitationResponse =
   components['schemas']['CreatedInvitationResponse'];
+type InvitationsResponse = components['schemas']['InvitationsResponse'];
 
 /**
  * O que só a administração faz com convites. As rotas que a pessoa convidada
@@ -36,5 +44,14 @@ export class InvitationsController {
     );
 
     return { data: invitation };
+  }
+
+  @Get()
+  async listInvitations(
+    @CurrentPerson() person: PersonWithOrganization,
+  ): Promise<InvitationsResponse> {
+    const data = await this.invitations.list(person.organizationId);
+
+    return { data };
   }
 }

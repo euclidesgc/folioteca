@@ -15,7 +15,7 @@
 | 085 | invitations-create | (administração) convidar um e-mail e copiar o link gerado | 009 invitations | 003 | in-review |
 | 086 | invitations-accept | abrir o link do convite, criar nome e senha e entrar na aplicação | 009 invitations | 085 | in-review |
 | 087 | invitations-revoke | (administração) revogar um convite pendente, e o link para de funcionar na hora | 009 invitations | 086, 088 | planned |
-| 088 | invitations-list | (administração) ver os convites pendentes com e-mail, criado em e expira em | 009 invitations | 085 | planned |
+| 088 | invitations-list | (administração) ver os convites pendentes com e-mail, criado em e expira em | 009 invitations | 085 | in-progress |
 | 089 | invitations-email | receber o convite por e-mail em vez de a administração copiar o link à mão (exige SMTP no projeto) | 009 invitations | 086 | planned |
 | 010 | unit-assignments | (administração) lotar pessoas em uma ou mais unidades e removê-las | pedido inicial | 066, 086 | planned |
 | 011 | admin-roles | (administração) promover e rebaixar administradores, nunca ficando sem nenhum | pedido inicial | 086 | planned |

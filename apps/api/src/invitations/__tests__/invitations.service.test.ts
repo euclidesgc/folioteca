@@ -83,6 +83,28 @@ function createService(options: {
   };
 }
 
+/** Serviço com um Prisma falso só para `list`: `findMany` é o que se espia. */
+function createListService(rows: Array<{
+  id: string;
+  email: string;
+  createdAt: Date;
+  expiresAt: Date;
+}>): { service: InvitationsService; findMany: Mock } {
+  const findMany = vi.fn().mockResolvedValue(rows);
+
+  const prisma = {
+    invitation: { findMany },
+  } as unknown as PrismaService;
+
+  const passwords = { hash: vi.fn() } as unknown as PasswordService;
+  const sessions = { create: vi.fn() } as unknown as SessionService;
+
+  return {
+    service: new InvitationsService(prisma, passwords, sessions),
+    findMany,
+  };
+}
+
 /** Violação do índice `lower("email")` como o Prisma a entrega. */
 function lowerEmailViolation(): Prisma.PrismaClientKnownRequestError {
   return new Prisma.PrismaClientKnownRequestError('índice único violado', {
@@ -211,4 +233,70 @@ test('create rethrows any other error without the token in the message', async (
   // caracteres de `base64url`).
   expect((error as Error).message).toBe('banco fora do ar');
   expect((error as Error).message).not.toMatch(/[\w-]{30,}/);
+});
+
+test('list filters by organization, unaccepted and not expired', async () => {
+  const { service, findMany } = createListService([]);
+
+  await service.list(ORGANIZATION_ID);
+
+  const call = findMany.mock.calls[0]?.[0] as {
+    where: {
+      organizationId: string;
+      acceptedAt: unknown;
+      expiresAt: { gt: Date };
+    };
+  };
+
+  expect(call.where.organizationId).toBe(ORGANIZATION_ID);
+  expect(call.where.acceptedAt).toBeNull();
+  expect(call.where.expiresAt.gt).toBeInstanceOf(Date);
+});
+
+test('list orders by createdAt desc', async () => {
+  const { service, findMany } = createListService([]);
+
+  await service.list(ORGANIZATION_ID);
+
+  const call = findMany.mock.calls[0]?.[0] as {
+    orderBy: { createdAt: string };
+  };
+
+  expect(call.orderBy).toEqual({ createdAt: 'desc' });
+});
+
+test('list selects no tokenHash', async () => {
+  const { service, findMany } = createListService([]);
+
+  await service.list(ORGANIZATION_ID);
+
+  const call = findMany.mock.calls[0]?.[0] as {
+    select: Record<string, boolean>;
+  };
+
+  expect(call.select).toEqual({
+    id: true,
+    email: true,
+    createdAt: true,
+    expiresAt: true,
+  });
+});
+
+test('list returns the dates as ISO strings', async () => {
+  const createdAt = new Date('2026-03-10T12:00:00.000Z');
+  const expiresAt = new Date('2026-03-17T12:00:00.000Z');
+  const { service } = createListService([
+    { id: INVITATION_ID, email: EMAIL, createdAt, expiresAt },
+  ]);
+
+  const invitations = await service.list(ORGANIZATION_ID);
+
+  expect(invitations).toEqual([
+    {
+      id: INVITATION_ID,
+      email: EMAIL,
+      createdAt: createdAt.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+    },
+  ]);
 });

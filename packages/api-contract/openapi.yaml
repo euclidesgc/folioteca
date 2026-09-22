@@ -683,6 +683,34 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+    get:
+      operationId: listInvitations
+      tags:
+        - invitations
+      summary: Lista os convites pendentes da organização
+      description: >-
+        Só a administração. Devolve apenas os convites pendentes — nem
+        aceitos, nem vencidos — do mais recente para o mais antigo. O token
+        nunca sai aqui: o servidor guarda apenas o hash dele.
+      responses:
+        "200":
+          description: Os convites pendentes da organização.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationsResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /invitations/{token}:
     get:
       operationId: getInvitation
@@ -1077,6 +1105,38 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/CreatedInvitation"
+      required:
+        - data
+    Invitation:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identificador do convite.
+        email:
+          type: string
+          format: email
+          description: E-mail convidado, já normalizado.
+        createdAt:
+          type: string
+          format: date-time
+          description: Quando o convite foi criado.
+        expiresAt:
+          type: string
+          format: date-time
+          description: Quando o convite deixa de valer.
+      required:
+        - id
+        - email
+        - createdAt
+        - expiresAt
+    InvitationsResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Invitation"
       required:
         - data
     InvitationPreview:

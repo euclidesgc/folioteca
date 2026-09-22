@@ -18,6 +18,7 @@ import {
 type CreatedInvitation = components['schemas']['CreatedInvitation'];
 type CurrentUser = components['schemas']['CurrentUser'];
 type InvitationPreview = components['schemas']['InvitationPreview'];
+type InvitationListItem = components['schemas']['Invitation'];
 
 /** O que o aceite devolve ao controller: a mesma forma de `InstallResult`. */
 export type AcceptResult = {
@@ -97,6 +98,11 @@ export class InvitationsService {
    * rodam todas, em memória, sobre a mesma linha já carregada, sem consulta a
    * mais e sem `return` antecipado entre elas — a 087 acrescenta `revokedAt`
    * aqui, e o quarto caso cai no mesmo 404 sem mudar mais nada.
+   *
+   * "Pendente" é definido aqui e em `list`: `acceptedAt === null` e
+   * `expiresAt` no futuro. Aqui roda em memória, sobre uma linha só, para não
+   * dar pista de qual das checagens recusou; em `list` roda no banco, porque a
+   * lista precisa que o Prisma filtre. A 087 acrescenta `revokedAt` nos dois.
    */
   private async findPending(token: string): Promise<Invitation | null> {
     const tokenHash = hashToken(token);
@@ -250,5 +256,34 @@ export class InvitationsService {
 
       throw error;
     }
+  }
+
+  /**
+   * Os convites pendentes da organização, do mais recente para o mais
+   * antigo. "Pendente" é definido aqui e em `findPending`: `acceptedAt ===
+   * null` e `expiresAt` no futuro. Aqui o filtro roda no banco, porque a
+   * lista precisa que o Prisma filtre; em `findPending` roda em memória,
+   * sobre uma linha só. A 087 acrescenta `revokedAt` nos dois.
+   *
+   * O `select` é explícito e não inclui `tokenHash` nem `invitedById`: é a
+   * segunda tranca contra vazar o token (a primeira é o schema do contrato).
+   */
+  async list(organizationId: string): Promise<InvitationListItem[]> {
+    const rows = await this.prisma.invitation.findMany({
+      where: {
+        organizationId,
+        acceptedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, email: true, createdAt: true, expiresAt: true },
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      email: row.email,
+      createdAt: row.createdAt.toISOString(),
+      expiresAt: row.expiresAt.toISOString(),
+    }));
   }
 }
