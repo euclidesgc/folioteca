@@ -15,7 +15,7 @@
 | 085 | invitations-create | (administração) convidar um e-mail e copiar o link gerado | 009 invitations | 003 | in-review |
 | 086 | invitations-accept | abrir o link do convite, criar nome e senha e entrar na aplicação | 009 invitations | 085 | in-review |
 | 087 | invitations-revoke | (administração) revogar um convite pendente, e o link para de funcionar na hora | 009 invitations | 086, 088 | planned |
-| 088 | invitations-list | (administração) ver os convites pendentes com e-mail, criado em e expira em | 009 invitations | 085 | in-progress |
+| 088 | invitations-list | (administração) ver os convites pendentes com e-mail, criado em e expira em | 009 invitations | 085 | in-review |
 | 089 | invitations-email | receber o convite por e-mail em vez de a administração copiar o link à mão (exige SMTP no projeto) | 009 invitations | 086 | planned |
 | 010 | unit-assignments | (administração) lotar pessoas em uma ou mais unidades e removê-las | pedido inicial | 066, 086 | planned |
 | 011 | admin-roles | (administração) promover e rebaixar administradores, nunca ficando sem nenhum | pedido inicial | 086 | planned |
@@ -98,3 +98,7 @@
 | 096 | invitations-accept-e2e-real-api | ter a jornada do convite provada de ponta a ponta contra a API real, hoje só contra a API simulada, que precisa gerar o mesmo token a cada carga de página porque o estado do MSW não atravessa contextos do navegador | dívida 086 | | planned |
 | 097 | mock-db-signed-in-person | ter os testes antigos do banco falso da API simulada revistos, porque `installation.person` deixou de ser sinônimo de "a pessoa da sessão" (agora existe `signedInPersonId`) e quem ainda assume isso pode passar sem provar nada | dívida 086 | | planned |
 | 098 | invitations-accept-timing | medir e, se for o caso, igualar o tempo de resposta do aceite de convite, hoje diferente entre recusa (404, sem hash de senha) e sucesso (201, com argon2id); não é oráculo de e-mail, mas vale acompanhar se o endpoint virar alvo | dívida 086 | | planned |
+| 099 | shared-pending-invitation-filter | ter uma única definição de "convite pendente" em apps/api/src/invitations/invitations.service.ts, hoje repetida entre `findPending` e `list`: a fatia 087 precisa acrescentar `revokedAt` nos dois e nada impede que divirjam | dívida 088 | 087 | planned |
+| 100 | invitations-list-pagination-search | ter a lista de convites com paginação e busca, hoje inteira e sem filtro; aceitável enquanto o convite vence em 7 dias, incômodo com algumas dezenas pendentes ao mesmo tempo | dívida 088 | | planned |
+| 101 | empty-state-live-region | (acessibilidade) ouvir o estado vazio das listas no leitor de tela: hoje é um `<p>` sem `role`, então a troca depois do carregamento não é anunciada; decidir se o piso de acabamento passa a exigir `role="status"` no vazio de toda lista, não só a de convites | dívida 088 | | planned |
+| 102 | invitations-list-token-absence-assertion | ter o e2e da lista de convites provando a ausência do token pelo conteúdo da linha, e não só pela forma da URL (`/invitations/`), que deixaria passar um token renderizado cru | dívida 088 | | planned |
