@@ -95,3 +95,49 @@ test('GET spaces answers the documented 401', async () => {
     body: response.body,
   });
 });
+
+function postSpace(body: object, cookie?: string): Promise<Response> {
+  const request = httpRequest(app)
+    .post('/api/spaces')
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return cookie === undefined
+    ? request.send(body)
+    : request.set('Cookie', cookie).send(body);
+}
+
+test('POST spaces answers the documented 201', async () => {
+  const response = await postSpace({ name: 'Projeto Alfa' }, adminCookie);
+
+  expect(response.status).toBe(201);
+  await expectMatchesContract({
+    path: CONTRACT_PATH,
+    method: 'post',
+    status: 201,
+    body: response.body,
+  });
+});
+
+test('POST spaces answers the documented 400', async () => {
+  const response = await postSpace({ name: '' }, adminCookie);
+
+  expect(response.status).toBe(400);
+  await expectMatchesContract({
+    path: CONTRACT_PATH,
+    method: 'post',
+    status: 400,
+    body: response.body,
+  });
+});
+
+test('POST spaces answers the documented 401', async () => {
+  const response = await postSpace({ name: 'Projeto Alfa' });
+
+  expect(response.status).toBe(401);
+  await expectMatchesContract({
+    path: CONTRACT_PATH,
+    method: 'post',
+    status: 401,
+    body: response.body,
+  });
+});

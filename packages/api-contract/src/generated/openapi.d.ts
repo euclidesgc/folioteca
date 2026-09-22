@@ -344,11 +344,15 @@ export interface paths {
         };
         /**
          * Lista os espaços de unidade de quem chama
-         * @description Lista só os espaços de unidade em que a pessoa da sessão está lotada diretamente: lotação numa unidade filha não traz a unidade pai, e não há herança em nenhum sentido. Ser administração não inclui nada a mais. A ordem é alfabética pelo nome da unidade com colador pt-BR, com desempate pelo id do espaço. A lista é relida a cada pedido, então uma lotação removida some já no pedido seguinte.
+         * @description Lista só os espaços de unidade em que a pessoa da sessão está lotada diretamente: lotação numa unidade filha não traz a unidade pai, e não há herança em nenhum sentido. Ser administração não inclui nada a mais. A lista traz também os espaços livres de que a pessoa da sessão é dona, na organização dela, misturados aos de unidade na mesma ordem. A ordem é alfabética pelo nome com colador pt-BR, com desempate pelo id do espaço. A lista é relida a cada pedido, então uma lotação removida some já no pedido seguinte.
          */
         get: operations["listSpaces"];
         put?: never;
-        post?: never;
+        /**
+         * Cria um espaço livre
+         * @description Cria um espaço livre na organização da pessoa da sessão, que passa a ser a dona dele. A organização e a dona vêm só da sessão, nunca do corpo. O nome é aparado antes de medir e não precisa ser único.
+         */
+        post: operations["createSpace"];
         delete?: never;
         options?: never;
         head?: never;
@@ -602,15 +606,22 @@ export interface components {
             /** @description Identificador do espaço (não da unidade). */
             id: string;
             /**
-             * @description Tipo do espaço; nesta versão, só espaço de unidade.
+             * @description Tipo do espaço, de unidade ou livre.
              * @enum {string}
              */
-            type: "unit";
-            /** @description Nome da unidade dona do espaço. */
+            type: "unit" | "free";
+            /** @description Nome da unidade, no espaço de unidade; nome dado pelo dono, no espaço livre. */
             name: string;
         };
         SpacesResponse: {
             data: components["schemas"]["Space"][];
+        };
+        SpaceResponse: {
+            data: components["schemas"]["Space"];
+        };
+        CreateSpaceInput: {
+            /** @description Nome do espaço livre, contado depois de aparar os espaços. */
+            name: string;
         };
         CreateInvitationInput: {
             /**
@@ -1956,6 +1967,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SpacesResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createSpace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSpaceInput"];
+            };
+        };
+        responses: {
+            /** @description O espaço livre foi criado. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpaceResponse"];
+                };
+            };
+            /** @description Os dados informados são inválidos. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"];
                 };
             };
             /** @description Não há sessão válida. */

@@ -17,6 +17,7 @@ model Organization {
   orgUnits    OrgUnit[]
   people      Person[]
   invitations Invitation[]
+  spaces      Space[]
 }
 
 /// Unidade organizacional; a raiz tem `parentId` nulo.
@@ -72,7 +73,8 @@ model Person {
   createdAt      DateTime @default(now())
 
   organization      Organization        @relation(fields: [organizationId], references: [id])
-  space             Space?
+  space             Space?              @relation("PersonalSpace")
+  ownedSpaces       Space[]             @relation("SpaceOwner")
   sessions          Session[]
   authoredDocuments Document[]          @relation("DocumentAuthor")
   ownedDocuments    Document[]          @relation("DocumentOwner")
@@ -88,16 +90,27 @@ enum SpaceType {
 }
 
 /// Espaço de documentos: pessoal, de unidade ou livre.
+///
+/// The type/owner check constraint (`Space_type_owner_check`: which columns
+/// each type requires or forbids) cannot be expressed by Prisma, so it lives
+/// only in the handwritten migrations `0002` and `0013`.
 model Space {
-  id        String    @id @default(uuid())
-  type      SpaceType
-  personId  String?   @unique
-  orgUnitId String?   @unique
-  createdAt DateTime  @default(now())
+  id             String    @id @default(uuid())
+  type           SpaceType
+  personId       String?   @unique
+  orgUnitId      String?   @unique
+  organizationId String?
+  name           String?
+  ownerId        String?
+  createdAt      DateTime  @default(now())
 
-  person    Person?    @relation(fields: [personId], references: [id])
-  orgUnit   OrgUnit?   @relation(fields: [orgUnitId], references: [id], onDelete: Restrict)
-  documents Document[]
+  person       Person?       @relation("PersonalSpace", fields: [personId], references: [id])
+  orgUnit      OrgUnit?      @relation(fields: [orgUnitId], references: [id], onDelete: Restrict)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  owner        Person?       @relation("SpaceOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  documents    Document[]
+
+  @@index([ownerId])
 }
 
 /// Documento de um espaço: quem escreveu (`authorId`) e quem é dono (`ownerId`).

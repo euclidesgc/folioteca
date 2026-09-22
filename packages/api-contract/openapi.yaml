@@ -981,9 +981,11 @@ paths:
         Lista só os espaços de unidade em que a pessoa da sessão está lotada
         diretamente: lotação numa unidade filha não traz a unidade pai, e não
         há herança em nenhum sentido. Ser administração não inclui nada a
-        mais. A ordem é alfabética pelo nome da unidade com colador pt-BR, com
-        desempate pelo id do espaço. A lista é relida a cada pedido, então uma
-        lotação removida some já no pedido seguinte.
+        mais. A lista traz também os espaços livres de que a pessoa da sessão
+        é dona, na organização dela, misturados aos de unidade na mesma ordem.
+        A ordem é alfabética pelo nome com colador pt-BR, com desempate pelo
+        id do espaço. A lista é relida a cada pedido, então uma lotação
+        removida some já no pedido seguinte.
       responses:
         "200":
           description: Os espaços de unidade foram listados.
@@ -991,6 +993,40 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SpacesResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      operationId: createSpace
+      tags:
+        - spaces
+      summary: Cria um espaço livre
+      description: >-
+        Cria um espaço livre na organização da pessoa da sessão, que passa a
+        ser a dona dele. A organização e a dona vêm só da sessão, nunca do
+        corpo. O nome é aparado antes de medir e não precisa ser único.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSpaceInput"
+      responses:
+        "201":
+          description: O espaço livre foi criado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceResponse"
+        "400":
+          description: Os dados informados são inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
         "401":
           description: Não há sessão válida.
           content:
@@ -1604,10 +1640,13 @@ components:
           type: string
           enum:
             - unit
-          description: Tipo do espaço; nesta versão, só espaço de unidade.
+            - free
+          description: Tipo do espaço, de unidade ou livre.
         name:
           type: string
-          description: Nome da unidade dona do espaço.
+          description: >-
+            Nome da unidade, no espaço de unidade; nome dado pelo dono, no
+            espaço livre.
       required:
         - id
         - type
@@ -1622,6 +1661,24 @@ components:
             $ref: "#/components/schemas/Space"
       required:
         - data
+    SpaceResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Space"
+      required:
+        - data
+    CreateSpaceInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: Nome do espaço livre, contado depois de aparar os espaços.
+      required:
+        - name
+      additionalProperties: false
     CreateInvitationInput:
       type: object
       properties:

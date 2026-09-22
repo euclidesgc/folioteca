@@ -235,3 +235,228 @@ test('each item has exactly the id, type and name keys', async () => {
   expect(item).toBeDefined();
   expect(Object.keys(item ?? {}).sort()).toEqual(['id', 'name', 'type']);
 });
+
+/** `POST /api/spaces` com o cabeçalho de CSRF. */
+function postSpace(body: unknown, cookie?: string): Promise<Response> {
+  const request = httpRequest(app)
+    .post('/api/spaces')
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return cookie === undefined
+    ? request.send(body as object)
+    : request.set('Cookie', cookie).send(body as object);
+}
+
+/** Quantos espaços livres existem no banco. */
+function countFreeSpaces(): Promise<number> {
+  return prisma.space.count({ where: { type: 'FREE' } });
+}
+
+test('POST spaces creates a free space owned by the session person', async () => {
+  const { person, cookie } = await createMember();
+
+  const response = await postSpace({ name: '  Projeto Alfa  ' }, cookie);
+
+  expect(response.status).toBe(201);
+  const created = (response.body as { data: SpaceItem }).data;
+  expect(created).toEqual({
+    id: expect.any(String) as string,
+    type: 'free',
+    name: 'Projeto Alfa',
+  });
+
+  const row = await prisma.space.findUniqueOrThrow({ where: { id: created.id } });
+  expect(row.type).toBe('FREE');
+  expect(row.name).toBe('Projeto Alfa');
+  expect(row.ownerId).toBe(person.id);
+  expect(row.organizationId).toBe(person.organizationId);
+});
+
+test('POST spaces rejects an empty name with 400', async () => {
+  const response = await postSpace({ name: '' }, adminCookie);
+
+  expect(response.status).toBe(400);
+  expect(await countFreeSpaces()).toBe(0);
+});
+
+test('POST spaces rejects a name made only of spaces with 400', async () => {
+  const response = await postSpace({ name: '    ' }, adminCookie);
+
+  expect(response.status).toBe(400);
+  expect(await countFreeSpaces()).toBe(0);
+});
+
+test('POST spaces rejects a name longer than 120 characters with 400', async () => {
+  const response = await postSpace({ name: 'a'.repeat(121) }, adminCookie);
+
+  expect(response.status).toBe(400);
+  expect(await countFreeSpaces()).toBe(0);
+});
+
+test('POST spaces rejects extra fields with 400', async () => {
+  const { person, cookie } = await createMember();
+
+  const response = await postSpace(
+    {
+      name: 'Projeto Alfa',
+      organizationId: randomUUID(),
+      ownerId: adminPerson.id,
+    },
+    cookie,
+  );
+
+  expect(response.status).toBe(400);
+  expect(await countFreeSpaces()).toBe(0);
+  expect(
+    await prisma.space.count({ where: { ownerId: { in: [person.id, adminPerson.id] } } }),
+  ).toBe(0);
+});
+
+test('POST spaces accepts two spaces with the same name from the same owner', async () => {
+  const first = await postSpace({ name: 'Projeto Alfa' }, adminCookie);
+  const second = await postSpace({ name: 'Projeto Alfa' }, adminCookie);
+
+  expect(first.status).toBe(201);
+  expect(second.status).toBe(201);
+  expect((first.body as { data: SpaceItem }).data.id).not.toBe(
+    (second.body as { data: SpaceItem }).data.id,
+  );
+  expect(
+    await prisma.space.count({
+      where: { type: 'FREE', ownerId: adminPerson.id, name: 'Projeto Alfa' },
+    }),
+  ).toBe(2);
+});
+
+test('POST spaces answers 401 to an anonymous request', async () => {
+  const response = await postSpace({ name: 'Projeto Alfa' });
+
+  expect(response.status).toBe(401);
+  expect(await countFreeSpaces()).toBe(0);
+});
+
+test('POST spaces without the CSRF token is refused', async () => {
+  const response = await httpRequest(app)
+    .post('/api/spaces')
+    .set('Cookie', adminCookie)
+    .send({ name: 'Projeto Alfa' });
+
+  expect(response.status).toBe(403);
+  expect(response.body).toEqual({ message: 'Requisição recusada.' });
+  expect(await countFreeSpaces()).toBe(0);
+});
+
+test('GET spaces returns free and unit spaces mixed in pt-BR order', async () => {
+  const zilda = await createUnit('Zilda');
+  const beatriz = await createUnit('Beatriz');
+  const { person, cookie } = await createMember();
+  await assign(zilda.orgUnitId, person.id);
+  await assign(beatriz.orgUnitId, person.id);
+  const alvaro = await postSpace({ name: 'Álvaro' }, cookie);
+  const erico = await postSpace({ name: 'érico' }, cookie);
+
+  const response = await getSpaces(cookie);
+
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual({
+    data: [
+      { id: (alvaro.body as { data: SpaceItem }).data.id, type: 'free', name: 'Álvaro' },
+      { id: beatriz.spaceId, type: 'unit', name: 'Beatriz' },
+      { id: (erico.body as { data: SpaceItem }).data.id, type: 'free', name: 'érico' },
+      { id: zilda.spaceId, type: 'unit', name: 'Zilda' },
+    ],
+  });
+});
+
+test('a free space is not listed for another person of the same organization', async () => {
+  const { cookie: ownerCookie } = await createMember();
+  const other = await createPersonWithSession(app, {
+    name: 'Ana Lima',
+    email: 'ana@exemplo.org',
+  });
+  const created = await postSpace({ name: 'Projeto Alfa' }, ownerCookie);
+  const spaceId = (created.body as { data: SpaceItem }).data.id;
+
+  const response = await getSpaces(other.cookie);
+
+  expect(other.person.organizationId).toBe(adminPerson.organizationId);
+  expect(response.status).toBe(200);
+  expect((response.body as SpacesBody).data.map((item) => item.id)).not.toContain(
+    spaceId,
+  );
+});
+
+test('a free space is not listed for an admin who is not the owner', async () => {
+  const { person, cookie } = await createMember();
+  const created = await postSpace({ name: 'Projeto Alfa' }, cookie);
+  const spaceId = (created.body as { data: SpaceItem }).data.id;
+
+  const response = await getSpaces(adminCookie);
+
+  expect(adminPerson.isAdmin).toBe(true);
+  expect(adminPerson.organizationId).toBe(person.organizationId);
+  expect(response.status).toBe(200);
+  expect((response.body as SpacesBody).data.map((item) => item.id)).not.toContain(
+    spaceId,
+  );
+});
+
+/**
+ * Como em `a unit of another organization never appears`: a organização é
+ * única por instância (`Organization_singleton_check`), então o filtro é
+ * provado no serviço real, com outro `organizationId`.
+ */
+test('a free space of another organization never appears', async () => {
+  const space = await prisma.space.create({
+    data: {
+      type: 'FREE',
+      organizationId: adminPerson.organizationId,
+      ownerId: adminPerson.id,
+      name: 'Projeto Alfa',
+    },
+  });
+
+  const mine = await spaces.list(adminPerson.organizationId, adminPerson.id);
+  const others = await spaces.list(randomUUID(), adminPerson.id);
+
+  expect(mine.data.map((item) => item.id)).toEqual([space.id]);
+  expect(others).toEqual({ data: [] });
+});
+
+test('the database rejects a FREE space without name', async () => {
+  await expect(
+    prisma.space.create({
+      data: {
+        type: 'FREE',
+        organizationId: adminPerson.organizationId,
+        ownerId: adminPerson.id,
+      },
+    }),
+  ).rejects.toThrow(/Space_type_owner_check/);
+});
+
+test('the database rejects a FREE space without owner', async () => {
+  await expect(
+    prisma.space.create({
+      data: {
+        type: 'FREE',
+        organizationId: adminPerson.organizationId,
+        name: 'Projeto Alfa',
+      },
+    }),
+  ).rejects.toThrow(/Space_type_owner_check/);
+});
+
+test('the database rejects a PERSONAL space with a name', async () => {
+  const { person } = await createPersonWithSession(app, {
+    name: 'Ana Lima',
+    email: 'ana@exemplo.org',
+    withPersonalSpace: false,
+  });
+
+  await expect(
+    prisma.space.create({
+      data: { type: 'PERSONAL', personId: person.id, name: 'Projeto Alfa' },
+    }),
+  ).rejects.toThrow(/Space_type_owner_check/);
+});
