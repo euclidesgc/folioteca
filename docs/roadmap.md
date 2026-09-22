@@ -19,7 +19,7 @@
 | 089 | invitations-email | receber o convite por e-mail em vez de a administração copiar o link à mão (exige SMTP no projeto) | 009 invitations | 086 | planned |
 | 010 | unit-assignments | (administração) lotar pessoas em unidades e ver quem está lotado | pedido inicial | 066, 086 | in-review |
 | 108 | unit-assignments-remove | (administração) remover uma pessoa de uma unidade, com confirmação | 010 unit-assignments | 010 | in-review |
-| 011 | admins-list | (administração) ver quem administra a instância | pedido inicial | 086 | in-progress |
+| 011 | admins-list | (administração) ver quem administra a instância | pedido inicial | 086 | in-review |
 | 012 | unit-spaces | ver o espaço espelhado de cada unidade em que está lotado, com os membros diretos | pedido inicial | 010 | planned |
 | 013 | free-spaces | criar espaço livre e convidar pessoas da instância | pedido inicial | 086 | planned |
 | 014 | space-permissions | definir se um espaço herda do pai ou tem permissões próprias, e restringir espaço livre | pedido inicial | 013 | planned |
@@ -115,3 +115,8 @@
 | 113 | tree-row-actions-order-contract | ter a ordem das ações na linha da árvore documentada e provada num só lugar, hoje contrato implícito de três testes de teclado (dois e2e e um unitário) que quebram juntos se a ordem mudar, sem nada além dos comentários | dívida 010 | | planned |
 | 114 | admin-roles-promote | (administração) promover alguém a administração, pela busca | 011 admin-roles | 011 | planned |
 | 115 | admin-roles-demote | (administração) rebaixar uma administração, nunca ficando sem nenhuma | 011 admin-roles | 114 | planned |
+| 116 | admins-list-pagination-search | (administração) ver a lista de administradores (`GET /admins` e a página /admin/admins) com paginação e busca, hoje inteira e sem limite; terceira lista completa sem limite, junto com as da 100 e da 111 | dívida 011 | | planned |
+| 117 | query-states-component | (dev) ter em src/components/ui um componente único de estados de consulta (carregando, vazio, erro com "Tentar novamente", a regra `isPending \|\| (isError && isFetching)` e o `aria-live`), hoje copiado em OrgUnitsTree, InvitationsList, UnitPeopleList e AdminsList | dívida 011 | | planned |
+| 118 | admin-role-grant-history | (administração) saber desde quando cada pessoa administra a instância e quem a promoveu, hoje sem registro nenhum | dívida 011 | 114 | planned |
+| 119 | accept-invitation-double-submit-flake | investigar a falha esporádica sob carga de `pressing Enter twice sends a single request` em apps/web/src/features/invitations/components/__tests__/accept-invitation-form.test.tsx ("expected 2 to be 1", duas requisições): decidir se é corrida real na trava de envio duplo ou só do teste | dívida 011 | | planned |
+| 120 | document-collaboration-strict-mode-flake | investigar a falha esporádica sob carga de `strict mode ends with a single live session and every other one destroyed` em apps/web/src/features/documents/hooks/__tests__/use-document-collaboration.test.tsx ("expected null not to be null") | dívida 011 | | planned |
