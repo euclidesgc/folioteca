@@ -233,6 +233,36 @@ chegará com espaço de unidade e compartilhamento com unidade. O teste
 estrutural de fronteira da §3 cobre os módulos novos **sem uma linha nova**:
 eles não tocam `Document` nem `resolveAccess`.
 
+**Entrega `unit-assignments-remove` (fatia 108)**: `DELETE
+/org-units/{orgUnitId}/people/{personId}` responde **204** sem corpo, entra no
+`UnitAssignmentsController` e **herda** `SessionGuard` + `AdminGuard` da
+classe — nenhuma linha de guard nova, e o `organizationId` vem do
+`@CurrentPerson()`, nunca da rota. Aqui o verbo é `DELETE`, e não um `POST
+…/revoke` como na 087, porque lá a linha **muda de estado** (`revokedAt`) e
+nunca é apagada, enquanto aqui a linha de `OrgUnitAssignment` é apagada de
+verdade e a **PK composta `(orgUnitId, personId)`** — a mesma que abre esta
+seção — é o próprio endereço do recurso: os dois parâmetros da rota são a
+identidade da lotação, e o `DELETE` é o par simétrico do `POST
+/org-units/{orgUnitId}/people` que a criou. A identidade de caminho foi
+conferida contra o YAML inteiro, a armadilha que a 087 quase caiu: **nenhum**
+outro caminho declarado tem quatro segmentos sob `/org-units`, e o parâmetro
+novo entra sob o prefixo **literal** `people`, que é a forma de escapar da
+colisão. O serviço faz um `deleteMany` **atômico**, com `orgUnitId` e
+`personId` e nada mais, **sem consulta a `Person`**: a FK garante que só existe
+lotação de pessoa existente, então `count === 0` vira **um** único 404 com
+"Pessoa não encontrada." para pessoa inexistente, de outra organização, com id
+malformado **e** para quem já não estava lotada. Não é 204 idempotente de
+propósito: distinguir "existe mas não estava lotada" de "não existe" exigiria
+uma consulta extra a `Person` só para escolher o status, e essa diferença
+viraria um oráculo sobre quais pessoas existem na instância — "já resolvido" é
+decisão **de tela**, não de HTTP, e a web traduz esse 404 em lista recarregada
+com aviso neutro. **Nenhuma migration nova** (o esquema da `0012` já é
+exatamente o recurso endereçado) e **nenhuma linha nova em
+`org-units.service.ts`**: a quarta recusa de apagar unidade lê
+`_count.assignments`, que volta a zero sozinho quando a última lotação é
+apagada, e é isso que encerra a dívida **109 `delete-unit-with-assignments`** —
+fechada por teste, não por código novo.
+
 ## 5. Editor e colaboração
 
 BlockNote (blocos com id estável, sobre ProseMirror/Tiptap) com Yjs. O servidor
