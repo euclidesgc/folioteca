@@ -42,7 +42,8 @@ export type MockOrgUnit = { id: string; parentId: string | null; name: string };
 // An invitation. The token is kept in the clear on purpose: from slice 086 on
 // the browser has to check the link for the journey to exist at all, and this
 // "database" is an object in memory of the tab itself — there is no security
-// boundary here. `acceptedAt` is null while the invitation is pending.
+// boundary here. `acceptedAt` and `revokedAt` are null while the invitation is
+// pending: accepting or revoking it marks one of them, and the row stays.
 export type MockInvitation = {
   id: string;
   email: string;
@@ -50,6 +51,7 @@ export type MockInvitation = {
   expiresAt: string;
   token: string;
   acceptedAt: string | null;
+  revokedAt: string | null;
 };
 
 type DbState = {
@@ -351,8 +353,17 @@ export const nextInvitationToken = (): string => {
   return ['mock', 'invitation', 'token', String(invitationTokenCount)].join('-');
 };
 
+// What "pending" means here, the same three rules the API applies: not
+// accepted, not revoked and not expired yet.
+const isPendingInvitation = (invitation: MockInvitation): boolean =>
+  invitation.acceptedAt === null &&
+  invitation.revokedAt === null &&
+  new Date(invitation.expiresAt).getTime() > Date.now();
+
 // Adds a pending invitation, the way POST /invitations does: inviting the same
-// address again replaces the pending invitation, so only one survives.
+// address again replaces the **pending** invitation of that address, so only
+// one survives — an accepted or revoked one is left where it is, the same
+// narrowed `deleteMany` the server does.
 //
 // The old invitation is taken out of the array in place, never by replacing
 // the array (same reason as `touchDocumentUpdatedAt` above): the handler reads
@@ -363,7 +374,9 @@ export const addInvitation = ({
   email: string;
 }): MockInvitation => {
   const index = state.invitations.findIndex(
-    (item) => item.email.toLowerCase() === email.toLowerCase(),
+    (item) =>
+      item.email.toLowerCase() === email.toLowerCase() &&
+      isPendingInvitation(item),
   );
   if (index !== -1) state.invitations.splice(index, 1);
 
@@ -375,10 +388,26 @@ export const addInvitation = ({
     expiresAt: new Date(createdAt.getTime() + INVITATION_TTL_MS).toISOString(),
     token: nextInvitationToken(),
     acceptedAt: null,
+    revokedAt: null,
   };
   state.invitations.push(invitation);
 
   return invitation;
+};
+
+// Revokes an invitation, the way POST /invitations/:id/revoke does: the
+// invitation already in the array is marked, never taken out of it and never
+// replaced (same reason as `touchDocumentUpdatedAt` above). Answers `false`
+// for an unknown id and for an invitation that is not pending any more, which
+// is the single 404 of the route.
+export const revokeInvitation = (id: string): boolean => {
+  const invitation = state.invitations.find((item) => item.id === id);
+  if (!invitation) return false;
+  if (!isPendingInvitation(invitation)) return false;
+
+  invitation.revokedAt = new Date().toISOString();
+
+  return true;
 };
 
 // Accepts an invitation, the way POST /invitations/:token/accept does: the

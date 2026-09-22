@@ -5,6 +5,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { beforeEach, expect, test } from 'vitest';
 
 import { createRoutes } from '@/app/router';
+import { useNotifications } from '@/components/ui/notifications/notifications-store';
 import { env } from '@/config/env';
 import { paths } from '@/config/paths';
 import { queryConfig } from '@/lib/react-query';
@@ -249,6 +250,67 @@ test('a pending invitation for the same e-mail is not duplicated', async () => {
       screen.getByRole('list', { name: 'Convites pendentes' }),
     ).getAllByText('antigo.convidado@exemplo.com.br'),
   ).toHaveLength(1);
+});
+
+test('an admin revokes one invitation and still sees the other', async () => {
+  const user = userEvent.setup();
+  seedTwoInvitations();
+
+  renderRoutes(paths.admin.invitations.getHref());
+
+  await screen.findByRole(
+    'list',
+    { name: 'Convites pendentes' },
+    LAZY_TIMEOUT,
+  );
+
+  await user.click(
+    screen.getByRole('button', {
+      name: 'Revogar antigo.convidado@exemplo.com.br',
+    }),
+  );
+
+  const dialog = await screen.findByRole(
+    'alertdialog',
+    { name: 'Revogar convite?' },
+    LAZY_TIMEOUT,
+  );
+  await user.click(screen.getByRole('button', { name: 'Revogar' }));
+
+  await waitFor(() => expect(dialog).not.toBeInTheDocument(), LAZY_TIMEOUT);
+  await waitFor(
+    () =>
+      expect(pendingItems()).toEqual([
+        expect.stringContaining('recente.convidado@exemplo.com.br'),
+      ]),
+    LAZY_TIMEOUT,
+  );
+  // The notification block is mounted by the app provider, which this memory
+  // router does not bring: the store is what proves the message.
+  expect(
+    useNotifications.getState().notifications.map((item) => item.message),
+  ).toContain('O convite de antigo.convidado@exemplo.com.br não vale mais.');
+});
+
+test('the Convites pendentes heading is still on the page', async () => {
+  seedTwoInvitations();
+
+  renderRoutes(paths.admin.invitations.getHref());
+
+  // It moved from the route file to the component, not from its place on the
+  // screen: one `<h1>`, and the section heading right above the list.
+  const heading = await screen.findByRole(
+    'heading',
+    { level: 2, name: 'Convites pendentes' },
+    LAZY_TIMEOUT,
+  );
+  expect(heading).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      'O link de cada convite aparece uma única vez, quando ele é criado, e não pode ser mostrado de novo. Para gerar um link novo, convide o mesmo e-mail outra vez.',
+    ),
+  ).toBeInTheDocument();
+  expect(await screen.findAllByRole('heading', { level: 1 }, LAZY_TIMEOUT)).toHaveLength(1);
 });
 
 test('a non-admin is sent home without requesting GET /invitations', async () => {

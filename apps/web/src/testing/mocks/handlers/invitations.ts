@@ -8,6 +8,7 @@ import {
   addInvitation,
   getDb,
   type MockInvitation,
+  revokeInvitation,
 } from '../db';
 import { devOverride, networkDelay, SESSION_COOKIE_NAME } from '../utils';
 
@@ -42,10 +43,13 @@ const conflict = (): ReturnType<typeof HttpResponse.json> =>
 const invitationUnavailable = (): ReturnType<typeof HttpResponse.json> =>
   HttpResponse.json({ message: 'Convite indisponível.' }, { status: 404 });
 
-// What "pending" means, the same two rules the server applies: not accepted
-// and not expired yet. Slice 087 adds `revokedAt` here.
+// What "pending" means, the same three rules the server applies: not accepted,
+// not revoked and not expired yet. Because `findAvailableInvitation` below
+// reads this predicate, a revoked link stops opening on both public routes
+// without a single new line in them.
 const isPending = (invitation: MockInvitation): boolean =>
   invitation.acceptedAt === null &&
+  invitation.revokedAt === null &&
   new Date(invitation.expiresAt).getTime() > Date.now();
 
 // The invitation a public route may answer about: the refusals of the server,
@@ -165,6 +169,32 @@ export const invitationsHandlers = [
     };
     return HttpResponse.json(body, { status: 201 });
   }),
+
+  // Declared after the `POST /invitations` above and before the
+  // `/invitations/:token` handlers below: `:invitationId/revoke` collides with
+  // neither, and the order makes the reading obvious.
+  http.post(
+    `${env.API_URL}/invitations/:invitationId/revoke`,
+    async ({ params, cookies }) => {
+      await networkDelay();
+      const forced = await devOverride('invitations');
+      if (forced) return forced;
+
+      if (!cookies[SESSION_COOKIE_NAME]) return unauthenticated();
+
+      const { installation } = getDb();
+      if (!installation) return unauthenticated();
+      if (!installation.person.isAdmin) return forbidden();
+
+      // An unknown id and an invitation that is not pending any more answer
+      // exactly the same, as the server does: nothing here tells the cases
+      // apart.
+      const revoked = revokeInvitation(String(params.invitationId));
+      if (!revoked) return invitationUnavailable();
+
+      return new HttpResponse(null, { status: 204 });
+    },
+  ),
 
   // Public: the invitation is opened by someone who has no account yet, so no
   // cookie is read here.

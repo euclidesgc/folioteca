@@ -45,7 +45,9 @@ export const networkDelay = (): Promise<void> =>
 //     its token is 'mock-invitation-token-1' and the link is
 //     /invitations/mock-invitation-token-1 (the link of an invitation created
 //     in the browser is shown once, on the invitations screen); the seeded
-//     invitation also fills the pending list of that screen
+//     invitation also fills the pending list of that screen, so it is what
+//     there is to revoke there — after revoking it, the link above stops
+//     opening and answers the same error an invented link answers
 //     (localStorage.setItem('mock-error', 'invitations') shows its error state
 //     and localStorage.setItem('mock-role', 'member') its 403)
 // Remove the key (or run localStorage.clear()) to go back to normal.
