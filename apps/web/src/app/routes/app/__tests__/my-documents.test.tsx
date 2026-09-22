@@ -67,7 +67,11 @@ const findPageContent = async (): Promise<HTMLElement> => {
 test('renders Meus documentos as the only h1 with the support text', async () => {
   renderRoutes(paths.myDocuments.getHref());
 
-  const headings = await screen.findAllByRole('heading', { level: 1 });
+  const headings = await screen.findAllByRole(
+    'heading',
+    { level: 1 },
+    LAZY_TIMEOUT,
+  );
   expect(headings).toHaveLength(1);
   expect(headings[0]).toHaveTextContent('Meus documentos');
   expect(

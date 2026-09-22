@@ -34,7 +34,10 @@ export const networkDelay = (): Promise<void> =>
 //   localStorage.setItem('mock-role', 'member')  -> the seeded person is not an
 //     administrator (read before the installation is seeded)
 //   localStorage.setItem('mock-org-units', 'sample')  -> adds three levels of
-//     units under the root (needs an installation already seeded)
+//     units under the root (needs an installation already seeded), plus one
+//     document in the space of "Sala Infantil" — that document also shows up
+//     in the person's document lists, which the fake database does not filter
+//     by space
 // Remove the key (or run localStorage.clear()) to go back to normal.
 const devKey = (key: string): string | null => {
   if (import.meta.env.MODE === 'test' || typeof window === 'undefined') {

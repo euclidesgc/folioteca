@@ -199,7 +199,8 @@ const LONG_ORG_UNIT_NAME =
 // installation, on top of whatever is already in the database. Kept separate
 // from `seedInstalled` because the existing e2e journeys expect only the root.
 export const seedSampleOrgUnits = (): void => {
-  if (!state.installation) return;
+  const { installation } = state;
+  if (!installation) return;
 
   const sample: MockOrgUnit[] = [
     {
@@ -244,9 +245,33 @@ export const seedSampleOrgUnits = (): void => {
     },
   ];
 
-  state = { ...state, orgUnits: [...state.orgUnits, ...sample] };
+  // A document in the space of "Sala Infantil", so the unit cannot be
+  // deleted: the API answers 409 while its space still holds documents.
+  const now = new Date().toISOString();
+  const unitDocument: MockDocument = {
+    id: 'document-sala-infantil',
+    title: 'Regulamento da Sala Infantil',
+    // `space-${orgUnitId}`, the convention written down below.
+    spaceId: 'space-org-unit-sala-infantil',
+    authorId: installation.person.id,
+    ownerId: installation.person.id,
+    createdAt: now,
+    updatedAt: now,
+    trashedAt: null,
+    accessLevel: 'owner',
+  };
+
+  state = {
+    ...state,
+    orgUnits: [...state.orgUnits, ...sample],
+    documents: [...state.documents, unitDocument],
+  };
 };
 
+// The fake database has no `Space` table: the space of a unit is named after
+// the unit it belongs to, `space-${orgUnitId}`, the same convention
+// `space-${person.id}` already uses for the personal space.
+//
 // Adds a unit under `parentId`, the way POST /org-units does. The `UNIT`
 // space the real API creates in the same transaction is not simulated: no
 // screen of this slice reads it.
@@ -278,6 +303,16 @@ export const renameOrgUnit = (id: string, name: string): MockOrgUnit => {
   }
 
   return unit;
+};
+
+// Removes a unit already in the database, the way DELETE /org-units/:id does.
+//
+// The unit is taken out of the array in place, never by replacing the array
+// (same reason as `touchDocumentUpdatedAt` above): the handler reads the units
+// before it awaits and writes afterwards. Unknown id does nothing.
+export const removeOrgUnit = (id: string): void => {
+  const index = state.orgUnits.findIndex((item) => item.id === id);
+  if (index !== -1) state.orgUnits.splice(index, 1);
 };
 
 // How many documents `seedSampleTrash` moves to the trash.

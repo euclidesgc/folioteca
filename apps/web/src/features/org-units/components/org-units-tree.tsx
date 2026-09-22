@@ -2,6 +2,7 @@ import type React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button/button';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog/confirmation-dialog';
 import {
   Dialog,
   DialogContent,
@@ -10,6 +11,7 @@ import {
 } from '@/components/ui/dialog/dialog';
 import { useNotifications } from '@/components/ui/notifications/notifications-store';
 import { Tree, type TreeHandle } from '@/components/ui/tree/tree';
+import { useDeleteOrgUnit } from '@/features/org-units/api/delete-org-unit';
 import { useOrgUnits } from '@/features/org-units/api/get-org-units';
 import { CreateOrgUnitForm } from '@/features/org-units/components/create-org-unit-form';
 import { RenameOrgUnitForm } from '@/features/org-units/components/rename-org-unit-form';
@@ -59,6 +61,25 @@ const PencilIcon = (): React.JSX.Element => (
   </svg>
 );
 
+// The same drawing the trash button of a document uses, copied on purpose:
+// two six-line SVGs do not justify a shared icon component yet, and a feature
+// never imports from another feature.
+const TrashIcon = (): React.JSX.Element => (
+  <svg
+    aria-hidden="true"
+    focusable="false"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="size-4"
+  >
+    <path d="M4 7h16M10 11v6M14 11v6M9 7V4.5h6V7M6 7l1 13h10l1-13" />
+  </svg>
+);
+
 // Mounts only with data, so the expansion starts fully open once, in the
 // initializer of the state — no `useEffect` to keep anything in sync.
 function LoadedOrgUnitsTree({
@@ -67,18 +88,40 @@ function LoadedOrgUnitsTree({
   units: OrgUnit[];
 }): React.JSX.Element {
   const nodes = useMemo(() => buildTree(units), [units]);
+  const unitsById = useMemo(
+    () => new Map(units.map((unit) => [unit.id, unit])),
+    [units],
+  );
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(() =>
     collectExpandableIds(nodes),
   );
   // The state keeps the id: the unit itself is derived from the list at every
   // render, so a unit that left the list closes the dialog by derivation.
   const [dialog, setDialog] = useState<DialogState | null>(null);
+  // The deletion keeps a copy of the unit instead of deriving it from the
+  // list: after the success the unit is no longer there, and the description
+  // must still show its name while the confirmation closes.
+  const [deleting, setDeleting] = useState<{
+    id: string;
+    name: string;
+    parentId: string;
+  } | null>(null);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   // The node to be focused after the creation, and the mark that the closing
   // under way is the one of a creation. Both live in refs, read by the effect
   // and by `onCloseAutoFocus` at the moment they run — never in a closure
   // captured by a past render.
   const pendingFocusIdRef = useRef<string | null>(null);
   const closedByCreationRef = useRef(false);
+  // Who opened the confirmation, to give the focus back on cancel, on Escape
+  // and after a refusal; the mother of the unit that was deleted, to send the
+  // focus there instead. Both are read inside `onCloseAutoFocus`, which runs
+  // after a render: refs, never state.
+  const deleteOpenerRef = useRef<HTMLElement | null>(null);
+  const focusAfterDeleteRef = useRef<string | null>(null);
+  // Read before the request goes out: once it succeeds the unit is no longer
+  // in the list to be asked about its mother.
+  const parentOfDeletedRef = useRef<string | null>(null);
 
   const treeRef = useRef<TreeHandle>(null);
   const formFocusRef = useRef<FormFocusHandle>(null);
@@ -87,6 +130,28 @@ function LoadedOrgUnitsTree({
   const dialogUnit = dialog
     ? (units.find((unit) => unit.id === dialog.unitId) ?? null)
     : null;
+
+  const deleteOrgUnitMutation = useDeleteOrgUnit({
+    mutationConfig: {
+      // Only success closes the confirmation: a refusal keeps it open, with
+      // the notification from the HTTP client interceptor explaining why.
+      onSuccess: () => {
+        focusAfterDeleteRef.current = parentOfDeletedRef.current;
+        addNotification({ type: 'success', title: 'Unidade apagada' });
+        setIsDeleteOpen(false);
+      },
+    },
+  });
+
+  const handleConfirmDelete = (): void => {
+    // A second click, or a second Enter, can arrive before the button
+    // re-renders as disabled.
+    if (deleteOrgUnitMutation.isPending) return;
+    if (!deleting) return;
+
+    parentOfDeletedRef.current = deleting.parentId;
+    deleteOrgUnitMutation.mutate({ orgUnitId: deleting.id });
+  };
 
   const closeDialog = (): void => {
     setDialog(null);
@@ -153,6 +218,30 @@ function LoadedOrgUnitsTree({
               >
                 <PencilIcon />
               </Button>
+              {typeof unitsById.get(node.id)?.parentId === 'string' ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  type="button"
+                  tabIndex={tabIndex}
+                  aria-label={`Apagar ${node.label}`}
+                  title={`Apagar ${node.label}`}
+                  onClick={(event) => {
+                    const unit = unitsById.get(node.id);
+                    // The root never gets here: the button is not rendered.
+                    if (!unit || unit.parentId === null) return;
+                    deleteOpenerRef.current = event.currentTarget;
+                    setDeleting({
+                      id: unit.id,
+                      name: unit.name,
+                      parentId: unit.parentId,
+                    });
+                    setIsDeleteOpen(true);
+                  }}
+                >
+                  <TrashIcon />
+                </Button>
+              ) : null}
             </>
           )}
         />
@@ -225,6 +314,52 @@ function LoadedOrgUnitsTree({
           </DialogContent>
         ) : null}
       </Dialog>
+
+      {/* One confirmation for the whole tree, and without a trigger of its
+          own: the row that opened it disappears when the reloaded list
+          arrives without the unit. */}
+      <ConfirmationDialog
+        open={isDeleteOpen}
+        onOpenChange={(open) => {
+          if (!open) setIsDeleteOpen(false);
+        }}
+        onCloseAutoFocus={(event) => {
+          const parentId = focusAfterDeleteRef.current;
+          if (parentId) {
+            // The unit is gone: the focus belongs to its mother, which is on
+            // screen because the deleted child was.
+            focusAfterDeleteRef.current = null;
+            event.preventDefault();
+            treeRef.current?.focusNode(parentId);
+            return;
+          }
+
+          // Cancel, Escape, or a refusal followed by cancel: back to the
+          // button that opened the confirmation, while it is still there.
+          const opener = deleteOpenerRef.current;
+          if (opener?.isConnected) {
+            event.preventDefault();
+            opener.focus();
+          }
+        }}
+        title="Apagar unidade?"
+        description={
+          <>
+            “{deleting?.name}” e o espaço de documentos dela serão
+            apagados. Esta ação não pode ser desfeita.
+          </>
+        }
+        confirmButton={
+          <Button
+            variant="destructive"
+            type="button"
+            isLoading={deleteOrgUnitMutation.isPending}
+            onClick={handleConfirmDelete}
+          >
+            {deleteOrgUnitMutation.isPending ? 'Apagando…' : 'Apagar'}
+          </Button>
+        }
+      />
     </>
   );
 }

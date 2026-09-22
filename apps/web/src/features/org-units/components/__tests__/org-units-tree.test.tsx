@@ -5,7 +5,13 @@ import { useNotifications } from '@/components/ui/notifications/notifications-st
 import { env } from '@/config/env';
 import { seedInstalled, seedSampleOrgUnits } from '@/testing/mocks/db';
 import { server } from '@/testing/mocks/server';
-import { renderApp, screen, userEvent, waitFor } from '@/testing/test-utils';
+import {
+  renderApp,
+  screen,
+  userEvent,
+  waitFor,
+  within,
+} from '@/testing/test-utils';
 
 import { OrgUnitsTree } from '../org-units-tree';
 
@@ -410,4 +416,243 @@ test('shows the new root-only text and hides it after the first child is created
 
   expect(await screen.findByTitle('Atendimento ao Público')).toBeInTheDocument();
   expect(screen.queryByText(ONLY_ROOT_EXPLANATION)).not.toBeInTheDocument();
+});
+
+// The tree reloads after every mutation: give those waits an explicit budget
+// instead of the implicit default.
+const LAZY_TIMEOUT = { timeout: 5000 };
+
+const deleteAction = (label: string): HTMLElement =>
+  screen.getByRole('button', { name: `Apagar ${label}` });
+
+const notificationMessages = (): (string | undefined)[] =>
+  useNotifications.getState().notifications.map((item) => item.message);
+
+test('the root has only the create and rename actions', async () => {
+  seedSampleOrgUnits();
+
+  renderApp(<OrgUnitsTree />);
+
+  await screen.findByRole(
+    'tree',
+    { name: 'Estrutura de unidades' },
+    LAZY_TIMEOUT,
+  );
+
+  const root = item('Biblioteca Municipal de Exemplo');
+  expect(
+    within(root).getByRole('button', {
+      name: 'Criar unidade filha em Biblioteca Municipal de Exemplo',
+    }),
+  ).toBeInTheDocument();
+  expect(
+    within(root).getByRole('button', {
+      name: 'Renomear Biblioteca Municipal de Exemplo',
+    }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', {
+      name: 'Apagar Biblioteca Municipal de Exemplo',
+    }),
+  ).not.toBeInTheDocument();
+});
+
+test('a child unit has the delete action after rename', async () => {
+  seedSampleOrgUnits();
+
+  renderApp(<OrgUnitsTree />);
+
+  await screen.findByRole(
+    'tree',
+    { name: 'Estrutura de unidades' },
+    LAZY_TIMEOUT,
+  );
+
+  const remove = deleteAction('Restauro e Conservação');
+  expect(remove).toHaveAttribute('title', 'Apagar Restauro e Conservação');
+  expect(
+    renameAction('Restauro e Conservação').compareDocumentPosition(remove) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeGreaterThan(0);
+});
+
+test('deleting from the keyboard removes the unit, notifies and focuses the parent', async () => {
+  const user = userEvent.setup();
+  seedSampleOrgUnits();
+
+  renderApp(<OrgUnitsTree />);
+
+  await screen.findByRole(
+    'tree',
+    { name: 'Estrutura de unidades' },
+    LAZY_TIMEOUT,
+  );
+
+  item('Biblioteca Municipal de Exemplo').focus();
+  expect(item('Biblioteca Municipal de Exemplo')).toHaveFocus();
+
+  await user.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}');
+  expect(item('Restauro e Conservação')).toHaveFocus();
+
+  await user.tab();
+  expect(createAction('Restauro e Conservação')).toHaveFocus();
+  await user.tab();
+  expect(renameAction('Restauro e Conservação')).toHaveFocus();
+  await user.tab();
+  expect(deleteAction('Restauro e Conservação')).toHaveFocus();
+
+  await user.keyboard('{Enter}');
+
+  const dialog = await screen.findByRole('alertdialog', {
+    name: 'Apagar unidade?',
+  });
+  expect(dialog).toHaveTextContent(
+    '“Restauro e Conservação” e o espaço de documentos dela serão apagados. Esta ação não pode ser desfeita.',
+  );
+  expect(screen.getByRole('button', { name: 'Cancelar' })).toHaveFocus();
+
+  await user.tab();
+  expect(screen.getByRole('button', { name: 'Apagar' })).toHaveFocus();
+
+  await user.keyboard('{Enter}');
+
+  await waitFor(() => expect(dialog).not.toBeInTheDocument(), LAZY_TIMEOUT);
+  await waitFor(
+    () =>
+      expect(
+        screen.queryByTitle('Restauro e Conservação'),
+      ).not.toBeInTheDocument(),
+    LAZY_TIMEOUT,
+  );
+  expect(notificationTitles()).toContain('Unidade apagada');
+  await waitFor(
+    () => expect(item('Acervo e Processamento Técnico')).toHaveFocus(),
+    LAZY_TIMEOUT,
+  );
+});
+
+test('Escape in the delete dialog returns the focus to the opener', async () => {
+  const user = userEvent.setup();
+  seedSampleOrgUnits();
+
+  renderApp(<OrgUnitsTree />);
+
+  await screen.findByRole(
+    'tree',
+    { name: 'Estrutura de unidades' },
+    LAZY_TIMEOUT,
+  );
+
+  await user.click(deleteAction('Catalogação'));
+
+  const dialog = await screen.findByRole('alertdialog', {
+    name: 'Apagar unidade?',
+  });
+  expect(screen.getByRole('button', { name: 'Cancelar' })).toHaveFocus();
+
+  await user.keyboard('{Escape}');
+
+  await waitFor(() => expect(dialog).not.toBeInTheDocument(), LAZY_TIMEOUT);
+  await waitFor(
+    () => expect(deleteAction('Catalogação')).toHaveFocus(),
+    LAZY_TIMEOUT,
+  );
+  expect(screen.getByTitle('Catalogação')).toBeInTheDocument();
+});
+
+test('confirming on a unit with children keeps the dialog open and notifies the server message', async () => {
+  const user = userEvent.setup();
+  seedSampleOrgUnits();
+
+  renderApp(<OrgUnitsTree />);
+
+  await screen.findByRole(
+    'tree',
+    { name: 'Estrutura de unidades' },
+    LAZY_TIMEOUT,
+  );
+
+  await user.click(deleteAction('Acervo e Processamento Técnico'));
+
+  const dialog = await screen.findByRole('alertdialog', {
+    name: 'Apagar unidade?',
+  });
+  await user.click(screen.getByRole('button', { name: 'Apagar' }));
+
+  await waitFor(
+    () =>
+      expect(notificationMessages()).toContain(
+        'Apague ou mova as unidades filhas antes de apagar esta unidade.',
+      ),
+    LAZY_TIMEOUT,
+  );
+  expect(dialog).toBeInTheDocument();
+  expect(screen.getByTitle('Acervo e Processamento Técnico')).toBeInTheDocument();
+  expect(notificationTitles()).not.toContain('Unidade apagada');
+});
+
+test('confirming on a unit whose space has a document keeps the dialog open and notifies the other message', async () => {
+  const user = userEvent.setup();
+  seedSampleOrgUnits();
+
+  renderApp(<OrgUnitsTree />);
+
+  await screen.findByRole(
+    'tree',
+    { name: 'Estrutura de unidades' },
+    LAZY_TIMEOUT,
+  );
+
+  await user.click(deleteAction('Sala Infantil'));
+
+  const dialog = await screen.findByRole('alertdialog', {
+    name: 'Apagar unidade?',
+  });
+  await user.click(screen.getByRole('button', { name: 'Apagar' }));
+
+  await waitFor(
+    () =>
+      expect(notificationMessages()).toContain(
+        'O espaço desta unidade ainda tem documentos, inclusive na lixeira. Trate-os antes de apagar a unidade.',
+      ),
+    LAZY_TIMEOUT,
+  );
+  expect(dialog).toBeInTheDocument();
+  expect(screen.getByTitle('Sala Infantil')).toBeInTheDocument();
+});
+
+test('pressing Enter twice on Apagar sends a single request', async () => {
+  const user = userEvent.setup();
+  seedSampleOrgUnits();
+
+  let deleteCalls = 0;
+  server.use(
+    http.delete(`${env.API_URL}/org-units/:orgUnitId`, async () => {
+      deleteCalls += 1;
+      await delay(50);
+      return new HttpResponse(null, { status: 204 });
+    }),
+  );
+
+  renderApp(<OrgUnitsTree />);
+
+  await screen.findByRole(
+    'tree',
+    { name: 'Estrutura de unidades' },
+    LAZY_TIMEOUT,
+  );
+
+  await user.click(deleteAction('Restauro e Conservação'));
+
+  const dialog = await screen.findByRole('alertdialog', {
+    name: 'Apagar unidade?',
+  });
+
+  await user.tab();
+  expect(screen.getByRole('button', { name: 'Apagar' })).toHaveFocus();
+
+  await user.keyboard('{Enter}{Enter}');
+
+  await waitFor(() => expect(dialog).not.toBeInTheDocument(), LAZY_TIMEOUT);
+  expect(deleteCalls).toBe(1);
 });
