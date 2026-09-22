@@ -44,6 +44,20 @@ function SearchHarness(): React.JSX.Element {
   return <PromoteAdminSearch admins={query.data?.data ?? []} />;
 }
 
+// The page hands the same ref to the search and to the admins list: here only
+// the search side of it is exercised.
+function SearchHarnessWithFieldRef({
+  fieldRef,
+}: {
+  fieldRef: React.RefObject<HTMLInputElement | null>;
+}): React.JSX.Element {
+  const query = useAdmins();
+
+  return (
+    <PromoteAdminSearch admins={query.data?.data ?? []} fieldRef={fieldRef} />
+  );
+}
+
 const findField = (): Promise<HTMLElement> =>
   screen.findByLabelText('Buscar pessoa por nome ou e-mail', {}, LAZY_TIMEOUT);
 
@@ -168,7 +182,7 @@ test('clicking Promover only opens the dialog and sends no request', async () =>
   const { dialog } = await openConfirmation(user);
 
   expect(dialog).toHaveTextContent(
-    `${ZILDA} passa a administrar esta instância inteira, como qualquer outra administração: cria e renomeia unidades, convida pessoas e vê quem administra. Isso não dá acesso a nenhum documento que a pessoa já não visse. Tirar o papel depois ainda não é possível por aqui.`,
+    `${ZILDA} passa a administrar esta instância inteira, como qualquer outra administração: cria e renomeia unidades, convida pessoas e vê quem administra. Isso não dá acesso a nenhum documento que a pessoa já não visse. O papel pode ser tirado depois, na própria lista de quem administra, e a instância nunca fica sem nenhuma administração.`,
   );
   expect(promotions()).toBe(0);
 });
@@ -303,6 +317,23 @@ test('a failure keeps the dialog open', async () => {
     within(dialog).getByRole('button', { name: 'Promover' }),
   ).toBeInTheDocument();
   expect(notificationTitles()).not.toContain('Pessoa promovida');
+});
+
+test('a fieldRef coming from outside gets the focus after a success', async () => {
+  const user = userEvent.setup();
+  countPromotions();
+  const fieldRef: React.RefObject<HTMLInputElement | null> = { current: null };
+
+  renderApp(<SearchHarnessWithFieldRef fieldRef={fieldRef} />);
+
+  const field = await findField();
+  expect(fieldRef.current).toBe(field);
+
+  const { dialog } = await openConfirmation(user);
+  await user.click(within(dialog).getByRole('button', { name: 'Promover' }));
+
+  await waitFor(() => expect(dialog).not.toBeInTheDocument(), LAZY_TIMEOUT);
+  await waitFor(() => expect(field).toHaveFocus(), LAZY_TIMEOUT);
 });
 
 test('hasMore shows the trimming notice', async () => {

@@ -506,6 +506,35 @@ export const promotePerson = (personId: string): MockPerson | null => {
   return person;
 };
 
+// Takes the administration role away, the way DELETE /admins/:personId does.
+// Unknown id answers null; `'last-admin'` is the refusal of the real server,
+// which never leaves the instance without any administration. Demoting whoever
+// already is a member answers the person, with no error: the fake repeats the
+// idempotence of the real one.
+//
+// The flag is written into the person that is already in the database, and
+// never into a copy of it (same reason as `touchDocumentUpdatedAt` above): it
+// is what makes demoting yourself work in the browser and in the e2e, since
+// `installation.person` is the very object GET /auth/me answers with and the
+// one the handlers read to decide the 403.
+export const demotePerson = (
+  personId: string,
+): MockPerson | 'last-admin' | null => {
+  const person = allPeople().find((item) => item.id === personId);
+  if (!person) return null;
+
+  if (person.isAdmin) {
+    const others = allPeople().filter(
+      (item) => item.isAdmin && item.id !== personId,
+    );
+    if (others.length === 0) return 'last-admin';
+
+    person.isAdmin = false;
+  }
+
+  return person;
+};
+
 // Assigns a person to a unit, the way POST /org-units/:orgUnitId/people does.
 // `duplicate` is what the composite primary key of the real table answers with
 // a 409: there is no previous lookup anywhere, the pair itself is the rule.

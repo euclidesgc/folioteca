@@ -17,6 +17,10 @@ type PromoteAdminSearchProps = {
   // Who already administers, straight from the list that is on the screen: the
   // marking costs no request of its own and no new field in the contract.
   admins: AdminPerson[];
+  // Optional, and `ref` as a plain prop: the page hands the same ref to the
+  // admins list, so the focus can land on this field from either side. Without
+  // it the field keeps a ref of its own and nothing changes.
+  fieldRef?: React.RefObject<HTMLInputElement | null>;
 };
 
 // Not an autocomplete widget: a field plus a list of buttons. The action here
@@ -24,6 +28,7 @@ type PromoteAdminSearchProps = {
 // keyboard to get wrong, and `Tab` walks the results from the first line.
 export function PromoteAdminSearch({
   admins,
+  fieldRef,
 }: PromoteAdminSearchProps): React.JSX.Element {
   const [term, setTerm] = useState('');
   const [deferredTerm, setDeferredTerm] = useState('');
@@ -36,8 +41,10 @@ export function PromoteAdminSearch({
   // The person the request is about, to show "Promovendo…" on their row only.
   const [promotingId, setPromotingId] = useState<string | null>(null);
 
-  // `ref` as a plain prop: the focus goes back to the field after a success.
-  const fieldRef = useRef<HTMLInputElement>(null);
+  // The focus goes back to the field after a success: the one of the page when
+  // it was given, otherwise this one.
+  const localFieldRef = useRef<HTMLInputElement>(null);
+  const resolvedFieldRef = fieldRef ?? localFieldRef;
   // Who opened the confirmation, to give the focus back on cancel, on Escape
   // and after a failure. Read inside `onCloseAutoFocus`, which runs after a
   // render: a ref, never state.
@@ -133,7 +140,7 @@ export function PromoteAdminSearch({
         Buscar pessoa por nome ou e-mail
       </label>
       <input
-        ref={fieldRef}
+        ref={resolvedFieldRef}
         id={fieldId}
         type="search"
         autoComplete="off"
@@ -244,7 +251,7 @@ export function PromoteAdminSearch({
           if (focusFieldAfterRef.current) {
             focusFieldAfterRef.current = false;
             event.preventDefault();
-            fieldRef.current?.focus();
+            resolvedFieldRef.current?.focus();
             return;
           }
 
@@ -262,8 +269,9 @@ export function PromoteAdminSearch({
             {promoting?.name} passa a administrar esta instância inteira, como
             qualquer outra administração: cria e renomeia unidades, convida
             pessoas e vê quem administra. Isso não dá acesso a nenhum documento
-            que a pessoa já não visse. Tirar o papel depois ainda não é possível
-            por aqui.
+            que a pessoa já não visse. O papel pode ser tirado depois, na
+            própria lista de quem administra, e a instância nunca fica sem
+            nenhuma administração.
           </>
         }
         confirmButton={
