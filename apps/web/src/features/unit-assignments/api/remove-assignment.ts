@@ -49,7 +49,13 @@ export const useRemoveAssignment = ({
       // The unit spaces of the sidebar too, by the literal key: this feature
       // does not import from `unit-spaces`, and the section has to show up (or
       // go away) for whoever just assigned or removed themselves.
-      await queryClient.invalidateQueries({ queryKey: ['spaces'] });
+      //
+      // Started, never awaited: the new list of people is already in the cache,
+      // and waiting for the spaces as well lets it render first. When it comes
+      // back empty the list (and the open confirmation with it) unmounts before
+      // `onSuccess` closes the box, and the focus that was meant for the heading
+      // of the section is lost on the body.
+      void queryClient.invalidateQueries({ queryKey: ['spaces'] });
 
       onSuccess?.(data, ...args);
     },

@@ -600,6 +600,28 @@ tela, que navega para o início, e **só então** invalida
 "Administração" com a pessoa já fora da área administrativa, sem nenhuma tela
 proibida no caminho.
 
+**Entrega `unit-spaces` (fatia 012)**: `GET /spaces` é a primeira rota de
+leitura que **qualquer pessoa logada** usa fora da área administrativa: o
+`SessionGuard` fica **na classe** do controller e **não há `AdminGuard`**. O
+`organizationId` e o `personId` vêm **sempre da sessão** (`@CurrentPerson()`),
+nunca da rota nem da query, e a lista traz só os espaços `UNIT` das unidades em
+que a pessoa tem **lotação direta** — `isAdmin` **não é lido**: administrar a
+instância não dá espaço de unidade nenhum. O "não encontrado" é **um só e é da
+tela, por construção**: a página do espaço procura o id na lista da própria
+pessoa, então espaço inexistente, de outra organização ou de unidade em que ela
+não está lotada caem no mesmo "Espaço não encontrado." sem nenhuma resposta
+distinta do servidor. **Não há rota por id** até a 128, que usará `findFirst`
+escopado por organização e lotação e responderá um **404 opaco, sem `isUuid`**,
+pela mesma razão da 114. Vale para `/spaces` a regra de `/admins`: **nenhum
+segmento literal sob `/spaces/`**, porque casaria com o futuro `{spaceId}`.
+**Nenhuma migration**: o esquema já tinha tudo o que a leitura precisa.
+Na API simulada, o espaço `UNIT` **nasce junto com a unidade** —
+isso fecha a 075 —, e o handler novo decide quem está logado por
+`getSignedInPerson`, o padrão que o item 124 do roadmap vai estender aos
+handlers antigos. O espaço de unidade **continua sem dar acesso a documento**:
+a decisão de acesso segue o caminho único da §3, e documento no espaço da
+unidade é a 127.
+
 ## 7. Testes
 
 Vitest em tudo. Na API, integração contra Postgres real (`docker compose`,
