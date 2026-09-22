@@ -12,13 +12,17 @@
 | 064 | org-units-view | (administração) ver a árvore de unidades da organização numa página "Estrutura", navegável por teclado, numa área "Administração" que só a administração enxerga | 008 org-units-tree | 003 | done |
 | 065 | org-units-create-rename | (administração) criar unidades filhas e renomear unidades, inclusive a raiz (que renomeia a organização) | 008 org-units-tree | 064 | done |
 | 066 | org-units-delete | (administração) apagar unidade sem filhas, com confirmação; a raiz nunca | 008 org-units-tree | 065 | in-review |
-| 009 | invitations | (administração) convidar pessoas por e-mail, e o convidado criar a conta pelo link | pedido inicial | 003 | planned |
-| 010 | unit-assignments | (administração) lotar pessoas em uma ou mais unidades e removê-las | pedido inicial | 066, 009 | planned |
-| 011 | admin-roles | (administração) promover e rebaixar administradores, nunca ficando sem nenhum | pedido inicial | 009 | planned |
+| 085 | invitations-create | (administração) convidar um e-mail e copiar o link gerado | 009 invitations | 003 | in-progress |
+| 086 | invitations-accept | abrir o link do convite, criar nome e senha e entrar na aplicação | 009 invitations | 085 | planned |
+| 087 | invitations-revoke | (administração) revogar um convite pendente, e o link para de funcionar na hora | 009 invitations | 086, 088 | planned |
+| 088 | invitations-list | (administração) ver os convites pendentes com e-mail, criado em e expira em | 009 invitations | 085 | planned |
+| 089 | invitations-email | receber o convite por e-mail em vez de a administração copiar o link à mão (exige SMTP no projeto) | 009 invitations | 086 | planned |
+| 010 | unit-assignments | (administração) lotar pessoas em uma ou mais unidades e removê-las | pedido inicial | 066, 086 | planned |
+| 011 | admin-roles | (administração) promover e rebaixar administradores, nunca ficando sem nenhum | pedido inicial | 086 | planned |
 | 012 | unit-spaces | ver o espaço espelhado de cada unidade em que está lotado, com os membros diretos | pedido inicial | 010 | planned |
-| 013 | free-spaces | criar espaço livre e convidar pessoas da instância | pedido inicial | 009 | planned |
+| 013 | free-spaces | criar espaço livre e convidar pessoas da instância | pedido inicial | 086 | planned |
 | 014 | space-permissions | definir se um espaço herda do pai ou tem permissões próprias, e restringir espaço livre | pedido inicial | 013 | planned |
-| 015 | share-with-person | (proprietário) compartilhar um documento com uma pessoa em ver, editar ou sem acesso, pelo caminho único de decisão de acesso no servidor | pedido inicial | 009, 005 | planned |
+| 015 | share-with-person | (proprietário) compartilhar um documento com uma pessoa em ver, editar ou sem acesso, pelo caminho único de decisão de acesso no servidor | pedido inicial | 086, 005 | planned |
 | 016 | share-with-groups | compartilhar com um espaço, uma unidade e tudo abaixo dela (com exclusões) ou toda a instância, com revogação imediata ao sair | pedido inicial | 015, 012, 014 | planned |
 | 017 | audience-preview | ver, antes de confirmar o compartilhamento, quantas pessoas passam a ter acesso | pedido inicial | 016 | planned |
 | 018 | who-can-see | ver quem vê este documento e por qual caminho | pedido inicial | 016 | planned |

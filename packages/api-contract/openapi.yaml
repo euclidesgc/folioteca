@@ -631,6 +631,58 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /invitations:
+    post:
+      operationId: createInvitation
+      tags:
+        - invitations
+      summary: Cria um convite para entrar na organização
+      description: >-
+        Cria um convite para o e-mail informado, só para a administração. O
+        e-mail é aparado e passado para minúsculas; um convite pendente por
+        e-mail, sem diferenciar maiúsculas de minúsculas — convidar o mesmo
+        e-mail de novo substitui o convite anterior, e o link antigo deixa de
+        valer. O token vem em claro só nesta resposta; o servidor guarda
+        apenas o hash dele. As checagens acontecem nesta ordem: CSRF (guarda
+        global), 401, 403, 400 (corpo) e por fim 409 (o e-mail já é de uma
+        pessoa da organização).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInvitationInput"
+      responses:
+        "201":
+          description: O convite foi criado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatedInvitationResponse"
+        "400":
+          description: Os dados informados são inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: O e-mail já é de uma pessoa da organização.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
   schemas:
     Health:
@@ -878,6 +930,54 @@ components:
       required:
         - name
       additionalProperties: false
+    CreateInvitationInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: >-
+            E-mail de quem está sendo convidado, aparado e passado para
+            minúsculas antes de gravar.
+      required:
+        - email
+      additionalProperties: false
+    CreatedInvitation:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identificador do convite.
+        email:
+          type: string
+          format: email
+          description: E-mail convidado, já normalizado.
+        expiresAt:
+          type: string
+          format: date-time
+          description: Quando o convite deixa de valer; sete dias depois da criação.
+        createdAt:
+          type: string
+          format: date-time
+          description: Quando o convite foi criado.
+        token:
+          type: string
+          description: >-
+            Token do convite em claro. Devolvido uma única vez, na criação; o
+            servidor guarda só o hash e não tem como mostrá-lo de novo.
+      required:
+        - id
+        - email
+        - expiresAt
+        - createdAt
+        - token
+    CreatedInvitationResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CreatedInvitation"
+      required:
+        - data
     UpdateDocumentBody:
       type: object
       properties:

@@ -14,8 +14,9 @@ model Organization {
   singleton Boolean  @unique @default(true)
   createdAt DateTime @default(now())
 
-  orgUnits OrgUnit[]
-  people   Person[]
+  orgUnits    OrgUnit[]
+  people      Person[]
+  invitations Invitation[]
 }
 
 /// Unidade organizacional; a raiz tem `parentId` nulo.
@@ -57,6 +58,7 @@ model Person {
   authoredDocuments Document[]   @relation("DocumentAuthor")
   ownedDocuments    Document[]   @relation("DocumentOwner")
   favorites         Favorite[]
+  sentInvitations   Invitation[] @relation("InvitationInviter")
 }
 
 enum SpaceType {
@@ -123,6 +125,30 @@ model DocumentContent {
   updatedAt  DateTime @updatedAt
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}
+
+/// Convite pendente para entrar na organização. Só o sha256 do token é
+/// guardado, como em `Session`: o link em claro existe uma única vez, na
+/// resposta da criação.
+///
+/// Um índice único por expressão (`lower("email")`) garante "um convite
+/// pendente por e-mail" e o Prisma não sabe expressá-lo: ele vive só na
+/// migration `0009` escrita à mão. Como na `0007`, ele é invisível a este
+/// schema, e por isso o comando de diff de migrations do Prisma nunca pode
+/// ser rodado aqui: ele apagaria o índice.
+model Invitation {
+  id             String   @id @default(uuid())
+  organizationId String
+  email          String
+  tokenHash      String   @unique
+  invitedById    String
+  createdAt      DateTime @default(now())
+  expiresAt      DateTime
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  invitedBy    Person       @relation("InvitationInviter", fields: [invitedById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, createdAt(sort: Desc)])
 }
 
 /// Sessão opaca: só o sha256 do token é guardado.

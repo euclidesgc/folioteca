@@ -12,6 +12,9 @@ export const createInstallationSchema = z.object({
     .trim()
     .min(1, 'Informe o seu nome.')
     .max(120, 'O nome pode ter no máximo 120 caracteres.'),
+  // O mesmo encadeamento (trim → toLowerCase → z.email) está em
+  // `invitations.schema.ts`: mudar a normalização só aqui quebra o 409 de
+  // "esta pessoa já faz parte da organização" na criação de convites.
   email: z
     .string({ error: 'Informe o e-mail.' })
     .trim()

@@ -227,6 +227,26 @@ export interface paths {
         patch: operations["updateOrgUnit"];
         trace?: never;
     };
+    "/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cria um convite para entrar na organização
+         * @description Cria um convite para o e-mail informado, só para a administração. O e-mail é aparado e passado para minúsculas; um convite pendente por e-mail, sem diferenciar maiúsculas de minúsculas — convidar o mesmo e-mail de novo substitui o convite anterior, e o link antigo deixa de valer. O token vem em claro só nesta resposta; o servidor guarda apenas o hash dele. As checagens acontecem nesta ordem: CSRF (guarda global), 401, 403, 400 (corpo) e por fim 409 (o e-mail já é de uma pessoa da organização).
+         */
+        post: operations["createInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -333,6 +353,37 @@ export interface components {
         UpdateOrgUnitInput: {
             /** @description Novo nome da unidade, aparado e único entre as irmãs sem diferenciar maiúsculas de minúsculas. Na raiz, passa a ser também o nome da organização. */
             name: string;
+        };
+        CreateInvitationInput: {
+            /**
+             * Format: email
+             * @description E-mail de quem está sendo convidado, aparado e passado para minúsculas antes de gravar.
+             */
+            email: string;
+        };
+        CreatedInvitation: {
+            /** @description Identificador do convite. */
+            id: string;
+            /**
+             * Format: email
+             * @description E-mail convidado, já normalizado.
+             */
+            email: string;
+            /**
+             * Format: date-time
+             * @description Quando o convite deixa de valer; sete dias depois da criação.
+             */
+            expiresAt: string;
+            /**
+             * Format: date-time
+             * @description Quando o convite foi criado.
+             */
+            createdAt: string;
+            /** @description Token do convite em claro. Devolvido uma única vez, na criação; o servidor guarda só o hash e não tem como mostrá-lo de novo. */
+            token: string;
+        };
+        CreatedInvitationResponse: {
+            data: components["schemas"]["CreatedInvitation"];
         };
         UpdateDocumentBody: {
             title: string;
@@ -1228,6 +1279,66 @@ export interface operations {
                 };
             };
             /** @description Já existe uma unidade com esse nome neste nível. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateInvitationInput"];
+            };
+        };
+        responses: {
+            /** @description O convite foi criado. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedInvitationResponse"];
+                };
+            };
+            /** @description Os dados informados são inválidos. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O e-mail já é de uma pessoa da organização. */
             409: {
                 headers: {
                     [name: string]: unknown;
