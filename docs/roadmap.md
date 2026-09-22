@@ -20,11 +20,13 @@
 | 010 | unit-assignments | (administração) lotar pessoas em unidades e ver quem está lotado | pedido inicial | 066, 086 | in-review |
 | 108 | unit-assignments-remove | (administração) remover uma pessoa de uma unidade, com confirmação | 010 unit-assignments | 010 | in-review |
 | 011 | admins-list | (administração) ver quem administra a instância | pedido inicial | 086 | in-review |
-| 012 | unit-spaces | ver o espaço espelhado de cada unidade em que está lotado, com os membros diretos | pedido inicial | 010 | planned |
+| 012 | unit-spaces | ver na barra lateral uma seção "Unidades" com as unidades em que está lotado e abrir a página do espaço de cada uma, com o nome da unidade e o aviso de que documentos chegam depois | pedido inicial | 010 | in-progress |
+| 128 | unit-space-members | ver na página do espaço de uma unidade quem mais está lotado direto nela, com nome, e-mail e a marcação "você" | 012 unit-spaces | 012 | planned |
+| 127 | unit-space-documents | criar um documento no espaço de uma unidade em que está lotado, vê-lo na lista do espaço e ter os membros diretos abrindo e editando esse documento; quem sai da unidade perde o acesso na hora | 012 unit-spaces | 012 | planned |
 | 013 | free-spaces | criar espaço livre e convidar pessoas da instância | pedido inicial | 086 | planned |
 | 014 | space-permissions | definir se um espaço herda do pai ou tem permissões próprias, e restringir espaço livre | pedido inicial | 013 | planned |
 | 015 | share-with-person | (proprietário) compartilhar um documento com uma pessoa em ver, editar ou sem acesso, pelo caminho único de decisão de acesso no servidor | pedido inicial | 086, 005 | planned |
-| 016 | share-with-groups | compartilhar com um espaço, uma unidade e tudo abaixo dela (com exclusões) ou toda a instância, com revogação imediata ao sair | pedido inicial | 015, 012, 014 | planned |
+| 016 | share-with-groups | compartilhar com um espaço, uma unidade e tudo abaixo dela (com exclusões) ou toda a instância, com revogação imediata ao sair | pedido inicial | 015, 012, 127, 014 | planned |
 | 017 | audience-preview | ver, antes de confirmar o compartilhamento, quantas pessoas passam a ter acesso | pedido inicial | 016 | planned |
 | 018 | who-can-see | ver quem vê este documento e por qual caminho | pedido inicial | 016 | planned |
 | 019 | shared-with-me | ver a lista dos documentos compartilhados comigo | pedido inicial | 015 | planned |
@@ -80,7 +82,7 @@
 | 072 | db-locale-for-lower | conferir o `LC_CTYPE`/collation dos bancos de homologação e produção, porque o índice único de nomes irmãos usa `lower("name")` e o resultado com acento depende do locale (só dá para conferir pelo contêiner) | dívida da 065 | | planned |
 | 073 | org-unit-accent-siblings-ordering | decidir como exibir irmãs que diferem só por acento ("Área" e "Area" são aceitas, mas a listagem as ordena como iguais) | dívida da 065 | | planned |
 | 074 | uuid-pattern-duplicated | ter um único `isUuid` (apps/api/src/common/is-uuid.ts) usado também por access.service.ts, que ainda tem o padrão duplicado | dívida da 065 | | planned |
-| 075 | mock-unit-space | ter a API simulada criando o espaço UNIT junto com a unidade (a fatia de espaços de unidade vai precisar) | dívida da 065 | | planned |
+| 075 | mock-unit-space | ter a API simulada criando o espaço UNIT junto com a unidade (a fatia de espaços de unidade vai precisar) — absorvida pela 012 (a página do espaço precisa da API simulada criando o espaço junto com a unidade) | dívida da 065 | | planned |
 | 076 | organization-rename-convergence | convergir o renomear da organização (hoje feito ao renomear a raiz, dentro de org-units) com uma futura tela de dados da organização | dívida da 065 | | planned |
 | 077 | sidebar-aside-accessible-name | dar rótulo acessível ao `<aside>` da barra lateral (hoje o e2e localiza a identidade por `locator('aside')`) | dívida da 065 | | planned |
 | 078 | test-wait-explicit-timeout | ter nas centenas de esperas `findBy…`/`waitFor` de apps/web/src e specs de e2e (block-editor, install, create-document) um timeout explícito em vez de deixar esgotado em máquina ocupada, evitando flake de CI sob carga | dívida 066 | | planned |
