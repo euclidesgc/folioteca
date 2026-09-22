@@ -35,6 +35,11 @@ export const paths = {
     path: '/spaces',
     getHref: (): string => '/spaces',
   },
+  unitSpace: {
+    path: '/spaces/:spaceId',
+    getHref: (spaceId: string): string =>
+      `/spaces/${encodeURIComponent(spaceId)}`,
+  },
   trash: {
     path: '/trash',
     getHref: (): string => '/trash',

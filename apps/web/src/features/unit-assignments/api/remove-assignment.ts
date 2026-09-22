@@ -46,6 +46,11 @@ export const useRemoveAssignment = ({
         queryKey: getUnitPeopleQueryOptions(orgUnitId).queryKey,
       });
 
+      // The unit spaces of the sidebar too, by the literal key: this feature
+      // does not import from `unit-spaces`, and the section has to show up (or
+      // go away) for whoever just assigned or removed themselves.
+      await queryClient.invalidateQueries({ queryKey: ['spaces'] });
+
       onSuccess?.(data, ...args);
     },
   });

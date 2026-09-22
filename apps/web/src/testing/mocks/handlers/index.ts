@@ -6,6 +6,7 @@ import { installationHandlers } from './installation';
 import { invitationsHandlers } from './invitations';
 import { orgUnitsHandlers } from './org-units';
 import { peopleHandlers } from './people';
+import { spacesHandlers } from './spaces';
 import { unitAssignmentsHandlers } from './unit-assignments';
 
 export const handlers = [
@@ -18,4 +19,5 @@ export const handlers = [
   ...peopleHandlers,
   ...adminRolesHandlers,
   ...invitationsHandlers,
+  ...spacesHandlers,
 ];

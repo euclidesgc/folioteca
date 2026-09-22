@@ -112,9 +112,10 @@ test('a successful remove invalidates the unit people query key', async () => {
   expect(invalidateQueries).toHaveBeenCalledWith({
     queryKey: ['org-units', ROOT_ORG_UNIT_ID, 'people'],
   });
-  // The invalidation runs first and is awaited: whoever closes the dialog
+  // Both invalidations (the unit people and the spaces) run first and are
+  // awaited: whoever closes the dialog
   // already finds the list without the row.
-  expect(order).toEqual(['invalidate', 'onSuccess']);
+  expect(order).toEqual(['invalidate', 'invalidate', 'onSuccess']);
 });
 
 test('a 404 rejects without a global notification', async () => {
@@ -130,4 +131,24 @@ test('a 404 rejects without a global notification', async () => {
     () => expect(useNotifications.getState().notifications).toEqual([]),
     LAZY_TIMEOUT,
   );
+});
+
+test('invalidates the spaces query on success', async () => {
+  const queryClient = new QueryClient({ defaultOptions: queryConfig });
+  const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
+
+  const { result } = renderHook(
+    () => useRemoveAssignment({ orgUnitId: ROOT_ORG_UNIT_ID }),
+    { wrapper: wrapperFor(queryClient) },
+  );
+
+  result.current.mutate({
+    orgUnitId: ROOT_ORG_UNIT_ID,
+    personId: ASSIGNED_PERSON_ID,
+  });
+
+  await waitFor(() => expect(result.current.isSuccess).toBe(true), LAZY_TIMEOUT);
+  // The sidebar section and the unit space page read this key: gaining or
+  // losing an assignment changes the list of spaces of the person.
+  expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['spaces'] });
 });

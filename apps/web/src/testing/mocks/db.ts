@@ -59,12 +59,20 @@ export type MockInvitation = {
 // keeps the same person from being assigned twice to the same unit.
 export type MockAssignment = { orgUnitId: string; personId: string };
 
+// The `UNIT` space of a unit. The real API creates it in the same transaction
+// as the unit, and the fake database mirrors that: every place a unit is born
+// also creates its space, and removing the unit removes the space. Its id is
+// named after the unit, `space-${orgUnitId}`, the same convention
+// `space-${person.id}` already uses for the personal space.
+export type MockSpace = { id: string; type: 'unit'; orgUnitId: string };
+
 type DbState = {
   installation: MockInstallation | null;
   documents: MockDocument[];
   favorites: MockFavorite[];
   orgUnits: MockOrgUnit[];
   assignments: MockAssignment[];
+  spaces: MockSpace[];
   invitations: MockInvitation[];
   // People created by accepting an invitation, and which of them is signed in.
   // Null means the installed person, which is what every journey before 086
@@ -79,6 +87,7 @@ const initialState = (): DbState => ({
   favorites: [],
   orgUnits: [],
   assignments: [],
+  spaces: [],
   invitations: [],
   people: [],
   signedInPersonId: null,
@@ -147,6 +156,7 @@ export const seedInstalled = ({
     },
     orgUnits: [rootOrgUnit(organization.name)],
   });
+  addUnitSpace(ROOT_ORG_UNIT_ID);
 
   if (signedIn) {
     document.cookie = 'folioteca_session=mock-session-token; path=/';
@@ -297,15 +307,11 @@ export const seedSampleOrgUnits = (): void => {
     orgUnits: [...state.orgUnits, ...sample],
     documents: [...state.documents, unitDocument],
   };
+  sample.forEach((unit) => addUnitSpace(unit.id));
 };
 
-// The fake database has no `Space` table: the space of a unit is named after
-// the unit it belongs to, `space-${orgUnitId}`, the same convention
-// `space-${person.id}` already uses for the personal space.
-//
-// Adds a unit under `parentId`, the way POST /org-units does. The `UNIT`
-// space the real API creates in the same transaction is not simulated: no
-// screen of this slice reads it.
+// Adds a unit under `parentId`, the way POST /org-units does, together with
+// the `UNIT` space the real API creates in the same transaction.
 export const addOrgUnit = ({
   parentId,
   name,
@@ -315,6 +321,7 @@ export const addOrgUnit = ({
 }): MockOrgUnit => {
   const unit: MockOrgUnit = { id: crypto.randomUUID(), parentId, name };
   state.orgUnits.push(unit);
+  addUnitSpace(unit.id);
   return unit;
 };
 
@@ -336,15 +343,58 @@ export const renameOrgUnit = (id: string, name: string): MockOrgUnit => {
   return unit;
 };
 
-// Removes a unit already in the database, the way DELETE /org-units/:id does.
+// Removes a unit already in the database, the way DELETE /org-units/:id does,
+// and its space with it.
 //
-// The unit is taken out of the array in place, never by replacing the array
+// Both are taken out of their arrays in place, never by replacing the arrays
 // (same reason as `touchDocumentUpdatedAt` above): the handler reads the units
 // before it awaits and writes afterwards. Unknown id does nothing.
 export const removeOrgUnit = (id: string): void => {
   const index = state.orgUnits.findIndex((item) => item.id === id);
   if (index !== -1) state.orgUnits.splice(index, 1);
+
+  const spaceIndex = state.spaces.findIndex((item) => item.orgUnitId === id);
+  if (spaceIndex !== -1) state.spaces.splice(spaceIndex, 1);
 };
+
+// Creates the `UNIT` space of a unit (see `MockSpace` above). Called wherever
+// a unit is born: `seedInstalled`, `seedSampleOrgUnits`, `addOrgUnit` and the
+// POST /installation handler. Pushed into the array already in the database,
+// never into a copy of it (same reason as `touchDocumentUpdatedAt` above).
+export const addUnitSpace = (orgUnitId: string): MockSpace => {
+  const space: MockSpace = {
+    id: `space-${orgUnitId}`,
+    type: 'unit',
+    orgUnitId,
+  };
+  state.spaces.push(space);
+  return space;
+};
+
+// The unit spaces a person is assigned to, the way GET /spaces answers: only
+// direct assignments (no inheritance from a parent unit), sorted by the pt-BR
+// collator with the tie broken by `id`, the same pair of rules the service
+// applies.
+const spacesCollator = new Intl.Collator('pt-BR', { sensitivity: 'base' });
+
+export const listSpacesOf = (
+  personId: string,
+): { id: string; type: 'unit'; name: string }[] =>
+  state.spaces
+    .flatMap((space) => {
+      const assigned = state.assignments.some(
+        (item) =>
+          item.orgUnitId === space.orgUnitId && item.personId === personId,
+      );
+      const unit = state.orgUnits.find((item) => item.id === space.orgUnitId);
+      return assigned && unit
+        ? [{ id: space.id, type: space.type, name: unit.name }]
+        : [];
+    })
+    .sort(
+      (a, b) =>
+        spacesCollator.compare(a.name, b.name) || a.id.localeCompare(b.id),
+    );
 
 // The same seven days the real API gives an invitation.
 const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
