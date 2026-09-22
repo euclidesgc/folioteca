@@ -55,13 +55,13 @@ Commits esperados: 1 de docs inicial + 1 por fase (2), sem contar o de fechament
 
 ## Fase 2 — Publicação em homologação documentada, com o roteiro de ações no Coolify
 
-- [ ] T2.1 — Documentar a publicação em homologação e o roteiro de configuração
+- [x] T2.1 — Documentar a publicação em homologação e o roteiro de configuração
   - Arquivos: `docs/architecture.md` (alterar)
   - O que fazer: nova seção `## 10. Publicação em homologação` em pt_BR, com subseções: imagens (API e web, estágios, não-root, portas 3000 e 8080); proxy de mesma origem (`/api` e `/collab` via nginx, por que não CORS); commit publicado (`SOURCE_COMMIT`, "Include Source Commit in Build", `commit` em `/api/health`); migração na subida (`prisma migrate deploy` antes do Node; banco novo e vazio obrigatório porque as migrations antigas de hml, como `20260910020900_fundacao_de_conta`, não têm relação com `0001_init` … `0007_org_unit_name_uniqueness`); variáveis por app (API: `DATABASE_URL` obrigatória, `PORT`, `NODE_ENV`, `INSTALL_CODE`, `COLLAB_ALLOWED_ORIGINS`, `COLLAB_STORE_DEBOUNCE_MS`, `SOURCE_COMMIT`; web: só `API_UPSTREAM` em runtime, sem `VITE_*`; `INSTALLATION_CODE` não é mais lido), incluindo a comparação com as variáveis já configuradas trazida pela orquestração; roteiro de ações em duas listas — "Orquestração (MCP do Coolify)": criar Postgres `pgvector/pgvector:pg16` novo não público, healthcheck da API `/api/health` porta 3000, ligar "Include Source Commit in Build", `NODE_ENV=production`, web na porta 8080 com healthcheck `/` porta 8080 e `API_UPSTREAM`, disparar e acompanhar o deploy — e "Dono (painel)": `DATABASE_URL` do banco novo, `INSTALL_CODE` (≥ 16 caracteres), apagar variáveis sobrando e, se quiser, o banco antigo; "Como verificar depois do merge": `/api/health` pelo domínio de hml mostra o `commit` do merge; prova local por `bash scripts/verify-images.sh`. Nenhum valor secreto no texto. O roteiro é executado pela orquestração fora das fases.
   - Skills: —
   - Complexidade: baixa
 
-- [ ] T2.2 — Testes da fase 2
+- [x] T2.2 — Testes da fase 2
   - Arquivos: nenhum arquivo de teste novo (fase só de documentação)
   - O que fazer: rodar a suíte inteira e `bash scripts/verify-images.sh` para confirmar que nada regrediu com a documentação.
   - Skills: —
@@ -69,11 +69,11 @@ Commits esperados: 1 de docs inicial + 1 por fase (2), sem contar o de fechament
 
 ### Critérios de aceite da fase 2
 
-- [ ] CA2.1 — `docs/architecture.md` tem o título `## 10. Publicação em homologação`, e a seção cita `SOURCE_COMMIT`, `API_UPSTREAM`, `DATABASE_URL`, `INSTALL_CODE`, `/api/health`, `8080`, `prisma migrate deploy` e `scripts/verify-images.sh`.
-- [ ] CA2.2 — A seção tem as listas "Orquestração (MCP do Coolify)" e "Dono (painel)" e a subseção "Como verificar depois do merge".
-- [ ] CA2.3 — A seção justifica o banco novo citando `20260910020900_fundacao_de_conta` e `0001_init`.
-- [ ] CA2.4 — `grep -nE "(postgres://|PASSWORD=)" docs/architecture.md` não encontra nenhum valor de segredo.
-- [ ] CA2.5 — `bash scripts/verify-images.sh` continua saindo 0 com `OK: imagens verificadas`.
+- [x] CA2.1 — `docs/architecture.md` tem o título `## 10. Publicação em homologação`, e a seção cita `SOURCE_COMMIT`, `API_UPSTREAM`, `DATABASE_URL`, `INSTALL_CODE`, `/api/health`, `8080`, `prisma migrate deploy` e `scripts/verify-images.sh`.
+- [x] CA2.2 — A seção tem as listas "Orquestração (MCP do Coolify)" e "Dono (painel)" e a subseção "Como verificar depois do merge".
+- [x] CA2.3 — A seção justifica o banco novo citando `20260910020900_fundacao_de_conta` e `0001_init`.
+- [x] CA2.4 — `grep -nE "(postgres://|PASSWORD=)" docs/architecture.md` não encontra nenhum valor de segredo.
+- [x] CA2.5 — `bash scripts/verify-images.sh` continua saindo 0 com `OK: imagens verificadas`.
 
 ## DoD da entrega
 

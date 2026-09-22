@@ -368,3 +368,138 @@ comparação em desenvolvimento.
 Enquanto o dono não faz merge, cada fatia sai da branch da fatia anterior e o
 PR aponta para ela. Ao mergear em ordem, o GitHub reaponta os PRs para
 `develop`.
+
+## 10. Publicação em homologação
+
+Cada merge em `develop` publica homologação (hml) no Coolify: o GitHub App do
+Coolify dispara o build das apps `folioteca-api-hml` e `folioteca-web-hml` a
+partir dos Dockerfiles do repositório. Build ou healthcheck reprovado mantém o
+contêiner anterior no ar; o log fica no painel de publicações do Coolify.
+
+### Imagens
+
+- **API** (`apps/api/Dockerfile`): dois estágios em `node:24-alpine`. O estágio
+  `build` instala o workspace com `pnpm install --frozen-lockfile`, compila a
+  API e gera com `pnpm --filter api deploy --prod` um `node_modules` só de
+  produção; o `prisma generate` roda de novo nesse resultado. O estágio final
+  roda como o usuário `node` (sem root), expõe a porta **3000** e tem
+  `HEALTHCHECK` com `wget` em `/api/health`, que também consulta o banco.
+- **Web** (`apps/web/Dockerfile`): o Node constrói o SPA e a imagem final é
+  `nginxinc/nginx-unprivileged:1.27-alpine`, sem root, na porta **8080**, com
+  `HEALTHCHECK` em `/`. Por não ter root, a porta da app web no Coolify passou
+  de 80 para 8080.
+- O contexto de build das duas é a raiz do repositório. O `.dockerignore`
+  deixa de fora `node_modules`, `dist`, `.env*`, `.git` e relatórios de teste:
+  nenhum segredo entra na imagem.
+
+### Proxy de mesma origem
+
+O nginx da web serve o SPA (`try_files $uri /index.html`, cache longo em
+`/assets/`) e repassa `/api` e `/collab` (WebSocket, com `Upgrade` e
+`Connection`) para `API_UPSTREAM`, preservando `Host` e `X-Forwarded-*`. É o
+mesmo desenho do proxy do Vite em desenvolvimento (ver §8).
+
+Por que não CORS: a sessão é cookie httpOnly e o `/collab` compara o `Origin`
+do navegador com o `Host` do pedido (ver §5). Com a API em outro domínio
+seriam precisos CORS com credenciais, `SameSite=None` e uma lista em
+`COLLAB_ALLOWED_ORIGINS`. Na mesma origem nada disso existe e o código não
+muda. A rota por caminho no Traefik do Coolify também foi descartada, porque
+não se prova localmente.
+
+Sem `API_UPSTREAM`, a subida da web falha antes do nginx com a mensagem
+"API_UPSTREAM é obrigatória.".
+
+### Commit publicado
+
+O Coolify, com a opção **"Include Source Commit in Build"** ligada, passa o
+commit do build como o build arg `SOURCE_COMMIT`. O Dockerfile da API o
+guarda em `ENV SOURCE_COMMIT` e `GET /api/health` devolve esse valor no campo
+`commit` (sem a variável, `unknown`). É assim que se sabe qual commit está no
+ar.
+
+### Migração na subida
+
+O `CMD` da API é `npx prisma migrate deploy && exec node dist/main.js`: a
+migração roda antes do Node, e uma migração reprovada derruba a subida (o
+contêiner anterior continua no ar). O `exec` entrega o SIGTERM ao Node, que
+grava o pendente do `collab` antes de sair.
+
+Homologação precisa de um **banco novo e vazio**. O banco antigo
+(`folioteca-db-hml`) guarda o histórico de migrations de antes do recomeço de
+20/09/2026, como `20260910020900_fundacao_de_conta`, que não tem relação com
+as migrations atuais (`0001_init` … `0007_org_unit_name_uniqueness`). O
+`prisma migrate deploy` num banco com uma `_prisma_migrations` alheia falha
+(P3005/P3009); por isso a API aponta para um Postgres novo, e o antigo fica
+intocado até o dono decidir apagá-lo.
+
+### Variáveis por app
+
+Só nomes; os valores ficam no painel do Coolify.
+
+**API (`folioteca-api-hml`)** — o que o código lê (`apps/api/src/config/env.ts`):
+
+| Variável | Situação em hml | O que fazer |
+|---|---|---|
+| `DATABASE_URL` | existe, aponta para o banco antigo | o dono troca pela URL interna do banco novo (obrigatória: sem ela a subida falha nomeando a variável) |
+| `PORT` | existe | manter 3000 (padrão) |
+| `NODE_ENV` | existe | `production` |
+| `INSTALL_CODE` | falta | o dono cria, com pelo menos 16 caracteres; sem ela a API sobe, mas a instalação fica bloqueada |
+| `COLLAB_ALLOWED_ORIGINS` | falta | pode ficar ausente: vazia, o `/collab` compara `Origin` com `Host`, correto na mesma origem. Se for preenchida, precisa conter exatamente a origem pública da web de hml |
+| `COLLAB_STORE_DEBOUNCE_MS` | falta | pode ficar ausente (padrão 2000) |
+| `SOURCE_COMMIT` | vem do build | nada: é injetada pela opção "Include Source Commit in Build" |
+
+Sobram na API e não são mais lidas: `WEB_ORIGIN`, `BETTER_AUTH_SECRET`,
+`API_URL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`,
+`MAIL_FROM`, e o nome antigo `INSTALLATION_CODE` (hoje o lido é
+`INSTALL_CODE`). O escopo de preview (`API_PORT`, `API_SESSION_SECRET`,
+`API_CORS_ORIGINS` e outras) não é usado.
+
+**Web (`folioteca-web-hml`)** — em runtime só `API_UPSTREAM`: o endereço
+interno da API na rede do Coolify, no formato
+`http://<uuid-da-app-api>:3000` (hoje `http://hvn6t37t7ul3xkhsg9h1etqo:3000`).
+Não é segredo.
+
+Nenhuma `VITE_*`: a web chama `/api` na mesma origem, o padrão de
+`VITE_APP_API_URL` em `apps/web/src/config/env.ts`. O Dockerfile da web não
+declara build args, então as variáveis que sobram (`VITE_API_URL` e, no
+escopo de preview, `VITE_APP_API_URL`, `VITE_APP_URL`,
+`VITE_APP_ENABLE_API_MOCKING`) não chegam ao build; podem ser apagadas.
+`VITE_APP_API_URL` nunca deve apontar para outra origem, porque isso quebraria
+a mesma origem descrita acima.
+
+### Roteiro de ações
+
+Executado pela orquestração depois do merge, fora das fases de código.
+
+**Orquestração (MCP do Coolify)** — nada secreto:
+
+1. Criar um Postgres novo `pgvector/pgvector:pg16` no mesmo ambiente de hml,
+   **não público**.
+2. Na API: healthcheck em `/api/health`, porta 3000 (antes era `/health`, que
+   dá 404 pelo prefixo global `api`); ligar "Include Source Commit in Build";
+   `NODE_ENV=production` se faltar.
+3. Na web: porta exposta 8080; healthcheck em `/`, porta 8080; ligar "Include
+   Source Commit in Build"; criar `API_UPSTREAM` (runtime) com o endereço
+   interno da API.
+4. Depois que o dono concluir a parte dele, disparar o deploy das duas apps e
+   acompanhar até ficarem saudáveis.
+
+**Dono (painel)** — valores secretos e remoções:
+
+1. Na API, trocar `DATABASE_URL` pela URL interna do banco novo (com a senha
+   dele).
+2. Na API, criar `INSTALL_CODE` com pelo menos 16 caracteres.
+3. Apagar as variáveis que sobram (lista acima) nas duas apps.
+4. Se quiser, apagar o banco antigo `folioteca-db-hml`.
+5. `folioteca-site-hml` fica como está.
+
+### Como verificar depois do merge
+
+1. Abrir `/api/health` pelo domínio de hml: `data.commit` deve ser igual ao
+   commit do topo de `develop` (o do merge), e `data.database` deve ser `up`.
+2. Abrir o domínio da web em hml, numa rota profunda: deve carregar o SPA
+   (fallback do nginx) e conseguir refazer a instalação com o `INSTALL_CODE`.
+3. Antes do merge, a prova local das duas imagens é
+   `bash scripts/verify-images.sh`: builda com `SOURCE_COMMIT=local-test`,
+   sobe a API contra o Postgres do `docker compose` e a web apontando para
+   ela, e sai 0 com `OK: imagens verificadas`.
