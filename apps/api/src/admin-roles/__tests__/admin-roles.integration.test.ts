@@ -470,14 +470,27 @@ test('two simultaneous demotions leave exactly one admin', async () => {
   const second = demote(alvaroId, adminCookie);
 
   const responses = await Promise.all([first, second]);
-  const statuses = responses.map((response) => response.status).sort();
 
-  expect(statuses).toEqual([200, 409]);
+  const accepted = responses.filter((response) => response.status === 200);
+  const refused = responses.filter((response) => response.status !== 200);
 
-  const refused = responses.find((response) => response.status === 409);
-  expect((refused?.body as { message: string }).message).toBe(
-    LAST_ADMIN_MESSAGE,
-  );
+  expect(accepted).toHaveLength(1);
+  expect(refused).toHaveLength(1);
+
+  // Both cookies belong to the admin demoted by one of the requests, so the
+  // refusal depends on the interleaving: 409 when the last-admin rule answers
+  // first, 403 when the self-demotion landed first and the guard re-reads
+  // `isAdmin`. Both refusals keep the invariant, so either one is accepted.
+  const refusedResponse = refused[0];
+  const refusedMessage = (refusedResponse?.body as { message: string }).message;
+
+  expect([
+    { status: 409, message: LAST_ADMIN_MESSAGE },
+    { status: 403, message: FORBIDDEN_MESSAGE },
+  ]).toContainEqual({
+    status: refusedResponse?.status,
+    message: refusedMessage,
+  });
 
   const remaining = await prisma.person.count({
     where: { organizationId: adminPerson.organizationId, isAdmin: true },

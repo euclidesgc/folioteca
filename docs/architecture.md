@@ -565,6 +565,41 @@ própria query ao padrão global `false`): é assim que o papel recém-promovido
 chega ao front **sem recarregar a página** — na navegação seguinte ou ao voltar
 para a aba —, encerrando a nota deixada pela fatia 011.
 
+**Entrega `admin-roles-demote` (fatia 115)**: `DELETE /admins/{personId}` entrou
+no **caminho que já existia**, o mesmo do `PUT` da 114 — **nenhum caminho novo**
+no contrato, e segue valendo a regra escrita pela 114 de **nunca declarar
+segmento literal sob `/admins`** (um `/admins/count` casaria com `{personId}`
+conforme a ordem de declaração no Nest). O método foi pendurado no
+`AdminRolesController` que já existia: `SessionGuard` + `AdminGuard` continuam
+**na classe**, nenhum método traz `@UseGuards`, e o `organizationId` vem sempre
+do `@CurrentPerson()`, nunca da rota nem do corpo (a requisição não tem corpo).
+A regra **"a instância nunca fica sem nenhuma administração" é do servidor**,
+não da tela: `demote` roda dentro de uma transação que **trava as linhas de
+administração antes de contar** (`SELECT "id" … WHERE "isAdmin" = true ORDER BY
+"id" FOR UPDATE`). Sem o lock, duas transações simultâneas leem cada uma "há
+duas administrações" e as duas escrevem — é *write skew*, que o `READ
+COMMITTED` do Postgres não impede, e que **não se conserta com condição na
+escrita** porque cada `UPDATE` só tranca a própria linha, e a condição olharia
+outra linha; `Serializable` resolveria, mas obrigaria laço de repetição no
+serviço a cada erro de serialização. O `ORDER BY "id"` faz duas transações nunca
+travarem as mesmas linhas em ordens opostas. A recusa é **409** com frase de
+domínio (`LAST_ADMIN_MESSAGE`), **a mesma** que a tela mostra ao lado da única
+administração antes de qualquer clique. Rebaixar quem **já é membro** responde
+**200**, sem escrita e **sem passar pela regra** — o `if (person.isAdmin)` só
+conta e grava para quem administra hoje. Pessoa inexistente, de outra
+organização ou com id malformado respondem **um único 404 opaco**, pelo
+`findFirst` com `organizationId` e **sem `isUuid`**, pela mesma razão da 114; o
+escopo aparece **também no `where` da escrita** (`updateMany` com `id` e
+`organizationId`). **Nenhuma migration**: `Person.isAdmin` já existia e nenhum
+índice foi criado. No front, o **auto-rebaixamento** tem caminho próprio de
+cache: `useDemoteAdmin` **remove** a chave `['admins']` em vez de invalidá-la —
+invalidar dispararia um `GET /admins` que o servidor já responde com 403, e a
+tela ganharia uma notificação de permissão negada —, chama o `onSuccess` da
+tela, que navega para o início, e **só então** invalida
+`['authenticated-user']`. É nessa ordem que a barra lateral perde a área
+"Administração" com a pessoa já fora da área administrativa, sem nenhuma tela
+proibida no caminho.
+
 ## 7. Testes
 
 Vitest em tudo. Na API, integração contra Postgres real (`docker compose`,
