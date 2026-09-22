@@ -11,6 +11,11 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { createPersonWithSession } from '../../../test/create-person';
 import { httpRequest } from '../../../test/http';
 import { resetDatabase } from '../../../test/reset-database';
+import {
+  HAS_CHILDREN_MESSAGE,
+  HAS_DOCUMENTS_MESSAGE,
+  ROOT_MESSAGE,
+} from '../org-units.service';
 
 const EMAIL = 'maria@exemplo.org';
 
@@ -108,6 +113,15 @@ function patchOrgUnit(
   return (cookie === undefined ? request : request.set('Cookie', cookie)).send(
     body,
   );
+}
+
+/** Envia `DELETE /api/org-units/:id` com o cabeçalho do CSRF. */
+function deleteOrgUnit(orgUnitId: string, cookie?: string): Promise<Response> {
+  const request = httpRequest(app)
+    .delete(`/api/org-units/${orgUnitId}`)
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return cookie === undefined ? request : request.set('Cookie', cookie);
 }
 
 /** Id da unidade raiz criada pela instalação. */
@@ -580,4 +594,182 @@ test('an admin demoted in the database gets 403 on the next request with the sam
   const second = await getOrgUnits(adminCookie);
   expect(second.status).toBe(403);
   expect((second.body as { message: string }).message).toBe(FORBIDDEN_MESSAGE);
+});
+
+/** Cria uma unidade pela API e devolve o id dela. */
+async function createUnit(name: string, parentId?: string): Promise<string> {
+  const response = await postOrgUnit(
+    { parentId: parentId ?? (await getRootId()), name },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(201);
+
+  return unitOf(response).id;
+}
+
+/** Id do espaço `UNIT` da unidade. */
+async function getSpaceId(orgUnitId: string): Promise<string> {
+  const space = await prisma.space.findFirstOrThrow({ where: { orgUnitId } });
+
+  return space.id;
+}
+
+/**
+ * Põe um documento no espaço da unidade. O acesso direto à tabela `Document`
+ * vale aqui: `__tests__` fica fora da varredura do teste de fronteira.
+ */
+async function createDocumentIn(
+  orgUnitId: string,
+  trashedAt: Date | null = null,
+): Promise<void> {
+  await prisma.document.create({
+    data: {
+      title: 'Regulamento',
+      spaceId: await getSpaceId(orgUnitId),
+      authorId: adminPerson.id,
+      ownerId: adminPerson.id,
+      trashedAt,
+    },
+  });
+}
+
+test('deletes a leaf, answers 204 without a body and removes it from the list', async () => {
+  const unitId = await createUnit('Restauro');
+
+  const response = await deleteOrgUnit(unitId, adminCookie);
+
+  expect(response.status).toBe(204);
+  expect(response.body).toEqual({});
+  expect(response.text).toBe('');
+
+  const list = await getOrgUnits(adminCookie);
+  const names = (list.body as { data: OrgUnitBody[] }).data.map(
+    (unit) => unit.name,
+  );
+  expect(names).not.toContain('Restauro');
+});
+
+test('deleting a leaf also deletes its UNIT space', async () => {
+  const unitId = await createUnit('Restauro');
+
+  const response = await deleteOrgUnit(unitId, adminCookie);
+
+  expect(response.status).toBe(204);
+  expect(await prisma.orgUnit.findUnique({ where: { id: unitId } })).toBeNull();
+  expect(
+    await prisma.space.findFirst({ where: { orgUnitId: unitId } }),
+  ).toBeNull();
+});
+
+test('answers 409 with the message for the root', async () => {
+  const rootId = await getRootId();
+
+  const response = await deleteOrgUnit(rootId, adminCookie);
+
+  expect(response.status).toBe(409);
+  expect(messageOf(response)).toBe(ROOT_MESSAGE);
+  expect(
+    await prisma.orgUnit.findUnique({ where: { id: rootId } }),
+  ).not.toBeNull();
+});
+
+test('answers 409 with the message for a unit with children and keeps it', async () => {
+  const parentId = await createUnit('Acervo');
+  await createUnit('Processamento Técnico', parentId);
+
+  const response = await deleteOrgUnit(parentId, adminCookie);
+
+  expect(response.status).toBe(409);
+  expect(messageOf(response)).toBe(HAS_CHILDREN_MESSAGE);
+  expect(
+    await prisma.orgUnit.findUnique({ where: { id: parentId } }),
+  ).not.toBeNull();
+});
+
+test('answers 409 with the message when the space has a document', async () => {
+  const unitId = await createUnit('Sala Infantil');
+  await createDocumentIn(unitId);
+
+  const response = await deleteOrgUnit(unitId, adminCookie);
+
+  expect(response.status).toBe(409);
+  expect(messageOf(response)).toBe(HAS_DOCUMENTS_MESSAGE);
+  expect(
+    await prisma.orgUnit.findUnique({ where: { id: unitId } }),
+  ).not.toBeNull();
+});
+
+test('answers 409 when the only document of the space is in the trash', async () => {
+  const unitId = await createUnit('Sala Infantil');
+  await createDocumentIn(unitId, new Date());
+
+  const response = await deleteOrgUnit(unitId, adminCookie);
+
+  expect(response.status).toBe(409);
+  expect(messageOf(response)).toBe(HAS_DOCUMENTS_MESSAGE);
+});
+
+test('a person who is not admin gets 403 on DELETE', async () => {
+  const unitId = await createUnit('Restauro');
+  const { cookie } = await createPersonWithSession(app, {
+    name: 'João Souza',
+    email: 'joao@exemplo.org',
+  });
+
+  const response = await deleteOrgUnit(unitId, cookie);
+
+  expect(response.status).toBe(403);
+  expect(messageOf(response)).toBe(FORBIDDEN_MESSAGE);
+});
+
+test('answers 401 without a session cookie on DELETE', async () => {
+  const unitId = await createUnit('Restauro');
+
+  const response = await deleteOrgUnit(unitId);
+
+  expect(response.status).toBe(401);
+});
+
+test('answers 404 with the message for an unknown id', async () => {
+  const response = await deleteOrgUnit(randomUUID(), adminCookie);
+
+  expect(response.status).toBe(404);
+  expect(messageOf(response)).toBe(NOT_FOUND_MESSAGE);
+});
+
+test('answers 404 with the message for a malformed id', async () => {
+  const response = await deleteOrgUnit('nao-e-uuid', adminCookie);
+
+  expect(response.status).toBe(404);
+  expect(messageOf(response)).toBe(NOT_FOUND_MESSAGE);
+});
+
+test('the database refuses to delete a parent with children', async () => {
+  const parentId = await createUnit('Acervo');
+  await createUnit('Processamento Técnico', parentId);
+
+  // O espaço da mãe sai antes para que só a filha possa segurar a exclusão.
+  await prisma.space.delete({ where: { id: await getSpaceId(parentId) } });
+
+  await expect(
+    prisma.orgUnit.delete({ where: { id: parentId } }),
+  ).rejects.toMatchObject({ code: 'P2003' });
+});
+
+test('the database refuses to delete a unit that still has its space', async () => {
+  const unitId = await createUnit('Restauro');
+
+  await expect(
+    prisma.orgUnit.delete({ where: { id: unitId } }),
+  ).rejects.toMatchObject({ code: 'P2003' });
+});
+
+test('the database refuses to delete a space that still has a document', async () => {
+  const unitId = await createUnit('Sala Infantil');
+  await createDocumentIn(unitId);
+
+  await expect(
+    prisma.space.delete({ where: { id: await getSpaceId(unitId) } }),
+  ).rejects.toMatchObject({ code: 'P2003' });
 });

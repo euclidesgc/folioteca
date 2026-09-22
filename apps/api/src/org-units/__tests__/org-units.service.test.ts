@@ -4,7 +4,13 @@ import { ConflictException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
 import type { PrismaService } from '../../prisma/prisma.service';
-import { OrgUnitsService } from '../org-units.service';
+import {
+  CHANGED_MESSAGE,
+  HAS_CHILDREN_MESSAGE,
+  HAS_DOCUMENTS_MESSAGE,
+  OrgUnitsService,
+  ROOT_MESSAGE,
+} from '../org-units.service';
 
 /** Serviço com o Prisma substituído por um dublê que devolve `units`. */
 function createService(units: { id: string; parentId: string | null; name: string }[]): {
@@ -294,4 +300,222 @@ test('rename rethrows any other error', async () => {
   await expect(
     service.rename(ORGANIZATION_ID, UNIT_ID, { name: 'Zeladoria' }),
   ).rejects.toThrow('banco fora do ar');
+});
+
+const SPACE_ID = 'e0c1a6d2-8b4f-4f1e-9a3c-1b2d3e4f5a6b';
+
+/** A unidade como a consulta de `remove` a traz. */
+type RemovableRecord = {
+  id: string;
+  parentId: string | null;
+  _count: { children: number };
+  space: { id: string; _count: { documents: number } } | null;
+};
+
+/** Unidade folha, com espaço vazio: o caminho feliz de `remove`. */
+function removable(
+  overrides: Partial<RemovableRecord> = {},
+): RemovableRecord {
+  return {
+    id: UNIT_ID,
+    parentId: PARENT_ID,
+    _count: { children: 0 },
+    space: { id: SPACE_ID, _count: { documents: 0 } },
+    ...overrides,
+  };
+}
+
+type RemoveDouble = {
+  service: OrgUnitsService;
+  findFirst: Mock;
+  deleteSpace: Mock;
+  deleteUnit: Mock;
+  order: string[];
+};
+
+/**
+ * Serviço com um Prisma falso para `remove`: a busca acontece dentro da
+ * transação, e `order` guarda a sequência das exclusões.
+ */
+function createRemoveService(options: {
+  found?: RemovableRecord | null;
+  transactionError?: unknown;
+}): RemoveDouble {
+  const order: string[] = [];
+
+  const findFirst = vi.fn().mockResolvedValue(options.found ?? null);
+  const deleteSpace = vi.fn().mockImplementation(() => {
+    order.push('space');
+
+    return Promise.resolve({ id: SPACE_ID });
+  });
+  const deleteUnit = vi.fn().mockImplementation(() => {
+    order.push('unit');
+
+    return Promise.resolve({ id: UNIT_ID });
+  });
+
+  const tx = {
+    orgUnit: { findFirst, delete: deleteUnit },
+    space: { delete: deleteSpace },
+  };
+
+  const transaction =
+    'transactionError' in options
+      ? vi.fn().mockRejectedValue(options.transactionError)
+      : vi
+          .fn()
+          .mockImplementation((run: (client: typeof tx) => unknown) => run(tx));
+
+  const prisma = {
+    orgUnit: { findFirst: vi.fn() },
+    $transaction: transaction,
+  } as unknown as PrismaService;
+
+  return {
+    service: new OrgUnitsService(prisma),
+    findFirst,
+    deleteSpace,
+    deleteUnit,
+    order,
+  };
+}
+
+/** Violação de chave estrangeira como o Prisma a entrega. */
+function foreignKeyViolation(): Prisma.PrismaClientKnownRequestError {
+  return new Prisma.PrismaClientKnownRequestError('chave estrangeira violada', {
+    code: 'P2003',
+    clientVersion: 'test',
+  });
+}
+
+test('remove throws not found for a malformed id without querying', async () => {
+  const { service, findFirst } = createRemoveService({ found: removable() });
+
+  await expect(service.remove(ORGANIZATION_ID, 'nao-e-uuid')).rejects.toThrow(
+    NOT_FOUND_MESSAGE,
+  );
+
+  expect(findFirst).not.toHaveBeenCalled();
+});
+
+test('remove looks the unit up by id and organization', async () => {
+  const { service, findFirst } = createRemoveService({ found: removable() });
+
+  await service.remove(ORGANIZATION_ID, UNIT_ID);
+
+  expect(findFirst).toHaveBeenCalledWith({
+    where: { id: UNIT_ID, organizationId: ORGANIZATION_ID },
+    select: {
+      id: true,
+      parentId: true,
+      _count: { select: { children: true } },
+      space: { select: { id: true, _count: { select: { documents: true } } } },
+    },
+  });
+});
+
+test('remove throws not found when the unit is not in the organization', async () => {
+  const { service } = createRemoveService({ found: null });
+
+  await expect(service.remove(ORGANIZATION_ID, UNIT_ID)).rejects.toThrow(
+    NOT_FOUND_MESSAGE,
+  );
+});
+
+test('remove answers conflict with the root message for the root', async () => {
+  const { service, deleteUnit } = createRemoveService({
+    found: removable({ parentId: null }),
+  });
+
+  await expect(service.remove(ORGANIZATION_ID, UNIT_ID)).rejects.toThrow(
+    new ConflictException(ROOT_MESSAGE),
+  );
+  expect(deleteUnit).not.toHaveBeenCalled();
+});
+
+test('remove answers conflict with the children message when the unit has children', async () => {
+  const { service, deleteUnit } = createRemoveService({
+    found: removable({ _count: { children: 2 } }),
+  });
+
+  await expect(service.remove(ORGANIZATION_ID, UNIT_ID)).rejects.toThrow(
+    new ConflictException(HAS_CHILDREN_MESSAGE),
+  );
+  expect(deleteUnit).not.toHaveBeenCalled();
+});
+
+test('remove answers conflict with the documents message when the space has documents', async () => {
+  const { service, deleteSpace, deleteUnit } = createRemoveService({
+    found: removable({ space: { id: SPACE_ID, _count: { documents: 1 } } }),
+  });
+
+  await expect(service.remove(ORGANIZATION_ID, UNIT_ID)).rejects.toThrow(
+    new ConflictException(HAS_DOCUMENTS_MESSAGE),
+  );
+  expect(deleteSpace).not.toHaveBeenCalled();
+  expect(deleteUnit).not.toHaveBeenCalled();
+});
+
+test('remove checks root before children and children before documents', async () => {
+  const everything = {
+    parentId: null,
+    _count: { children: 3 },
+    space: { id: SPACE_ID, _count: { documents: 5 } },
+  };
+
+  const root = createRemoveService({ found: removable(everything) });
+  await expect(root.service.remove(ORGANIZATION_ID, UNIT_ID)).rejects.toThrow(
+    new ConflictException(ROOT_MESSAGE),
+  );
+
+  const withChildren = createRemoveService({
+    found: removable({ ...everything, parentId: PARENT_ID }),
+  });
+  await expect(
+    withChildren.service.remove(ORGANIZATION_ID, UNIT_ID),
+  ).rejects.toThrow(new ConflictException(HAS_CHILDREN_MESSAGE));
+});
+
+test('remove deletes the space before the unit', async () => {
+  const { service, deleteSpace, deleteUnit, order } = createRemoveService({
+    found: removable(),
+  });
+
+  await service.remove(ORGANIZATION_ID, UNIT_ID);
+
+  expect(deleteSpace).toHaveBeenCalledWith({ where: { id: SPACE_ID } });
+  expect(deleteUnit).toHaveBeenCalledWith({ where: { id: UNIT_ID } });
+  expect(order).toEqual(['space', 'unit']);
+});
+
+test('remove deletes only the unit when it has no space', async () => {
+  const { service, deleteSpace, deleteUnit } = createRemoveService({
+    found: removable({ space: null }),
+  });
+
+  await service.remove(ORGANIZATION_ID, UNIT_ID);
+
+  expect(deleteSpace).not.toHaveBeenCalled();
+  expect(deleteUnit).toHaveBeenCalledWith({ where: { id: UNIT_ID } });
+});
+
+test('remove turns a foreign key violation into ConflictException with the changed message', async () => {
+  const { service } = createRemoveService({
+    transactionError: foreignKeyViolation(),
+  });
+
+  await expect(service.remove(ORGANIZATION_ID, UNIT_ID)).rejects.toThrow(
+    new ConflictException(CHANGED_MESSAGE),
+  );
+});
+
+test('remove rethrows any other error', async () => {
+  const { service } = createRemoveService({
+    transactionError: new Error('banco fora do ar'),
+  });
+
+  await expect(service.remove(ORGANIZATION_ID, UNIT_ID)).rejects.toThrow(
+    'banco fora do ar',
+  );
 });

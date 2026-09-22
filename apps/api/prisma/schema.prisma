@@ -35,7 +35,7 @@ model OrgUnit {
   createdAt      DateTime @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id])
-  parent       OrgUnit?     @relation("OrgUnitToParent", fields: [parentId], references: [id])
+  parent       OrgUnit?     @relation("OrgUnitToParent", fields: [parentId], references: [id], onDelete: Restrict)
   children     OrgUnit[]    @relation("OrgUnitToParent")
   space        Space?
 
@@ -74,7 +74,7 @@ model Space {
   createdAt DateTime  @default(now())
 
   person    Person?    @relation(fields: [personId], references: [id])
-  orgUnit   OrgUnit?   @relation(fields: [orgUnitId], references: [id])
+  orgUnit   OrgUnit?   @relation(fields: [orgUnitId], references: [id], onDelete: Restrict)
   documents Document[]
 }
 

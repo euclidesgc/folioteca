@@ -583,6 +583,54 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteOrgUnit
+      tags:
+        - org-units
+      summary: Apaga a unidade e o espaço dela
+      description: >-
+        Apaga definitivamente a unidade e o espaço `UNIT` dela na mesma
+        operação, só para a administração. As checagens acontecem nesta ordem:
+        CSRF (guarda global), 401, 403, 404 (o id da rota não existe na
+        organização ou está malformado) e por fim 409 — raiz, depois unidades
+        filhas, depois documentos do espaço, nessa ordem.
+      parameters:
+        - name: orgUnitId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: A unidade e o espaço dela foram apagados.
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            Unidade não encontrada: o id da rota não existe na organização ou
+            está malformado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: >-
+            A unidade não pode ser apagada: é a raiz, tem unidades filhas ou o
+            espaço dela ainda tem documentos, inclusive na lixeira.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
   schemas:
     Health:

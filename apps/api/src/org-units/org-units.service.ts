@@ -12,7 +12,20 @@ type OrgUnit = components['schemas']['OrgUnit'];
 
 const UNIQUE_VIOLATION = 'P2002';
 
+const FOREIGN_KEY_VIOLATION = 'P2003';
+
 const NAME_TAKEN_MESSAGE = 'Já existe uma unidade com esse nome neste nível.';
+
+export const ROOT_MESSAGE = 'A unidade raiz não pode ser apagada.';
+
+export const HAS_CHILDREN_MESSAGE =
+  'Apague ou mova as unidades filhas antes de apagar esta unidade.';
+
+export const HAS_DOCUMENTS_MESSAGE =
+  'O espaço desta unidade ainda tem documentos, inclusive na lixeira. Trate-os antes de apagar a unidade.';
+
+export const CHANGED_MESSAGE =
+  'A unidade mudou enquanto era apagada. Recarregue a estrutura e tente de novo.';
 
 /** Campos que descrevem uma unidade para quem chama a API. */
 const orgUnitFields = { id: true, parentId: true, name: true } as const;
@@ -26,6 +39,18 @@ function isUniqueViolation(error: unknown): boolean {
   return (
     error instanceof Prisma.PrismaClientKnownRequestError &&
     error.code === UNIQUE_VIOLATION
+  );
+}
+
+/**
+ * Reconhece a recusa de uma chave estrangeira em `RESTRICT`. É a rede da
+ * corrida: alguém criou uma filha ou um documento entre a contagem e o
+ * `delete`, e o banco barra o que o serviço já tinha conferido.
+ */
+function isForeignKeyViolation(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === FOREIGN_KEY_VIOLATION
   );
 }
 
@@ -138,6 +163,61 @@ export class OrgUnitsService {
     } catch (error) {
       if (isUniqueViolation(error)) {
         throw new ConflictException(NAME_TAKEN_MESSAGE);
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Apaga a unidade e o espaço `UNIT` dela na mesma transação. Uma consulta só
+   * traz tudo o que a regra precisa; a recusa segue a ordem raiz → filhas →
+   * documentos. A contagem de documentos vai pela relação do espaço (a tabela
+   * `Document` é de outro módulo) e **não** filtra `trashedAt`: documento na
+   * lixeira também segura a unidade.
+   */
+  async remove(organizationId: string, orgUnitId: string): Promise<void> {
+    if (!isUuid(orgUnitId)) {
+      throw orgUnitNotFound();
+    }
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const unit = await tx.orgUnit.findFirst({
+          where: { id: orgUnitId, organizationId },
+          select: {
+            id: true,
+            parentId: true,
+            _count: { select: { children: true } },
+            space: { select: { id: true, _count: { select: { documents: true } } } },
+          },
+        });
+
+        if (!unit) {
+          throw orgUnitNotFound();
+        }
+
+        if (unit.parentId === null) {
+          throw new ConflictException(ROOT_MESSAGE);
+        }
+
+        if (unit._count.children > 0) {
+          throw new ConflictException(HAS_CHILDREN_MESSAGE);
+        }
+
+        if (unit.space && unit.space._count.documents > 0) {
+          throw new ConflictException(HAS_DOCUMENTS_MESSAGE);
+        }
+
+        if (unit.space) {
+          await tx.space.delete({ where: { id: unit.space.id } });
+        }
+
+        await tx.orgUnit.delete({ where: { id: orgUnitId } });
+      });
+    } catch (error) {
+      if (isForeignKeyViolation(error)) {
+        throw new ConflictException(CHANGED_MESSAGE);
       }
 
       throw error;

@@ -213,7 +213,11 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Apaga a unidade e o espaço dela
+         * @description Apaga definitivamente a unidade e o espaço `UNIT` dela na mesma operação, só para a administração. As checagens acontecem nesta ordem: CSRF (guarda global), 401, 403, 404 (o id da rota não existe na organização ou está malformado) e por fim 409 — raiz, depois unidades filhas, depois documentos do espaço, nessa ordem.
+         */
+        delete: operations["deleteOrgUnit"];
         options?: never;
         head?: never;
         /**
@@ -1097,6 +1101,62 @@ export interface operations {
                 };
             };
             /** @description Já existe uma unidade com esse nome neste nível. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteOrgUnit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orgUnitId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A unidade e o espaço dela foram apagados. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unidade não encontrada: o id da rota não existe na organização ou está malformado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A unidade não pode ser apagada: é a raiz, tem unidades filhas ou o espaço dela ainda tem documentos, inclusive na lixeira. */
             409: {
                 headers: {
                     [name: string]: unknown;
