@@ -311,6 +311,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admins/{personId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Promove uma pessoa a administração da instância
+         * @description Promove a pessoa a administração da instância, só para a administração. A pessoa é sempre procurada **dentro da organização de quem chama**, nunca por id solto. Promover quem já administra responde 200, sem erro: promover é idempotente e nada distingue "já era" de "acabou de ser". Pessoa inexistente, de outra organização ou com id malformado respondem o **mesmo** 404, para a rota não contar quem existe na instância. A requisição não tem corpo, e as checagens acontecem nesta ordem: CSRF (guarda global), 401, 403 e 404.
+         */
+        put: operations["promoteAdmin"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/invitations": {
         parameters: {
             query?: never;
@@ -550,6 +570,9 @@ export interface components {
         };
         AdminsResponse: {
             data: components["schemas"]["AdminPerson"][];
+        };
+        AdminResponse: {
+            data: components["schemas"]["AdminPerson"];
         };
         CreateInvitationInput: {
             /**
@@ -1763,6 +1786,55 @@ export interface operations {
             };
             /** @description A requisição foi recusada. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    promoteAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A pessoa passou a administrar a instância. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Pessoa não encontrada (o `personId` não existe na organização de quem chama ou está malformado). */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

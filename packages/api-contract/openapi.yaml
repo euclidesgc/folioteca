@@ -866,6 +866,54 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /admins/{personId}:
+    put:
+      operationId: promoteAdmin
+      tags:
+        - admins
+      summary: Promove uma pessoa a administração da instância
+      description: >-
+        Promove a pessoa a administração da instância, só para a
+        administração. A pessoa é sempre procurada **dentro da organização de
+        quem chama**, nunca por id solto. Promover quem já administra responde
+        200, sem erro: promover é idempotente e nada distingue "já era" de
+        "acabou de ser". Pessoa inexistente, de outra organização ou com id
+        malformado respondem o **mesmo** 404, para a rota não contar quem
+        existe na instância. A requisição não tem corpo, e as checagens
+        acontecem nesta ordem: CSRF (guarda global), 401, 403 e 404.
+      parameters:
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A pessoa passou a administrar a instância.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            Pessoa não encontrada (o `personId` não existe na organização de
+            quem chama ou está malformado).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /invitations:
     post:
       operationId: createInvitation
@@ -1454,6 +1502,13 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AdminPerson"
+      required:
+        - data
+    AdminResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/AdminPerson"
       required:
         - data
     CreateInvitationInput:

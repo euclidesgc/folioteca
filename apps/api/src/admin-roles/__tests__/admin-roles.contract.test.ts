@@ -105,3 +105,77 @@ test('GET admins answers the documented 403', async () => {
     body: response.body,
   });
 });
+
+const PROMOTE_CONTRACT_PATH = '/admins/{personId}';
+
+/** `PUT /api/admins/:personId`, com o cabeçalho de CSRF. */
+function promoteAdmin(personId: string, cookie?: string): Promise<Response> {
+  const request = httpRequest(app)
+    .put(`/api/admins/${personId}`)
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return cookie === undefined ? request : request.set('Cookie', cookie);
+}
+
+test('PUT admins personId answers the documented 200', async () => {
+  const { person } = await createPersonWithSession(app, {
+    name: 'João Souza',
+    email: 'joao@exemplo.org',
+  });
+
+  const response = await promoteAdmin(person.id, adminCookie);
+
+  expect(response.status).toBe(200);
+  await expectMatchesContract({
+    path: PROMOTE_CONTRACT_PATH,
+    method: 'put',
+    status: 200,
+    body: response.body,
+  });
+});
+
+test('PUT admins personId answers the documented 401', async () => {
+  const { person } = await createPersonWithSession(app, {
+    name: 'João Souza',
+    email: 'joao@exemplo.org',
+  });
+
+  const response = await promoteAdmin(person.id);
+
+  expect(response.status).toBe(401);
+  await expectMatchesContract({
+    path: PROMOTE_CONTRACT_PATH,
+    method: 'put',
+    status: 401,
+    body: response.body,
+  });
+});
+
+test('PUT admins personId answers the documented 403', async () => {
+  const { person, cookie } = await createPersonWithSession(app, {
+    name: 'João Souza',
+    email: 'joao@exemplo.org',
+  });
+
+  const response = await promoteAdmin(person.id, cookie);
+
+  expect(response.status).toBe(403);
+  await expectMatchesContract({
+    path: PROMOTE_CONTRACT_PATH,
+    method: 'put',
+    status: 403,
+    body: response.body,
+  });
+});
+
+test('PUT admins personId answers the documented 404', async () => {
+  const response = await promoteAdmin(randomUUID(), adminCookie);
+
+  expect(response.status).toBe(404);
+  await expectMatchesContract({
+    path: PROMOTE_CONTRACT_PATH,
+    method: 'put',
+    status: 404,
+    body: response.body,
+  });
+});
