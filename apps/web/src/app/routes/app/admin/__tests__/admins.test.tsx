@@ -8,13 +8,17 @@ import { createRoutes } from '@/app/router';
 import { env } from '@/config/env';
 import { paths } from '@/config/paths';
 import { queryConfig } from '@/lib/react-query';
-import { seedInstalled } from '@/testing/mocks/db';
+import { seedInstalled, seedSamplePeople } from '@/testing/mocks/db';
 import { server } from '@/testing/mocks/server';
-import { screen, waitFor, within } from '@/testing/test-utils';
+import { screen, userEvent, waitFor, within } from '@/testing/test-utils';
 
 // Lazy routes resolve after their chunk loads: give those waits an explicit
 // budget instead of the implicit default.
 const LAZY_TIMEOUT = { timeout: 5000 };
+
+// Zilda is the last of the seeded people, and her name matches the term the
+// journey types.
+const ZILDA = 'Zilda Marques';
 
 // The whole route tree only opens past the gate once installed and signed in.
 beforeEach(() => {
@@ -53,12 +57,6 @@ test('an admin opens /admin/admins and sees the heading, both notices and the li
       'Administrar a instância não dá acesso a documento: ninguém vê um documento por ser administração. O acesso chega com os espaços de unidade e o compartilhamento.',
     ),
   ).toBeInTheDocument();
-  expect(
-    screen.getByText(
-      'Esta página é só de leitura. Promover alguém a administração e tirar o papel de quem não deve mais tê-lo ainda não é possível por aqui — por enquanto, isso só acontece direto no banco de dados.',
-    ),
-  ).toBeInTheDocument();
-
   const list = await screen.findByRole(
     'list',
     { name: 'Administradores' },
@@ -69,6 +67,75 @@ test('an admin opens /admin/admins and sees the heading, both notices and the li
   expect(
     screen.getByText('Só uma pessoa administra esta instância.'),
   ).toBeInTheDocument();
+});
+
+test('the page tells that promoting is possible and no longer says it is read-only', async () => {
+  renderRoutes(paths.admin.admins.getHref());
+
+  expect(
+    await screen.findByText(
+      'Promover alguém a administração dá o papel de administrar a instância inteira, igual ao seu. Tirar o papel de quem não deve mais tê-lo ainda não é possível por aqui — por enquanto, isso só acontece direto no banco de dados.',
+      {},
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
+  expect(screen.queryByText(/Esta página é só de leitura\./)).not.toBeInTheDocument();
+});
+
+test('an admin searches, promotes and sees the person in the admins list without reloading', async () => {
+  const user = userEvent.setup();
+  seedSamplePeople();
+
+  const router = renderRoutes(paths.admin.admins.getHref());
+  const initialKey = router.state.location.key;
+
+  const list = await screen.findByRole(
+    'list',
+    { name: 'Administradores' },
+    LAZY_TIMEOUT,
+  );
+  expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+  expect(
+    screen.getByText('Só uma pessoa administra esta instância.'),
+  ).toBeInTheDocument();
+
+  await user.type(
+    await screen.findByLabelText(
+      'Buscar pessoa por nome ou e-mail',
+      {},
+      LAZY_TIMEOUT,
+    ),
+    'zilda',
+  );
+  await user.click(
+    await screen.findByRole(
+      'button',
+      { name: `Promover ${ZILDA} a administração` },
+      LAZY_TIMEOUT,
+    ),
+  );
+
+  const dialog = await screen.findByRole(
+    'alertdialog',
+    { name: 'Promover a administração?' },
+    LAZY_TIMEOUT,
+  );
+  await user.click(within(dialog).getByRole('button', { name: 'Promover' }));
+
+  await waitFor(
+    () => expect(within(list).getByText(ZILDA)).toBeInTheDocument(),
+    LAZY_TIMEOUT,
+  );
+  await waitFor(
+    () =>
+      expect(
+        screen.getByText('2 pessoas administram esta instância.'),
+      ).toBeInTheDocument(),
+    LAZY_TIMEOUT,
+  );
+  // The same page, never reloaded: the route entry did not change.
+  expect(router.state.location.key).toBe(initialKey);
+  expect(router.state.location.pathname).toBe(paths.admin.admins.path);
 });
 
 test('a member is sent home and no request goes to /admins', async () => {

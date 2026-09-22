@@ -490,6 +490,22 @@ export const listAdmins = (): MockPerson[] =>
         adminsCollator.compare(a.name, b.name) || a.id.localeCompare(b.id),
     );
 
+// Promotes a person to administration, the way PUT /admins/:personId does.
+// Promoting whoever already administers answers the person, with no error:
+// the fake repeats the idempotence of the real one. Unknown id answers null.
+//
+// The flag is written into the person that is already in the database, and
+// never into a copy of it (same reason as `touchDocumentUpdatedAt` above): the
+// handler looks the person up before it awaits the network delay and answers
+// afterwards.
+export const promotePerson = (personId: string): MockPerson | null => {
+  const person = allPeople().find((item) => item.id === personId);
+  if (!person) return null;
+
+  person.isAdmin = true;
+  return person;
+};
+
 // Assigns a person to a unit, the way POST /org-units/:orgUnitId/people does.
 // `duplicate` is what the composite primary key of the real table answers with
 // a 409: there is no previous lookup anywhere, the pair itself is the rule.

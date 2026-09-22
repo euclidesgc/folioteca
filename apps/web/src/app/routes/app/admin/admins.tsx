@@ -5,6 +5,7 @@ import { ContentLayout } from '@/components/layouts/content-layout';
 import { paths } from '@/config/paths';
 import { useAdmins } from '@/features/admin-roles/api/get-admins';
 import { AdminsList } from '@/features/admin-roles/components/admins-list';
+import { PromoteAdminSearch } from '@/features/admin-roles/components/promote-admin-search';
 import { Authorization, ROLES } from '@/lib/authorization';
 
 // Inside the authorization check, so the request never goes out for whoever is
@@ -22,12 +23,18 @@ function Admins(): React.JSX.Element {
         documento por ser administração. O acesso chega com os espaços de
         unidade e o compartilhamento.
       </p>
-      {/* Said out loud so nobody looks for a button that does not exist. */}
+      {/* Said out loud so nobody looks for a button that does not exist: what
+          the screen does, and what it still does not. */}
       <p className="mt-6 text-gray-600">
-        Esta página é só de leitura. Promover alguém a administração e tirar o
-        papel de quem não deve mais tê-lo ainda não é possível por aqui — por
-        enquanto, isso só acontece direto no banco de dados.
+        Promover alguém a administração dá o papel de administrar a instância
+        inteira, igual ao seu. Tirar o papel de quem não deve mais tê-lo ainda
+        não é possível por aqui — por enquanto, isso só acontece direto no banco
+        de dados.
       </p>
+
+      {/* The search crosses its results with the list that is already on the
+          screen, so it takes the admins from the same query below. */}
+      <PromoteAdminSearch admins={adminsQuery.data?.data ?? []} />
 
       {/* No heading of its own: the `<h1>` above is already
           "Administradores". */}

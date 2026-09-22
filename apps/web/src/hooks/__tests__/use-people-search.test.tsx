@@ -8,7 +8,7 @@ import { env } from '@/config/env';
 import {
   getPeopleSearchQueryOptions,
   usePeopleSearch,
-} from '@/features/unit-assignments/api/search-people';
+} from '@/hooks/use-people-search';
 import { queryConfig } from '@/lib/react-query';
 import { seedInstalled, seedSamplePeople } from '@/testing/mocks/db';
 import { server } from '@/testing/mocks/server';

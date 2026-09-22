@@ -10,8 +10,8 @@ import {
 } from '@/features/unit-assignments/api/assign-person';
 import type { AssignedPerson } from '@/features/unit-assignments/api/get-unit-people';
 import { getUnitPeopleQueryOptions } from '@/features/unit-assignments/api/get-unit-people';
-import type { PersonSummary } from '@/features/unit-assignments/api/search-people';
-import { usePeopleSearch } from '@/features/unit-assignments/api/search-people';
+import type { PersonSummary } from '@/hooks/use-people-search';
+import { usePeopleSearch } from '@/hooks/use-people-search';
 
 // The debounce lives here, in the component that owns the field, and never in
 // the API layer, which must have no hidden timer.

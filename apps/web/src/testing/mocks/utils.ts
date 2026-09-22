@@ -67,6 +67,10 @@ export const networkDelay = (): Promise<void> =>
 //     a later slice (localStorage.setItem('mock-error', 'admins') shows its
 //     error state and localStorage.setItem('mock-role', 'member') shows the
 //     403 and the redirect back to the beginning)
+//   mock-error=promote-admin  -> the PUT /admins/:personId handler answers
+//     500, to see the error of promoting someone; promoting itself needs no
+//     seed of its own beyond localStorage.setItem('mock-people', 'sample'),
+//     whose people the search of the administrators page finds
 // Remove the key (or run localStorage.clear()) to go back to normal.
 const devKey = (key: string): string | null => {
   if (import.meta.env.MODE === 'test' || typeof window === 'undefined') {
