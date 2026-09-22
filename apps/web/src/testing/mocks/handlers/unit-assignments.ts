@@ -3,7 +3,13 @@ import { http, HttpResponse } from 'msw';
 
 import { env } from '@/config/env';
 
-import { addAssignment, allPeople, getDb, type MockPerson } from '../db';
+import {
+  addAssignment,
+  allPeople,
+  getDb,
+  type MockPerson,
+  removeAssignment,
+} from '../db';
 import { devOverride, networkDelay, SESSION_COOKIE_NAME } from '../utils';
 
 type AssignedPeopleResponse =
@@ -121,6 +127,35 @@ export const unitAssignmentsHandlers = [
         data: { id: person.id, name: person.name, email: person.email },
       };
       return HttpResponse.json(body, { status: 201 });
+    },
+  ),
+
+  http.delete(
+    `${env.API_URL}/org-units/:orgUnitId/people/:personId`,
+    async ({ params, cookies }) => {
+      await networkDelay();
+      const forced = await devOverride('unit-assignments');
+      if (forced) return forced;
+
+      if (!cookies[SESSION_COOKIE_NAME]) return unauthenticated();
+
+      const { installation, orgUnits } = getDb();
+      if (!installation) return unauthenticated();
+      if (!installation.person.isAdmin) return forbidden();
+
+      // The unit is resolved before anything about the person, as the API
+      // does: whoever cannot see the unit never learns about its people.
+      const unit = orgUnits.find((item) => item.id === params.orgUnitId);
+      if (!unit) return unitNotFound();
+
+      // A single 404 for "there is no such person", "the person is of another
+      // organization" and "the person was not assigned here": the fake API
+      // tells them apart as little as the real one does.
+      if (!removeAssignment(unit.id, String(params.personId))) {
+        return personNotFound();
+      }
+
+      return new HttpResponse(null, { status: 204 });
     },
   ),
 ];

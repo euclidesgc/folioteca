@@ -9,12 +9,14 @@ import { env } from '@/config/env';
 import { paths } from '@/config/paths';
 import { queryConfig } from '@/lib/react-query';
 import {
+  addAssignment,
   ROOT_ORG_UNIT_ID,
   seedInstalled,
   seedSampleOrgUnits,
+  seedSamplePeople,
 } from '@/testing/mocks/db';
 import { server } from '@/testing/mocks/server';
-import { screen, waitFor, within } from '@/testing/test-utils';
+import { screen, userEvent, waitFor, within } from '@/testing/test-utils';
 
 // Lazy routes resolve after their chunk loads: give those waits an explicit
 // budget instead of the implicit default.
@@ -133,4 +135,82 @@ test('a non-admin is sent home with no request', async () => {
     LAZY_TIMEOUT,
   );
   expect(unitPeopleCalls).toBe(0);
+});
+
+// Two of the sample people assigned to the root unit, in the order the pt-BR
+// collator of the fake API puts them.
+const FIRST_NAME = 'Álvaro Pinheiro';
+const SECOND_NAME = 'Ana Lúcia Ferreira';
+
+const seedTwoAssignments = (): void => {
+  seedSamplePeople();
+  addAssignment(ROOT_ORG_UNIT_ID, 'person-sample-1');
+  addAssignment(ROOT_ORG_UNIT_ID, 'person-sample-2');
+};
+
+test('an admin removes one person and still sees the other', async () => {
+  const user = userEvent.setup();
+  seedTwoAssignments();
+
+  renderRoutes(paths.admin.orgUnitPeople.getHref(ROOT_ORG_UNIT_ID));
+
+  await screen.findByRole('list', { name: 'Pessoas lotadas' }, LAZY_TIMEOUT);
+  await user.click(
+    screen.getByRole('button', {
+      name: `Remover ${SECOND_NAME} desta unidade`,
+    }),
+  );
+
+  const dialog = await screen.findByRole(
+    'alertdialog',
+    { name: 'Remover da unidade?' },
+    LAZY_TIMEOUT,
+  );
+  await user.click(screen.getByRole('button', { name: 'Remover' }));
+
+  await waitFor(() => expect(dialog).not.toBeInTheDocument(), LAZY_TIMEOUT);
+  await waitFor(
+    () =>
+      expect(
+        screen.queryByRole('button', {
+          name: `Remover ${SECOND_NAME} desta unidade`,
+        }),
+      ).not.toBeInTheDocument(),
+    LAZY_TIMEOUT,
+  );
+  expect(
+    screen.getByRole('button', { name: `Remover ${FIRST_NAME} desta unidade` }),
+  ).toBeInTheDocument();
+});
+
+test('the Pessoas lotadas heading is still on the page', async () => {
+  seedTwoAssignments();
+
+  renderRoutes(paths.admin.orgUnitPeople.getHref(ROOT_ORG_UNIT_ID));
+
+  // It moved from the route into the component, not out of the page.
+  expect(
+    await screen.findByRole(
+      'heading',
+      { level: 2, name: 'Pessoas lotadas' },
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole('heading', { level: 2, name: 'Lotar alguém' }),
+  ).toBeInTheDocument();
+});
+
+test('the notice that an assignment grants no document access is still on the page', async () => {
+  seedTwoAssignments();
+
+  renderRoutes(paths.admin.orgUnitPeople.getHref(ROOT_ORG_UNIT_ID));
+
+  expect(
+    await screen.findByText(
+      /Lotação ainda não dá acesso a documento/,
+      {},
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
 });

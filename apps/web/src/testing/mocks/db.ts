@@ -497,6 +497,27 @@ export const addAssignment = (
   return 'created';
 };
 
+// Takes the assignment away, the way DELETE /org-units/:orgUnitId/people/
+// :personId does: the row is erased, never marked as removed, because that is
+// what the real table does. `false` is the pair that is not there, which the
+// handler answers with the single 404 of the person.
+//
+// The row is spliced out of the array that is already in the database, never
+// replacing it with a copy (same reason as `addAssignment` above): the handler
+// reads the state before it awaits and writes afterwards.
+export const removeAssignment = (
+  orgUnitId: string,
+  personId: string,
+): boolean => {
+  const index = state.assignments.findIndex(
+    (item) => item.orgUnitId === orgUnitId && item.personId === personId,
+  );
+  if (index === -1) return false;
+
+  state.assignments.splice(index, 1);
+  return true;
+};
+
 // How many people `seedSamplePeople` adds: two more than the search shows, so
 // the "há mais resultados" warning shows up for real in the browser.
 const SAMPLE_PEOPLE_COUNT = 12;

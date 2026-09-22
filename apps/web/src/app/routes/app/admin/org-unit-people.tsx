@@ -76,10 +76,9 @@ function OrgUnitPeople({ orgUnitId }: { orgUnitId: string }): React.JSX.Element 
         ) : null}
       </section>
 
-      <section>
-        <h2 className="mt-8 text-lg font-semibold">Pessoas lotadas</h2>
-        <UnitPeopleList query={unitPeopleQuery} />
-      </section>
+      {/* The heading of this section lives in the component: it is where the
+          focus goes when the last person is removed. */}
+      <UnitPeopleList query={unitPeopleQuery} />
     </ContentLayout>
   );
 }

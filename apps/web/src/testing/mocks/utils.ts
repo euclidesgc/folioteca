@@ -37,7 +37,9 @@ export const networkDelay = (): Promise<void> =>
 //     units under the root (needs an installation already seeded), plus one
 //     document in the space of "Sala Infantil" — that document also shows up
 //     in the person's document lists, which the fake database does not filter
-//     by space
+//     by space; the people screen of any of these units also gives something to
+//     remove, since whoever is assigned there in the browser can be taken out
+//     again
 //   localStorage.setItem('mock-people', 'sample')  -> adds twelve people in
 //     pt_BR to the organization (needs an installation already seeded), so the
 //     search of the unit people screen finds someone and, with a broad term,
