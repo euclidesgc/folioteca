@@ -168,7 +168,7 @@ Caminhos relativos à raiz do repositório. A ordem importa: API simulada e cham
 
 ## Fase 3 — e2e da jornada e documentação: a fatia utilizável de ponta a ponta
 
-- [ ] T3.1 — Documentação: receita nova e arquitetura
+- [x] T3.1 — Documentação: receita nova e arquitetura
   - Arquivos: `docs/design.md` (alterar); `docs/architecture.md` (alterar)
   - O que fazer, em pt_BR, só acrescentando linhas:
     - `docs/design.md`, em "Padrões acrescentados pelas entregas": receita **"Selo de somente leitura"** (fatia 145): receita "Selo de status" com `bg-gray-100 text-gray-800`, à esquerda da "Linha de ações do documento" com `mr-auto`, com as classes usadas em `document-view.tsx`.
@@ -176,7 +176,7 @@ Caminhos relativos à raiz do repositório. A ordem importa: API simulada e cham
   - Skills: interface-design
   - Complexidade: baixa
 
-- [ ] T3.2 — Testes da fase 3 (e2e: compartilhar só pelo teclado e abrir em somente leitura)
+- [x] T3.2 — Testes da fase 3 (e2e: compartilhar só pelo teclado e abrir em somente leitura)
   - Arquivos: `apps/web/e2e/tests/share-with-person-view.spec.ts` (criar)
   - O que fazer (D11): API simulada, estado inicial por `page.addInitScript`, como os specs existentes. `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo, usado em toda espera após mudança de rota; `toBeFocused()` antes de cada `Enter`/`Space`; nenhum `waitForTimeout`; nenhuma regra do axe desativada; outros specs e `apps/web/e2e/a11y.ts` intocados.
     - `the owner shares a document with a person using only the keyboard`: abre o documento, alcança "Compartilhar" por `Tab`, abre o diálogo "Compartilhar documento", `expectNoSeriousA11yViolations(page)` com o diálogo aberto, digita 1 caractere e vê "Digite pelo menos 2 letras para buscar.", digita o nome, alcança "Selecionar {nome}", vê "Pode ver", aciona "Compartilhar" e vê "Documento compartilhado com {nome}.".
@@ -186,11 +186,11 @@ Caminhos relativos à raiz do repositório. A ordem importa: API simulada e cham
 
 ### Critérios de aceite da fase 3
 
-- [ ] CA3.1 — `pnpm test:e2e` na raiz sai com 0 (os e2e antigos e os novos), e `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` continuam saindo com 0 e sem aviso, com o cache do `tsc` limpo.
-- [ ] CA3.2 — `apps/web/e2e/tests/share-with-person-view.spec.ts` contém os casos `the owner shares a document with a person using only the keyboard` e `a person with view access opens the document read only`, e `pnpm --filter web exec playwright test --list` os lista. `rg -n "test\.skip|test\.only|waitForTimeout|disableRules" apps/web/e2e/tests/share-with-person-view.spec.ts` é vazio.
-- [ ] CA3.3 — Lendo o spec: `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo, passado em toda asserção após mudança de rota; `toBeFocused()` antes de cada tecla de ação; `expectNoSeriousA11yViolations(page)` com o diálogo aberto; o primeiro caso assere "Digite pelo menos 2 letras para buscar.", "Pode ver" e "Documento compartilhado com"; o segundo usa um novo contexto com `shared-view`, assere "Somente leitura", o texto do editor inalterado depois de digitar e a ausência de "Compartilhar" e "Mover para a lixeira".
-- [ ] CA3.4 — `docs/design.md` tem a receita "Selo de somente leitura" com `bg-gray-100 text-gray-800`; `docs/architecture.md` tem o parágrafo "Entrega `share-with-person-view` (fatia 145)" citando `DocumentShare`, `PUT /documents/{documentId}/shares/{personId}`, `GET /people/search` e a regra 9.
-- [ ] CA3.5 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `PUT share answers 200 and creates one row` e `GET a shared document answers 200 with accessLevel view`; `pnpm exec vitest run --project web` (0) inclui `sharing announces success with the name from the response and clears the search` e `a view person sees Somente leitura and a read only editor`; `pnpm test:e2e` (0) inclui os dois casos de `share-with-person-view.spec.ts`.
+- [x] CA3.1 — `pnpm test:e2e` na raiz sai com 0 (os e2e antigos e os novos), e `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` continuam saindo com 0 e sem aviso, com o cache do `tsc` limpo.
+- [x] CA3.2 — `apps/web/e2e/tests/share-with-person-view.spec.ts` contém os casos `the owner shares a document with a person using only the keyboard` e `a person with view access opens the document read only`, e `pnpm --filter web exec playwright test --list` os lista. `rg -n "test\.skip|test\.only|waitForTimeout|disableRules" apps/web/e2e/tests/share-with-person-view.spec.ts` é vazio.
+- [x] CA3.3 — Lendo o spec: `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo, passado em toda asserção após mudança de rota; `toBeFocused()` antes de cada tecla de ação; `expectNoSeriousA11yViolations(page)` com o diálogo aberto; o primeiro caso assere "Digite pelo menos 2 letras para buscar.", "Pode ver" e "Documento compartilhado com"; o segundo usa um novo contexto com `shared-view`, assere "Somente leitura", o texto do editor inalterado depois de digitar e a ausência de "Compartilhar" e "Mover para a lixeira".
+- [x] CA3.4 — `docs/design.md` tem a receita "Selo de somente leitura" com `bg-gray-100 text-gray-800`; `docs/architecture.md` tem o parágrafo "Entrega `share-with-person-view` (fatia 145)" citando `DocumentShare`, `PUT /documents/{documentId}/shares/{personId}`, `GET /people/search` e a regra 9.
+- [x] CA3.5 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `PUT share answers 200 and creates one row` e `GET a shared document answers 200 with accessLevel view`; `pnpm exec vitest run --project web` (0) inclui `sharing announces success with the name from the response and clears the search` e `a view person sees Somente leitura and a read only editor`; `pnpm test:e2e` (0) inclui os dois casos de `share-with-person-view.spec.ts`.
 
 ## DoD da entrega
 

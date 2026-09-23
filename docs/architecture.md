@@ -132,6 +132,31 @@ das duas portas ganhou um novo enunciado: acesso diferente de `none` só
 acontece quando o documento está na lista legível **ou** na da lixeira, nunca
 nas duas.
 
+**Entrega `share-with-person-view` (fatia 145).** O compartilhamento direto
+com uma pessoa existe na tabela `DocumentShare`, com chave
+`(documentId, personId)` e cascade com o documento e a pessoa. A migration
+`0015_document_share` foi escrita à mão; o enum `ShareLevel` tem `VIEW` e
+`EDIT`, e só `VIEW` é gravado por enquanto (`EDIT` fica reservado para a
+fatia 148). `resolveAccess` segue a ordem dono → lixeira → compartilhamento →
+`none`: o dono continua `owner` na lixeira, documento na lixeira some para
+quem não é dono mesmo compartilhado, e só então o compartilhamento dá `view`.
+O compartilhamento da pessoa é lido na mesma consulta do documento, a cada
+pedido, por isso revogar tira o acesso na hora. `readableDocumentsWhere`
+passou a incluir o documento compartilhado com a pessoa (dono **ou**
+compartilhamento, sempre fora da lixeira). A regra 9 do teste estrutural
+`document-access-boundary.test.ts` garante que só `access.service.ts` e
+`documents/shares.service.ts` tocam a tabela `DocumentShare`, que
+`shares.service.ts` decide pelo `resolveAccess` e que
+`documentShare.findUnique` só aparece na decisão de acesso.
+`PUT /documents/{documentId}/shares/{personId}` é só do dono: 404 único
+"Documento não encontrado." para quem não vê o documento, 403 para quem vê
+sem ser dono, 409 com o documento na lixeira, e só depois a validação do
+corpo; repetir para a mesma pessoa não cria segunda linha.
+`GET /people/search` fica num controller próprio
+(`people/people-search.controller.ts`) só com `SessionGuard`, sem
+`AdminGuard`: qualquer pessoa com sessão busca quem compartilhar, e a
+organização e quem pede vêm sempre da sessão.
+
 ## 4. Árvore de unidades
 
 `parentId` + consulta recursiva (`WITH RECURSIVE`). "Unidade e tudo abaixo"
