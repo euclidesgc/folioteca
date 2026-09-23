@@ -31,23 +31,24 @@
 | 140 | unit-space-inherit-parent | (administração) marcar o espaço de uma unidade como "herda da unidade-pai": quem está lotado na unidade-pai (e, em cadeia, nas de cima, até o primeiro espaço com permissões próprias) passa a ver o espaço na barra lateral na hora; o padrão de todo espaço de unidade continua "permissões próprias" (só a lotação direta) | 014 space-permissions | 012, 066 | in-review |
 | 141 | free-space-restrict-invite | (dono do espaço) fechar o espaço livre para que só o dono adicione membros; aberto, qualquer membro adiciona | 014 space-permissions | 134 | planned |
 | 142 | free-space-member-roles | (dono do espaço) definir cada membro do espaço livre como leitor ou editor; leitor não cria nem edita documento | 014 space-permissions | 134, 135, 136 | planned |
-| 015 | share-with-person | (proprietário) compartilhar um documento com uma pessoa em ver, editar ou sem acesso, pelo caminho único de decisão de acesso no servidor | pedido inicial | 086, 005 | planned |
-| 016 | share-with-groups | compartilhar com um espaço, uma unidade e tudo abaixo dela (com exclusões) ou toda a instância, com revogação imediata ao sair | pedido inicial | 015, 012, 127, 140 | planned |
+| 145 | share-with-person | (proprietário) compartilhar um documento com uma pessoa da instância, escolhida pela busca, em "ver" ou "editar", e ver a lista de quem tem acesso; a pessoa abre o documento pelo link e, em "ver", só lê (pelo caminho único de decisão de acesso no servidor) | 015 share-with-person | 086, 005 | in-progress |
+| 146 | share-level-change | (proprietário) mudar o nível de alguém entre ver, editar e sem acesso; quem perde acesso ou muda de nível sente na hora, mesmo com o documento aberto | 015 share-with-person | 145 | planned |
+| 016 | share-with-groups | compartilhar com um espaço, uma unidade e tudo abaixo dela (com exclusões) ou toda a instância, com revogação imediata ao sair | pedido inicial | 145, 012, 127, 140 | planned |
 | 017 | audience-preview | ver, antes de confirmar o compartilhamento, quantas pessoas passam a ter acesso | pedido inicial | 016 | planned |
 | 018 | who-can-see | ver quem vê este documento e por qual caminho | pedido inicial | 016 | planned |
-| 019 | shared-with-me | ver a lista dos documentos compartilhados comigo | pedido inicial | 015 | planned |
+| 019 | shared-with-me | ver a lista dos documentos compartilhados comigo | pedido inicial | 145 | planned |
 | 020 | structure-change-preview | (administração) ver quem ganha e quem perde acesso antes de confirmar uma mudança de estrutura ou lotação | pedido inicial | 016 | planned |
-| 021 | text-search | pesquisar documentos por texto, recebendo só o que pode ler | pedido inicial | 015 | planned |
-| 022 | comments | comentar ancorado num trecho do documento, com thread e resolução | pedido inicial | 015 | planned |
+| 021 | text-search | pesquisar documentos por texto, recebendo só o que pode ler | pedido inicial | 145 | planned |
+| 022 | comments | comentar ancorado num trecho do documento, com thread e resolução | pedido inicial | 145 | planned |
 | 023 | mentions | mencionar pessoas num comentário | pedido inicial | 022 | planned |
 | 024 | version-history | ver o histórico de versões, comparar e restaurar | pedido inicial | 005 | planned |
 | 025 | attachments | inserir imagens e anexos no documento | pedido inicial | 005 | planned |
-| 026 | realtime-presence | ver quem está no documento e os cursores em tempo real | pedido inicial | 015 | planned |
+| 026 | realtime-presence | ver quem está no documento e os cursores em tempo real | pedido inicial | 145 | planned |
 | 027 | ai-settings | (administração) escolher a chave e o modelo de IA da organização | pedido inicial | 011 | planned |
 | 028 | ai-chat | conversar com a IA sobre documentos selecionados, com citação que abre no bloco de origem | pedido inicial | 027, 021 | planned |
 | 029 | notifications-bell | receber notificações no sino (compartilhamento, menção, comentário) | pedido inicial | 023 | planned |
 | 030 | email-digest | receber e-mail de resumo das notificações | pedido inicial | 029 | planned |
-| 031 | ownership-transfer | transferir a propriedade de um documento, com aceite de quem recebe | pedido inicial | 015 | planned |
+| 031 | ownership-transfer | transferir a propriedade de um documento, com aceite de quem recebe | pedido inicial | 145 | planned |
 | 032 | offboarding | (administração) desligar uma pessoa com revogação no ato e transferência dos documentos dela | pedido inicial | 031 | planned |
 | 033 | access-audit | (administração) consultar e exportar a auditoria de acesso | pedido inicial | 016 | planned |
 | 034 | google-login | entrar com Google | pedido inicial | 003 | planned |
