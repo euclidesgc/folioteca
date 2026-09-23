@@ -4,6 +4,7 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { beforeEach, expect, test } from 'vitest';
 
 import { createRoutes } from '@/app/router';
+import { env } from '@/config/env';
 import { paths } from '@/config/paths';
 import { queryConfig } from '@/lib/react-query';
 import {
@@ -12,10 +13,14 @@ import {
   getDb,
   seedInstalled,
   seedSampleOrgUnits,
+  seedSpaceMembers,
   seedUnitSpaceDocuments,
   setOrgUnitSpaceAccess,
 } from '@/testing/mocks/db';
-import { screen, userEvent, within } from '@/testing/test-utils';
+import { server } from '@/testing/mocks/server';
+import { renderApp, screen, userEvent, within } from '@/testing/test-utils';
+
+import { Component as SpaceRoute } from '../space';
 
 // The route is `lazy` and sits past the gate: every wait of this file gets
 // the same explicit budget.
@@ -183,9 +188,17 @@ test('the unit space page shows the space documents list', async () => {
   expect(main).not.toBeNull();
   const content = within(main as HTMLElement);
 
-  const list = await content.findByRole('list', {}, LAZY_TIMEOUT);
+  // The members of the unit come in a second list below the documents one:
+  // the documents list is the one holding the document link.
+  const documentLink = await content.findByRole(
+    'link',
+    { name: 'Manual de catalogação de periódicos' },
+    LAZY_TIMEOUT,
+  );
+  const list = documentLink.closest('ul');
+  expect(list).not.toBeNull();
   expect(
-    within(list).getByRole('link', {
+    within(list as HTMLElement).getByRole('link', {
       name: 'Manual de catalogação de periódicos',
     }),
   ).toHaveAttribute(
@@ -225,4 +238,68 @@ test('the inherited unit space page shows the direct assignment notice', async (
     content.queryByRole('button', { name: 'Novo documento' }),
   ).not.toBeInTheDocument();
   expect(content.queryByRole('list')).not.toBeInTheDocument();
+});
+
+test('the space page does not request GET spaces', async () => {
+  seedSpaceMembers();
+  const listRequests: string[] = [];
+  const countListRequests = ({ request }: { request: Request }): void => {
+    const path = new URL(request.url).pathname;
+    if (
+      request.method === 'GET' &&
+      path === new URL(`${env.API_URL}/spaces`, 'http://x').pathname
+    ) {
+      listRequests.push(path);
+    }
+  };
+  server.events.on('request:start', countListRequests);
+
+  // Only the route: the sidebar, which lists the spaces, is not rendered.
+  renderApp(<SpaceRoute />, {
+    url: paths.space.getHref(CATALOGACAO_SPACE_ID),
+    path: paths.space.path,
+  });
+
+  await screen.findByRole(
+    'heading',
+    { level: 1, name: 'Catalogação' },
+    LAZY_TIMEOUT,
+  );
+  await screen.findByRole(
+    'list',
+    { name: 'Pessoas nesta unidade' },
+    LAZY_TIMEOUT,
+  );
+  server.events.removeListener('request:start', countListRequests);
+
+  expect(listRequests).toHaveLength(0);
+});
+
+test('the unit space page shows the members section', async () => {
+  seedSpaceMembers();
+
+  renderRoutes(paths.space.getHref(CATALOGACAO_SPACE_ID));
+
+  const heading = await screen.findByRole(
+    'heading',
+    { level: 1, name: 'Catalogação' },
+    LAZY_TIMEOUT,
+  );
+  const main = heading.closest('main');
+  expect(main).not.toBeNull();
+  const content = within(main as HTMLElement);
+
+  expect(
+    content.getByRole('heading', { level: 2, name: 'Pessoas nesta unidade' }),
+  ).toBeInTheDocument();
+  const list = await content.findByRole(
+    'list',
+    { name: 'Pessoas nesta unidade' },
+    LAZY_TIMEOUT,
+  );
+  const items = within(list).getAllByRole('listitem');
+  expect(items).toHaveLength(2);
+  expect(items[0]).toHaveTextContent('Ana Souza');
+  expect(items[0]).toHaveTextContent('você');
+  expect(items[1]).toHaveTextContent('Marta Ribeiro');
 });

@@ -15,6 +15,7 @@ export const enableMocking = async (): Promise<void> => {
     seedSamplePeople,
     seedSampleTrash,
     seedSharedReadOnlyDocument,
+    seedSpaceMembers,
     seedUnitSpaceDocuments,
     touchDocumentUpdatedAt,
   } = await import('./db');
@@ -58,6 +59,11 @@ export const enableMocking = async (): Promise<void> => {
   // document of a colleague to its space (needs the sample units already
   // seeded, see `mock-org-units` above).
   if (documentsKey === 'unit-space') seedUnitSpaceDocuments();
+
+  // See the `mock-space-members` key documented in utils.ts. Read after the
+  // sample units: it assigns people to one of them.
+  const spaceMembersKey = window.localStorage.getItem('mock-space-members');
+  if (spaceMembersKey === 'sample') seedSpaceMembers();
 
   // See the `mock-favorites` key documented in utils.ts. Read after the
   // documents seed: it marks the documents already in the database.

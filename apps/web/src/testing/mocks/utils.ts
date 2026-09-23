@@ -34,6 +34,10 @@ export const networkDelay = (): Promise<void> =>
 //     and create documents there (needs
 //     localStorage.setItem('mock-org-units', 'sample') too); the space of a
 //     unit reached only by inheritance shows the direct assignment notice
+//   localStorage.setItem('mock-space-members', 'sample')  -> assigns the
+//     signed-in person and a colleague, Marta Ribeiro, directly to
+//     "Catalogação", to see "Pessoas nesta unidade" with two rows (needs
+//     localStorage.setItem('mock-org-units', 'sample') too)
 //   localStorage.setItem('mock-favorites', 'sample')  -> marks the first documents
 //     as favorites (needs the documents already seeded)
 //   localStorage.setItem('mock-trash', 'sample')  -> moves the last documents

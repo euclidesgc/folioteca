@@ -9,7 +9,9 @@ import {
   getDb,
   getSignedInPerson,
   listSpaceDocuments,
+  listSpaceMembers,
   listSpacesOf,
+  spaceDetailOf,
   spaceReachOf,
 } from '../db';
 import { devOverride, networkDelay, SESSION_COOKIE_NAME } from '../utils';
@@ -17,9 +19,14 @@ import { devOverride, networkDelay, SESSION_COOKIE_NAME } from '../utils';
 type SpacesResponse = components['schemas']['SpacesResponse'];
 type SpaceResponse = components['schemas']['SpaceResponse'];
 type DocumentsResponse = components['schemas']['DocumentsResponse'];
+type SpaceDetailResponse = components['schemas']['SpaceDetailResponse'];
+type SpaceMembersResponse = components['schemas']['SpaceMembersResponse'];
 
 const unauthenticated = (): ReturnType<typeof HttpResponse.json> =>
   HttpResponse.json({ message: 'Sessão não encontrada.' }, { status: 401 });
+
+const spaceNotFound = (): ReturnType<typeof HttpResponse.json> =>
+  HttpResponse.json({ message: 'Espaço não encontrado.' }, { status: 404 });
 
 export const spacesHandlers = [
   http.get(`${env.API_URL}/spaces`, async ({ cookies }) => {
@@ -111,6 +118,50 @@ export const spacesHandlers = [
           ),
         })),
       };
+      return HttpResponse.json(body);
+    },
+  ),
+  // One segment only: `/spaces/:spaceId` does not match `/documents` nor
+  // `/members`, which have their own handlers.
+  http.get(`${env.API_URL}/spaces/:spaceId`, async ({ cookies, params }) => {
+    await networkDelay();
+    const forced = await devOverride('spaces');
+    if (forced) return forced;
+
+    const { installation } = getDb();
+    const hasSession = Boolean(cookies[SESSION_COOKIE_NAME]);
+    const person = getSignedInPerson();
+
+    if (!installation || !hasSession || !person) return unauthenticated();
+
+    // The same 404 for every space the person cannot see: it never tells an
+    // unknown id from one of someone else.
+    const space = spaceDetailOf(person.id, String(params.spaceId));
+    if (!space) return spaceNotFound();
+
+    const body: SpaceDetailResponse = { data: space };
+    return HttpResponse.json(body);
+  }),
+
+  http.get(
+    `${env.API_URL}/spaces/:spaceId/members`,
+    async ({ cookies, params }) => {
+      await networkDelay();
+      const forced = await devOverride('spaces');
+      if (forced) return forced;
+
+      const { installation } = getDb();
+      const hasSession = Boolean(cookies[SESSION_COOKIE_NAME]);
+      const person = getSignedInPerson();
+
+      if (!installation || !hasSession || !person) return unauthenticated();
+
+      // No 403: whoever reaches the unit, directly or by inheritance, sees
+      // who is assigned to it.
+      const members = listSpaceMembers(person.id, String(params.spaceId));
+      if (!members) return spaceNotFound();
+
+      const body: SpaceMembersResponse = { data: members };
       return HttpResponse.json(body);
     },
   ),

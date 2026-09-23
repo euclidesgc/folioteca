@@ -5,15 +5,19 @@ import { Link, useLocation } from 'react-router';
 import { ContentLayout } from '@/components/layouts/content-layout';
 import { Button } from '@/components/ui/button/button';
 import { paths } from '@/config/paths';
-import type { Space, useSpaces } from '@/features/spaces/api/get-spaces';
+import type { useSpace } from '@/features/spaces/api/get-space';
+import type { Space } from '@/features/spaces/api/get-spaces';
+import { SpaceMembers } from '@/features/spaces/components/space-members';
+import { NotFoundError } from '@/lib/errors';
 
 // What the heading says whenever there is no space name to show: an empty or
 // changing `<h1>` would jump in value for whoever uses a screen reader.
 const FALLBACK_TITLE = 'Espaço';
 
 // The texts of a found space, by its type. The documents of a unit space come
-// from whoever owns the page (`unitContent`); documents do not live in a free
-// space yet, so its empty text says what the place will hold.
+// from whoever owns the page (`unitContent`), followed by the people assigned
+// to the unit; documents do not live in a free space yet, so its empty text
+// says what the place will hold.
 const SPACE_TEXTS = {
   unit: {
     description: 'O espaço de documentos da sua unidade.',
@@ -34,8 +38,8 @@ const hasFocusMainState = (state: unknown): boolean =>
   state.focusMain === true;
 
 type SpaceViewProps = {
-  // The list of the signed-in person, read by whoever owns the page.
-  query: ReturnType<typeof useSpaces>;
+  // The space of the URL, read by whoever owns the page.
+  query: ReturnType<typeof useSpace>;
   spaceId: string;
   // What a unit space shows in the place of its documents, composed by the
   // route: this feature does not know the documents one.
@@ -66,7 +70,10 @@ export function SpaceView({
   const shouldFocusMain = hasFocusMainState(location.state);
   const mainRef = useRef<HTMLElement>(null);
   const hasFocusedMainRef = useRef(false);
-  const space = query.data?.data.find((item) => item.id === spaceId);
+  // A 404 wins over a space still in the cache: coming back to the page after
+  // losing the access asks again, and the answer replaces what was shown.
+  const isNotFound = query.error instanceof NotFoundError;
+  const space = isNotFound ? undefined : query.data?.data;
   const isFound = space !== undefined;
 
   // Right after creating a space the focus lands on the page of the new one,
@@ -77,19 +84,43 @@ export function SpaceView({
     mainRef.current?.focus();
   }, [shouldFocusMain, isFound]);
 
-  // No request by id exists: the space is looked up in the list of the
-  // signed-in person, so an unknown id, one of another organization, a
-  // malformed one, a unit the person is not assigned to and a free space of
-  // another owner all end up in the same "not found" state. The id of the URL
-  // only reaches the screen as text rendered by React.
-  if (!query.data) {
+  // The server answers the same 404 for an unknown id, one of another
+  // organization, a malformed one, a unit the person does not reach and a
+  // free space of another owner: they all end up in the same "not found"
+  // state. The id of the URL only reaches the screen as text rendered by
+  // React.
+  if (!space) {
     // A retry after a failed load shows the loading state again.
-    if (query.isPending || query.isFetching) {
+    if (!isNotFound && (query.isPending || query.isFetching)) {
       return (
         <SpaceStatePage>
           <p role="status" className="mt-6 text-gray-600">
             Carregando o espaço…
           </p>
+        </SpaceStatePage>
+      );
+    }
+
+    if (isNotFound) {
+      return (
+        <SpaceStatePage>
+          <div
+            role="alert"
+            className="mt-6 rounded-md border border-red-200 bg-red-50 p-4"
+          >
+            <p className="font-medium text-red-800">Espaço não encontrado.</p>
+            <p className="mt-1 text-red-800">
+              Ele não existe ou você não tem acesso a ele.
+            </p>
+            <p className="mt-3">
+              <Link
+                to={paths.home.getHref()}
+                className="font-medium text-blue-600 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+              >
+                Voltar para o início
+              </Link>
+            </p>
+          </div>
         </SpaceStatePage>
       );
     }
@@ -113,31 +144,6 @@ export function SpaceView({
     );
   }
 
-  if (!space) {
-    return (
-      <SpaceStatePage>
-        <div
-          role="alert"
-          className="mt-6 rounded-md border border-red-200 bg-red-50 p-4"
-        >
-          <p className="font-medium text-red-800">Espaço não encontrado.</p>
-          <p className="mt-1 text-red-800">
-            Ele não existe ou você não tem acesso a ele.
-          </p>
-          <p className="mt-3">
-            <Link
-              to={paths.home.getHref()}
-              className="font-medium text-blue-600 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-            >
-              Voltar para o início
-            </Link>
-          </p>
-        </div>
-      </SpaceStatePage>
-    );
-  }
-
-
   // `break-words` on the wrapper: `overflow-wrap` is inherited, so a long
   // space name breaks inside the `<h1>` of `ContentLayout` instead of
   // overflowing the page on a narrow screen.
@@ -150,7 +156,10 @@ export function SpaceView({
         description={SPACE_TEXTS[space.type].description}
       >
         {space.type === 'unit' ? (
-          unitContent
+          <>
+            {unitContent}
+            <SpaceMembers spaceId={spaceId} />
+          </>
         ) : (
           <p className="mt-6 rounded-md border border-dashed border-gray-300 p-6 text-center text-gray-600">
             {SPACE_TEXTS.free.empty}

@@ -7,7 +7,7 @@ import { beforeEach, expect, test } from 'vitest';
 
 import { env } from '@/config/env';
 import { paths } from '@/config/paths';
-import { useSpaces } from '@/features/spaces/api/get-spaces';
+import { useSpace } from '@/features/spaces/api/get-space';
 import { queryConfig } from '@/lib/react-query';
 import {
   addAssignment,
@@ -35,7 +35,7 @@ beforeEach(() => {
 
 // The view receives the query from whoever owns the page, as the route does.
 function View({ spaceId }: { spaceId: string }): React.JSX.Element {
-  const query = useSpaces();
+  const query = useSpace({ spaceId });
   return (
     <SpaceView
       query={query}
@@ -51,10 +51,15 @@ test('shows the loading status with the stable heading', async () => {
     release = resolve;
   });
   server.use(
-    http.get(`${env.API_URL}/spaces`, async () => {
+    http.get(`${env.API_URL}/spaces/:spaceId`, async () => {
       await released;
       return HttpResponse.json({
-        data: [{ id: CATALOGACAO_SPACE_ID, type: 'unit', name: 'Catalogação' }],
+        data: {
+          id: CATALOGACAO_SPACE_ID,
+          type: 'unit',
+          name: 'Catalogação',
+          reach: 'direct',
+        },
       });
     }),
   );
@@ -81,7 +86,7 @@ test('shows the error alert and retries', async () => {
   const user = userEvent.setup();
   server.use(
     http.get(
-      `${env.API_URL}/spaces`,
+      `${env.API_URL}/spaces/:spaceId`,
       () =>
         HttpResponse.json(
           { message: 'Erro interno do servidor.' },
@@ -231,5 +236,111 @@ test('a free space keeps the notice and ignores unitContent', async () => {
   ).toBeInTheDocument();
   expect(
     screen.queryByText('Conteúdo do espaço da unidade'),
+  ).not.toBeInTheDocument();
+});
+
+test('a 404 shows Espaço não encontrado.', async () => {
+  server.use(
+    http.get(`${env.API_URL}/spaces/:spaceId`, () =>
+      HttpResponse.json(
+        { message: 'Espaço não encontrado.' },
+        { status: 404 },
+      ),
+    ),
+  );
+
+  renderApp(<View spaceId={CATALOGACAO_SPACE_ID} />);
+
+  const alert = await screen.findByRole('alert', {}, LAZY_TIMEOUT);
+  expect(alert).toHaveTextContent('Espaço não encontrado.');
+  expect(alert).toHaveTextContent(
+    'Ele não existe ou você não tem acesso a ele.',
+  );
+  expect(
+    within(alert).getByRole('link', { name: 'Voltar para o início' }),
+  ).toBeInTheDocument();
+  expect(
+    within(alert).queryByRole('button', { name: 'Tentar novamente' }),
+  ).not.toBeInTheDocument();
+});
+
+test('another error shows Tentar novamente and refetches', async () => {
+  const user = userEvent.setup();
+  let calls = 0;
+  server.use(
+    http.get(`${env.API_URL}/spaces/:spaceId`, () => {
+      calls += 1;
+      return calls === 1
+        ? HttpResponse.json(
+            { message: 'Erro interno do servidor.' },
+            { status: 500 },
+          )
+        : HttpResponse.json({
+            data: {
+              id: CATALOGACAO_SPACE_ID,
+              type: 'unit',
+              name: 'Catalogação',
+              reach: 'direct',
+            },
+          });
+    }),
+  );
+
+  renderApp(<View spaceId={CATALOGACAO_SPACE_ID} />);
+
+  const alert = await screen.findByRole('alert', {}, LAZY_TIMEOUT);
+  expect(alert).toHaveTextContent('Não foi possível carregar o espaço.');
+  expect(alert).not.toHaveTextContent('Espaço não encontrado.');
+  expect(calls).toBe(1);
+
+  await user.click(
+    within(alert).getByRole('button', { name: 'Tentar novamente' }),
+  );
+
+  expect(
+    await screen.findByRole(
+      'heading',
+      { level: 1, name: 'Catalogação' },
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
+  expect(calls).toBe(2);
+});
+
+test('a unit space shows the members after unitContent', async () => {
+  renderApp(<View spaceId={CATALOGACAO_SPACE_ID} />);
+
+  const membersHeading = await screen.findByRole(
+    'heading',
+    { level: 2, name: 'Pessoas nesta unidade' },
+    LAZY_TIMEOUT,
+  );
+  const unitContent = screen.getByText('Conteúdo do espaço da unidade');
+  expect(
+    unitContent.compareDocumentPosition(membersHeading) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+
+  const list = await screen.findByRole(
+    'list',
+    { name: 'Pessoas nesta unidade' },
+    LAZY_TIMEOUT,
+  );
+  expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+  expect(list).toHaveTextContent('Ana Souza');
+});
+
+test('a free space does not show the members', async () => {
+  const space = addFreeSpace(INSTALLED_PERSON_ID, 'Comissão de Leitura');
+
+  renderApp(<View spaceId={space.id} />);
+
+  await screen.findByRole(
+    'heading',
+    { level: 1, name: 'Comissão de Leitura' },
+    LAZY_TIMEOUT,
+  );
+  expect(
+    screen.queryByRole('heading', { name: 'Pessoas nesta unidade' }),
   ).not.toBeInTheDocument();
 });

@@ -6,6 +6,8 @@ import type { components } from '@folioteca/api-contract';
 import { MOCK_PASSWORD } from './utils';
 
 type Space = components['schemas']['Space'];
+type SpaceDetail = components['schemas']['SpaceDetail'];
+type SpaceMember = components['schemas']['SpaceMember'];
 
 export type MockOrganization = { id: string; name: string };
 export type MockPerson = {
@@ -521,6 +523,69 @@ export const spaceReachOf = (
   return reachesUnit(personId, space.orgUnitId) ? 'inherited' : 'none';
 };
 
+// One space of a person, the way GET /spaces/:spaceId answers: a free space
+// only for its owner, a unit space for whoever reaches the unit, directly or
+// by inheritance. Anything else (unknown id, free space of someone else,
+// unreached unit) is `null`, the 404 of the handler.
+export const spaceDetailOf = (
+  personId: string,
+  spaceId: string,
+): SpaceDetail | null => {
+  const space = state.spaces.find((item) => item.id === spaceId);
+  if (!space) return null;
+
+  if (space.type === 'free') {
+    return space.ownerId === personId
+      ? { id: space.id, type: 'free', name: space.name, reach: 'owner' }
+      : null;
+  }
+
+  const reach = spaceReachOf(personId, spaceId);
+  const unit = state.orgUnits.find((item) => item.id === space.orgUnitId);
+  if (reach === 'none' || !unit) return null;
+
+  return { id: space.id, type: 'unit', name: unit.name, reach };
+};
+
+// The people assigned directly to the unit of a space, the way GET
+// /spaces/:spaceId/members answers: whoever asks first, then by name and
+// e-mail with the pt-BR collator, the tie broken by `id`. `null` when the
+// person does not reach the unit, the 404 of the handler.
+export const listSpaceMembers = (
+  personId: string,
+  spaceId: string,
+): SpaceMember[] | null => {
+  if (spaceReachOf(personId, spaceId) === 'none') return null;
+
+  const space = state.spaces.find((item) => item.id === spaceId);
+  if (space?.type !== 'unit') return null;
+
+  const people = allPeople();
+
+  return state.assignments
+    .filter((item) => item.orgUnitId === space.orgUnitId)
+    .flatMap((item): SpaceMember[] => {
+      const person = people.find((candidate) => candidate.id === item.personId);
+      return person
+        ? [
+            {
+              id: person.id,
+              name: person.name,
+              email: person.email,
+              isCurrentPerson: person.id === personId,
+            },
+          ]
+        : [];
+    })
+    .sort(
+      (a, b) =>
+        Number(b.isCurrentPerson) - Number(a.isCurrentPerson) ||
+        spacesCollator.compare(a.name, b.name) ||
+        spacesCollator.compare(a.email, b.email) ||
+        a.id.localeCompare(b.id),
+    );
+};
+
 // The same hard limit the real list of a space has.
 const SPACE_DOCUMENTS_LIMIT = 100;
 
@@ -966,6 +1031,34 @@ export const seedSharedReadOnlyDocument = (): string | null => {
 // `seedUnitSpaceDocuments`, one of the units of `seedSampleOrgUnits`.
 const UNIT_SPACE_SAMPLE_ORG_UNIT_ID = 'org-unit-catalogacao';
 
+// The colleague of the unit space samples, added once to the organization.
+const addUnitColleague = (): MockPerson => {
+  const colleague: MockPerson = {
+    id: 'person-unit-colleague',
+    name: 'Marta Ribeiro',
+    email: 'marta.ribeiro@exemplo.com.br',
+    isAdmin: false,
+  };
+  if (!state.people.some((item) => item.id === colleague.id)) {
+    state.people.push(colleague);
+  }
+  return colleague;
+};
+
+// Assigns the signed-in person and the colleague directly to "Catalogação",
+// so "Pessoas nesta unidade" shows two rows. Needs the sample units already
+// seeded; does nothing without them.
+export const seedSpaceMembers = (): void => {
+  const person = getSignedInPerson();
+  const unit = state.orgUnits.find(
+    (item) => item.id === UNIT_SPACE_SAMPLE_ORG_UNIT_ID,
+  );
+  if (!person || !unit) return;
+
+  addAssignment(unit.id, person.id);
+  addAssignment(unit.id, addUnitColleague().id);
+};
+
 // Assigns the signed-in person directly to "Catalogação" and adds a document
 // of a colleague to the space of that unit, so the list of a unit space can be
 // opened in the browser with something in it. Needs the sample units already
@@ -979,15 +1072,7 @@ export const seedUnitSpaceDocuments = (): void => {
 
   addAssignment(unit.id, person.id);
 
-  const colleague: MockPerson = {
-    id: 'person-unit-colleague',
-    name: 'Marta Ribeiro',
-    email: 'marta.ribeiro@exemplo.com.br',
-    isAdmin: false,
-  };
-  if (!state.people.some((item) => item.id === colleague.id)) {
-    state.people.push(colleague);
-  }
+  const colleague = addUnitColleague();
 
   const now = new Date().toISOString();
   state.documents.push({
