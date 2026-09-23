@@ -1,7 +1,9 @@
 import 'reflect-metadata';
 
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 
+import SwaggerParser from '@apidevtools/swagger-parser';
 import type { INestApplication } from '@nestjs/common';
 import type { Response } from 'supertest';
 
@@ -309,6 +311,104 @@ test('PATCH org-units answers the documented 409', async () => {
   await expectMatchesContract({
     path: ORG_UNIT_PATH,
     method: 'patch',
+    status: 409,
+    body: response.body,
+  });
+});
+
+const openapiPath = path.resolve(
+  import.meta.dirname,
+  '../../../../../packages/api-contract/openapi.yaml',
+);
+
+type ContractDocument = {
+  paths?: Record<
+    string,
+    Partial<
+      Record<'delete', { responses?: Record<string, { content?: unknown }> }>
+    >
+  >;
+};
+
+/**
+ * O ajudante de contrato valida corpo contra schema; o 204 não tem corpo nem
+ * schema, então a conferência aqui é a do contrato: o status está documentado
+ * e sem conteúdo.
+ */
+async function expectDocumentedEmptyResponse(
+  requestPath: string,
+  status: number,
+): Promise<void> {
+  const document = (await SwaggerParser.dereference(
+    openapiPath,
+  )) as ContractDocument;
+  const response =
+    document.paths?.[requestPath]?.delete?.responses?.[String(status)];
+
+  expect(response).toBeDefined();
+  expect(response?.content).toBeUndefined();
+}
+
+/** Envia `DELETE /api/org-units/:id` com o cabeçalho do CSRF. */
+function deleteOrgUnit(orgUnitId: string, cookie: string): Promise<Response> {
+  return httpRequest(app)
+    .delete(`/api/org-units/${orgUnitId}`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie);
+}
+
+test('DELETE org-units answers the documented 204', async () => {
+  const created = await postOrgUnit(
+    { parentId: await getRootId(), name: 'Restauro' },
+    adminCookie,
+  );
+
+  const response = await deleteOrgUnit(idOf(created), adminCookie);
+
+  expect(response.status).toBe(204);
+  await expectDocumentedEmptyResponse(ORG_UNIT_PATH, 204);
+});
+
+test('DELETE org-units answers the documented 403', async () => {
+  const created = await postOrgUnit(
+    { parentId: await getRootId(), name: 'Restauro' },
+    adminCookie,
+  );
+  const { cookie } = await createPersonWithSession(app, {
+    name: 'João Souza',
+    email: 'joao@exemplo.org',
+  });
+
+  const response = await deleteOrgUnit(idOf(created), cookie);
+
+  expect(response.status).toBe(403);
+  await expectMatchesContract({
+    path: ORG_UNIT_PATH,
+    method: 'delete',
+    status: 403,
+    body: response.body,
+  });
+});
+
+test('DELETE org-units answers the documented 404', async () => {
+  const response = await deleteOrgUnit(randomUUID(), adminCookie);
+
+  expect(response.status).toBe(404);
+  await expectMatchesContract({
+    path: ORG_UNIT_PATH,
+    method: 'delete',
+    status: 404,
+    body: response.body,
+  });
+});
+
+test('DELETE org-units answers the documented 409', async () => {
+  const response = await deleteOrgUnit(await getRootId(), adminCookie);
+
+  expect(response.status).toBe(409);
+  await expectMatchesContract({
+    path: ORG_UNIT_PATH,
+    method: 'delete',
     status: 409,
     body: response.body,
   });

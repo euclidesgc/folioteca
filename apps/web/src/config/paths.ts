@@ -14,6 +14,11 @@ export const paths = {
         ? `/login?redirectTo=${encodeURIComponent(redirectTo)}`
         : '/login',
   },
+  invitationAccept: {
+    path: '/invitations/:token',
+    getHref: (token: string): string =>
+      `/invitations/${encodeURIComponent(token)}`,
+  },
   favorites: {
     path: '/favorites',
     getHref: (): string => '/favorites',
@@ -30,6 +35,11 @@ export const paths = {
     path: '/spaces',
     getHref: (): string => '/spaces',
   },
+  space: {
+    path: '/spaces/:spaceId',
+    getHref: (spaceId: string): string =>
+      `/spaces/${encodeURIComponent(spaceId)}`,
+  },
   trash: {
     path: '/trash',
     getHref: (): string => '/trash',
@@ -38,6 +48,21 @@ export const paths = {
     structure: {
       path: '/admin/structure',
       getHref: (): string => '/admin/structure',
+    },
+    // Under `/admin/structure` because that is where one comes from and where
+    // one goes back to: a sibling route would hide that relation in the URL.
+    orgUnitPeople: {
+      path: '/admin/structure/:orgUnitId/people',
+      getHref: (orgUnitId: string): string =>
+        `/admin/structure/${orgUnitId}/people`,
+    },
+    invitations: {
+      path: '/admin/invitations',
+      getHref: (): string => '/admin/invitations',
+    },
+    admins: {
+      path: '/admin/admins',
+      getHref: (): string => '/admin/admins',
     },
   },
 };

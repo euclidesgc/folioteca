@@ -19,8 +19,9 @@ export const networkDelay = (): Promise<void> =>
 
 // Development keys, read from localStorage in the browser only:
 //   localStorage.setItem('mock-error', 'health')   -> the /health handler answers 500
-//     (also accepts 'installation', 'auth', 'documents' or 'org-units', matching
-//     the resource)
+//     (also accepts 'installation', 'auth', 'documents', 'org-units',
+//     'unit-assignments', 'people', 'invitations' or 'admins', matching the
+//     resource)
 //   localStorage.setItem('mock-delay', 'infinite')  -> requests never resolve (loading state)
 //   localStorage.setItem('mock-installation', 'installed')  -> seeds an installation, signed out;
 //     sign in with the seeded person's e-mail and the MOCK_PASSWORD above
@@ -34,7 +35,51 @@ export const networkDelay = (): Promise<void> =>
 //   localStorage.setItem('mock-role', 'member')  -> the seeded person is not an
 //     administrator (read before the installation is seeded)
 //   localStorage.setItem('mock-org-units', 'sample')  -> adds three levels of
-//     units under the root (needs an installation already seeded)
+//     units under the root (needs an installation already seeded), plus one
+//     document in the space of "Sala Infantil" — that document also shows up
+//     in the person's document lists, which the fake database does not filter
+//     by space; the people screen of any of these units also gives something to
+//     remove, since whoever is assigned there in the browser can be taken out
+//     again
+//   localStorage.setItem('mock-people', 'sample')  -> adds twelve people in
+//     pt_BR to the organization (needs an installation already seeded), so the
+//     search of the unit people screen finds someone and, with a broad term,
+//     shows the "há mais resultados" warning of the hard limit of 10
+//     (localStorage.setItem('mock-error', 'people') shows its error state and
+//     localStorage.setItem('mock-error', 'unit-assignments') the error state
+//     of the list of assigned people)
+//   localStorage.setItem('mock-invitations', 'sample')  -> seeds a pending
+//     invitation for convidado@exemplo.com.br (needs an installation already
+//     seeded), to see inviting the same address replace it, and to open the
+//     invitation link: the seeded invitation is the first of the page load, so
+//     its token is 'mock-invitation-token-1' and the link is
+//     /invitations/mock-invitation-token-1 (the link of an invitation created
+//     in the browser is shown once, on the invitations screen); the seeded
+//     invitation also fills the pending list of that screen, so it is what
+//     there is to revoke there — after revoking it, the link above stops
+//     opening and answers the same error an invented link answers
+//     (localStorage.setItem('mock-error', 'invitations') shows its error state
+//     and localStorage.setItem('mock-role', 'member') its 403)
+//   the administrators page (/admin/admins) needs no seed of its own: with
+//     localStorage.setItem('mock-installation', 'signed-in') it shows one
+//     person, the installed one, which is the real state of any new
+//     installation — nothing here promotes example people, since promoting is
+//     a later slice (localStorage.setItem('mock-error', 'admins') shows its
+//     error state and localStorage.setItem('mock-role', 'member') shows the
+//     403 and the redirect back to the beginning)
+//   mock-error=promote-admin  -> the PUT /admins/:personId handler answers
+//     500, to see the error of promoting someone; promoting itself needs no
+//     seed of its own beyond localStorage.setItem('mock-people', 'sample'),
+//     whose people the search of the administrators page finds
+//   mock-error=demote-admin  -> the DELETE /admins/:personId handler answers
+//     500, to see the error of taking the administration role away; with a
+//     single administration the page already refuses the action by itself, so
+//     promote someone first to have a row to demote
+//   mock-error=spaces  -> the GET and POST /spaces handlers answer 500, to
+//     see the error of the "Unidades" and "Espaços" sections of the sidebar,
+//     of the space page and of the "Novo espaço" dialog; the "Unidades"
+//     section only shows up for a person assigned to a unit, so assign
+//     yourself on the people page of a unit first
 // Remove the key (or run localStorage.clear()) to go back to normal.
 const devKey = (key: string): string | null => {
   if (import.meta.env.MODE === 'test' || typeof window === 'undefined') {

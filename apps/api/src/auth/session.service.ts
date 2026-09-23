@@ -1,9 +1,10 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
 import type { components } from '@folioteca/api-contract';
 import type { Organization, Person, Prisma } from '@prisma/client';
 
+import { hashToken } from '../common/hash-token';
 import { PrismaService } from '../prisma/prisma.service';
 import { SESSION_TTL_MS } from './session-cookie';
 
@@ -15,11 +16,6 @@ export type CreatedSession = {
   token: string;
   expiresAt: Date;
 };
-
-/** Só o hash do token vai para o banco; o token cru fica apenas no cookie. */
-function hashToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
-}
 
 /** Corpo público da pessoa da sessão: nunca inclui o hash da senha. */
 export function toCurrentUser(person: PersonWithOrganization): CurrentUser {

@@ -7,7 +7,7 @@ import type {
   InstallationStatusResponse,
 } from '@/types/api';
 
-import { getDb, rootOrgUnit, seedDb } from '../db';
+import { addUnitSpace, getDb, rootOrgUnit, seedDb } from '../db';
 import {
   devOverride,
   MOCK_INSTALL_CODE,
@@ -125,12 +125,14 @@ export const installationHandlers = [
 
     // The password is kept so POST /auth/login can check it later; it never
     // goes back in a response. The real API also creates the root unit of the
-    // organization tree here.
+    // organization tree here, together with its `UNIT` space.
+    const root = rootOrgUnit(organization.name);
     seedDb({
       // `validate` above already rejected a missing password.
       installation: { organization, person, password: requestBody.password ?? '' },
-      orgUnits: [rootOrgUnit(organization.name)],
+      orgUnits: [root],
     });
+    addUnitSpace(root.id);
 
     const responseBody: CurrentUserResponse = { data: { person, organization } };
 

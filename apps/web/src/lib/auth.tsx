@@ -33,7 +33,15 @@ export const getUserQueryOptions = () =>
   queryOptions({
     queryKey: ['authenticated-user'],
     queryFn: getUser,
-    staleTime: Infinity,
+    // The role changes from the screen since slice 114: a session that never
+    // went stale left whoever had just been promoted without the
+    // "Administração" area until the page was reloaded. The 30 s are written
+    // here instead of inherited from the global default of 60 s, so touching
+    // that default does not change the behaviour of the role by accident; the
+    // refetch on window focus has to be said in this query because the global
+    // default turns it off.
+    staleTime: 1000 * 30,
+    refetchOnWindowFocus: true,
     retry: false,
   });
 

@@ -213,7 +213,11 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Apaga a unidade e o espaço dela
+         * @description Apaga definitivamente a unidade e o espaço `UNIT` dela na mesma operação, só para a administração. As checagens acontecem nesta ordem: CSRF (guarda global), 401, 403, 404 (o id da rota não existe na organização ou está malformado) e por fim 409 — raiz, depois unidades filhas, depois documentos do espaço, nessa ordem.
+         */
+        delete: operations["deleteOrgUnit"];
         options?: never;
         head?: never;
         /**
@@ -221,6 +225,222 @@ export interface paths {
          * @description Troca só o nome da unidade, só para a administração; a unidade mãe é imutável. O nome é aparado e é único entre as unidades irmãs sem diferenciar maiúsculas de minúsculas. Renomear a raiz renomeia também a organização. As checagens acontecem nesta ordem: 401, 403, 404/400 e por fim 409.
          */
         patch: operations["updateOrgUnit"];
+        trace?: never;
+    };
+    "/org-units/{orgUnitId}/people": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista as pessoas lotadas na unidade
+         * @description Lista as pessoas lotadas na unidade, só para a administração, ordenada por nome com o colador pt-BR. A unidade vem no mesmo envelope (`orgUnit`) para a página ter o nome dela numa requisição só, sem depender da árvore inteira e sem uma segunda origem de "não encontrada". Unidade inexistente, de outra organização e com id malformado respondem exatamente o mesmo 404.
+         */
+        get: operations["getOrgUnitPeople"];
+        put?: never;
+        /**
+         * Lota uma pessoa na unidade
+         * @description Lota a pessoa na unidade, só para a administração. A raiz aceita lotação como qualquer outra unidade. Lotação repetida responde 409 ("Esta pessoa já está lotada nesta unidade."), vindo do índice do banco e sem consulta prévia, para que dois envios simultâneos gerem uma linha só. Unidade inexistente, de outra organização e com id malformado respondem exatamente o mesmo 404; pessoa inexistente, de outra organização e com id malformado respondem "Pessoa não encontrada.". As checagens acontecem nesta ordem: CSRF (guarda global), 401, 403, 404 da unidade, 400 do corpo, 404 da pessoa e por fim 409.
+         */
+        post: operations["assignPersonToOrgUnit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/org-units/{orgUnitId}/people/{personId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Tira a lotação da pessoa na unidade
+         * @description Tira a lotação da pessoa na unidade, só para a administração. Apaga **apenas** a linha de lotação: `Person`, `OrgUnit` e `Space` não são tocados, a pessoa continua na instância e continua lotada nas outras unidades em que estiver. Unidade inexistente, de outra organização ou com id malformado respondem "Unidade não encontrada."; pessoa inexistente, de outra organização, com id malformado ou que já não está lotada nesta unidade respondem "Pessoa não encontrada." — um 404 único, para a rota não contar quem existe na instância. As checagens acontecem nesta ordem: CSRF (guarda global), 401, 403, 404 da unidade e 404 da pessoa.
+         */
+        delete: operations["removePersonFromOrgUnit"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/people": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Busca pessoas da organização por nome ou e-mail
+         * @description Busca pessoas da organização de quem chama, por parte do nome ou do e-mail, sem diferenciar maiúsculas de minúsculas, só para a administração. O limite é duro, de 10 resultados, e não há parâmetro de limite na rota: `hasMore` avisa que há mais do que o mostrado. `q` ausente, vazio ou só com espaços devolve lista vazia, sem tocar o banco e sem erro — o campo de busca nasce vazio e volta a ficar vazio.
+         */
+        get: operations["searchPeople"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista quem administra a organização de quem chama
+         * @description Lista todas as pessoas com `isAdmin` da organização de quem chama, só para a administração, sem paginação e sem limite. A ordem é alfabética por nome com colador pt-BR, e nenhuma pessoa de outra organização aparece. `GET` não passa pelo `CsrfGuard`, que só cobre método de escrita: a ordem de falha é 401 e depois 403.
+         */
+        get: operations["getAdmins"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admins/{personId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Promove uma pessoa a administração da instância
+         * @description Promove a pessoa a administração da instância, só para a administração. A pessoa é sempre procurada **dentro da organização de quem chama**, nunca por id solto. Promover quem já administra responde 200, sem erro: promover é idempotente e nada distingue "já era" de "acabou de ser". Pessoa inexistente, de outra organização ou com id malformado respondem o **mesmo** 404, para a rota não contar quem existe na instância. A requisição não tem corpo, e as checagens acontecem nesta ordem: CSRF (guarda global), 401, 403 e 404.
+         */
+        put: operations["promoteAdmin"];
+        post?: never;
+        /**
+         * Tira o papel de administração de uma pessoa
+         * @description Tira o papel de administração da pessoa, só para a administração. A pessoa é sempre procurada **dentro da organização de quem chama**, nunca por id solto. Rebaixar quem já é membro responde 200, sem erro e sem escrita: tirar o papel é idempotente. A instância **nunca** fica sem nenhuma administração — tirar o papel da última administração é recusado com 409, e a pessoa continua administrando. Pessoa inexistente, de outra organização ou com id malformado respondem o **mesmo** 404, para a rota não contar quem existe na instância. A requisição não tem corpo, e as checagens acontecem nesta ordem: CSRF (guarda global), 401, 403, 404 e por fim 409.
+         */
+        delete: operations["demoteAdmin"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/spaces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista os espaços de unidade e os espaços livres de quem chama
+         * @description Lista os espaços de unidade em que a pessoa da sessão está lotada diretamente: lotação numa unidade filha não traz a unidade pai, e não há herança em nenhum sentido. Ser administração não inclui nada a mais. A lista traz também os espaços livres de que a pessoa da sessão é dona, na organização dela, misturados aos de unidade na mesma ordem. A ordem é alfabética pelo nome com colador pt-BR, com desempate pelo id do espaço. A lista é relida a cada pedido, então uma lotação removida some já no pedido seguinte.
+         */
+        get: operations["listSpaces"];
+        put?: never;
+        /**
+         * Cria um espaço livre
+         * @description Cria um espaço livre na organização da pessoa da sessão, que passa a ser a dona dele. A organização e a dona vêm só da sessão, nunca do corpo. O nome é aparado antes de medir e não precisa ser único.
+         */
+        post: operations["createSpace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista os convites pendentes da organização
+         * @description Só a administração. Devolve apenas os convites pendentes — nem aceitos, nem vencidos — do mais recente para o mais antigo. O token nunca sai aqui: o servidor guarda apenas o hash dele.
+         */
+        get: operations["listInvitations"];
+        put?: never;
+        /**
+         * Cria um convite para entrar na organização
+         * @description Cria um convite para o e-mail informado, só para a administração. O e-mail é aparado e passado para minúsculas; um convite pendente por e-mail, sem diferenciar maiúsculas de minúsculas — convidar o mesmo e-mail de novo substitui o convite anterior, e o link antigo deixa de valer. O token vem em claro só nesta resposta; o servidor guarda apenas o hash dele. As checagens acontecem nesta ordem: CSRF (guarda global), 401, 403, 400 (corpo) e por fim 409 (o e-mail já é de uma pessoa da organização).
+         */
+        post: operations["createInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invitations/{invitationId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoga um convite pendente
+         * @description Só a administração. Marca o convite como revogado **sem apagar a linha**, que continua na base como auditoria do que foi convidado e cortado. O link enviado para de funcionar na hora: abrir ou aceitar aquele convite passa a responder o mesmo 404 de um link inexistente. Convite inexistente, de outra organização, já aceito, vencido ou já revogado respondem o **mesmo** 404, com o mesmo corpo: nada aqui diferencia os casos, para a rota não virar um oráculo sobre quais convites existem ou quem já aceitou. As checagens acontecem nesta ordem: CSRF (guarda global), 401, 403 e por fim 404.
+         */
+        post: operations["revokeInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invitations/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Dados do convite para a tela de criar conta
+         * @description Rota pública: quem abre o link do convite ainda não tem conta, e o servidor ignora qualquer sessão em curso. Devolve só o que quem recebeu o link já sabe — o e-mail convidado e o nome da organização. Nenhum identificador, nenhuma data e nenhum dado de quem convidou saem daqui.
+         */
+        get: operations["getInvitation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invitations/{token}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Aceita o convite, cria a pessoa e abre a sessão dela
+         * @description Rota pública: aceitar o convite é o que cria a conta, e o servidor ignora qualquer sessão em curso. O e-mail não vem no corpo — é o do convite. A pessoa nasce sem administração e com o espaço pessoal dela. As checagens acontecem nesta ordem: CSRF (guarda global), 400 (corpo), 404 (convite) e por fim 409 (o e-mail já é de uma pessoa). Não existe 410 para convite expirado ou já aceito: distinguir esses casos do 404 seria o oráculo que o convite não pode dar.
+         */
+        post: operations["acceptInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
 }
@@ -330,6 +550,150 @@ export interface components {
         UpdateOrgUnitInput: {
             /** @description Novo nome da unidade, aparado e único entre as irmãs sem diferenciar maiúsculas de minúsculas. Na raiz, passa a ser também o nome da organização. */
             name: string;
+        };
+        AssignedPerson: {
+            /** @description Identificador da pessoa. */
+            id: string;
+            /** @description Nome da pessoa. */
+            name: string;
+            /** @description E-mail da pessoa; quem lê é sempre a administração, e é ele que distingue dois nomes iguais. */
+            email: string;
+        };
+        OrgUnitSummary: {
+            /** @description Identificador da unidade. */
+            id: string;
+            /** @description Nome da unidade. */
+            name: string;
+        };
+        AssignedPeopleResponse: {
+            data: components["schemas"]["AssignedPerson"][];
+            orgUnit: components["schemas"]["OrgUnitSummary"];
+        };
+        AssignedPersonResponse: {
+            data: components["schemas"]["AssignedPerson"];
+        };
+        AssignPersonRequest: {
+            /** @description Identificador da pessoa a lotar na unidade. */
+            personId: string;
+        };
+        PersonSummary: {
+            /** @description Identificador da pessoa. */
+            id: string;
+            /** @description Nome da pessoa. */
+            name: string;
+            /** @description E-mail da pessoa. */
+            email: string;
+        };
+        PeopleResponse: {
+            data: components["schemas"]["PersonSummary"][];
+            /** @description Verdadeiro quando há mais pessoas casando o termo do que as mostradas. */
+            hasMore: boolean;
+        };
+        AdminPerson: {
+            /** @description Identificador da pessoa. */
+            id: string;
+            /** @description Nome da pessoa. */
+            name: string;
+            /** @description E-mail da pessoa; distingue duas pessoas com o mesmo nome. */
+            email: string;
+        };
+        AdminsResponse: {
+            data: components["schemas"]["AdminPerson"][];
+        };
+        AdminResponse: {
+            data: components["schemas"]["AdminPerson"];
+        };
+        Space: {
+            /** @description Identificador do espaço (não da unidade). */
+            id: string;
+            /**
+             * @description Tipo do espaço, de unidade ou livre.
+             * @enum {string}
+             */
+            type: "unit" | "free";
+            /** @description Nome da unidade, no espaço de unidade; nome dado pelo dono, no espaço livre. */
+            name: string;
+        };
+        SpacesResponse: {
+            data: components["schemas"]["Space"][];
+        };
+        SpaceResponse: {
+            data: components["schemas"]["Space"];
+        };
+        CreateSpaceInput: {
+            /** @description Nome do espaço livre, contado depois de aparar os espaços. */
+            name: string;
+        };
+        CreateInvitationInput: {
+            /**
+             * Format: email
+             * @description E-mail de quem está sendo convidado, aparado e passado para minúsculas antes de gravar.
+             */
+            email: string;
+        };
+        CreatedInvitation: {
+            /** @description Identificador do convite. */
+            id: string;
+            /**
+             * Format: email
+             * @description E-mail convidado, já normalizado.
+             */
+            email: string;
+            /**
+             * Format: date-time
+             * @description Quando o convite deixa de valer; sete dias depois da criação.
+             */
+            expiresAt: string;
+            /**
+             * Format: date-time
+             * @description Quando o convite foi criado.
+             */
+            createdAt: string;
+            /** @description Token do convite em claro. Devolvido uma única vez, na criação; o servidor guarda só o hash e não tem como mostrá-lo de novo. */
+            token: string;
+        };
+        CreatedInvitationResponse: {
+            data: components["schemas"]["CreatedInvitation"];
+        };
+        Invitation: {
+            /** @description Identificador do convite. */
+            id: string;
+            /**
+             * Format: email
+             * @description E-mail convidado, já normalizado.
+             */
+            email: string;
+            /**
+             * Format: date-time
+             * @description Quando o convite foi criado.
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description Quando o convite deixa de valer.
+             */
+            expiresAt: string;
+        };
+        InvitationsResponse: {
+            data: components["schemas"]["Invitation"][];
+        };
+        InvitationPreview: {
+            /**
+             * Format: email
+             * @description E-mail convidado, o mesmo que a conta nova terá.
+             */
+            email: string;
+            /** @description Nome da organização que convidou. */
+            organizationName: string;
+        };
+        InvitationPreviewResponse: {
+            data: components["schemas"]["InvitationPreview"];
+        };
+        AcceptInvitationInput: {
+            /** @description Nome de quem está criando a conta, aparado antes de gravar. */
+            name: string;
+            /** @description Senha escolhida, de 12 a 128 caracteres. */
+            password: string;
         };
         UpdateDocumentBody: {
             title: string;
@@ -1108,6 +1472,62 @@ export interface operations {
             };
         };
     };
+    deleteOrgUnit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orgUnitId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A unidade e o espaço dela foram apagados. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unidade não encontrada: o id da rota não existe na organização ou está malformado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A unidade não pode ser apagada: é a raiz, tem unidades filhas ou o espaço dela ainda tem documentos, inclusive na lixeira. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     updateOrgUnit: {
         parameters: {
             query?: never;
@@ -1169,6 +1589,671 @@ export interface operations {
                 };
             };
             /** @description Já existe uma unidade com esse nome neste nível. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getOrgUnitPeople: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orgUnitId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description As pessoas lotadas na unidade foram listadas. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignedPeopleResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unidade não encontrada: o id da rota não existe na organização ou está malformado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    assignPersonToOrgUnit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orgUnitId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignPersonRequest"];
+            };
+        };
+        responses: {
+            /** @description A pessoa foi lotada na unidade. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignedPersonResponse"];
+                };
+            };
+            /** @description Os dados informados são inválidos. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unidade não encontrada (o id da rota não existe na organização ou está malformado) ou pessoa não encontrada (o `personId` não existe na organização ou está malformado). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Esta pessoa já está lotada nesta unidade. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    removePersonFromOrgUnit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orgUnitId: string;
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A lotação foi apagada. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unidade não encontrada (o id da rota não existe na organização ou está malformado) ou pessoa não encontrada (o `personId` não existe na organização, está malformado ou já não está lotado nesta unidade). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    searchPeople: {
+        parameters: {
+            query?: {
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description As pessoas encontradas foram listadas. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PeopleResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdmins: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Os administradores foram listados. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminsResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    promoteAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A pessoa passou a administrar a instância. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Pessoa não encontrada (o `personId` não existe na organização de quem chama ou está malformado). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    demoteAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A pessoa deixou de administrar a instância. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Pessoa não encontrada (o `personId` não existe na organização de quem chama ou está malformado). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description É a única administração da instância: o papel não pode ser retirado. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listSpaces: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Os espaços de unidade e os espaços livres foram listados. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpacesResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createSpace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSpaceInput"];
+            };
+        };
+        responses: {
+            /** @description O espaço livre foi criado. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpaceResponse"];
+                };
+            };
+            /** @description Os dados informados são inválidos. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listInvitations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Os convites pendentes da organização. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationsResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateInvitationInput"];
+            };
+        };
+        responses: {
+            /** @description O convite foi criado. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedInvitationResponse"];
+                };
+            };
+            /** @description Os dados informados são inválidos. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O e-mail já é de uma pessoa da organização. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    revokeInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Identificador do convite, o mesmo que a lista devolve. */
+                invitationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O convite foi revogado. A resposta não tem corpo. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O convite não está disponível. A mesma resposta para convite inexistente, de outra organização, já aceito, vencido ou já revogado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Token do convite em claro, o mesmo do link recebido; o servidor guarda apenas o hash dele e nunca o registra. */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O convite está pendente. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationPreviewResponse"];
+                };
+            };
+            /** @description O convite não está disponível. A mesma resposta para link inexistente, expirado, já aceito ou revogado: nada no corpo, no código ou no tempo de resposta distingue os casos. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    acceptInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Token do convite em claro, o mesmo do link recebido; o servidor guarda apenas o hash dele e nunca o registra. */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptInvitationInput"];
+            };
+        };
+        responses: {
+            /** @description A conta foi criada e a sessão foi aberta. A resposta traz o `Set-Cookie` da sessão, e o corpo é o mesmo de `GET /auth/me`. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUserResponse"];
+                };
+            };
+            /** @description Os dados informados são inválidos. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O convite não está disponível. A mesma resposta para link inexistente, expirado, já aceito ou revogado: nada no corpo, no código ou no tempo de resposta distingue os casos. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O e-mail do convite já é de uma pessoa da organização. */
             409: {
                 headers: {
                     [name: string]: unknown;

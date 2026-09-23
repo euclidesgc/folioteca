@@ -12,6 +12,10 @@ export default tseslint.config(
       '**/dist/**',
       '**/coverage/**',
       '**/generated/**',
+      // Written by Playwright when a run fails locally; thousands of bundled
+      // files that would otherwise fail the lint of the whole project.
+      'apps/web/e2e/report/**',
+      'apps/web/e2e/test-results/**',
       'apps/web/public/mockServiceWorker.js',
     ],
   },
@@ -95,6 +99,26 @@ export default tseslint.config(
               target: './apps/web/src/features/org-units',
               from: './apps/web/src/features',
               except: ['./org-units'],
+            },
+            {
+              target: './apps/web/src/features/invitations',
+              from: './apps/web/src/features',
+              except: ['./invitations'],
+            },
+            {
+              target: './apps/web/src/features/unit-assignments',
+              from: './apps/web/src/features',
+              except: ['./unit-assignments'],
+            },
+            {
+              target: './apps/web/src/features/admin-roles',
+              from: './apps/web/src/features',
+              except: ['./admin-roles'],
+            },
+            {
+              target: './apps/web/src/features/spaces',
+              from: './apps/web/src/features',
+              except: ['./spaces'],
             },
             {
               target: './apps/web/src/features',

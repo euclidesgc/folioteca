@@ -18,6 +18,7 @@ import { UnauthenticatedError } from '../errors';
 import {
   AuthLoader,
   getUser,
+  getUserQueryOptions,
   loginInputSchema,
   ProtectedRoute,
   useLogin,
@@ -266,4 +267,51 @@ test('ProtectedRoute renders the children when there is a user', async () => {
 
   expect(await screen.findByText('Conteúdo protegido')).toBeInTheDocument();
   expect(router.state.location.pathname).toBe('/favorites');
+});
+
+// The waits of the session below get an explicit budget instead of the
+// implicit default.
+const LAZY_TIMEOUT = { timeout: 5000 };
+
+test('getUserQueryOptions uses a finite staleTime of 30 seconds', () => {
+  expect(getUserQueryOptions().staleTime).toBe(30_000);
+});
+
+test('getUserQueryOptions refetches on window focus', () => {
+  expect(getUserQueryOptions().refetchOnWindowFocus).toBe(true);
+});
+
+test('a stale session is refetched on a new mount', async () => {
+  seedInstalled({ signedIn: true });
+  let meCalls = 0;
+  server.use(
+    http.get(`${env.API_URL}/auth/me`, () => {
+      meCalls += 1;
+      return HttpResponse.json({ data: SEED_USER });
+    }),
+  );
+
+  const queryClient = new QueryClient({ defaultOptions: queryConfig });
+  queryClient.setQueryData(['authenticated-user'], SEED_USER);
+
+  const first = renderHook(() => useUser(), {
+    wrapper: createWrapper(queryClient),
+  });
+
+  // Fresh within the 30 seconds: nothing is asked of the server.
+  expect(meCalls).toBe(0);
+  first.unmount();
+
+  // The role may have changed on the screen: the session is marked stale.
+  await queryClient.invalidateQueries({ queryKey: ['authenticated-user'] });
+
+  const second = renderHook(() => useUser(), {
+    wrapper: createWrapper(queryClient),
+  });
+
+  await waitFor(() => expect(meCalls).toBe(1), LAZY_TIMEOUT);
+  await waitFor(
+    () => expect(second.result.current.isSuccess).toBe(true),
+    LAZY_TIMEOUT,
+  );
 });
