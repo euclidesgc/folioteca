@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button/button';
 import { paths } from '@/config/paths';
 import type { useSpace } from '@/features/spaces/api/get-space';
 import type { Space } from '@/features/spaces/api/get-spaces';
+import { AddSpaceMemberDialog } from '@/features/spaces/components/add-space-member-dialog';
 import { SpaceMembers } from '@/features/spaces/components/space-members';
 import { NotFoundError } from '@/lib/errors';
 
@@ -24,10 +25,15 @@ const SPACE_TEXTS = {
   },
   free: {
     description: 'Um espaço livre, de que você é dona.',
+    // A member reads the space; only its owner adds people to it.
+    memberDescription: 'Um espaço livre de que você é membro.',
     empty:
       'Os documentos deste espaço ainda não chegaram. Em breve você vai guardar e encontrar documentos aqui.',
   },
-} satisfies Record<Space['type'], { description: string; empty?: string }>;
+} satisfies Record<
+  Space['type'],
+  { description: string; memberDescription?: string; empty?: string }
+>;
 
 // Only asks for the focus when the page was opened right after creating the
 // space (see `SidebarFreeSpaces`).
@@ -75,6 +81,8 @@ export function SpaceView({
   const isNotFound = query.error instanceof NotFoundError;
   const space = isNotFound ? undefined : query.data?.data;
   const isFound = space !== undefined;
+  // Only the owner of a free space adds people to it; a member reads it.
+  const isFreeSpaceOwner = space?.type === 'free' && space.reach === 'owner';
 
   // Right after creating a space the focus lands on the page of the new one,
   // once: a later read of the list does not steal it back.
@@ -153,7 +161,11 @@ export function SpaceView({
         ref={mainRef}
         tabIndex={-1}
         title={space.name}
-        description={SPACE_TEXTS[space.type].description}
+        description={
+          space.type === 'free' && space.reach === 'member'
+            ? SPACE_TEXTS.free.memberDescription
+            : SPACE_TEXTS[space.type].description
+        }
       >
         {space.type === 'unit' ? (
           <>
@@ -161,9 +173,19 @@ export function SpaceView({
             <SpaceMembers spaceId={spaceId} />
           </>
         ) : (
-          <p className="mt-6 rounded-md border border-dashed border-gray-300 p-6 text-center text-gray-600">
-            {SPACE_TEXTS.free.empty}
-          </p>
+          <>
+            {isFreeSpaceOwner ? (
+              <div className="mt-6">
+                <AddSpaceMemberDialog
+                  spaceId={spaceId}
+                  spaceName={space.name}
+                />
+              </div>
+            ) : null}
+            <p className="mt-6 rounded-md border border-dashed border-gray-300 p-6 text-center text-gray-600">
+              {SPACE_TEXTS.free.empty}
+            </p>
+          </>
         )}
       </ContentLayout>
     </div>

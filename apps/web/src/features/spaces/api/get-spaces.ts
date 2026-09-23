@@ -22,6 +22,10 @@ export const getSpacesQueryOptions = () =>
   queryOptions({
     queryKey: ['spaces'],
     queryFn: getSpaces,
+    // The default of `lib/react-query` keeps the list: a person just added to
+    // a free space only sees it if the list is read again on remount or when
+    // the window regains focus.
+    staleTime: 0,
   });
 
 type UseSpacesOptions = {

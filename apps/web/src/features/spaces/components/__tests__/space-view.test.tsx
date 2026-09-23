@@ -12,8 +12,10 @@ import { queryConfig } from '@/lib/react-query';
 import {
   addAssignment,
   addFreeSpace,
+  addSpaceMember,
   seedInstalled,
   seedSampleOrgUnits,
+  seedSamplePeople,
 } from '@/testing/mocks/db';
 import { server } from '@/testing/mocks/server';
 import { renderApp, screen, userEvent, within } from '@/testing/test-utils';
@@ -343,4 +345,60 @@ test('a free space does not show the members', async () => {
   expect(
     screen.queryByRole('heading', { name: 'Pessoas nesta unidade' }),
   ).not.toBeInTheDocument();
+});
+
+test('a FREE space shows Adicionar pessoa to its owner', async () => {
+  const space = addFreeSpace(INSTALLED_PERSON_ID, 'Comissão de Leitura');
+
+  renderApp(<View spaceId={space.id} />);
+
+  expect(
+    await screen.findByRole(
+      'button',
+      { name: 'Adicionar pessoa' },
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText('Um espaço livre, de que você é dona.'),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByText('Um espaço livre de que você é membro.'),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByText(
+      'Os documentos deste espaço ainda não chegaram. Em breve você vai guardar e encontrar documentos aqui.',
+    ),
+  ).toBeInTheDocument();
+});
+
+test('a FREE space shows the member description without Adicionar pessoa', async () => {
+  seedSamplePeople();
+  const ownerId = 'person-sample-1';
+  const space = addFreeSpace(ownerId, 'Clube do Livro');
+  addSpaceMember(ownerId, space.id, INSTALLED_PERSON_ID);
+
+  renderApp(<View spaceId={space.id} />);
+
+  expect(
+    await screen.findByRole(
+      'heading',
+      { level: 1, name: 'Clube do Livro' },
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText('Um espaço livre de que você é membro.'),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByText('Um espaço livre, de que você é dona.'),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: 'Adicionar pessoa' }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByText(
+      'Os documentos deste espaço ainda não chegaram. Em breve você vai guardar e encontrar documentos aqui.',
+    ),
+  ).toBeInTheDocument();
 });

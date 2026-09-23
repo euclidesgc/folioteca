@@ -6,6 +6,7 @@ import { spaceNameSchema } from '@/features/spaces/utils/space-name-schema';
 
 import {
   addFreeSpace,
+  addSpaceMember,
   getDb,
   getSignedInPerson,
   listSpaceDocuments,
@@ -21,6 +22,7 @@ type SpaceResponse = components['schemas']['SpaceResponse'];
 type DocumentsResponse = components['schemas']['DocumentsResponse'];
 type SpaceDetailResponse = components['schemas']['SpaceDetailResponse'];
 type SpaceMembersResponse = components['schemas']['SpaceMembersResponse'];
+type SpaceMemberResponse = components['schemas']['SpaceMemberResponse'];
 
 const unauthenticated = (): ReturnType<typeof HttpResponse.json> =>
   HttpResponse.json({ message: 'Sessão não encontrada.' }, { status: 401 });
@@ -162,6 +164,40 @@ export const spacesHandlers = [
       if (!members) return spaceNotFound();
 
       const body: SpaceMembersResponse = { data: members };
+      return HttpResponse.json(body);
+    },
+  ),
+
+  // No body: the space and the person are both in the path, and adding the
+  // same person again answers the same 200.
+  http.put(
+    `${env.API_URL}/spaces/:spaceId/members/:personId`,
+    async ({ cookies, params }) => {
+      await networkDelay();
+      const forced = await devOverride('spaces');
+      if (forced) return forced;
+
+      const { installation } = getDb();
+      const hasSession = Boolean(cookies[SESSION_COOKIE_NAME]);
+      const person = getSignedInPerson();
+
+      if (!installation || !hasSession || !person) return unauthenticated();
+
+      const result = addSpaceMember(
+        person.id,
+        String(params.spaceId),
+        String(params.personId),
+      );
+
+      if (!result.ok) {
+        if (result.status === 404) return spaceNotFound();
+        return HttpResponse.json(
+          { message: result.message },
+          { status: result.status },
+        );
+      }
+
+      const body: SpaceMemberResponse = { data: result.person };
       return HttpResponse.json(body);
     },
   ),

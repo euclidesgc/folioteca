@@ -8,6 +8,7 @@ import { MOCK_PASSWORD } from './utils';
 type Space = components['schemas']['Space'];
 type SpaceDetail = components['schemas']['SpaceDetail'];
 type SpaceMember = components['schemas']['SpaceMember'];
+type PersonSummary = components['schemas']['PersonSummary'];
 
 export type MockOrganization = { id: string; name: string };
 export type MockPerson = {
@@ -93,6 +94,11 @@ export type MockSpace =
   | { id: string; type: 'unit'; orgUnitId: string }
   | { id: string; type: 'free'; name: string; ownerId: string };
 
+// A person added to a free space by its owner. Like `MockAssignment`, the pair
+// is the whole row: the real table's composite primary key keeps the same
+// person from being added twice to the same space.
+export type MockSpaceMember = { spaceId: string; personId: string };
+
 type DbState = {
   installation: MockInstallation | null;
   documents: MockDocument[];
@@ -101,6 +107,7 @@ type DbState = {
   orgUnits: MockOrgUnit[];
   assignments: MockAssignment[];
   spaces: MockSpace[];
+  spaceMembers: MockSpaceMember[];
   invitations: MockInvitation[];
   // People created by accepting an invitation, and which of them is signed in.
   // Null means the installed person, which is what every journey before 086
@@ -117,6 +124,7 @@ const initialState = (): DbState => ({
   orgUnits: [],
   assignments: [],
   spaces: [],
+  spaceMembers: [],
   invitations: [],
   people: [],
   signedInPersonId: null,
@@ -450,8 +458,14 @@ export const addFreeSpace = (ownerId: string, name: string): MockSpace => {
   return space;
 };
 
+// Whether a person was added to a free space by its owner.
+const isSpaceMember = (personId: string, spaceId: string): boolean =>
+  state.spaceMembers.some(
+    (item) => item.spaceId === spaceId && item.personId === personId,
+  );
+
 // The spaces of a person, the way GET /spaces answers: the unit spaces the
-// person reaches and the free spaces the person owns, mixed and sorted by the
+// person reaches and the free spaces the person owns or is a member of, mixed and sorted by the
 // pt-BR collator with the tie broken by `id`, the same pair of rules the
 // service applies.
 //
@@ -488,7 +502,7 @@ export const listSpacesOf = (personId: string): Space[] =>
   state.spaces
     .flatMap((space): Space[] => {
       if (space.type === 'free') {
-        return space.ownerId === personId
+        return space.ownerId === personId || isSpaceMember(personId, space.id)
           ? [{ id: space.id, type: 'free', name: space.name }]
           : [];
       }
@@ -524,7 +538,7 @@ export const spaceReachOf = (
 };
 
 // One space of a person, the way GET /spaces/:spaceId answers: a free space
-// only for its owner, a unit space for whoever reaches the unit, directly or
+// only for its owner (`owner`) and its members (`member`), a unit space for whoever reaches the unit, directly or
 // by inheritance. Anything else (unknown id, free space of someone else,
 // unreached unit) is `null`, the 404 of the handler.
 export const spaceDetailOf = (
@@ -535,8 +549,12 @@ export const spaceDetailOf = (
   if (!space) return null;
 
   if (space.type === 'free') {
-    return space.ownerId === personId
-      ? { id: space.id, type: 'free', name: space.name, reach: 'owner' }
+    if (space.ownerId === personId) {
+      return { id: space.id, type: 'free', name: space.name, reach: 'owner' };
+    }
+
+    return isSpaceMember(personId, space.id)
+      ? { id: space.id, type: 'free', name: space.name, reach: 'member' }
       : null;
   }
 
@@ -545,6 +563,65 @@ export const spaceDetailOf = (
   if (reach === 'none' || !unit) return null;
 
   return { id: space.id, type: 'unit', name: unit.name, reach };
+};
+
+// What adding a member answers: the refusal with its status and message, or
+// the person added.
+export type AddSpaceMemberResult =
+  | { ok: false; status: 400 | 403 | 404; message: string }
+  | { ok: true; person: PersonSummary };
+
+// Adds a person to a free space, the way PUT /spaces/:spaceId/members/
+// :personId does, in the same order as `SpacesService.addMember`: a space the
+// requester does not reach (unknown, a unit, a free space of someone else) is
+// 404, a member is 403, then the owner and an unknown person are 400. Adding
+// the same pair again keeps a single row, the upsert of the real service.
+export const addSpaceMember = (
+  requesterId: string,
+  spaceId: string,
+  personId: string,
+): AddSpaceMemberResult => {
+  const space = state.spaces.find((item) => item.id === spaceId);
+  if (
+    space?.type !== 'free' ||
+    (space.ownerId !== requesterId && !isSpaceMember(requesterId, spaceId))
+  ) {
+    return { ok: false, status: 404, message: 'Espaço não encontrado.' };
+  }
+
+  if (space.ownerId !== requesterId) {
+    return {
+      ok: false,
+      status: 403,
+      message: 'Só o dono do espaço pode adicionar pessoas.',
+    };
+  }
+
+  if (personId === space.ownerId) {
+    return {
+      ok: false,
+      status: 400,
+      message: 'Você já é o dono deste espaço.',
+    };
+  }
+
+  const person = allPeople().find((item) => item.id === personId);
+  if (!person) {
+    return {
+      ok: false,
+      status: 400,
+      message: 'Pessoa não encontrada nesta instância.',
+    };
+  }
+
+  if (!isSpaceMember(person.id, spaceId)) {
+    state.spaceMembers.push({ spaceId, personId: person.id });
+  }
+
+  return {
+    ok: true,
+    person: { id: person.id, name: person.name, email: person.email },
+  };
 };
 
 // The people assigned directly to the unit of a space, the way GET
