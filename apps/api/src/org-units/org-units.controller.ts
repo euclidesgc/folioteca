@@ -62,6 +62,15 @@ export class OrgUnitsController {
     return { data: unit };
   }
 
+  @Patch(':orgUnitId/space')
+  async updateOrgUnitSpace(
+    @CurrentPerson() person: PersonWithOrganization,
+    @Param('orgUnitId') orgUnitId: string,
+    @Body() body: unknown,
+  ): Promise<OrgUnitResponse> {
+    return this.orgUnits.setSpaceAccess(person.organizationId, orgUnitId, body);
+  }
+
   @Delete(':orgUnitId')
   @HttpCode(204)
   async deleteOrgUnit(

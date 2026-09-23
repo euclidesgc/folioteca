@@ -30,7 +30,7 @@ Pré-condição de todas as fases: `docker compose up -d` na raiz (Postgres loca
 
 Caminhos relativos à raiz do repositório.
 
-- [ ] T1.1 — Contrato primeiro: `updateOrgUnitSpace` e `OrgUnit.spaceAccess`
+- [x] T1.1 — Contrato primeiro: `updateOrgUnitSpace` e `OrgUnit.spaceAccess`
   - Arquivos: `packages/api-contract/openapi.yaml` (alterar); `packages/api-contract/src/generated/openapi.d.ts` (alterar, **só** pelo script)
   - O que fazer (D1, R1–R5):
     - Caminho novo `/org-units/{orgUnitId}/space` com `patch`, `operationId: updateOrgUnitSpace`, tag `org-units`, parâmetro de caminho `orgUnitId` (mesmo nome e forma do `PATCH`/`DELETE /org-units/{orgUnitId}`), `requestBody` obrigatório com `UpdateOrgUnitSpaceInput`, respostas **200** (`OrgUnitResponse`) e **400**, **401**, **403**, **404**, **409** (schema `Error`). `description` em pt_BR: muda quem vê o espaço da unidade; `inherit` é recusado na raiz com 409.
@@ -41,7 +41,7 @@ Caminhos relativos à raiz do repositório.
   - Skills: security
   - Complexidade: baixa
 
-- [ ] T1.2 — Banco: coluna `inheritsParent` com migration 0014 escrita à mão
+- [x] T1.2 — Banco: coluna `inheritsParent` com migration 0014 escrita à mão
   - Arquivos: `apps/api/prisma/migrations/0014_space_inherits_parent/migration.sql` (criar); `apps/api/prisma/schema.prisma` (alterar)
   - O que fazer (D2, R1):
     - `migration.sql`, escrita à mão, com comentários em pt_BR, com exatamente este SQL:
@@ -54,7 +54,7 @@ Caminhos relativos à raiz do repositório.
   - Skills: security
   - Complexidade: média
 
-- [ ] T1.3 — `org-units`: schema do corpo, `setSpaceAccess`, `spaceAccess` nas respostas e rota nova
+- [x] T1.3 — `org-units`: schema do corpo, `setSpaceAccess`, `spaceAccess` nas respostas e rota nova
   - Arquivos: `apps/api/src/org-units/org-units.schema.ts` (alterar); `apps/api/src/org-units/org-units.service.ts` (alterar); `apps/api/src/org-units/org-units.controller.ts` (alterar)
   - O que fazer (D3, R3, R4):
     - `org-units.schema.ts`: `updateOrgUnitSpaceSchema = z.strictObject({ access: z.enum(['own', 'inherit'], { error: 'Escolha o modo de acesso.' }) }, { error: 'Campo não permitido.' })`.
@@ -63,7 +63,7 @@ Caminhos relativos à raiz do repositório.
   - Skills: security
   - Complexidade: média
 
-- [ ] T1.4 — `SpacesService.list` resolve o alcance herdado em memória
+- [x] T1.4 — `SpacesService.list` resolve o alcance herdado em memória
   - Arquivos: `apps/api/src/spaces/spaces.service.ts` (alterar)
   - O que fazer (D4, R4, R6–R10):
     - Duas consultas em `Promise.all`: (a) os FREE da dona, como hoje (`{ type: 'FREE', organizationId, ownerId: personId }`); (b) `orgUnit.findMany({ where: { organizationId }, select: { id: true, parentId: true, name: true, space: { select: { id: true, inheritsParent: true } }, assignments: { where: { personId }, select: { personId: true } } } })`.
@@ -72,7 +72,7 @@ Caminhos relativos à raiz do repositório.
   - Skills: authorization
   - Complexidade: alta
 
-- [ ] T1.5 — Testes da fase 1
+- [x] T1.5 — Testes da fase 1
   - Arquivos: `apps/api/src/spaces/__tests__/spaces.service.test.ts` (alterar); `apps/api/src/spaces/__tests__/spaces.integration.test.ts` (alterar); `apps/api/src/spaces/__tests__/spaces.contract.test.ts` (alterar); `apps/api/src/org-units/__tests__/org-units.service.test.ts` (alterar); `apps/api/src/org-units/__tests__/org-units.schema.test.ts` (alterar); `apps/api/src/org-units/__tests__/org-units.integration.test.ts` (alterar); `apps/api/src/org-units/__tests__/org-units.contract.test.ts` (alterar)
   - O que fazer (D8): integração e contrato contra o Postgres real com `resetDatabase(prisma)` em `beforeEach` e os ajudantes existentes; `apps/api/test/**` não muda. Casos preexistentes cujo `where`/Prisma falso muda por T1.4 são ajustados **sem trocar o nome**.
     - `spaces.service.test.ts`: `list shows a child unit space that inherits to a person assigned to the parent`; `list follows the inheritance chain while spaces inherit`; `list stops the chain at the first own space`; `list ignores inherit on a root unit`; `list treats a parent cycle as not reaching`; `list returns each unit space once when reached twice`.
@@ -87,16 +87,16 @@ Caminhos relativos à raiz do repositório.
 
 ### Critérios de aceite da fase 1
 
-- [ ] CA1.1 — Com `docker compose up -d`, na raiz e com o cache do `tsc` limpo (`pnpm exec tsc -b --clean`; nenhum `*.tsbuildinfo` fora de `node_modules`): `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` terminam com exit code 0 e sem aviso.
-- [ ] CA1.2 — `packages/api-contract/openapi.yaml` tem o caminho `/org-units/{orgUnitId}/space:` com `patch`, `operationId: updateOrgUnitSpace`, parâmetro `orgUnitId`, `requestBody` com `$ref` para `UpdateOrgUnitSpaceInput`, e respostas exatamente `200` (`OrgUnitResponse`), `400`, `401`, `403`, `404`, `409` (`Error`). `UpdateOrgUnitSpaceInput` tem `required: [access]`, `additionalProperties: false` e `access` com `enum: [own, inherit]`; `OrgUnit` tem `spaceAccess` em `required` com `enum: [own, inherit]`. `rg -n "updateOrgUnitSpace|UpdateOrgUnitSpaceInput|spaceAccess" packages/api-contract/src/generated/openapi.d.ts` encontra os três.
-- [ ] CA1.3 — `apps/api/src/org-units/org-units.controller.ts` tem `@Patch(':orgUnitId/space')` com `@Param('orgUnitId')` chamando `setSpaceAccess(person.organizationId, orgUnitId, body)`; `rg -n "@UseGuards" apps/api/src/org-units/org-units.controller.ts` devolve exatamente uma ocorrência, acima da classe, com `SessionGuard` e `AdminGuard`.
-- [ ] CA1.4 — Existe `apps/api/prisma/migrations/0014_space_inherits_parent/migration.sql` com `ADD COLUMN "inheritsParent" BOOLEAN NOT NULL DEFAULT false` e `ADD CONSTRAINT "Space_inherits_parent_unit_check" CHECK ("type" = 'UNIT' OR "inheritsParent" = false)`; `ls apps/api/prisma/migrations` lista só `0001…0014` e `migration_lock.toml`. `apps/api/prisma/schema.prisma` tem `inheritsParent Boolean @default(false)` em `Space` com comentário `///`. `pnpm --filter api exec prisma validate` sai com 0 e `DATABASE_URL=postgresql://folioteca@localhost:5433/folioteca_test pnpm --filter api exec prisma migrate status` reporta o banco em dia.
-- [ ] CA1.5 — `apps/api/src/org-units/org-units.schema.ts` exporta `updateOrgUnitSpaceSchema` (`z.strictObject`) com os textos literais `Escolha o modo de acesso.` e `Campo não permitido.`. `apps/api/src/org-units/org-units.service.ts` tem `setSpaceAccess(organizationId: string, orgUnitId: string, body: unknown)`, o texto `A unidade raiz não tem unidade-pai.` numa `ConflictException`, `space.update` com `where: { orgUnitId }`, e uma função `toOrgUnit` usada por `list`, `create`, `rename` e `setSpaceAccess`.
-- [ ] CA1.6 — `apps/api/src/spaces/spaces.service.ts`, lido: `list` faz `Promise.all` com a consulta FREE da dona e `orgUnit.findMany({ where: { organizationId }, … })` com `assignments: { where: { personId } }`; resolve o alcance sem recursão de função (laço com pilha), com `Map` de memória e `Set` de visitados. `rg -n "^\s*[^/*].*\b(isAdmin|\$queryRaw|\$transaction)\b" apps/api/src/spaces --glob '!**/__tests__/**'` é vazio.
-- [ ] CA1.7 — `pnpm exec vitest run --project api` sai com 0 e existem, conferidos com `rg -n "^\s*(it|test)(\.each)?\(" apps/api/src/spaces/__tests__ apps/api/src/org-units/__tests__`, todos os casos nomeados em T1.5 (`spaces.service.test.ts`: 6; `spaces.integration.test.ts`: 8; `spaces.contract.test.ts`: 1; `org-units.schema.test.ts`: 4; `org-units.service.test.ts`: 4; `org-units.integration.test.ts`: 13; `org-units.contract.test.ts`: 6), com os nomes literais de T1.5. `rg -n "vi\.mock\(.*prisma" apps/api/src/spaces/__tests__/spaces.integration.test.ts apps/api/src/org-units/__tests__/org-units.integration.test.ts` é vazio.
-- [ ] CA1.8 — Lendo os testes: `list with another organization id returns nothing` e `setSpaceAccess with another organization id answers 404` chamam o serviço real (instância ligada ao Prisma de teste) com `randomUUID()` como `organizationId`, sobre dados que existem na organização da instalação; `the database rejects inheritsParent on a FREE space` espera rejeição do banco; `rg -n "DROP CONSTRAINT|DISABLE TRIGGER|session_replication_role" apps/api/src apps/api/test` é vazio.
-- [ ] CA1.9 — `rg -n "setTimeout\(|sleep\(" apps/api/src/spaces apps/api/src/org-units` é vazio; `rg -n "eslint-disable" apps/api/src | rg -v -- "--"` é vazio.
-- [ ] CA1.10 — Cobertura ≥ 80% de linhas para `apps/api/src/spaces/spaces.service.ts`, `apps/api/src/org-units/org-units.schema.ts`, `apps/api/src/org-units/org-units.service.ts` e `apps/api/src/org-units/org-units.controller.ts`, lida em `coverage/coverage-summary.json` gerado na raiz com `pnpm exec vitest run --coverage --coverage.reporter=json-summary`.
+- [x] CA1.1 — Com `docker compose up -d`, na raiz e com o cache do `tsc` limpo (`pnpm exec tsc -b --clean`; nenhum `*.tsbuildinfo` fora de `node_modules`): `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` terminam com exit code 0 e sem aviso.
+- [x] CA1.2 — `packages/api-contract/openapi.yaml` tem o caminho `/org-units/{orgUnitId}/space:` com `patch`, `operationId: updateOrgUnitSpace`, parâmetro `orgUnitId`, `requestBody` com `$ref` para `UpdateOrgUnitSpaceInput`, e respostas exatamente `200` (`OrgUnitResponse`), `400`, `401`, `403`, `404`, `409` (`Error`). `UpdateOrgUnitSpaceInput` tem `required: [access]`, `additionalProperties: false` e `access` com `enum: [own, inherit]`; `OrgUnit` tem `spaceAccess` em `required` com `enum: [own, inherit]`. `rg -n "updateOrgUnitSpace|UpdateOrgUnitSpaceInput|spaceAccess" packages/api-contract/src/generated/openapi.d.ts` encontra os três.
+- [x] CA1.3 — `apps/api/src/org-units/org-units.controller.ts` tem `@Patch(':orgUnitId/space')` com `@Param('orgUnitId')` chamando `setSpaceAccess(person.organizationId, orgUnitId, body)`; `rg -n "@UseGuards" apps/api/src/org-units/org-units.controller.ts` devolve exatamente uma ocorrência, acima da classe, com `SessionGuard` e `AdminGuard`.
+- [x] CA1.4 — Existe `apps/api/prisma/migrations/0014_space_inherits_parent/migration.sql` com `ADD COLUMN "inheritsParent" BOOLEAN NOT NULL DEFAULT false` e `ADD CONSTRAINT "Space_inherits_parent_unit_check" CHECK ("type" = 'UNIT' OR "inheritsParent" = false)`; `ls apps/api/prisma/migrations` lista só `0001…0014` e `migration_lock.toml`. `apps/api/prisma/schema.prisma` tem `inheritsParent Boolean @default(false)` em `Space` com comentário `///`. `pnpm --filter api exec prisma validate` sai com 0 e `DATABASE_URL=postgresql://folioteca@localhost:5433/folioteca_test pnpm --filter api exec prisma migrate status` reporta o banco em dia.
+- [x] CA1.5 — `apps/api/src/org-units/org-units.schema.ts` exporta `updateOrgUnitSpaceSchema` (`z.strictObject`) com os textos literais `Escolha o modo de acesso.` e `Campo não permitido.`. `apps/api/src/org-units/org-units.service.ts` tem `setSpaceAccess(organizationId: string, orgUnitId: string, body: unknown)`, o texto `A unidade raiz não tem unidade-pai.` numa `ConflictException`, `space.update` com `where: { orgUnitId }`, e uma função `toOrgUnit` usada por `list`, `create`, `rename` e `setSpaceAccess`.
+- [x] CA1.6 — `apps/api/src/spaces/spaces.service.ts`, lido: `list` faz `Promise.all` com a consulta FREE da dona e `orgUnit.findMany({ where: { organizationId }, … })` com `assignments: { where: { personId } }`; resolve o alcance sem recursão de função (laço com pilha), com `Map` de memória e `Set` de visitados. `rg -n "^\s*[^/*].*\b(isAdmin|\$queryRaw|\$transaction)\b" apps/api/src/spaces --glob '!**/__tests__/**'` é vazio.
+- [x] CA1.7 — `pnpm exec vitest run --project api` sai com 0 e existem, conferidos com `rg -n "^\s*(it|test)(\.each)?\(" apps/api/src/spaces/__tests__ apps/api/src/org-units/__tests__`, todos os casos nomeados em T1.5 (`spaces.service.test.ts`: 6; `spaces.integration.test.ts`: 8; `spaces.contract.test.ts`: 1; `org-units.schema.test.ts`: 4; `org-units.service.test.ts`: 4; `org-units.integration.test.ts`: 13; `org-units.contract.test.ts`: 6), com os nomes literais de T1.5. `rg -n "vi\.mock\(.*prisma" apps/api/src/spaces/__tests__/spaces.integration.test.ts apps/api/src/org-units/__tests__/org-units.integration.test.ts` é vazio.
+- [x] CA1.8 — Lendo os testes: `list with another organization id returns nothing` e `setSpaceAccess with another organization id answers 404` chamam o serviço real (instância ligada ao Prisma de teste) com `randomUUID()` como `organizationId`, sobre dados que existem na organização da instalação; `the database rejects inheritsParent on a FREE space` espera rejeição do banco; `rg -n "DROP CONSTRAINT|DISABLE TRIGGER|session_replication_role" apps/api/src apps/api/test` é vazio.
+- [x] CA1.9 — `rg -n "setTimeout\(|sleep\(" apps/api/src/spaces apps/api/src/org-units` é vazio; `rg -n "eslint-disable" apps/api/src | rg -v -- "--"` é vazio.
+- [x] CA1.10 — Cobertura ≥ 80% de linhas para `apps/api/src/spaces/spaces.service.ts`, `apps/api/src/org-units/org-units.schema.ts`, `apps/api/src/org-units/org-units.service.ts` e `apps/api/src/org-units/org-units.controller.ts`, lida em `coverage/coverage-summary.json` gerado na raiz com `pnpm exec vitest run --coverage --coverage.reporter=json-summary`.
 
 ## Fase 2 — Web: botão "Acesso ao espaço" na "Estrutura", diálogo com os dois modos e a barra lateral seguindo a herança
 

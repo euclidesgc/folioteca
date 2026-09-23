@@ -227,6 +227,26 @@ export interface paths {
         patch: operations["updateOrgUnit"];
         trace?: never;
     };
+    "/org-units/{orgUnitId}/space": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Muda quem vê o espaço da unidade
+         * @description Muda quem vê o espaço da unidade, só para a administração: `own` deixa o espaço visível só para quem está lotado na unidade; `inherit` faz quem vê o espaço da unidade-pai ver também este. `inherit` é recusado na raiz com 409, porque ela não tem unidade-pai. Marcar o modo atual devolve 200. As checagens acontecem nesta ordem: 401, 403, 404/400 e por fim 409.
+         */
+        patch: operations["updateOrgUnitSpace"];
+        trace?: never;
+    };
     "/org-units/{orgUnitId}/people": {
         parameters: {
             query?: never;
@@ -534,6 +554,11 @@ export interface components {
             parentId: string | null;
             /** @description Nome da unidade. */
             name: string;
+            /**
+             * @description Quem vê o espaço da unidade: só os lotados nela (own) ou também quem vê o espaço da unidade-pai (inherit).
+             * @enum {string}
+             */
+            spaceAccess: "own" | "inherit";
         };
         OrgUnitsResponse: {
             data: components["schemas"]["OrgUnit"][];
@@ -550,6 +575,13 @@ export interface components {
         UpdateOrgUnitInput: {
             /** @description Novo nome da unidade, aparado e único entre as irmãs sem diferenciar maiúsculas de minúsculas. Na raiz, passa a ser também o nome da organização. */
             name: string;
+        };
+        UpdateOrgUnitSpaceInput: {
+            /**
+             * @description Quem vê o espaço da unidade: só os lotados nela (own) ou também quem vê o espaço da unidade-pai (inherit).
+             * @enum {string}
+             */
+            access: "own" | "inherit";
         };
         AssignedPerson: {
             /** @description Identificador da pessoa. */
@@ -1589,6 +1621,77 @@ export interface operations {
                 };
             };
             /** @description Já existe uma unidade com esse nome neste nível. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateOrgUnitSpace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orgUnitId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateOrgUnitSpaceInput"];
+            };
+        };
+        responses: {
+            /** @description O modo de acesso ao espaço da unidade foi gravado. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrgUnitResponse"];
+                };
+            };
+            /** @description Os dados informados são inválidos. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unidade não encontrada: o id da rota não existe na organização ou está malformado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description A unidade raiz não tem unidade-pai. */
             409: {
                 headers: {
                     [name: string]: unknown;

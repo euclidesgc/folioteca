@@ -3,6 +3,7 @@ import {
   createOrgUnitSchema,
   orgUnitNameSchema,
   updateOrgUnitSchema,
+  updateOrgUnitSpaceSchema,
 } from '../org-units.schema';
 
 const REQUIRED_MESSAGE = 'Informe o nome.';
@@ -97,6 +98,42 @@ test('create rejects an unknown key', () => {
 test('update rejects parentId as an unknown key', () => {
   const result = updateOrgUnitSchema.safeParse({
     name: 'Acervo',
+    parentId: PARENT_ID,
+  });
+
+  expect(result.success).toBe(false);
+  expect(firstMessage(result)).toBe(UNKNOWN_KEY_MESSAGE);
+});
+
+const ACCESS_REQUIRED_MESSAGE = 'Escolha o modo de acesso.';
+
+test('updateOrgUnitSpaceSchema accepts own and inherit', () => {
+  const own = updateOrgUnitSpaceSchema.safeParse({ access: 'own' });
+  const inherit = updateOrgUnitSpaceSchema.safeParse({ access: 'inherit' });
+
+  expect(own.success).toBe(true);
+  expect(own.data).toEqual({ access: 'own' });
+  expect(inherit.success).toBe(true);
+  expect(inherit.data).toEqual({ access: 'inherit' });
+});
+
+test('updateOrgUnitSpaceSchema rejects a missing access with Escolha o modo de acesso.', () => {
+  const result = updateOrgUnitSpaceSchema.safeParse({});
+
+  expect(result.success).toBe(false);
+  expect(firstMessage(result)).toBe(ACCESS_REQUIRED_MESSAGE);
+});
+
+test('updateOrgUnitSpaceSchema rejects an unknown value', () => {
+  const result = updateOrgUnitSpaceSchema.safeParse({ access: 'public' });
+
+  expect(result.success).toBe(false);
+  expect(firstMessage(result)).toBe(ACCESS_REQUIRED_MESSAGE);
+});
+
+test('updateOrgUnitSpaceSchema rejects extra fields with Campo não permitido.', () => {
+  const result = updateOrgUnitSpaceSchema.safeParse({
+    access: 'own',
     parentId: PARENT_ID,
   });
 

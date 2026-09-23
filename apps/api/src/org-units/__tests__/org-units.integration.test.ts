@@ -16,6 +16,7 @@ import {
   HAS_DOCUMENTS_MESSAGE,
   HAS_PEOPLE_MESSAGE,
   ROOT_MESSAGE,
+  OrgUnitsService,
 } from '../org-units.service';
 
 const EMAIL = 'maria@exemplo.org';
@@ -155,6 +156,7 @@ test('creates a child under the root, lists it and creates its UNIT space', asyn
     id: ANY_STRING,
     parentId: rootId,
     name: 'Acervo',
+    spaceAccess: 'own',
   });
 
   const list = await getOrgUnits(adminCookie);
@@ -353,6 +355,7 @@ test('renames a child and the list reflects it', async () => {
     id: unitOf(created).id,
     parentId: rootId,
     name: 'Acervo Geral',
+    spaceAccess: 'own',
   });
 
   const list = await getOrgUnits(adminCookie);
@@ -516,6 +519,7 @@ test('an admin right after installation gets 200 with the single root unit', asy
     id: ANY_STRING,
     parentId: null,
     name: ORGANIZATION_NAME,
+    spaceAccess: 'own',
   });
 });
 
@@ -841,4 +845,231 @@ test('the refusals keep the order root, children, documents, people', async () =
   const withPeople = await deleteOrgUnit(childId, adminCookie);
   expect(withPeople.status).toBe(409);
   expect(messageOf(withPeople)).toBe(HAS_PEOPLE_MESSAGE);
+});
+
+/** Envia `PATCH /api/org-units/:id/space` com o cabeçalho do CSRF. */
+function patchOrgUnitSpace(
+  orgUnitId: string,
+  body: object,
+  cookie?: string,
+): Promise<Response> {
+  const request = httpRequest(app)
+    .patch(`/api/org-units/${orgUnitId}/space`)
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return (cookie === undefined ? request : request.set('Cookie', cookie)).send(
+    body,
+  );
+}
+
+/** Cria, pela API, uma filha da raiz e devolve o id dela. */
+async function createChildId(name = 'Acervo'): Promise<string> {
+  const created = await postOrgUnit(
+    { parentId: await getRootId(), name },
+    adminCookie,
+  );
+
+  return unitOf(created).id;
+}
+
+/** `inheritsParent` do espaço da unidade, lido direto no banco. */
+async function inheritsParentOf(orgUnitId: string): Promise<boolean> {
+  const space = await prisma.space.findUniqueOrThrow({ where: { orgUnitId } });
+
+  return space.inheritsParent;
+}
+
+test('PATCH org-units space sets inherit and GET reflects it', async () => {
+  const childId = await createChildId();
+
+  const response = await patchOrgUnitSpace(
+    childId,
+    { access: 'inherit' },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual({
+    data: {
+      id: childId,
+      parentId: await getRootId(),
+      name: 'Acervo',
+      spaceAccess: 'inherit',
+    },
+  });
+
+  const list = await getOrgUnits(adminCookie);
+  const listed = (list.body as { data: (OrgUnitBody & { spaceAccess: string })[] })
+    .data;
+
+  expect(listed.find((unit) => unit.id === childId)?.spaceAccess).toBe('inherit');
+  expect(await inheritsParentOf(childId)).toBe(true);
+});
+
+test('PATCH org-units space sets own back', async () => {
+  const childId = await createChildId();
+  await patchOrgUnitSpace(childId, { access: 'inherit' }, adminCookie);
+
+  const response = await patchOrgUnitSpace(
+    childId,
+    { access: 'own' },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(200);
+  expect(unitOf(response)).toMatchObject({ id: childId, spaceAccess: 'own' });
+  expect(await inheritsParentOf(childId)).toBe(false);
+});
+
+test('PATCH org-units space is idempotent', async () => {
+  const childId = await createChildId();
+
+  const first = await patchOrgUnitSpace(
+    childId,
+    { access: 'inherit' },
+    adminCookie,
+  );
+  const second = await patchOrgUnitSpace(
+    childId,
+    { access: 'inherit' },
+    adminCookie,
+  );
+  const own = await patchOrgUnitSpace(childId, { access: 'own' }, adminCookie);
+  const ownAgain = await patchOrgUnitSpace(
+    childId,
+    { access: 'own' },
+    adminCookie,
+  );
+
+  expect(first.status).toBe(200);
+  expect(second.status).toBe(200);
+  expect(second.body).toEqual(first.body);
+  expect(own.status).toBe(200);
+  expect(ownAgain.status).toBe(200);
+  expect(ownAgain.body).toEqual(own.body);
+  expect(await inheritsParentOf(childId)).toBe(false);
+});
+
+test('PATCH org-units space answers 409 on the root with A unidade raiz não tem unidade-pai.', async () => {
+  const rootId = await getRootId();
+
+  const response = await patchOrgUnitSpace(
+    rootId,
+    { access: 'inherit' },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(409);
+  expect(messageOf(response)).toBe('A unidade raiz não tem unidade-pai.');
+  expect(await inheritsParentOf(rootId)).toBe(false);
+});
+
+test('PATCH org-units space rejects an empty body with 400', async () => {
+  const childId = await createChildId();
+
+  const response = await patchOrgUnitSpace(childId, {}, adminCookie);
+
+  expect(response.status).toBe(400);
+  expect(messageOf(response)).toBe(INVALID_MESSAGE);
+  expect(await inheritsParentOf(childId)).toBe(false);
+});
+
+test('PATCH org-units space rejects an invalid value with 400', async () => {
+  const childId = await createChildId();
+
+  const response = await patchOrgUnitSpace(
+    childId,
+    { access: 'public' },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(400);
+  expect(await inheritsParentOf(childId)).toBe(false);
+});
+
+test('PATCH org-units space rejects extra fields with 400', async () => {
+  const childId = await createChildId();
+
+  const response = await patchOrgUnitSpace(
+    childId,
+    { access: 'inherit', parentId: randomUUID() },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(400);
+  expect(await inheritsParentOf(childId)).toBe(false);
+});
+
+test('PATCH org-units space answers 404 for an unknown id', async () => {
+  const response = await patchOrgUnitSpace(
+    randomUUID(),
+    { access: 'inherit' },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(404);
+  expect(messageOf(response)).toBe(NOT_FOUND_MESSAGE);
+});
+
+test('PATCH org-units space answers 404 for a malformed id', async () => {
+  const response = await patchOrgUnitSpace(
+    'nao-e-uuid',
+    { access: 'inherit' },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(404);
+  expect(messageOf(response)).toBe(NOT_FOUND_MESSAGE);
+});
+
+/**
+ * A organização é única por instância (check `Organization_singleton_check`),
+ * então o escopo é provado no serviço real, contra o mesmo Postgres, com um
+ * `organizationId` que não é o da instalação.
+ */
+test('setSpaceAccess with another organization id answers 404', async () => {
+  const childId = await createChildId();
+  const orgUnits = app.get(OrgUnitsService);
+
+  await expect(
+    orgUnits.setSpaceAccess(randomUUID(), childId, { access: 'inherit' }),
+  ).rejects.toThrow(NOT_FOUND_MESSAGE);
+  expect(await inheritsParentOf(childId)).toBe(false);
+});
+
+test('PATCH org-units space answers 403 to a non-admin', async () => {
+  const childId = await createChildId();
+  const { cookie } = await createPersonWithSession(app, {
+    name: 'João Souza',
+    email: 'joao@exemplo.org',
+  });
+
+  const response = await patchOrgUnitSpace(childId, { access: 'inherit' }, cookie);
+
+  expect(response.status).toBe(403);
+  expect(messageOf(response)).toBe(FORBIDDEN_MESSAGE);
+  expect(await inheritsParentOf(childId)).toBe(false);
+});
+
+test('PATCH org-units space answers 401 without session', async () => {
+  const childId = await createChildId();
+
+  const response = await patchOrgUnitSpace(childId, { access: 'inherit' });
+
+  expect(response.status).toBe(401);
+  expect(await inheritsParentOf(childId)).toBe(false);
+});
+
+test('the database rejects inheritsParent on a FREE space', async () => {
+  await expect(
+    prisma.space.create({
+      data: {
+        type: 'FREE',
+        organizationId: adminPerson.organizationId,
+        ownerId: adminPerson.id,
+        name: 'Projeto Alfa',
+        inheritsParent: true,
+      },
+    }),
+  ).rejects.toThrow(/Space_inherits_parent_unit_check/);
 });

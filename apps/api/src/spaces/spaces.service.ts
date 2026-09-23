@@ -16,50 +16,110 @@ type SpacesResponse = components['schemas']['SpacesResponse'];
  */
 const collator = new Intl.Collator('pt-BR', { sensitivity: 'base' });
 
+type ReachUnit = {
+  id: string;
+  parentId: string | null;
+  space: { inheritsParent: boolean } | null;
+  assignments: unknown[];
+};
+
+/**
+ * Builds the memoized "does the person reach this unit's space" check. A unit
+ * is reached when the person is assigned to it, or when its space inherits
+ * and the parent is reached. Resolution is iterative: it climbs the parents
+ * stacking the unresolved units and resolves them on the way back, so a deep
+ * tree cannot overflow the call stack. A unit revisited within the same climb
+ * (a parent cycle) counts as not reached.
+ */
+function resolveReach(units: ReachUnit[]): (unitId: string) => boolean {
+  const byId = new Map(units.map((unit) => [unit.id, unit]));
+  const memo = new Map<string, boolean>();
+
+  return (unitId) => {
+    const pending: ReachUnit[] = [];
+    const visited = new Set<string>();
+    let current = byId.get(unitId);
+    let result = false;
+
+    while (current) {
+      const known = memo.get(current.id);
+      if (known !== undefined) {
+        result = known;
+        break;
+      }
+      if (visited.has(current.id)) {
+        result = false;
+        break;
+      }
+      visited.add(current.id);
+
+      if (current.assignments.length > 0) {
+        memo.set(current.id, true);
+        result = true;
+        break;
+      }
+      if (current.space?.inheritsParent !== true || current.parentId === null) {
+        memo.set(current.id, false);
+        result = false;
+        break;
+      }
+
+      pending.push(current);
+      current = byId.get(current.parentId);
+    }
+
+    for (const unit of pending) {
+      memo.set(unit.id, result);
+    }
+
+    return memo.get(unitId) ?? result;
+  };
+}
+
 @Injectable()
 export class SpacesService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Os espaços das unidades em que a pessoa está lotada diretamente e os
-   * espaços livres de que ela é dona, sempre na organização dela. Ser
-   * administração não amplia a lista, e lotação numa unidade não traz as
-   * unidades acima nem abaixo dela.
+   * Os espaços das unidades que a pessoa alcança e os espaços livres de que
+   * ela é dona, sempre na organização dela. Alcança o espaço de uma unidade
+   * quem está lotado nela ou, se o espaço herda da unidade-pai, quem alcança
+   * o espaço da mãe (em cadeia, enquanto os espaços herdam). Ser
+   * administração não amplia a lista.
    */
   async list(organizationId: string, personId: string): Promise<SpacesResponse> {
-    const rows = await this.prisma.space.findMany({
-      where: {
-        OR: [
-          {
-            type: 'UNIT',
-            orgUnit: { organizationId, assignments: { some: { personId } } },
-          },
-          { type: 'FREE', organizationId, ownerId: personId },
-        ],
-      },
-      select: {
-        id: true,
-        type: true,
-        name: true,
-        orgUnit: { select: { name: true } },
-      },
-    });
+    const [freeRows, units] = await Promise.all([
+      this.prisma.space.findMany({
+        where: { type: 'FREE', organizationId, ownerId: personId },
+        select: { id: true, name: true },
+      }),
+      this.prisma.orgUnit.findMany({
+        where: { organizationId },
+        select: {
+          id: true,
+          parentId: true,
+          name: true,
+          space: { select: { id: true, inheritsParent: true } },
+          assignments: { where: { personId }, select: { personId: true } },
+        },
+      }),
+    ]);
 
-    const data = rows
-      .flatMap((row): Space[] => {
-        // Só o espaço de unidade tem `orgUnit` (a restrição da 0013 proíbe
-        // unidade no espaço livre), então a presença dela já decide o tipo.
-        if (row.orgUnit) {
-          return [{ id: row.id, type: 'unit', name: row.orgUnit.name }];
-        }
-        if (row.type === 'FREE' && row.name !== null) {
-          return [{ id: row.id, type: 'free', name: row.name }];
-        }
-        return [];
-      })
-      .sort(
-        (a, b) => collator.compare(a.name, b.name) || a.id.localeCompare(b.id),
-      );
+    const reaches = resolveReach(units);
+
+    const unitSpaces = units.flatMap((unit): Space[] =>
+      unit.space && reaches(unit.id)
+        ? [{ id: unit.space.id, type: 'unit', name: unit.name }]
+        : [],
+    );
+
+    const freeSpaces = freeRows.flatMap((row): Space[] =>
+      row.name === null ? [] : [{ id: row.id, type: 'free', name: row.name }],
+    );
+
+    const data = [...unitSpaces, ...freeSpaces].sort(
+      (a, b) => collator.compare(a.name, b.name) || a.id.localeCompare(b.id),
+    );
 
     return { data };
   }

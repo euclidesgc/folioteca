@@ -631,6 +631,70 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /org-units/{orgUnitId}/space:
+    patch:
+      operationId: updateOrgUnitSpace
+      tags:
+        - org-units
+      summary: Muda quem vê o espaço da unidade
+      description: >-
+        Muda quem vê o espaço da unidade, só para a administração: `own` deixa
+        o espaço visível só para quem está lotado na unidade; `inherit` faz
+        quem vê o espaço da unidade-pai ver também este. `inherit` é recusado
+        na raiz com 409, porque ela não tem unidade-pai. Marcar o modo atual
+        devolve 200. As checagens acontecem nesta ordem: 401, 403, 404/400 e
+        por fim 409.
+      parameters:
+        - name: orgUnitId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrgUnitSpaceInput"
+      responses:
+        "200":
+          description: O modo de acesso ao espaço da unidade foi gravado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrgUnitResponse"
+        "400":
+          description: Os dados informados são inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            Unidade não encontrada: o id da rota não existe na organização ou
+            está malformado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: A unidade raiz não tem unidade-pai.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /org-units/{orgUnitId}/people:
     get:
       operationId: getOrgUnitPeople
@@ -1460,10 +1524,17 @@ components:
         name:
           type: string
           description: Nome da unidade.
+        spaceAccess:
+          type: string
+          enum: [own, inherit]
+          description: >-
+            Quem vê o espaço da unidade: só os lotados nela (own) ou também
+            quem vê o espaço da unidade-pai (inherit).
       required:
         - id
         - parentId
         - name
+        - spaceAccess
     OrgUnitsResponse:
       type: object
       properties:
@@ -1510,6 +1581,18 @@ components:
             o nome da organização.
       required:
         - name
+      additionalProperties: false
+    UpdateOrgUnitSpaceInput:
+      type: object
+      properties:
+        access:
+          type: string
+          enum: [own, inherit]
+          description: >-
+            Quem vê o espaço da unidade: só os lotados nela (own) ou também
+            quem vê o espaço da unidade-pai (inherit).
+      required:
+        - access
       additionalProperties: false
     AssignedPerson:
       type: object
