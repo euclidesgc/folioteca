@@ -149,7 +149,7 @@ Caminhos relativos à raiz do repositório. A ordem importa: API simulada e cham
 
 ## Fase 3 — e2e da jornada e documentação: a fatia utilizável de ponta a ponta
 
-- [ ] T3.1 — Documentação: subtítulo de seção e arquitetura
+- [x] T3.1 — Documentação: subtítulo de seção e arquitetura
   - Arquivos: `docs/design.md` (alterar); `docs/architecture.md` (alterar)
   - O que fazer, em pt_BR:
     - `docs/design.md`: se ainda não constar, receita **"Subtítulo de seção"** (fatia 128) em "Padrões acrescentados pelas entregas": `<h2>` com `mt-8 text-lg font-semibold`, abrindo uma seção abaixo do conteúdo principal da página.
@@ -157,7 +157,7 @@ Caminhos relativos à raiz do repositório. A ordem importa: API simulada e cham
   - Skills: interface-design
   - Complexidade: baixa
 
-- [ ] T3.2 — Testes da fase 3 (e2e: o lotado se vê com "você", o herdado vê o vazio, só pelo teclado)
+- [x] T3.2 — Testes da fase 3 (e2e: o lotado se vê com "você", o herdado vê o vazio, só pelo teclado)
   - Arquivos: `apps/web/e2e/tests/unit-space-members.spec.ts` (criar)
   - O que fazer (D8): API simulada, estado inicial por `page.addInitScript` com `mock-org-units=sample`, como os specs existentes. `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo; `toBeFocused()` antes de cada `Enter`/`Space`; nenhum `waitForTimeout`; nenhuma regra do axe desativada; outros specs e `apps/web/e2e/a11y.ts` intocados.
     - `a direct member sees themselves first with você and a colleague below`: navega pelo teclado até o espaço da unidade de lotação direta, vê o `heading` "Pessoas nesta unidade", o primeiro item da lista com o próprio nome e "você" e o colega da semente num item seguinte, `expectNoSeriousA11yViolations(page)`.
@@ -168,11 +168,11 @@ Caminhos relativos à raiz do repositório. A ordem importa: API simulada e cham
 
 ### Critérios de aceite da fase 3
 
-- [ ] CA3.1 — `pnpm test:e2e` na raiz sai com 0 (os e2e antigos e os novos), e `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` continuam saindo com 0 e sem aviso, com o cache do `tsc` limpo.
-- [ ] CA3.2 — `apps/web/e2e/tests/unit-space-members.spec.ts` contém os casos `a direct member sees themselves first with você and a colleague below` e `an inherited member sees the empty members message`, e `pnpm --filter web exec playwright test --list` os lista. `rg -n "test\.skip|test\.only|waitForTimeout|disableRules" apps/web/e2e/tests/unit-space-members.spec.ts` é vazio.
-- [ ] CA3.3 — Lendo o spec: `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo; a primeira asserção após cada mudança de rota usa `ROUTE_TIMEOUT` (uma asserção seguinte com timeout maior é aceita desde que a rota já tenha sido conferida com `ROUTE_TIMEOUT`); `toBeFocused()` antes de cada tecla de ação; `expectNoSeriousA11yViolations(page)` nos dois casos; o primeiro assere "você" no primeiro item da lista "Pessoas nesta unidade" e o colega num item seguinte; o segundo assere o texto `Ninguém está lotado diretamente nesta unidade.`.
-- [ ] CA3.4 — `docs/design.md` contém a receita "Subtítulo de seção" com `mt-8 text-lg font-semibold`; `docs/architecture.md` tem o parágrafo "Entrega `unit-space-members` (fatia 128)" citando `GET /spaces/{spaceId}`, `reach`, `GET /spaces/{spaceId}/members` e `ptBrCollator`, e, lido, não afirma mais que não existe rota do espaço por id.
-- [ ] CA3.5 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `GET space answers 200 with reach direct and the unit name to a direct member` e `GET space members lists the caller first with isCurrentPerson then Álvaro before Zilda`; `pnpm exec vitest run --project web` (0) inclui `a unit space shows the members after unitContent` e `the space page does not request GET spaces`; `pnpm test:e2e` (0) inclui os dois casos de `unit-space-members.spec.ts`.
+- [x] CA3.1 — `pnpm test:e2e` na raiz sai com 0 (os e2e antigos e os novos), e `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` continuam saindo com 0 e sem aviso, com o cache do `tsc` limpo.
+- [x] CA3.2 — `apps/web/e2e/tests/unit-space-members.spec.ts` contém os casos `a direct member sees themselves first with você and a colleague below` e `an inherited member sees the empty members message`, e `pnpm --filter web exec playwright test --list` os lista. `rg -n "test\.skip|test\.only|waitForTimeout|disableRules" apps/web/e2e/tests/unit-space-members.spec.ts` é vazio.
+- [x] CA3.3 — Lendo o spec: `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo; a primeira asserção após cada mudança de rota usa `ROUTE_TIMEOUT` (uma asserção seguinte com timeout maior é aceita desde que a rota já tenha sido conferida com `ROUTE_TIMEOUT`); `toBeFocused()` antes de cada tecla de ação; `expectNoSeriousA11yViolations(page)` nos dois casos; o primeiro assere "você" no primeiro item da lista "Pessoas nesta unidade" e o colega num item seguinte; o segundo assere o texto `Ninguém está lotado diretamente nesta unidade.`.
+- [x] CA3.4 — `docs/design.md` contém a receita "Subtítulo de seção" com `mt-8 text-lg font-semibold`; `docs/architecture.md` tem o parágrafo "Entrega `unit-space-members` (fatia 128)" citando `GET /spaces/{spaceId}`, `reach`, `GET /spaces/{spaceId}/members` e `ptBrCollator`, e, lido, não afirma mais que não existe rota do espaço por id.
+- [x] CA3.5 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `GET space answers 200 with reach direct and the unit name to a direct member` e `GET space members lists the caller first with isCurrentPerson then Álvaro before Zilda`; `pnpm exec vitest run --project web` (0) inclui `a unit space shows the members after unitContent` e `the space page does not request GET spaces`; `pnpm test:e2e` (0) inclui os dois casos de `unit-space-members.spec.ts`.
 
 ## DoD da entrega
 

@@ -651,9 +651,7 @@ instância não dá espaço de unidade nenhum. O "não encontrado" é **um só e
 tela, por construção**: a página do espaço procura o id na lista da própria
 pessoa, então espaço inexistente, de outra organização ou de unidade em que ela
 não está lotada caem no mesmo "Espaço não encontrado." sem nenhuma resposta
-distinta do servidor. **Não há rota por id** até a primeira rota por id (128/134), que usará `findFirst`
-escopado por organização e lotação e responderá um **404 opaco, sem `isUuid`**,
-pela mesma razão da 114. A fatia 127 trouxe `GET /spaces/{spaceId}/documents`,
+distinta do servidor (até a 128, que troca a lista por `GET /spaces/{spaceId}`). A fatia 127 trouxe `GET /spaces/{spaceId}/documents`,
 com `isUuid` antes da consulta. Vale para `/spaces` a regra de `/admins`: **nenhum
 segmento literal sob `/spaces/`**, porque casaria com o futuro `{spaceId}`.
 **Nenhuma migration**: o esquema já tinha tudo o que a leitura precisa.
@@ -716,6 +714,22 @@ nasce no espaço pessoal, como antes; com ele, nasce no espaço `UNIT` em que a
 pessoa está lotada diretamente, e qualquer outro espaço (inclusive o alcançado
 só por herança) é o mesmo 404 opaco. A regra 10 da fronteira (§3) garante que
 só `access.service.ts` filtra `Document` por `assignments`.
+
+**Entrega `unit-space-members` (fatia 128)**: `GET /spaces/{spaceId}` devolve
+o espaço com `reach` — `owner` para o dono do espaço livre, `direct` ou
+`inherited` para o espaço de unidade — na ordem **401 → 404**, sem 403: id
+malformado (`isUuid`), espaço inexistente, pessoal, livre de outra pessoa, de
+outra organização ou fora de alcance, o mesmo 404 "Espaço não encontrado.".
+`isAdmin` continua não ampliando o alcance. `GET /spaces/{spaceId}/members`
+lista quem está **lotado diretamente** na unidade para quem a alcança direto
+ou por herança, com **quem pede primeiro** (`isCurrentPerson`) e o resto por
+nome e e-mail; mesma ordem **401 → 404**, sem 403, e espaço livre é 404. A
+ordenação é em memória com `ptBrCollator` (`common/pt-br-collator.ts`), que
+também ordena o `GET /spaces`, porque a collation do Postgres varia por
+instância. Na tela, a página do espaço **lê o espaço por id** (`useSpace`,
+chave `['space', id]`, `staleTime: 0`, fora do prefixo `['spaces']` que as
+mutações invalidam) em vez de procurar na lista, e o 404 vira o estado
+"Espaço não encontrado."; a barra lateral segue em `GET /spaces`.
 
 ## 7. Testes
 
