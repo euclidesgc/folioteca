@@ -23,7 +23,7 @@
 | 012 | unit-spaces | ver na barra lateral uma seção "Unidades" com as unidades em que está lotado e abrir a página do espaço de cada uma, com o nome da unidade e o aviso de que documentos chegam depois | pedido inicial | 010 | in-review |
 | 128 | unit-space-members | ver na página do espaço de uma unidade quem mais está lotado direto nela, com nome, e-mail e a marcação "você"; traz a rota por id do espaço (`findFirst` escopado, 404 opaco sem `isUuid`), para a página do espaço deixar de baixar a lista inteira de `GET /spaces` | 012 unit-spaces, dívida 012 | 012 | planned |
 | 127 | unit-space-documents | criar um documento no espaço de uma unidade em que está lotado, vê-lo na lista do espaço e ter os membros diretos abrindo e editando esse documento; quem sai da unidade perde o acesso na hora | 012 unit-spaces | 012 | planned |
-| 013 | free-spaces | criar um espaço livre com um nome e vê-lo na barra lateral, já como dono dele | pedido inicial | 086 | in-progress |
+| 013 | free-spaces | criar um espaço livre com um nome e vê-lo na barra lateral, já como dono dele | pedido inicial | 086 | in-review |
 | 134 | free-space-invite | (dono do espaço) adicionar ao espaço livre uma pessoa da instância, que passa a vê-lo na barra lateral na hora (traz a tabela de membros do espaço) | 013 free-spaces | 013 | planned |
 | 135 | free-space-members | ver quem é membro do espaço livre e (dono do espaço) remover alguém, que perde o espaço na hora | 013 free-spaces | 134 | planned |
 | 136 | free-space-documents | criar documentos no espaço livre e ter os membros abrindo e editando esses documentos; quem sai do espaço perde o acesso na hora | 013 free-spaces | 127, 134 | planned |
