@@ -3,7 +3,7 @@ import { http, HttpResponse } from 'msw';
 import { env } from '@/config/env';
 import type { CurrentUserResponse, LoginBody } from '@/types/api';
 
-import { getDb } from '../db';
+import { clearSignedInPerson, getDb, getSignedInPerson } from '../db';
 import { devOverride, networkDelay, SESSION_COOKIE_NAME } from '../utils';
 
 type FieldError = { field: string; message: string };
@@ -40,8 +40,11 @@ export const authHandlers = [
 
     const { installation } = getDb();
     const hasSession = Boolean(cookies[SESSION_COOKIE_NAME]);
+    // Not always the installed person: accepting an invitation signs the new
+    // person in.
+    const person = getSignedInPerson();
 
-    if (!installation || !hasSession) {
+    if (!installation || !hasSession || !person) {
       return HttpResponse.json(
         { message: 'Sessão não encontrada.' },
         { status: 401 },
@@ -50,7 +53,7 @@ export const authHandlers = [
 
     const body: CurrentUserResponse = {
       data: {
-        person: installation.person,
+        person,
         organization: installation.organization,
       },
     };
@@ -95,7 +98,8 @@ export const authHandlers = [
 
     const body: CurrentUserResponse = {
       data: {
-        person: installation.person,
+        // Same source as GET /auth/me: who the session belongs to.
+        person: getSignedInPerson() ?? installation.person,
         organization: installation.organization,
       },
     };
@@ -108,6 +112,7 @@ export const authHandlers = [
     if (forced) return forced;
 
     document.cookie = `${SESSION_COOKIE_NAME}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    clearSignedInPerson();
 
     return new HttpResponse(null, { status: 204 });
   }),

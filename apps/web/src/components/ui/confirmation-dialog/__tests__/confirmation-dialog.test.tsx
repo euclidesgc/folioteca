@@ -139,6 +139,95 @@ test('renders the confirm slot after Cancelar and clicking it does not close the
   expect(screen.getByRole('alertdialog')).toBeInTheDocument();
 });
 
+// Without a trigger the dialog is opened only by the `open` prop, and the
+// caller owns the focus when it closes: this harness keeps a button of its
+// own outside the dialog, like a row that opened it.
+function TriggerlessHarness({
+  onCloseAutoFocus,
+}: {
+  onCloseAutoFocus?: (event: Event) => void;
+}): React.JSX.Element {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <>
+      <Button onClick={() => setIsOpen(true)}>Abrir de fora</Button>
+      <Button>Outro botão</Button>
+      <ConfirmationDialog
+        open={isOpen}
+        onOpenChange={setIsOpen}
+        onCloseAutoFocus={onCloseAutoFocus}
+        title={TITLE}
+        description={DESCRIPTION}
+        confirmButton={<Button variant="destructive">Apagar</Button>}
+      />
+    </>
+  );
+}
+
+test('without trigger it renders no trigger button and opens by the open prop', async () => {
+  const user = userEvent.setup();
+  render(<TriggerlessHarness />);
+
+  expect(screen.getAllByRole('button')).toHaveLength(2);
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: 'Abrir de fora' }));
+
+  const dialog = await screen.findByRole('alertdialog');
+  expect(dialog).toHaveAccessibleName(TITLE);
+  expect(screen.getByRole('button', { name: 'Cancelar' })).toHaveFocus();
+});
+
+test('calls onCloseAutoFocus when closing', async () => {
+  const user = userEvent.setup();
+  const onCloseAutoFocus = vi.fn();
+  render(<TriggerlessHarness onCloseAutoFocus={onCloseAutoFocus} />);
+
+  await user.click(screen.getByRole('button', { name: 'Abrir de fora' }));
+  await screen.findByRole('alertdialog');
+  expect(onCloseAutoFocus).not.toHaveBeenCalled();
+
+  await user.keyboard('{Escape}');
+
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  expect(onCloseAutoFocus).toHaveBeenCalledTimes(1);
+});
+
+test('preventDefault in onCloseAutoFocus keeps the focus where the caller put it', async () => {
+  const user = userEvent.setup();
+  render(
+    <TriggerlessHarness
+      onCloseAutoFocus={(event) => {
+        event.preventDefault();
+        screen.getByRole('button', { name: 'Outro botão' }).focus();
+      }}
+    />,
+  );
+
+  await user.click(screen.getByRole('button', { name: 'Abrir de fora' }));
+  await screen.findByRole('alertdialog');
+
+  await user.keyboard('{Escape}');
+
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Outro botão' })).toHaveFocus();
+});
+
+test('existing usages with trigger keep working', async () => {
+  const user = userEvent.setup();
+  render(<Harness />);
+
+  const trigger = screen.getByRole('button', {
+    name: 'Apagar definitivamente',
+  });
+  expect(trigger).toBeInTheDocument();
+
+  await user.click(trigger);
+
+  expect(await screen.findByRole('alertdialog')).toHaveAccessibleName(TITLE);
+});
+
 test('uses a custom cancelLabel', async () => {
   const user = userEvent.setup();
   render(<Harness cancelLabel="Voltar" />);

@@ -8,6 +8,7 @@ import { createRoutes } from '@/app/router';
 import { env } from '@/config/env';
 import { paths } from '@/config/paths';
 import { createOrgUnit } from '@/features/org-units/api/create-org-unit';
+import { deleteOrgUnit } from '@/features/org-units/api/delete-org-unit';
 import { getOrgUnits } from '@/features/org-units/api/get-org-units';
 import { updateOrgUnit } from '@/features/org-units/api/update-org-unit';
 import { queryConfig } from '@/lib/react-query';
@@ -218,5 +219,14 @@ test('updateOrgUnit called directly by a person who is not admin gets 403 from t
       orgUnitId: ROOT_ORG_UNIT_ID,
       data: { name: 'Outro nome' },
     }),
+  ).rejects.toMatchObject({ response: { status: 403 } });
+});
+
+test('deleteOrgUnit called directly by a person who is not admin gets 403 from the default handler', async () => {
+  seedInstalled({ signedIn: true, isAdmin: false });
+  seedSampleOrgUnits();
+
+  await expect(
+    deleteOrgUnit({ orgUnitId: 'org-unit-restauro' }),
   ).rejects.toMatchObject({ response: { status: 403 } });
 });

@@ -32,6 +32,22 @@ export function SidebarAdmin(): React.JSX.Element {
               Estrutura
             </NavLink>
           </li>
+          <li>
+            <NavLink
+              to={paths.admin.invitations.getHref()}
+              className={adminItemClassName}
+            >
+              Convites
+            </NavLink>
+          </li>
+          <li>
+            <NavLink
+              to={paths.admin.admins.getHref()}
+              className={adminItemClassName}
+            >
+              Administradores
+            </NavLink>
+          </li>
         </ul>
       </nav>
     </Authorization>

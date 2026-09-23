@@ -14,8 +14,10 @@ model Organization {
   singleton Boolean  @unique @default(true)
   createdAt DateTime @default(now())
 
-  orgUnits OrgUnit[]
-  people   Person[]
+  orgUnits    OrgUnit[]
+  people      Person[]
+  invitations Invitation[]
+  spaces      Space[]
 }
 
 /// Unidade organizacional; a raiz tem `parentId` nulo.
@@ -34,12 +36,31 @@ model OrgUnit {
   name           String
   createdAt      DateTime @default(now())
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  parent       OrgUnit?     @relation("OrgUnitToParent", fields: [parentId], references: [id])
-  children     OrgUnit[]    @relation("OrgUnitToParent")
+  organization Organization        @relation(fields: [organizationId], references: [id])
+  parent       OrgUnit?            @relation("OrgUnitToParent", fields: [parentId], references: [id], onDelete: Restrict)
+  children     OrgUnit[]           @relation("OrgUnitToParent")
   space        Space?
+  assignments  OrgUnitAssignment[]
 
   @@index([parentId])
+}
+
+/// Lotação: a pessoa está lotada na unidade. Uma pessoa pode estar lotada em
+/// várias unidades, e a chave primária composta é a única garantia de que ela
+/// não se lota duas vezes na mesma — não há consulta prévia de duplicidade em
+/// lugar nenhum, o 409 nasce do índice. Esta linha **não dá acesso a
+/// documento**: nada em `access/` a lê, e é o teste estrutural de fronteira
+/// que segura isso.
+model OrgUnitAssignment {
+  orgUnitId String
+  personId  String
+  createdAt DateTime @default(now())
+
+  orgUnit OrgUnit @relation(fields: [orgUnitId], references: [id], onDelete: Restrict)
+  person  Person  @relation(fields: [personId], references: [id], onDelete: Restrict)
+
+  @@id([orgUnitId, personId])
+  @@index([personId])
 }
 
 model Person {
@@ -51,12 +72,15 @@ model Person {
   isAdmin        Boolean  @default(false)
   createdAt      DateTime @default(now())
 
-  organization      Organization @relation(fields: [organizationId], references: [id])
-  space             Space?
+  organization      Organization        @relation(fields: [organizationId], references: [id])
+  space             Space?              @relation("PersonalSpace")
+  ownedSpaces       Space[]             @relation("SpaceOwner")
   sessions          Session[]
-  authoredDocuments Document[]   @relation("DocumentAuthor")
-  ownedDocuments    Document[]   @relation("DocumentOwner")
+  authoredDocuments Document[]          @relation("DocumentAuthor")
+  ownedDocuments    Document[]          @relation("DocumentOwner")
   favorites         Favorite[]
+  sentInvitations   Invitation[]        @relation("InvitationInviter")
+  assignments       OrgUnitAssignment[]
 }
 
 enum SpaceType {
@@ -66,16 +90,27 @@ enum SpaceType {
 }
 
 /// Espaço de documentos: pessoal, de unidade ou livre.
+///
+/// The type/owner check constraint (`Space_type_owner_check`: which columns
+/// each type requires or forbids) cannot be expressed by Prisma, so it lives
+/// only in the handwritten migrations `0002` and `0013`.
 model Space {
-  id        String    @id @default(uuid())
-  type      SpaceType
-  personId  String?   @unique
-  orgUnitId String?   @unique
-  createdAt DateTime  @default(now())
+  id             String    @id @default(uuid())
+  type           SpaceType
+  personId       String?   @unique
+  orgUnitId      String?   @unique
+  organizationId String?
+  name           String?
+  ownerId        String?
+  createdAt      DateTime  @default(now())
 
-  person    Person?    @relation(fields: [personId], references: [id])
-  orgUnit   OrgUnit?   @relation(fields: [orgUnitId], references: [id])
-  documents Document[]
+  person       Person?       @relation("PersonalSpace", fields: [personId], references: [id])
+  orgUnit      OrgUnit?      @relation(fields: [orgUnitId], references: [id], onDelete: Restrict)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  owner        Person?       @relation("SpaceOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  documents    Document[]
+
+  @@index([ownerId])
 }
 
 /// Documento de um espaço: quem escreveu (`authorId`) e quem é dono (`ownerId`).
@@ -123,6 +158,40 @@ model DocumentContent {
   updatedAt  DateTime @updatedAt
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}
+
+/// Convite pendente para entrar na organização. Só o sha256 do token é
+/// guardado, como em `Session`: o link em claro existe uma única vez, na
+/// resposta da criação.
+///
+/// `acceptedAt` nulo é convite pendente; preenchido é convite já usado, que a
+/// linha guarda como auditoria de quem entrou por convite. `revokedAt` segue a
+/// mesma ideia: a administração corta o convite marcando a data, e a linha
+/// nunca é apagada, para continuar respondendo "este link foi revogado quando".
+///
+/// Um índice único por expressão (`lower("email")`) garante "um convite
+/// pendente por e-mail" e o Prisma não sabe expressá-lo: ele vive só nas
+/// migrations `0009`, `0010` e `0011` escritas à mão. Ele é **parcial**, e o
+/// predicado vigente, desde a `0011`, é
+/// `WHERE "acceptedAt" IS NULL AND "revokedAt" IS NULL`: um e-mail cujo convite
+/// foi aceito ou revogado pode ser convidado de novo. Como na `0007`, ele é
+/// invisível a este schema, e por isso o comando de diff de migrations do
+/// Prisma nunca pode ser rodado aqui: ele apagaria o índice.
+model Invitation {
+  id             String    @id @default(uuid())
+  organizationId String
+  email          String
+  tokenHash      String    @unique
+  invitedById    String
+  createdAt      DateTime  @default(now())
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  revokedAt      DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  invitedBy    Person       @relation("InvitationInviter", fields: [invitedById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, createdAt(sort: Desc)])
 }
 
 /// Sessão opaca: só o sha256 do token é guardado.

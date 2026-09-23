@@ -583,6 +583,684 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteOrgUnit
+      tags:
+        - org-units
+      summary: Apaga a unidade e o espaço dela
+      description: >-
+        Apaga definitivamente a unidade e o espaço `UNIT` dela na mesma
+        operação, só para a administração. As checagens acontecem nesta ordem:
+        CSRF (guarda global), 401, 403, 404 (o id da rota não existe na
+        organização ou está malformado) e por fim 409 — raiz, depois unidades
+        filhas, depois documentos do espaço, nessa ordem.
+      parameters:
+        - name: orgUnitId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: A unidade e o espaço dela foram apagados.
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            Unidade não encontrada: o id da rota não existe na organização ou
+            está malformado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: >-
+            A unidade não pode ser apagada: é a raiz, tem unidades filhas ou o
+            espaço dela ainda tem documentos, inclusive na lixeira.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /org-units/{orgUnitId}/people:
+    get:
+      operationId: getOrgUnitPeople
+      tags:
+        - org-units
+      summary: Lista as pessoas lotadas na unidade
+      description: >-
+        Lista as pessoas lotadas na unidade, só para a administração, ordenada
+        por nome com o colador pt-BR. A unidade vem no mesmo envelope
+        (`orgUnit`) para a página ter o nome dela numa requisição só, sem
+        depender da árvore inteira e sem uma segunda origem de "não
+        encontrada". Unidade inexistente, de outra organização e com id
+        malformado respondem exatamente o mesmo 404.
+      parameters:
+        - name: orgUnitId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: As pessoas lotadas na unidade foram listadas.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssignedPeopleResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            Unidade não encontrada: o id da rota não existe na organização ou
+            está malformado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      operationId: assignPersonToOrgUnit
+      tags:
+        - org-units
+      summary: Lota uma pessoa na unidade
+      description: >-
+        Lota a pessoa na unidade, só para a administração. A raiz aceita
+        lotação como qualquer outra unidade. Lotação repetida responde 409
+        ("Esta pessoa já está lotada nesta unidade."), vindo do índice do
+        banco e sem consulta prévia, para que dois envios simultâneos gerem
+        uma linha só. Unidade inexistente, de outra organização e com id
+        malformado respondem exatamente o mesmo 404; pessoa inexistente, de
+        outra organização e com id malformado respondem "Pessoa não
+        encontrada.". As checagens acontecem nesta ordem: CSRF (guarda
+        global), 401, 403, 404 da unidade, 400 do corpo, 404 da pessoa e por
+        fim 409.
+      parameters:
+        - name: orgUnitId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignPersonRequest"
+      responses:
+        "201":
+          description: A pessoa foi lotada na unidade.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssignedPersonResponse"
+        "400":
+          description: Os dados informados são inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            Unidade não encontrada (o id da rota não existe na organização ou
+            está malformado) ou pessoa não encontrada (o `personId` não existe
+            na organização ou está malformado).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Esta pessoa já está lotada nesta unidade.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /org-units/{orgUnitId}/people/{personId}:
+    delete:
+      operationId: removePersonFromOrgUnit
+      tags:
+        - org-units
+      summary: Tira a lotação da pessoa na unidade
+      description: >-
+        Tira a lotação da pessoa na unidade, só para a administração. Apaga
+        **apenas** a linha de lotação: `Person`, `OrgUnit` e `Space` não são
+        tocados, a pessoa continua na instância e continua lotada nas outras
+        unidades em que estiver. Unidade inexistente, de outra organização ou
+        com id malformado respondem "Unidade não encontrada."; pessoa
+        inexistente, de outra organização, com id malformado ou que já não está
+        lotada nesta unidade respondem "Pessoa não encontrada." — um 404 único,
+        para a rota não contar quem existe na instância. As checagens acontecem
+        nesta ordem: CSRF (guarda global), 401, 403, 404 da unidade e 404 da
+        pessoa.
+      parameters:
+        - name: orgUnitId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: A lotação foi apagada.
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            Unidade não encontrada (o id da rota não existe na organização ou
+            está malformado) ou pessoa não encontrada (o `personId` não existe
+            na organização, está malformado ou já não está lotado nesta
+            unidade).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /people:
+    get:
+      operationId: searchPeople
+      tags:
+        - people
+      summary: Busca pessoas da organização por nome ou e-mail
+      description: >-
+        Busca pessoas da organização de quem chama, por parte do nome ou do
+        e-mail, sem diferenciar maiúsculas de minúsculas, só para a
+        administração. O limite é duro, de 10 resultados, e não há parâmetro
+        de limite na rota: `hasMore` avisa que há mais do que o mostrado. `q`
+        ausente, vazio ou só com espaços devolve lista vazia, sem tocar o
+        banco e sem erro — o campo de busca nasce vazio e volta a ficar vazio.
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: As pessoas encontradas foram listadas.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PeopleResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /admins:
+    get:
+      operationId: getAdmins
+      tags:
+        - admins
+      summary: Lista quem administra a organização de quem chama
+      description: >-
+        Lista todas as pessoas com `isAdmin` da organização de quem chama, só
+        para a administração, sem paginação e sem limite. A ordem é
+        alfabética por nome com colador pt-BR, e nenhuma pessoa de outra
+        organização aparece. `GET` não passa pelo `CsrfGuard`, que só cobre
+        método de escrita: a ordem de falha é 401 e depois 403.
+      responses:
+        "200":
+          description: Os administradores foram listados.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminsResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /admins/{personId}:
+    put:
+      operationId: promoteAdmin
+      tags:
+        - admins
+      summary: Promove uma pessoa a administração da instância
+      description: >-
+        Promove a pessoa a administração da instância, só para a
+        administração. A pessoa é sempre procurada **dentro da organização de
+        quem chama**, nunca por id solto. Promover quem já administra responde
+        200, sem erro: promover é idempotente e nada distingue "já era" de
+        "acabou de ser". Pessoa inexistente, de outra organização ou com id
+        malformado respondem o **mesmo** 404, para a rota não contar quem
+        existe na instância. A requisição não tem corpo, e as checagens
+        acontecem nesta ordem: CSRF (guarda global), 401, 403 e 404.
+      parameters:
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A pessoa passou a administrar a instância.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            Pessoa não encontrada (o `personId` não existe na organização de
+            quem chama ou está malformado).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: demoteAdmin
+      tags:
+        - admins
+      summary: Tira o papel de administração de uma pessoa
+      description: >-
+        Tira o papel de administração da pessoa, só para a administração. A
+        pessoa é sempre procurada **dentro da organização de quem chama**,
+        nunca por id solto. Rebaixar quem já é membro responde 200, sem erro e
+        sem escrita: tirar o papel é idempotente. A instância **nunca** fica
+        sem nenhuma administração — tirar o papel da última administração é
+        recusado com 409, e a pessoa continua administrando. Pessoa
+        inexistente, de outra organização ou com id malformado respondem o
+        **mesmo** 404, para a rota não contar quem existe na instância. A
+        requisição não tem corpo, e as checagens acontecem nesta ordem: CSRF
+        (guarda global), 401, 403, 404 e por fim 409.
+      parameters:
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A pessoa deixou de administrar a instância.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            Pessoa não encontrada (o `personId` não existe na organização de
+            quem chama ou está malformado).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: >-
+            É a única administração da instância: o papel não pode ser
+            retirado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /spaces:
+    get:
+      operationId: listSpaces
+      tags:
+        - spaces
+      summary: Lista os espaços de unidade e os espaços livres de quem chama
+      description: >-
+        Lista os espaços de unidade em que a pessoa da sessão está lotada
+        diretamente: lotação numa unidade filha não traz a unidade pai, e não
+        há herança em nenhum sentido. Ser administração não inclui nada a
+        mais. A lista traz também os espaços livres de que a pessoa da sessão
+        é dona, na organização dela, misturados aos de unidade na mesma ordem.
+        A ordem é alfabética pelo nome com colador pt-BR, com desempate pelo
+        id do espaço. A lista é relida a cada pedido, então uma lotação
+        removida some já no pedido seguinte.
+      responses:
+        "200":
+          description: Os espaços de unidade e os espaços livres foram listados.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpacesResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      operationId: createSpace
+      tags:
+        - spaces
+      summary: Cria um espaço livre
+      description: >-
+        Cria um espaço livre na organização da pessoa da sessão, que passa a
+        ser a dona dele. A organização e a dona vêm só da sessão, nunca do
+        corpo. O nome é aparado antes de medir e não precisa ser único.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSpaceInput"
+      responses:
+        "201":
+          description: O espaço livre foi criado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceResponse"
+        "400":
+          description: Os dados informados são inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /invitations:
+    post:
+      operationId: createInvitation
+      tags:
+        - invitations
+      summary: Cria um convite para entrar na organização
+      description: >-
+        Cria um convite para o e-mail informado, só para a administração. O
+        e-mail é aparado e passado para minúsculas; um convite pendente por
+        e-mail, sem diferenciar maiúsculas de minúsculas — convidar o mesmo
+        e-mail de novo substitui o convite anterior, e o link antigo deixa de
+        valer. O token vem em claro só nesta resposta; o servidor guarda
+        apenas o hash dele. As checagens acontecem nesta ordem: CSRF (guarda
+        global), 401, 403, 400 (corpo) e por fim 409 (o e-mail já é de uma
+        pessoa da organização).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInvitationInput"
+      responses:
+        "201":
+          description: O convite foi criado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatedInvitationResponse"
+        "400":
+          description: Os dados informados são inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: O e-mail já é de uma pessoa da organização.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    get:
+      operationId: listInvitations
+      tags:
+        - invitations
+      summary: Lista os convites pendentes da organização
+      description: >-
+        Só a administração. Devolve apenas os convites pendentes — nem
+        aceitos, nem vencidos — do mais recente para o mais antigo. O token
+        nunca sai aqui: o servidor guarda apenas o hash dele.
+      responses:
+        "200":
+          description: Os convites pendentes da organização.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationsResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /invitations/{invitationId}/revoke:
+    post:
+      operationId: revokeInvitation
+      tags:
+        - invitations
+      summary: Revoga um convite pendente
+      description: >-
+        Só a administração. Marca o convite como revogado **sem apagar a
+        linha**, que continua na base como auditoria do que foi convidado e
+        cortado. O link enviado para de funcionar na hora: abrir ou aceitar
+        aquele convite passa a responder o mesmo 404 de um link inexistente.
+        Convite inexistente, de outra organização, já aceito, vencido ou já
+        revogado respondem o **mesmo** 404, com o mesmo corpo: nada aqui
+        diferencia os casos, para a rota não virar um oráculo sobre quais
+        convites existem ou quem já aceitou. As checagens acontecem nesta
+        ordem: CSRF (guarda global), 401, 403 e por fim 404.
+      parameters:
+        - name: invitationId
+          in: path
+          required: true
+          description: Identificador do convite, o mesmo que a lista devolve.
+          schema:
+            type: string
+      responses:
+        "204":
+          description: O convite foi revogado. A resposta não tem corpo.
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            O convite não está disponível. A mesma resposta para convite
+            inexistente, de outra organização, já aceito, vencido ou já
+            revogado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /invitations/{token}:
+    get:
+      operationId: getInvitation
+      tags:
+        - invitations
+      summary: Dados do convite para a tela de criar conta
+      description: >-
+        Rota pública: quem abre o link do convite ainda não tem conta, e o
+        servidor ignora qualquer sessão em curso. Devolve só o que quem recebeu
+        o link já sabe — o e-mail convidado e o nome da organização. Nenhum
+        identificador, nenhuma data e nenhum dado de quem convidou saem daqui.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: >-
+            Token do convite em claro, o mesmo do link recebido; o servidor
+            guarda apenas o hash dele e nunca o registra.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: O convite está pendente.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationPreviewResponse"
+        "404":
+          description: >-
+            O convite não está disponível. A mesma resposta para link
+            inexistente, expirado, já aceito ou revogado: nada no corpo, no
+            código ou no tempo de resposta distingue os casos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /invitations/{token}/accept:
+    post:
+      operationId: acceptInvitation
+      tags:
+        - invitations
+      summary: Aceita o convite, cria a pessoa e abre a sessão dela
+      description: >-
+        Rota pública: aceitar o convite é o que cria a conta, e o servidor
+        ignora qualquer sessão em curso. O e-mail não vem no corpo — é o do
+        convite. A pessoa nasce sem administração e com o espaço pessoal dela.
+        As checagens acontecem nesta ordem: CSRF (guarda global), 400 (corpo),
+        404 (convite) e por fim 409 (o e-mail já é de uma pessoa). Não existe
+        410 para convite expirado ou já aceito: distinguir esses casos do 404
+        seria o oráculo que o convite não pode dar.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: >-
+            Token do convite em claro, o mesmo do link recebido; o servidor
+            guarda apenas o hash dele e nunca o registra.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcceptInvitationInput"
+      responses:
+        "201":
+          description: >-
+            A conta foi criada e a sessão foi aberta. A resposta traz o
+            `Set-Cookie` da sessão, e o corpo é o mesmo de `GET /auth/me`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUserResponse"
+        "400":
+          description: Os dados informados são inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+        "403":
+          description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            O convite não está disponível. A mesma resposta para link
+            inexistente, expirado, já aceito ou revogado: nada no corpo, no
+            código ou no tempo de resposta distingue os casos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: O e-mail do convite já é de uma pessoa da organização.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
   schemas:
     Health:
@@ -829,6 +1507,291 @@ components:
             o nome da organização.
       required:
         - name
+      additionalProperties: false
+    AssignedPerson:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identificador da pessoa.
+        name:
+          type: string
+          description: Nome da pessoa.
+        email:
+          type: string
+          description: >-
+            E-mail da pessoa; quem lê é sempre a administração, e é ele que
+            distingue dois nomes iguais.
+      required:
+        - id
+        - name
+        - email
+    OrgUnitSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identificador da unidade.
+        name:
+          type: string
+          description: Nome da unidade.
+      required:
+        - id
+        - name
+    AssignedPeopleResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssignedPerson"
+        orgUnit:
+          $ref: "#/components/schemas/OrgUnitSummary"
+      required:
+        - data
+        - orgUnit
+    AssignedPersonResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/AssignedPerson"
+      required:
+        - data
+    AssignPersonRequest:
+      type: object
+      properties:
+        personId:
+          type: string
+          minLength: 1
+          description: Identificador da pessoa a lotar na unidade.
+      required:
+        - personId
+      additionalProperties: false
+    PersonSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identificador da pessoa.
+        name:
+          type: string
+          description: Nome da pessoa.
+        email:
+          type: string
+          description: E-mail da pessoa.
+      required:
+        - id
+        - name
+        - email
+    PeopleResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/PersonSummary"
+        hasMore:
+          type: boolean
+          description: >-
+            Verdadeiro quando há mais pessoas casando o termo do que as
+            mostradas.
+      required:
+        - data
+        - hasMore
+    AdminPerson:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identificador da pessoa.
+        name:
+          type: string
+          description: Nome da pessoa.
+        email:
+          type: string
+          description: E-mail da pessoa; distingue duas pessoas com o mesmo nome.
+      required:
+        - id
+        - name
+        - email
+    AdminsResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminPerson"
+      required:
+        - data
+    AdminResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/AdminPerson"
+      required:
+        - data
+    Space:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identificador do espaço (não da unidade).
+        type:
+          type: string
+          enum:
+            - unit
+            - free
+          description: Tipo do espaço, de unidade ou livre.
+        name:
+          type: string
+          description: >-
+            Nome da unidade, no espaço de unidade; nome dado pelo dono, no
+            espaço livre.
+      required:
+        - id
+        - type
+        - name
+      additionalProperties: false
+    SpacesResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Space"
+      required:
+        - data
+    SpaceResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Space"
+      required:
+        - data
+    CreateSpaceInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+          description: Nome do espaço livre, contado depois de aparar os espaços.
+      required:
+        - name
+      additionalProperties: false
+    CreateInvitationInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: >-
+            E-mail de quem está sendo convidado, aparado e passado para
+            minúsculas antes de gravar.
+      required:
+        - email
+      additionalProperties: false
+    CreatedInvitation:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identificador do convite.
+        email:
+          type: string
+          format: email
+          description: E-mail convidado, já normalizado.
+        expiresAt:
+          type: string
+          format: date-time
+          description: Quando o convite deixa de valer; sete dias depois da criação.
+        createdAt:
+          type: string
+          format: date-time
+          description: Quando o convite foi criado.
+        token:
+          type: string
+          description: >-
+            Token do convite em claro. Devolvido uma única vez, na criação; o
+            servidor guarda só o hash e não tem como mostrá-lo de novo.
+      required:
+        - id
+        - email
+        - expiresAt
+        - createdAt
+        - token
+    CreatedInvitationResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CreatedInvitation"
+      required:
+        - data
+    Invitation:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identificador do convite.
+        email:
+          type: string
+          format: email
+          description: E-mail convidado, já normalizado.
+        createdAt:
+          type: string
+          format: date-time
+          description: Quando o convite foi criado.
+        expiresAt:
+          type: string
+          format: date-time
+          description: Quando o convite deixa de valer.
+      required:
+        - id
+        - email
+        - createdAt
+        - expiresAt
+    InvitationsResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Invitation"
+      required:
+        - data
+    InvitationPreview:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: E-mail convidado, o mesmo que a conta nova terá.
+        organizationName:
+          type: string
+          description: Nome da organização que convidou.
+      required:
+        - email
+        - organizationName
+      additionalProperties: false
+    InvitationPreviewResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InvitationPreview"
+      required:
+        - data
+    AcceptInvitationInput:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Nome de quem está criando a conta, aparado antes de gravar.
+        password:
+          type: string
+          description: Senha escolhida, de 12 a 128 caracteres.
+      required:
+        - name
+        - password
       additionalProperties: false
     UpdateDocumentBody:
       type: object

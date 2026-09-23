@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -59,5 +60,14 @@ export class OrgUnitsController {
     );
 
     return { data: unit };
+  }
+
+  @Delete(':orgUnitId')
+  @HttpCode(204)
+  async deleteOrgUnit(
+    @CurrentPerson() person: PersonWithOrganization,
+    @Param('orgUnitId') orgUnitId: string,
+  ): Promise<void> {
+    await this.orgUnits.remove(person.organizationId, orgUnitId);
   }
 }

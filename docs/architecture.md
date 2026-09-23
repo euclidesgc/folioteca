@@ -176,6 +176,18 @@ entrada da árvore; do item ativo, `Tab` leva às ações desse nó; as teclas d
 navegação da árvore só respondem com o foco no item; `focusNode` move o foco
 para um nó de forma imperativa (usado depois de criar, ver abaixo).
 
+**Entrega `org-units-delete` (fatia 066)**: as FKs `OrgUnit.parentId` e
+`Space.orgUnitId` passaram a `ON DELETE RESTRICT` na migration `0008`,
+escrita à mão, e com `Document.spaceId` (já `RESTRICT`) a ordem obrigatória
+de apagar é documento → espaço → unidade, recusada pelo banco em qualquer
+atalho; a regra do serviço (raiz, filhas, documentos inclusive na lixeira)
+roda numa transação com **uma** consulta; a contagem de documentos vai pela
+relação do espaço (`space._count.documents`) por causa da fronteira da
+tabela `Document` (§3); `P2003` vira `409` "A unidade mudou enquanto era
+apagada. Recarregue a estrutura e tente de novo." (corrida entre contar e
+apagar); na web, um diálogo de confirmação no nível da árvore (sem gatilho)
+e o foco vai à mãe pelo `onCloseAutoFocus`.
+
 Fatos apurados na implementação: o `Dialog` compartilhado
 (`apps/web/src/components/ui/dialog/dialog.tsx`) guarda, num `useLayoutEffect`,
 quem tinha o foco no instante em que abre e o restaura ao fechar — o Radix
@@ -189,6 +201,67 @@ por temporizador. Os formulários de criar e renomear barram envio duplo por
 uma `ref` (`isSubmittingRef`), porque `isPending` da mutação só vira
 verdadeiro no próximo render e dois `Enter` no mesmo lote de eventos passariam
 os dois.
+
+**Entrega `unit-assignments` (fatia 010)**: a tabela `OrgUnitAssignment` não
+tem id próprio — sua **PK composta `(orgUnitId, personId)`** é a única garantia
+de que uma pessoa não se lota duas vezes na mesma unidade. Não há consulta
+prévia de duplicidade em lugar nenhum: o `409` "Esta pessoa já está lotada
+nesta unidade." nasce do `P2002` do banco, exatamente como o `409` de nome da
+065, e é isso que fecha a corrida entre duas lotações simultâneas do mesmo par.
+As duas FKs são `ON DELETE RESTRICT`, pela mesma regra da `0008`: apagar
+unidade passa a ter uma **quarta** recusa (além de raiz, filhas e documentos, a
+de ainda ter gente lotada), e apagar pessoa, quando existir, vai **ter** de
+decidir o que fazer com as lotações — o banco não decide por nós. A migration
+`0012` é escrita à mão, como as anteriores desta área.
+
+O contrato de `GET /org-units/{orgUnitId}/people` devolve `{ data, orgUnit }`
+numa requisição só: a tela precisa do nome da unidade no `<h1>` e da lista, e
+juntar os dois aqui dá **um** 404 em vez de dois caminhos de erro, sem
+depender de carregar a árvore inteira para descobrir o nome. `GET /people` tem
+limite **duro** de 10, sem parâmetro que o levante; `q` ausente, vazio ou só
+com espaços devolve lista vazia sem consultar nada; e `hasMore` sai de `take +
+1` (lê 11, responde 10), que custa zero consulta a mais e evita contar a
+instância inteira a cada tecla. Os dois `404` têm mensagens **diferentes** de
+propósito: o da unidade é o opaco de sempre, "Unidade não encontrada.", que
+não distingue id inexistente de unidade de outra organização; o da pessoa,
+"Pessoa não encontrada.", não precisa ser opaco, porque o id só pode ter vindo
+de uma busca que já é restrita à própria organização.
+
+**Lotação não dá acesso a documento**: estar lotado numa unidade não abre nem
+um documento a ninguém — o acesso continua vindo só do caminho único da §3, e
+chegará com espaço de unidade e compartilhamento com unidade. O teste
+estrutural de fronteira da §3 cobre os módulos novos **sem uma linha nova**:
+eles não tocam `Document` nem `resolveAccess`.
+
+**Entrega `unit-assignments-remove` (fatia 108)**: `DELETE
+/org-units/{orgUnitId}/people/{personId}` responde **204** sem corpo, entra no
+`UnitAssignmentsController` e **herda** `SessionGuard` + `AdminGuard` da
+classe — nenhuma linha de guard nova, e o `organizationId` vem do
+`@CurrentPerson()`, nunca da rota. Aqui o verbo é `DELETE`, e não um `POST
+…/revoke` como na 087, porque lá a linha **muda de estado** (`revokedAt`) e
+nunca é apagada, enquanto aqui a linha de `OrgUnitAssignment` é apagada de
+verdade e a **PK composta `(orgUnitId, personId)`** — a mesma que abre esta
+seção — é o próprio endereço do recurso: os dois parâmetros da rota são a
+identidade da lotação, e o `DELETE` é o par simétrico do `POST
+/org-units/{orgUnitId}/people` que a criou. A identidade de caminho foi
+conferida contra o YAML inteiro, a armadilha que a 087 quase caiu: **nenhum**
+outro caminho declarado tem quatro segmentos sob `/org-units`, e o parâmetro
+novo entra sob o prefixo **literal** `people`, que é a forma de escapar da
+colisão. O serviço faz um `deleteMany` **atômico**, com `orgUnitId` e
+`personId` e nada mais, **sem consulta a `Person`**: a FK garante que só existe
+lotação de pessoa existente, então `count === 0` vira **um** único 404 com
+"Pessoa não encontrada." para pessoa inexistente, de outra organização, com id
+malformado **e** para quem já não estava lotada. Não é 204 idempotente de
+propósito: distinguir "existe mas não estava lotada" de "não existe" exigiria
+uma consulta extra a `Person` só para escolher o status, e essa diferença
+viraria um oráculo sobre quais pessoas existem na instância — "já resolvido" é
+decisão **de tela**, não de HTTP, e a web traduz esse 404 em lista recarregada
+com aviso neutro. **Nenhuma migration nova** (o esquema da `0012` já é
+exatamente o recurso endereçado) e **nenhuma linha nova em
+`org-units.service.ts`**: a quarta recusa de apagar unidade lê
+`_count.assignments`, que volta a zero sozinho quando a última lotação é
+apagada, e é isso que encerra a dívida **109 `delete-unit-with-assignments`** —
+fechada por teste, não por código novo.
 
 ## 5. Editor e colaboração
 
@@ -321,6 +394,254 @@ ao início sem disparar a requisição.
 rota); ordem observável de falha: CSRF (`X-Requested-With` ausente) → `401`
 (sem sessão) → `403` (sessão sem `isAdmin`) → `404`/`400` (unidade ou corpo)
 → `409` (nome duplicado).
+
+**Entrega `org-units-delete` (fatia 066)**: o `DELETE
+/org-units/{orgUnitId}` herda `SessionGuard` + `AdminGuard` da **classe** do
+controller, como `POST` e `PATCH`; ordem observável de falha: CSRF → `401`
+→ `403` → `404` → `409`.
+
+**Entrega `invitations-create` (fatia 085)**: o token do convite tem 32 bytes
+em `base64url` e é guardado **só** como `sha256` (mesmo desenho de `Session`),
+devolvido uma única vez no corpo do `201` e nunca recuperável depois. O
+`hashToken` **foi extraído** para `apps/api/src/common/hash-token.ts` pela
+fatia 086 (terceira ocorrência); `session.service.ts` e
+`invitations.service.ts` importam de lá. "Um convite pendente por
+e-mail" é garantido no banco pelo índice único por expressão `lower("email")`
+da migration `0009`, não só pela checagem da API; convidar o mesmo e-mail de
+novo substitui o convite (apagar o anterior + criar o novo) numa **transação**,
+de modo que o link antigo deixa de validar. `POST /invitations` herda
+`SessionGuard` + `AdminGuard` da **classe** do controller; ordem observável de
+falha: CSRF → `401` → `403` → `400` → `409`. O link do convite é montado pelo
+**navegador** (a API não conhece a origem da aplicação), e o caminho público
+`/invitations/:token` **existe** a partir da 086 — por isso 085 e 086 são
+mescladas juntas.
+
+**Entrega `invitations-accept` (fatia 086)**: `GET /invitations/{token}` e
+`POST /invitations/{token}/accept` são as duas rotas **públicas** do módulo.
+Elas ficam num controller próprio, `PublicInvitationsController`, que não tem
+guard nenhum, enquanto `InvitationsController` guarda a rota de criar com
+`@UseGuards(SessionGuard, AdminGuard)` **na classe**. Os dois caminhos não
+cabem numa classe só: o Nest **soma** os guards da classe aos do método, então
+um `@UseGuards()` vazio no método não desfaz os da classe e a rota pública
+responderia 401. Separando, a garantia do projeto continua de pé — uma rota
+nova em `InvitationsController` nasce protegida, e a classe pública diz no
+nome o que é. O servidor **ignora o cookie** nelas: nada lê
+`request.cookies`, não há `@CurrentPerson`, e a sessão em curso de quem abrir o
+link nunca é lida, renovada nem encerrada — abrir um convite com sessão aberta
+devolve exatamente a mesma resposta de quem abre sem sessão. O `CsrfGuard`
+global continua valendo no `POST`: pública não é desprotegida.
+
+O token da URL chega **em claro** e nunca é consultado assim: a busca é por
+`sha256` (`tokenHash`, `@unique` desde a `0009`), e a conferência final é
+`timingSafeEqual` sobre os dois digests de 32 bytes, para que a última palavra
+sobre "é este token mesmo?" fique num caminho sem atalho por prefixo. As quatro
+recusas — inexistente, expirado, já aceito e (a partir da 087) revogado — saem
+de um único `findPending`, que devolve `null` sem `return` antecipado entre as
+checagens, e viram **um** `NotFoundException` com
+`INVITATION_UNAVAILABLE_MESSAGE`, constante única do módulo: corpo, código e
+cabeçalhos são idênticos byte a byte nos quatro casos, e nada no tempo de
+resposta os separa.
+
+A migration `0010` acrescenta `acceptedAt` a `Invitation` (nulo enquanto
+pendente; a linha aceita **não** é apagada, é registro de auditoria) e troca o
+índice `Invitation_lower_email_key` por um **parcial**, com
+`WHERE "acceptedAt" IS NULL` — sem isso, um e-mail que aceitou um convite nunca
+mais poderia ser convidado. O aceite é uma **transação**: pessoa com
+`isAdmin: false`, o espaço `PERSONAL` dela (nenhuma unidade e nenhum espaço de
+unidade), `acceptedAt` do convite e a sessão. O hash argon2id da senha fica
+**fora** da transação, de propósito, para não segurar conexão e linha por
+centenas de milissegundos — é o que a instalação já faz. O cookie é gravado
+pelo mesmo `getSessionCookieOptions` da instalação (`httpOnly`, `SameSite=Lax`,
+`Secure` em produção, 30 dias), sem atributo novo. Ordem observável de falha do
+`POST`: CSRF → `400` (corpo, validado **antes** da busca do convite) → `404`
+(convite) → `409` (o e-mail já é de uma pessoa, pelo `P2002` de
+`Person_email_key`).
+
+**Entrega `invitations-list` (fatia 088)**: `GET /invitations` entra no
+`InvitationsController` e **herda** `SessionGuard` + `AdminGuard` da classe —
+nenhuma linha de guard nova foi escrita, que é exatamente o que a separação
+feita na 086 comprou. "Pendente" é `acceptedAt IS NULL` **e**
+`expiresAt > agora`, decidido no **banco**: o relógio do navegador é do
+usuário, e uma lista filtrada no cliente mostraria convite expirado para quem
+estivesse com a hora errada. A ordem é `createdAt DESC`, já atendida pelo
+índice da migration `0009` — **nenhuma migration nova nesta fatia**. O schema
+`Invitation` do contrato **não tem** `token`, porque o servidor guarda só o
+`sha256` e um campo opcional faria o tipo mentir sobre algo que ninguém pode
+devolver; por isso `Invitation` (o que a lista mostra) e `CreatedInvitation`
+(o que o `201` devolve uma única vez, com o token) são schemas **distintos**.
+O `select` do Prisma é explícito e não traz `tokenHash`, como segunda tranca:
+mesmo que alguém acrescente o campo ao schema, nada vaza pelo corpo. Atenção:
+a mesma definição de "pendente" existe **duas vezes** — em `findPending` (em
+memória, para as rotas públicas) e em `list` (no `where` da consulta) — e a
+fatia 087 precisa acrescentar `revokedAt` **nas duas**.
+
+**Entrega `invitations-revoke` (fatia 087)**: `POST
+/invitations/{invitationId}/revoke` entra no `InvitationsController` e
+**herda** `SessionGuard` + `AdminGuard` da classe — de novo nenhuma linha de
+guard nova, e o `organizationId` vem do `@CurrentPerson()`, nunca da rota.
+Inexistente, de outra organização, já aceito, vencido e já revogado respondem
+**um** único 404 com `INVITATION_UNAVAILABLE_MESSAGE`, o mesmo corpo byte a
+byte das recusas públicas: qualquer código distinto (403 para "de outra
+organização", 409 para "já aceito") transformaria a rota num oráculo, que diria
+a quem chutasse ids quais existem na instância e quem aceitou um convite. A
+definição de "pendente" passa a existir **uma vez só** no servidor, no
+`pendingInvitationWhere` (`acceptedAt: null`, `revokedAt: null`, `expiresAt >
+agora`), usado por `findPending`, `list`, `create` e `revoke` — encerrando a
+nota deixada pela 088 e garantindo que o link revogado caia no mesmo `null` das
+outras recusas. `revoke` é um `updateMany` atômico, com `id`, `organizationId`
+e esse mesmo `where`, que grava só `revokedAt` e **nunca** apaga a linha
+(`count === 0` vira o 404); a revogação não toca `Person`, `Space` nem
+`Session`. A migration `0011` acrescenta a coluna `revokedAt` e troca o
+predicado do índice parcial para `WHERE "acceptedAt" IS NULL AND "revokedAt" IS
+NULL`, para que um endereço cujo convite foi revogado possa ser convidado de
+novo — as linhas existentes nascem com `revokedAt` nulo, então o conjunto
+coberto é exatamente o mesmo de antes e o índice único não pode falhar na
+troca. Sobre o contrato: o verbo é `POST …/revoke`, e não `DELETE
+/invitations/{invitationId}`, porque esse caminho tem a **mesma identidade**,
+pela regra do OpenAPI, de `/invitations/{token}` (a rota pública da 086, que
+não se renomeia sem fazer o contrato mentir), e porque a linha não é apagada, é
+marcada — `DELETE` prometeria uma remoção que o servidor não faz. Fica a nota
+de que o documento **já tem** os dois caminhos `/invitations/{…}` com nomes de
+parâmetro diferentes (`{token}` das rotas públicas e `{invitationId}` das
+administrativas, sempre com segmento literal depois), e que
+`SwaggerParser.dereference`, usado nos testes de contrato, resolve `$ref` mas
+não valida o documento: se um dia entrar um validador de verdade, o conserto
+pronto é padronizar o nome do parâmetro nos caminhos de mesma hierarquia — hoje
+não há nenhum par nessa situação, e as rotas terminam em segmentos literais
+distintos (`/accept`, `/revoke`), que o Nest também não confunde.
+
+**Entrega `admins-list` (fatia 011)**: `GET /admins` é um **recurso próprio**,
+com tag própria (`admins`) no contrato — é dele que as fatias 114 e 115 penduram
+`PUT` e `DELETE /admins/{personId}`. `SessionGuard` + `AdminGuard` ficam **na
+classe** do `AdminRolesController`, e nenhum método traz `@UseGuards`, para que
+a escrita das próximas fatias herde a regra sem ninguém precisar lembrar dela; o
+`organizationId` vem sempre da sessão (`@CurrentPerson()`), nunca da rota nem da
+query. O corpo tem `id`, `name` e `email` **e nada mais**, garantido por um
+`select` explícito do Prisma: `Person` tem `passwordHash`, e sem o `select` ele
+iria junto. A lista vem **inteira**, sem paginação e sem limite, e é ordenada
+**em memória** com um colador pt-BR e desempate por `id`, pela mesma razão da
+fatia 010: a collation do Postgres varia por instância, e sob `C` os nomes
+acentuados iriam para o fim. **Não há `count` no corpo** — a contagem que a
+tela mostra é `data.length`, porque duas fontes para o mesmo número podem
+discordar. A identidade de caminho foi conferida contra o YAML inteiro:
+`/admins` é um primeiro segmento inédito, e por isso não se escolheu
+`/people/admins`, que dependeria da ordem de declaração no Nest para o literal
+não ser casado por um futuro `/people/{personId}`. **Nenhuma migration** nesta
+fatia: `Person.isAdmin` já existia, e nenhum índice foi criado. Fica o registro
+sobre mudança de papel: o `isAdmin` é relido do banco a cada pedido, o que já
+basta para o `AdminGuard` (promoção e rebaixamento valem na requisição
+seguinte), mas o front **não** percebe a mudança sem recarregar, porque
+`getUserQueryOptions` usa `staleTime: Infinity` — resolver isso é assunto da
+fatia **114**.
+
+**Entrega `admin-roles-promote` (fatia 114)**: `PUT /admins/{personId}` foi
+**pendurado no `AdminRolesController` que já existia**, sem controller novo e
+sem linha de guard nova — `SessionGuard` + `AdminGuard` continuam **na classe**,
+o método não traz `@UseGuards`, e o `organizationId` vem sempre do
+`@CurrentPerson()`, nunca da rota nem do corpo (a requisição não tem corpo). A
+promoção é **idempotente sem `if`**: `promote` grava com um `updateMany` que
+carrega o escopo inteiro no `where` (`id` e `organizationId`) e **nada é lido de
+`isAdmin` antes de escrever** — não existe ramo de "já era administrador", e
+promover quem já administra responde 200 igual à primeira vez. Pessoa
+inexistente, de outra organização ou com id malformado respondem **um único 404
+opaco**, com `PERSON_NOT_FOUND_MESSAGE`, vindo do `findFirst` com
+`organizationId` (o único `if` do serviço); **não há `isUuid`** nem validação de
+formato antes dele, pela mesma razão de `unit-assignments`: um 400 para id
+malformado separaria "não é id" de "não existe aqui" e transformaria a rota num
+oráculo. A identidade de caminho foi conferida **à mão contra o YAML inteiro**,
+porque `SwaggerParser.dereference` resolve `$ref` mas não valida o documento:
+`/admins/{personId}` não colide com nenhum outro caminho, e fica a regra de
+**nunca declarar segmento literal sob `/admins`** — um `/admins/count` casaria
+com `{personId}` conforme a ordem de declaração no Nest. A fatia **115** usa o
+**mesmo** caminho, com `DELETE`. **Nenhuma migration**: `Person.isAdmin` já
+existia e nenhum índice foi criado. No front, a busca de pessoas saiu de
+`features/unit-assignments/api/search-people.ts` para
+`src/hooks/use-people-search.ts`: duas features passaram a buscar pessoas com a
+**mesma chave de cache** (`['people', 'search', term]`), e import entre features
+é proibido — duas cópias da mesma chave seriam dois caches que se invalidam por
+acidente. Por fim, `getUserQueryOptions` **deixou de ser `staleTime: Infinity`**
+(agora 30 s, com `refetchOnWindowFocus: true`, exceção consciente e escrita na
+própria query ao padrão global `false`): é assim que o papel recém-promovido
+chega ao front **sem recarregar a página** — na navegação seguinte ou ao voltar
+para a aba —, encerrando a nota deixada pela fatia 011.
+
+**Entrega `admin-roles-demote` (fatia 115)**: `DELETE /admins/{personId}` entrou
+no **caminho que já existia**, o mesmo do `PUT` da 114 — **nenhum caminho novo**
+no contrato, e segue valendo a regra escrita pela 114 de **nunca declarar
+segmento literal sob `/admins`** (um `/admins/count` casaria com `{personId}`
+conforme a ordem de declaração no Nest). O método foi pendurado no
+`AdminRolesController` que já existia: `SessionGuard` + `AdminGuard` continuam
+**na classe**, nenhum método traz `@UseGuards`, e o `organizationId` vem sempre
+do `@CurrentPerson()`, nunca da rota nem do corpo (a requisição não tem corpo).
+A regra **"a instância nunca fica sem nenhuma administração" é do servidor**,
+não da tela: `demote` roda dentro de uma transação que **trava as linhas de
+administração antes de contar** (`SELECT "id" … WHERE "isAdmin" = true ORDER BY
+"id" FOR UPDATE`). Sem o lock, duas transações simultâneas leem cada uma "há
+duas administrações" e as duas escrevem — é *write skew*, que o `READ
+COMMITTED` do Postgres não impede, e que **não se conserta com condição na
+escrita** porque cada `UPDATE` só tranca a própria linha, e a condição olharia
+outra linha; `Serializable` resolveria, mas obrigaria laço de repetição no
+serviço a cada erro de serialização. O `ORDER BY "id"` faz duas transações nunca
+travarem as mesmas linhas em ordens opostas. A recusa é **409** com frase de
+domínio (`LAST_ADMIN_MESSAGE`), **a mesma** que a tela mostra ao lado da única
+administração antes de qualquer clique. Rebaixar quem **já é membro** responde
+**200**, sem escrita e **sem passar pela regra** — o `if (person.isAdmin)` só
+conta e grava para quem administra hoje. Pessoa inexistente, de outra
+organização ou com id malformado respondem **um único 404 opaco**, pelo
+`findFirst` com `organizationId` e **sem `isUuid`**, pela mesma razão da 114; o
+escopo aparece **também no `where` da escrita** (`updateMany` com `id` e
+`organizationId`). **Nenhuma migration**: `Person.isAdmin` já existia e nenhum
+índice foi criado. No front, o **auto-rebaixamento** tem caminho próprio de
+cache: `useDemoteAdmin` **remove** a chave `['admins']` em vez de invalidá-la —
+invalidar dispararia um `GET /admins` que o servidor já responde com 403, e a
+tela ganharia uma notificação de permissão negada —, chama o `onSuccess` da
+tela, que navega para o início, e **só então** invalida
+`['authenticated-user']`. É nessa ordem que a barra lateral perde a área
+"Administração" com a pessoa já fora da área administrativa, sem nenhuma tela
+proibida no caminho.
+
+**Entrega `unit-spaces` (fatia 012)**: `GET /spaces` é a primeira rota de
+leitura que **qualquer pessoa logada** usa fora da área administrativa: o
+`SessionGuard` fica **na classe** do controller e **não há `AdminGuard`**. O
+`organizationId` e o `personId` vêm **sempre da sessão** (`@CurrentPerson()`),
+nunca da rota nem da query, e a lista traz só os espaços `UNIT` das unidades em
+que a pessoa tem **lotação direta** — `isAdmin` **não é lido**: administrar a
+instância não dá espaço de unidade nenhum. O "não encontrado" é **um só e é da
+tela, por construção**: a página do espaço procura o id na lista da própria
+pessoa, então espaço inexistente, de outra organização ou de unidade em que ela
+não está lotada caem no mesmo "Espaço não encontrado." sem nenhuma resposta
+distinta do servidor. **Não há rota por id** até a primeira rota por id (128/134), que usará `findFirst`
+escopado por organização e lotação e responderá um **404 opaco, sem `isUuid`**,
+pela mesma razão da 114. Vale para `/spaces` a regra de `/admins`: **nenhum
+segmento literal sob `/spaces/`**, porque casaria com o futuro `{spaceId}`.
+**Nenhuma migration**: o esquema já tinha tudo o que a leitura precisa.
+Na API simulada, o espaço `UNIT` **nasce junto com a unidade** —
+isso fecha a 075 —, e o handler novo decide quem está logado por
+`getSignedInPerson`, o padrão que o item 124 do roadmap vai estender aos
+handlers antigos. O espaço de unidade **continua sem dar acesso a documento**:
+a decisão de acesso segue o caminho único da §3, e documento no espaço da
+unidade é a 127.
+
+**Entrega `free-spaces` (fatia 013)**: `POST /spaces` entra **no mesmo
+caminho** do `GET`, no mesmo controller, com o `SessionGuard` **na classe** e
+**sem `AdminGuard`**: qualquer pessoa logada cria um espaço livre. O
+`organizationId` e o `ownerId` vêm **sempre da sessão** (`@CurrentPerson()`),
+nunca do corpo, que só traz o nome. O espaço livre é **visível só ao dono**: o
+`GET /spaces` passa a trazer, além dos espaços `UNIT` da lotação direta, os
+`FREE` cujo `ownerId` é a pessoa da sessão — `isAdmin` **continua não sendo
+lido**, e administrar a instância não dá acesso ao espaço livre de ninguém. No
+esquema, as colunas próprias do espaço livre são **nulas**, e a restrição de
+tipo da tabela exige as três **só quando o tipo é `FREE`**; a migration
+`0013_free_space` foi **escrita à mão**, porque o Prisma não gera `CHECK`. O
+dono fica **em coluna** até a 134, que traz a tabela de membros do espaço. Nome
+repetido é **aceito** até a 137, que traz a unicidade por dono sem diferenciar
+maiúsculas. O "não encontrado" **continua um só e da tela**: a página do espaço
+procura o id na lista da própria pessoa, então espaço livre alheio cai no mesmo
+"Espaço não encontrado." do espaço de unidade. Na API simulada, o espaço livre
+**nasce por um helper só** (`addFreeSpace`), usado pelo handler falso de
+`POST /spaces` e pelos testes. O espaço livre **não dá acesso a documento**: a
+decisão de acesso segue o caminho único da §3, e documento no espaço livre é a
+136.
 
 ## 7. Testes
 

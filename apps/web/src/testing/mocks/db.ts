@@ -1,7 +1,11 @@
 // Fake, hand-written in-memory database: this feature creates one
 // installation and a handful of documents, so `@mswjs/data` is overkill.
 
+import type { components } from '@folioteca/api-contract';
+
 import { MOCK_PASSWORD } from './utils';
+
+type Space = components['schemas']['Space'];
 
 export type MockOrganization = { id: string; name: string };
 export type MockPerson = {
@@ -39,11 +43,51 @@ export type MockFavorite = { documentId: string; createdAt: string };
 // `parentId` is null on the root of the organization.
 export type MockOrgUnit = { id: string; parentId: string | null; name: string };
 
+// An invitation. The token is kept in the clear on purpose: from slice 086 on
+// the browser has to check the link for the journey to exist at all, and this
+// "database" is an object in memory of the tab itself — there is no security
+// boundary here. `acceptedAt` and `revokedAt` are null while the invitation is
+// pending: accepting or revoking it marks one of them, and the row stays.
+export type MockInvitation = {
+  id: string;
+  email: string;
+  createdAt: string;
+  expiresAt: string;
+  token: string;
+  acceptedAt: string | null;
+  revokedAt: string | null;
+};
+
+// An assignment: the person is assigned to the unit. The pair is the row —
+// the real table has no id of its own, and its composite primary key is what
+// keeps the same person from being assigned twice to the same unit.
+export type MockAssignment = { orgUnitId: string; personId: string };
+
+// The `UNIT` space of a unit. The real API creates it in the same transaction
+// as the unit, and the fake database mirrors that: every place a unit is born
+// also creates its space, and removing the unit removes the space. Its id is
+// named after the unit, `space-${orgUnitId}`, the same convention
+// `space-${person.id}` already uses for the personal space.
+//
+// The `FREE` space is created by a person, who becomes its owner, and carries
+// its own name.
+export type MockSpace =
+  | { id: string; type: 'unit'; orgUnitId: string }
+  | { id: string; type: 'free'; name: string; ownerId: string };
+
 type DbState = {
   installation: MockInstallation | null;
   documents: MockDocument[];
   favorites: MockFavorite[];
   orgUnits: MockOrgUnit[];
+  assignments: MockAssignment[];
+  spaces: MockSpace[];
+  invitations: MockInvitation[];
+  // People created by accepting an invitation, and which of them is signed in.
+  // Null means the installed person, which is what every journey before 086
+  // expects.
+  people: MockPerson[];
+  signedInPersonId: string | null;
 };
 
 const initialState = (): DbState => ({
@@ -51,6 +95,11 @@ const initialState = (): DbState => ({
   documents: [],
   favorites: [],
   orgUnits: [],
+  assignments: [],
+  spaces: [],
+  invitations: [],
+  people: [],
+  signedInPersonId: null,
 });
 
 let state: DbState = initialState();
@@ -116,6 +165,7 @@ export const seedInstalled = ({
     },
     orgUnits: [rootOrgUnit(organization.name)],
   });
+  addUnitSpace(ROOT_ORG_UNIT_ID);
 
   if (signedIn) {
     document.cookie = 'folioteca_session=mock-session-token; path=/';
@@ -199,7 +249,8 @@ const LONG_ORG_UNIT_NAME =
 // installation, on top of whatever is already in the database. Kept separate
 // from `seedInstalled` because the existing e2e journeys expect only the root.
 export const seedSampleOrgUnits = (): void => {
-  if (!state.installation) return;
+  const { installation } = state;
+  if (!installation) return;
 
   const sample: MockOrgUnit[] = [
     {
@@ -244,12 +295,32 @@ export const seedSampleOrgUnits = (): void => {
     },
   ];
 
-  state = { ...state, orgUnits: [...state.orgUnits, ...sample] };
+  // A document in the space of "Sala Infantil", so the unit cannot be
+  // deleted: the API answers 409 while its space still holds documents.
+  const now = new Date().toISOString();
+  const unitDocument: MockDocument = {
+    id: 'document-sala-infantil',
+    title: 'Regulamento da Sala Infantil',
+    // `space-${orgUnitId}`, the convention written down below.
+    spaceId: 'space-org-unit-sala-infantil',
+    authorId: installation.person.id,
+    ownerId: installation.person.id,
+    createdAt: now,
+    updatedAt: now,
+    trashedAt: null,
+    accessLevel: 'owner',
+  };
+
+  state = {
+    ...state,
+    orgUnits: [...state.orgUnits, ...sample],
+    documents: [...state.documents, unitDocument],
+  };
+  sample.forEach((unit) => addUnitSpace(unit.id));
 };
 
-// Adds a unit under `parentId`, the way POST /org-units does. The `UNIT`
-// space the real API creates in the same transaction is not simulated: no
-// screen of this slice reads it.
+// Adds a unit under `parentId`, the way POST /org-units does, together with
+// the `UNIT` space the real API creates in the same transaction.
 export const addOrgUnit = ({
   parentId,
   name,
@@ -259,6 +330,7 @@ export const addOrgUnit = ({
 }): MockOrgUnit => {
   const unit: MockOrgUnit = { id: crypto.randomUUID(), parentId, name };
   state.orgUnits.push(unit);
+  addUnitSpace(unit.id);
   return unit;
 };
 
@@ -278,6 +350,367 @@ export const renameOrgUnit = (id: string, name: string): MockOrgUnit => {
   }
 
   return unit;
+};
+
+// Removes a unit already in the database, the way DELETE /org-units/:id does,
+// and its space with it.
+//
+// Both are taken out of their arrays in place, never by replacing the arrays
+// (same reason as `touchDocumentUpdatedAt` above): the handler reads the units
+// before it awaits and writes afterwards. Unknown id does nothing.
+export const removeOrgUnit = (id: string): void => {
+  const index = state.orgUnits.findIndex((item) => item.id === id);
+  if (index !== -1) state.orgUnits.splice(index, 1);
+
+  const spaceIndex = state.spaces.findIndex(
+    (item) => item.type === 'unit' && item.orgUnitId === id,
+  );
+  if (spaceIndex !== -1) state.spaces.splice(spaceIndex, 1);
+};
+
+// Creates the `UNIT` space of a unit (see `MockSpace` above). Called wherever
+// a unit is born: `seedInstalled`, `seedSampleOrgUnits`, `addOrgUnit` and the
+// POST /installation handler. Pushed into the array already in the database,
+// never into a copy of it (same reason as `touchDocumentUpdatedAt` above).
+export const addUnitSpace = (orgUnitId: string): MockSpace => {
+  const space: MockSpace = {
+    id: `space-${orgUnitId}`,
+    type: 'unit',
+    orgUnitId,
+  };
+  state.spaces.push(space);
+  return space;
+};
+
+// Creates a `FREE` space owned by `ownerId` (see `MockSpace` above). The only
+// place a free space is born, used by the POST /spaces handler and by the
+// tests. Pushed into the array already in the database, never into a copy of
+// it (same reason as `touchDocumentUpdatedAt` above). The counter keeps two
+// spaces with the same name apart, as the real API accepts them.
+let freeSpaceCounter = 0;
+
+export const addFreeSpace = (ownerId: string, name: string): MockSpace => {
+  freeSpaceCounter += 1;
+  const space: MockSpace = {
+    id: `space-free-${freeSpaceCounter}`,
+    type: 'free',
+    name,
+    ownerId,
+  };
+  state.spaces.push(space);
+  return space;
+};
+
+// The spaces of a person, the way GET /spaces answers: the unit spaces of the
+// units the person is directly assigned to (no inheritance from a parent
+// unit) and the free spaces the person owns, mixed and sorted by the pt-BR
+// collator with the tie broken by `id`, the same pair of rules the service
+// applies.
+const spacesCollator = new Intl.Collator('pt-BR', { sensitivity: 'base' });
+
+export const listSpacesOf = (personId: string): Space[] =>
+  state.spaces
+    .flatMap((space): Space[] => {
+      if (space.type === 'free') {
+        return space.ownerId === personId
+          ? [{ id: space.id, type: 'free', name: space.name }]
+          : [];
+      }
+
+      const assigned = state.assignments.some(
+        (item) =>
+          item.orgUnitId === space.orgUnitId && item.personId === personId,
+      );
+      const unit = state.orgUnits.find((item) => item.id === space.orgUnitId);
+      return assigned && unit
+        ? [{ id: space.id, type: 'unit', name: unit.name }]
+        : [];
+    })
+    .sort(
+      (a, b) =>
+        spacesCollator.compare(a.name, b.name) || a.id.localeCompare(b.id),
+    );
+
+// The same seven days the real API gives an invitation.
+const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Not a secret: readable, low-entropy and assembled at runtime, so no secret
+// scanner ever sees a credential-looking literal in the repository (same
+// reasoning as `MOCK_PASSWORD`). The counter keeps two invitations of the same
+// session from sharing a token.
+let invitationTokenCount = 0;
+
+export const nextInvitationToken = (): string => {
+  invitationTokenCount += 1;
+  return ['mock', 'invitation', 'token', String(invitationTokenCount)].join('-');
+};
+
+// What "pending" means here, the same three rules the API applies: not
+// accepted, not revoked and not expired yet.
+const isPendingInvitation = (invitation: MockInvitation): boolean =>
+  invitation.acceptedAt === null &&
+  invitation.revokedAt === null &&
+  new Date(invitation.expiresAt).getTime() > Date.now();
+
+// Adds a pending invitation, the way POST /invitations does: inviting the same
+// address again replaces the **pending** invitation of that address, so only
+// one survives — an accepted or revoked one is left where it is, the same
+// narrowed `deleteMany` the server does.
+//
+// The old invitation is taken out of the array in place, never by replacing
+// the array (same reason as `touchDocumentUpdatedAt` above): the handler reads
+// the state before it awaits the request body and writes afterwards.
+export const addInvitation = ({
+  email,
+}: {
+  email: string;
+}): MockInvitation => {
+  const index = state.invitations.findIndex(
+    (item) =>
+      item.email.toLowerCase() === email.toLowerCase() &&
+      isPendingInvitation(item),
+  );
+  if (index !== -1) state.invitations.splice(index, 1);
+
+  const createdAt = new Date();
+  const invitation: MockInvitation = {
+    id: crypto.randomUUID(),
+    email,
+    createdAt: createdAt.toISOString(),
+    expiresAt: new Date(createdAt.getTime() + INVITATION_TTL_MS).toISOString(),
+    token: nextInvitationToken(),
+    acceptedAt: null,
+    revokedAt: null,
+  };
+  state.invitations.push(invitation);
+
+  return invitation;
+};
+
+// Revokes an invitation, the way POST /invitations/:id/revoke does: the
+// invitation already in the array is marked, never taken out of it and never
+// replaced (same reason as `touchDocumentUpdatedAt` above). Answers `false`
+// for an unknown id and for an invitation that is not pending any more, which
+// is the single 404 of the route.
+export const revokeInvitation = (id: string): boolean => {
+  const invitation = state.invitations.find((item) => item.id === id);
+  if (!invitation) return false;
+  if (!isPendingInvitation(invitation)) return false;
+
+  invitation.revokedAt = new Date().toISOString();
+
+  return true;
+};
+
+// Accepts an invitation, the way POST /invitations/:token/accept does: the
+// invitation is marked as accepted, a person is created for its e-mail and that
+// person becomes the signed-in one.
+//
+// Both writes land on the objects already in the database, never on copies of
+// them (same reason as `touchDocumentUpdatedAt` above): the handler reads the
+// invitation before it awaits the request body and writes afterwards.
+export const acceptInvitation = ({
+  token,
+  name,
+}: {
+  token: string;
+  name: string;
+}): MockPerson => {
+  const invitation = state.invitations.find((item) => item.token === token);
+  if (!invitation) throw new Error('Unknown invitation');
+
+  invitation.acceptedAt = new Date().toISOString();
+
+  // Someone invited is never an administrator.
+  const person: MockPerson = {
+    id: `person-invited-${state.people.length + 1}`,
+    name,
+    email: invitation.email,
+    isAdmin: false,
+  };
+  state.people.push(person);
+  state.signedInPersonId = person.id;
+
+  return person;
+};
+
+// Who the session belongs to. Without an accepted invitation it is the
+// installed person, which keeps every journey before slice 086 identical.
+export const getSignedInPerson = (): MockPerson | null => {
+  const { installation, people, signedInPersonId } = state;
+  if (!installation) return null;
+  if (!signedInPersonId) return installation.person;
+
+  return (
+    people.find((person) => person.id === signedInPersonId) ??
+    installation.person
+  );
+};
+
+// Signs the session out, the way POST /auth/logout does: the person created by
+// an accepted invitation stops being the signed-in one.
+export const clearSignedInPerson = (): void => {
+  state.signedInPersonId = null;
+};
+
+// Everybody of the organization: the installed person plus whoever was
+// created by accepting an invitation or seeded by `seedSamplePeople`.
+export const allPeople = (): MockPerson[] => {
+  const { installation, people } = state;
+  if (!installation) return [...people];
+
+  return [installation.person, ...people];
+};
+
+// Everybody who administers the instance, the way GET /admins answers: the
+// pt-BR collator and the tie-break by `id` are the same pair of rules the
+// service applies, so the order proved by a test is the order delivered.
+const adminsCollator = new Intl.Collator('pt-BR', { sensitivity: 'base' });
+
+export const listAdmins = (): MockPerson[] =>
+  allPeople()
+    .filter((person) => person.isAdmin)
+    .sort(
+      (a, b) =>
+        adminsCollator.compare(a.name, b.name) || a.id.localeCompare(b.id),
+    );
+
+// Promotes a person to administration, the way PUT /admins/:personId does.
+// Promoting whoever already administers answers the person, with no error:
+// the fake repeats the idempotence of the real one. Unknown id answers null.
+//
+// The flag is written into the person that is already in the database, and
+// never into a copy of it (same reason as `touchDocumentUpdatedAt` above): the
+// handler looks the person up before it awaits the network delay and answers
+// afterwards.
+export const promotePerson = (personId: string): MockPerson | null => {
+  const person = allPeople().find((item) => item.id === personId);
+  if (!person) return null;
+
+  person.isAdmin = true;
+  return person;
+};
+
+// Takes the administration role away, the way DELETE /admins/:personId does.
+// Unknown id answers null; `'last-admin'` is the refusal of the real server,
+// which never leaves the instance without any administration. Demoting whoever
+// already is a member answers the person, with no error: the fake repeats the
+// idempotence of the real one.
+//
+// The flag is written into the person that is already in the database, and
+// never into a copy of it (same reason as `touchDocumentUpdatedAt` above): it
+// is what makes demoting yourself work in the browser and in the e2e, since
+// `installation.person` is the very object GET /auth/me answers with and the
+// one the handlers read to decide the 403.
+export const demotePerson = (
+  personId: string,
+): MockPerson | 'last-admin' | null => {
+  const person = allPeople().find((item) => item.id === personId);
+  if (!person) return null;
+
+  if (person.isAdmin) {
+    const others = allPeople().filter(
+      (item) => item.isAdmin && item.id !== personId,
+    );
+    if (others.length === 0) return 'last-admin';
+
+    person.isAdmin = false;
+  }
+
+  return person;
+};
+
+// Assigns a person to a unit, the way POST /org-units/:orgUnitId/people does.
+// `duplicate` is what the composite primary key of the real table answers with
+// a 409: there is no previous lookup anywhere, the pair itself is the rule.
+//
+// The row is pushed into the array that is already in the database, never into
+// a copy of it (same reason as `touchDocumentUpdatedAt` above): the handler
+// reads the state before it awaits the request body and writes afterwards.
+export const addAssignment = (
+  orgUnitId: string,
+  personId: string,
+): 'created' | 'duplicate' => {
+  const exists = state.assignments.some(
+    (item) => item.orgUnitId === orgUnitId && item.personId === personId,
+  );
+  if (exists) return 'duplicate';
+
+  state.assignments.push({ orgUnitId, personId });
+  return 'created';
+};
+
+// Takes the assignment away, the way DELETE /org-units/:orgUnitId/people/
+// :personId does: the row is erased, never marked as removed, because that is
+// what the real table does. `false` is the pair that is not there, which the
+// handler answers with the single 404 of the person.
+//
+// The row is spliced out of the array that is already in the database, never
+// replacing it with a copy (same reason as `addAssignment` above): the handler
+// reads the state before it awaits and writes afterwards.
+export const removeAssignment = (
+  orgUnitId: string,
+  personId: string,
+): boolean => {
+  const index = state.assignments.findIndex(
+    (item) => item.orgUnitId === orgUnitId && item.personId === personId,
+  );
+  if (index === -1) return false;
+
+  state.assignments.splice(index, 1);
+  return true;
+};
+
+// How many people `seedSamplePeople` adds: two more than the search shows, so
+// the "há mais resultados" warning shows up for real in the browser.
+const SAMPLE_PEOPLE_COUNT = 12;
+
+// Adds a batch of pt_BR people to the organization, on top of whatever is
+// already in the database. Kept separate from `seedInstalled` because the
+// existing journeys expect only the installed person.
+export const seedSamplePeople = (): void => {
+  if (!state.installation) return;
+
+  const names = [
+    'Álvaro Pinheiro',
+    'Ana Lúcia Ferreira',
+    'Beatriz Nogueira',
+    'Carlos Eduardo Tavares',
+    'Daniela Prado',
+    'Eduardo Silva',
+    'Fernanda Rocha',
+    'Gustavo Almeida',
+    'Helena Barros',
+    'Isabel Cardoso',
+    'João Pedro Silva',
+    'Zilda Marques',
+  ];
+  // The list above is the batch itself: the count is asserted here so the
+  // warning of "there is more than what is shown" keeps appearing.
+  const sample: MockPerson[] = names
+    .slice(0, SAMPLE_PEOPLE_COUNT)
+    .map((name, index) => ({
+      id: `person-sample-${index + 1}`,
+      name,
+      email: `${name
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .replace(/\s+/g, '.')}@exemplo.com.br`,
+      isAdmin: false,
+    }));
+
+  state.people.push(...sample);
+};
+
+// Adds a pending invitation, so inviting the same address in the browser shows
+// the replacement, and so the invitation link can be opened in the browser (the
+// token of the first invitation of a page load is always the same).
+// Kept separate from `seedInstalled` because the existing journeys expect no
+// invitation by default.
+export const seedSampleInvitations = (): void => {
+  if (!state.installation) return;
+  addInvitation({ email: 'convidado@exemplo.com.br' });
 };
 
 // How many documents `seedSampleTrash` moves to the trash.

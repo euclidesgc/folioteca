@@ -3,7 +3,13 @@ import { http, HttpResponse } from 'msw';
 import { env } from '@/config/env';
 import type { OrgUnitResponse, OrgUnitsResponse } from '@/types/api';
 
-import { addOrgUnit, getDb, type MockOrgUnit, renameOrgUnit } from '../db';
+import {
+  addOrgUnit,
+  getDb,
+  type MockOrgUnit,
+  removeOrgUnit,
+  renameOrgUnit,
+} from '../db';
 import { devOverride, networkDelay, SESSION_COOKIE_NAME } from '../utils';
 
 const ORG_UNIT_NAME_MAX_LENGTH = 120;
@@ -25,6 +31,11 @@ const conflict = (): ReturnType<typeof HttpResponse.json> =>
     { message: 'Já existe uma unidade com esse nome neste nível.' },
     { status: 409 },
   );
+
+// The three refusals the API answers when a unit cannot be deleted, in the
+// same order the server checks them.
+const cannotDelete = (message: string): ReturnType<typeof HttpResponse.json> =>
+  HttpResponse.json({ message }, { status: 409 });
 
 const invalid = (
   field: string,
@@ -177,6 +188,45 @@ export const orgUnitsHandlers = [
 
       const body: OrgUnitResponse = { data: renameOrgUnit(unit.id, name) };
       return HttpResponse.json(body);
+    },
+  ),
+
+  http.delete(
+    `${env.API_URL}/org-units/:orgUnitId`,
+    async ({ params, cookies }) => {
+      await networkDelay();
+      const forced = await devOverride('org-units');
+      if (forced) return forced;
+
+      if (!cookies[SESSION_COOKIE_NAME]) return unauthenticated();
+
+      const { installation, orgUnits, documents } = getDb();
+      if (!installation) return unauthenticated();
+      if (!installation.person.isAdmin) return forbidden();
+
+      const { orgUnitId } = params;
+      const unit = orgUnits.find((item) => item.id === orgUnitId);
+      if (!unit) return notFound();
+
+      if (unit.parentId === null) {
+        return cannotDelete('A unidade raiz não pode ser apagada.');
+      }
+
+      if (orgUnits.some((item) => item.parentId === unit.id)) {
+        return cannotDelete(
+          'Apague ou mova as unidades filhas antes de apagar esta unidade.',
+        );
+      }
+
+      // The trash counts too: the document is still in the space.
+      if (documents.some((item) => item.spaceId === `space-${unit.id}`)) {
+        return cannotDelete(
+          'O espaço desta unidade ainda tem documentos, inclusive na lixeira. Trate-os antes de apagar a unidade.',
+        );
+      }
+
+      removeOrgUnit(unit.id);
+      return new HttpResponse(null, { status: 204 });
     },
   ),
 ];

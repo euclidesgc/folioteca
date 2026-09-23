@@ -6,6 +6,16 @@ import { expectNoSeriousA11yViolations } from '../a11y';
 // explicit timeout.
 const EDITOR_TIMEOUT = 20_000;
 
+// Growing a selection one arrow at a time is a single browser turn: it needs a
+// budget of its own, far shorter than loading the editor.
+const SELECTION_TIMEOUT = 5_000;
+
+// The first journey below loads the editor chunk, connects the collaboration
+// provider, writes, saves, leaves and comes back. On a busy two-core runner
+// that does not fit the 30 s Playwright gives a test by default, so it carries
+// its own budget instead of failing for the lack of one.
+const LONG_JOURNEY_TIMEOUT = 90_000;
+
 // Violations in markup rendered by BlockNote/Mantine itself, turned off only
 // inside the editor container (never for the page):
 // - `aria-allowed-attr` (critical): the editor's contenteditable has
@@ -43,6 +53,8 @@ test.beforeEach(async ({ page }) => {
 test('writes with the keyboard only, sees Salvo and finds the text again after leaving and coming back', async ({
   page,
 }) => {
+  test.setTimeout(LONG_JOURNEY_TIMEOUT);
+
   const documentTitle = `Ata da reunião ${Date.now()}`;
   const phrase = 'A pauta da reunião tem três pontos';
   const boldWord = 'pontos';
@@ -93,23 +105,53 @@ test('writes with the keyboard only, sees Salvo and finds the text again after l
   await page.keyboard.type(phrase);
   await expect(editorRegion.getByText(phrase)).toBeVisible();
 
-  // Selects the last word with Shift + arrows and makes it bold.
+  // Selects the last word with Shift + arrows and makes it bold. The shortcut
+  // acts on the selection the editor has in its own state, which is fed from
+  // the DOM asynchronously — a DOM selection of the right size does not prove
+  // the editor already saw it, and under load the bold came out a letter
+  // short. The formatting toolbar is placed from that state, so it only slides
+  // left once the editor took each arrow in: every arrow waits for that move.
+  const toolbar = editorRegion.getByRole('toolbar');
+  const toolbarLeft = async (): Promise<number> => {
+    try {
+      const box = await toolbar.boundingBox({ timeout: SELECTION_TIMEOUT });
+      return box ? Math.round(box.x) : Number.POSITIVE_INFINITY;
+    } catch {
+      // Not there yet, or replaced between the two calls: the poll around this
+      // helper is what decides, so a missing box is just "no move yet".
+      return Number.POSITIVE_INFINITY;
+    }
+  };
+
+  let previousLeft = Number.POSITIVE_INFINITY;
   for (let index = 0; index < boldWord.length; index += 1) {
     await page.keyboard.press('Shift+ArrowLeft');
+    await expect
+      .poll(
+        () => page.evaluate(() => window.getSelection()?.toString().length ?? 0),
+        { timeout: SELECTION_TIMEOUT },
+      )
+      .toBe(index + 1);
+
+    const left = previousLeft;
+    await expect
+      .poll(toolbarLeft, { timeout: SELECTION_TIMEOUT })
+      .toBeLessThan(left);
+    previousLeft = await toolbarLeft();
   }
-  // The formatting toolbar opens with the selection; waiting for it keeps the
-  // shortcut from racing with its mount.
-  await expect(editorRegion.getByRole('toolbar')).toBeVisible();
+
   await page.keyboard.press('Control+b');
   await expect(editorRegion.locator('strong')).toHaveText(boldWord);
 
   await page.keyboard.press('ArrowRight');
-  // ArrowRight collapses the selection asynchronously; without this wait,
-  // Enter can arrive before the collapse and delete the selected word
-  // instead of splitting the block.
-  await expect
-    .poll(() => page.evaluate(() => window.getSelection()?.isCollapsed))
-    .toBe(true);
+  // The editor applies Enter over the selection of its own state, which is fed
+  // from the DOM asynchronously: a collapsed DOM selection does not prove the
+  // editor already knows. The toolbar closing does, because it is rendered
+  // from that state — without this wait, Enter can delete the word it just
+  // made bold instead of splitting the block.
+  await expect(toolbar).toBeHidden({
+    timeout: EDITOR_TIMEOUT,
+  });
   await page.keyboard.press('Enter');
 
   // The slash menu, in pt_BR.
