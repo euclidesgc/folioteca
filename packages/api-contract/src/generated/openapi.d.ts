@@ -475,7 +475,7 @@ export interface paths {
         post?: never;
         /**
          * Remove uma pessoa de um espaço livre
-         * @description Remove a pessoa informada dos membros do espaço livre. Só o dono do espaço livre remove. A operação é idempotente: remover uma pessoa que não é membro também devolve 204. Remover o próprio dono recebe 400 "O dono não pode ser removido."; um membro que tenta remover recebe 403 "Só o dono do espaço pode adicionar pessoas."; espaço inexistente, com id malformado, de unidade ou que quem chama não alcança recebe o mesmo 404 "Espaço não encontrado.".
+         * @description Remove a pessoa informada dos membros do espaço livre. Só o dono do espaço livre remove. A operação é idempotente: remover uma pessoa que não é membro também devolve 204. Remover o próprio dono recebe 400 "O dono não pode ser removido."; um membro que tenta remover recebe 403 "Só o dono do espaço pode remover pessoas."; espaço inexistente, com id malformado, de unidade ou que quem chama não alcança recebe o mesmo 404 "Espaço não encontrado.".
          */
         delete: operations["removeSpaceMember"];
         options?: never;
@@ -2616,7 +2616,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description "Só o dono do espaço pode adicionar pessoas." para quem é membro do espaço sem ser o dono. */
+            /** @description "Só o dono do espaço pode remover pessoas." para quem é membro do espaço sem ser o dono. */
             403: {
                 headers: {
                     [name: string]: unknown;

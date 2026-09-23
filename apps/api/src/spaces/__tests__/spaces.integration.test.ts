@@ -1787,7 +1787,7 @@ test('DELETE space member answers 403 to a member', async () => {
   expect(second.status).toBe(200);
   expect(response.status).toBe(403);
   expect(response.body).toEqual({
-    message: 'Só o dono do espaço pode adicionar pessoas.',
+    message: 'Só o dono do espaço pode remover pessoas.',
   });
   expect(await countSpaceMembers()).toBe(2);
 });

@@ -3,7 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { isAxiosError } from 'axios';
 import { http, HttpResponse } from 'msw';
 import type React from 'react';
-import { beforeEach, expect, test } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 
 import { env } from '@/config/env';
 import { queryConfig } from '@/lib/react-query';
@@ -143,4 +143,40 @@ test('useAddSpaceMember does not invalidate the spaces query', async () => {
     LAZY_TIMEOUT,
   );
   expect(queryClient.getQueryState(['spaces'])?.isInvalidated).toBe(false);
+});
+
+test('useAddSpaceMember invalidates the space members query', async () => {
+  const space = addFreeSpace(INSTALLED_PERSON_ID, 'Comissão de Leitura');
+  const person = firstSamplePerson();
+  const queryClient = new QueryClient({ defaultOptions: queryConfig });
+  const order: string[] = [];
+  const invalidateQueries = vi
+    .spyOn(queryClient, 'invalidateQueries')
+    .mockImplementation(async () => {
+      order.push('invalidate');
+      await Promise.resolve();
+    });
+
+  const { result } = renderHook(
+    () =>
+      useAddSpaceMember({
+        mutationConfig: {
+          onSuccess: () => {
+            order.push('onSuccess');
+          },
+        },
+      }),
+    { wrapper: createWrapper(queryClient) },
+  );
+
+  result.current.mutate({ spaceId: space.id, personId: person.id });
+
+  await waitFor(
+    () => expect(result.current.isSuccess).toBe(true),
+    LAZY_TIMEOUT,
+  );
+  expect(invalidateQueries).toHaveBeenCalledWith({
+    queryKey: ['space-members', space.id],
+  });
+  expect(order).toEqual(['invalidate', 'onSuccess']);
 });

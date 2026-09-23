@@ -1,5 +1,5 @@
 import type { components } from '@folioteca/api-contract';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '@/lib/api-client';
 import type { MutationConfig } from '@/lib/react-query';
@@ -27,13 +27,27 @@ type UseAddSpaceMemberOptions = {
   mutationConfig?: MutationConfig<typeof addSpaceMember>;
 };
 
-// Nothing to invalidate: the list of the owner does not change, and no screen
-// of this slice lists the members of a free space. The new member sees the
-// space because the list of spaces is read again (see `get-spaces.ts`).
+// Only the people of the space are read again: the list of spaces of the
+// owner does not change, and the new member sees the space because that list
+// is read again (see `get-spaces.ts`). The key is the one of
+// `getSpaceMembersQueryOptions`, for the space of the mutation.
 export const useAddSpaceMember = ({
   mutationConfig,
-}: UseAddSpaceMemberOptions = {}) =>
-  useMutation({
-    ...mutationConfig,
+}: UseAddSpaceMemberOptions = {}) => {
+  const queryClient = useQueryClient();
+  const { onSuccess, ...restConfig } = mutationConfig ?? {};
+
+  return useMutation({
+    ...restConfig,
     mutationFn: addSpaceMember,
+    // Awaited on purpose: whoever closes the dialog already finds the person
+    // in the list.
+    onSuccess: async (data, variables, ...args) => {
+      await queryClient.invalidateQueries({
+        queryKey: ['space-members', variables.spaceId],
+      });
+
+      onSuccess?.(data, variables, ...args);
+    },
   });
+};

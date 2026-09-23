@@ -18,6 +18,7 @@ import {
 } from '@/testing/test-utils';
 
 import { AddSpaceMemberDialog } from '../add-space-member-dialog';
+import { SpaceMembers } from '../space-members';
 
 // The search waits for a 300 ms debounce before it goes out: every wait after
 // typing gets an explicit budget instead of the implicit default.
@@ -324,4 +325,48 @@ test('closing returns focus to the trigger', async () => {
   expect(
     screen.getByRole('button', { name: 'Adicionar pessoa' }),
   ).toHaveFocus();
+});
+
+test('the people list shows the person after adding', async () => {
+  const user = userEvent.setup();
+  renderApp(
+    <>
+      <AddSpaceMemberDialog spaceId={spaceId} spaceName={SPACE_NAME} />
+      <SpaceMembers spaceId={spaceId} spaceType="free" canRemove />
+    </>,
+  );
+
+  const list = await screen.findByRole(
+    'list',
+    { name: 'Pessoas neste espaço' },
+    LAZY_TIMEOUT,
+  );
+  expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+  expect(within(list).queryByText('Beatriz Nogueira')).not.toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: 'Adicionar pessoa' }));
+  const dialog = await screen.findByRole('dialog', {
+    name: 'Adicionar pessoa ao espaço',
+  });
+  const field = within(dialog).getByLabelText('Buscar pessoa');
+  await selectPerson({ user, dialog, field }, 'Beatriz', 'Beatriz Nogueira');
+  await user.click(within(dialog).getByRole('button', { name: 'Adicionar' }));
+  await within(dialog).findByText(
+    'Beatriz Nogueira agora é membro deste espaço.',
+    undefined,
+    LAZY_TIMEOUT,
+  );
+  await user.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+  await waitFor(
+    () => expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    LAZY_TIMEOUT,
+  );
+
+  const updated = await screen.findByRole(
+    'list',
+    { name: 'Pessoas neste espaço' },
+    LAZY_TIMEOUT,
+  );
+  expect(within(updated).getAllByRole('listitem')).toHaveLength(2);
+  expect(within(updated).getByText('Beatriz Nogueira')).toBeInTheDocument();
 });

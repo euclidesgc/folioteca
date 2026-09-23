@@ -402,3 +402,60 @@ test('a FREE space shows the member description without Adicionar pessoa', async
     ),
   ).toBeInTheDocument();
 });
+
+test('a FREE space shows Pessoas neste espaço with Remover to its owner', async () => {
+  seedSamplePeople();
+  const space = addFreeSpace(INSTALLED_PERSON_ID, 'Comissão de Leitura');
+  addSpaceMember(INSTALLED_PERSON_ID, space.id, 'person-sample-3');
+
+  renderApp(<View spaceId={space.id} />);
+
+  expect(
+    await screen.findByRole(
+      'heading',
+      { level: 2, name: 'Pessoas neste espaço' },
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
+  const list = await screen.findByRole(
+    'list',
+    { name: 'Pessoas neste espaço' },
+    LAZY_TIMEOUT,
+  );
+  expect(within(list).getAllByRole('listitem')).toHaveLength(2);
+  expect(
+    within(list).getByRole('button', { name: 'Remover Beatriz Nogueira' }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(
+      'Os documentos deste espaço ainda não chegaram. Em breve você vai guardar e encontrar documentos aqui.',
+    ),
+  ).toBeInTheDocument();
+});
+
+test('a FREE space shows Pessoas neste espaço without Remover to a member', async () => {
+  seedSamplePeople();
+  const ownerId = 'person-sample-1';
+  const space = addFreeSpace(ownerId, 'Clube do Livro');
+  addSpaceMember(ownerId, space.id, INSTALLED_PERSON_ID);
+  addSpaceMember(ownerId, space.id, 'person-sample-3');
+
+  renderApp(<View spaceId={space.id} />);
+
+  expect(
+    await screen.findByRole(
+      'heading',
+      { level: 2, name: 'Pessoas neste espaço' },
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
+  const list = await screen.findByRole(
+    'list',
+    { name: 'Pessoas neste espaço' },
+    LAZY_TIMEOUT,
+  );
+  expect(within(list).getAllByRole('listitem')).toHaveLength(3);
+  expect(
+    screen.queryAllByRole('button', { name: /^Remover/ }),
+  ).toHaveLength(0);
+});

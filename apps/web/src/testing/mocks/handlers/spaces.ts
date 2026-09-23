@@ -12,6 +12,7 @@ import {
   listSpaceDocuments,
   listSpaceMembers,
   listSpacesOf,
+  removeSpaceMember,
   spaceDetailOf,
   spaceReachOf,
 } from '../db';
@@ -159,7 +160,8 @@ export const spacesHandlers = [
       if (!installation || !hasSession || !person) return unauthenticated();
 
       // No 403: whoever reaches the unit, directly or by inheritance, sees
-      // who is assigned to it.
+      // who is assigned to it, and the owner and the members of a free space
+      // see its people.
       const members = listSpaceMembers(person.id, String(params.spaceId));
       if (!members) return spaceNotFound();
 
@@ -199,6 +201,38 @@ export const spacesHandlers = [
 
       const body: SpaceMemberResponse = { data: result.person };
       return HttpResponse.json(body);
+    },
+  ),
+
+  // Idempotent: removing someone who is not a member answers the same 204.
+  http.delete(
+    `${env.API_URL}/spaces/:spaceId/members/:personId`,
+    async ({ cookies, params }) => {
+      await networkDelay();
+      const forced = await devOverride('spaces');
+      if (forced) return forced;
+
+      const { installation } = getDb();
+      const hasSession = Boolean(cookies[SESSION_COOKIE_NAME]);
+      const person = getSignedInPerson();
+
+      if (!installation || !hasSession || !person) return unauthenticated();
+
+      const result = removeSpaceMember(
+        person.id,
+        String(params.spaceId),
+        String(params.personId),
+      );
+
+      if (!result.ok) {
+        if (result.status === 404) return spaceNotFound();
+        return HttpResponse.json(
+          { message: result.message },
+          { status: result.status },
+        );
+      }
+
+      return new HttpResponse(null, { status: 204 });
     },
   ),
 ];

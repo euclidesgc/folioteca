@@ -152,6 +152,10 @@ export function SpaceView({
     );
   }
 
+  // Only the owner of a free space removes people from it; a member reads
+  // the list.
+  const { reach } = space;
+
   // `break-words` on the wrapper: `overflow-wrap` is inherited, so a long
   // space name breaks inside the `<h1>` of `ContentLayout` instead of
   // overflowing the page on a narrow screen.
@@ -170,7 +174,11 @@ export function SpaceView({
         {space.type === 'unit' ? (
           <>
             {unitContent}
-            <SpaceMembers spaceId={spaceId} />
+            <SpaceMembers
+              spaceId={spaceId}
+              spaceType="unit"
+              canRemove={false}
+            />
           </>
         ) : (
           <>
@@ -185,6 +193,11 @@ export function SpaceView({
             <p className="mt-6 rounded-md border border-dashed border-gray-300 p-6 text-center text-gray-600">
               {SPACE_TEXTS.free.empty}
             </p>
+            <SpaceMembers
+              spaceId={spaceId}
+              spaceType="free"
+              canRemove={reach === 'owner'}
+            />
           </>
         )}
       </ContentLayout>

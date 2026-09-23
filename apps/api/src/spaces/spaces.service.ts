@@ -23,6 +23,8 @@ type SpaceMemberResponse = components['schemas']['SpaceMemberResponse'];
 
 const OWNER_ONLY_MESSAGE = 'Só o dono do espaço pode adicionar pessoas.';
 
+const REMOVE_OWNER_ONLY_MESSAGE = 'Só o dono do espaço pode remover pessoas.';
+
 const ADD_OWNER_MESSAGE = 'Você já é o dono deste espaço.';
 
 const PERSON_NOT_FOUND_MESSAGE = 'Pessoa não encontrada nesta instância.';
@@ -469,7 +471,7 @@ export class SpacesService {
     }
 
     if (space.ownerId !== requester.id) {
-      throw new ForbiddenException(OWNER_ONLY_MESSAGE);
+      throw new ForbiddenException(REMOVE_OWNER_ONLY_MESSAGE);
     }
 
     if (personId === space.ownerId) {

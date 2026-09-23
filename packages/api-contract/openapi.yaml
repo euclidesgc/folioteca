@@ -1372,7 +1372,7 @@ paths:
         espaço livre remove. A operação é idempotente: remover uma pessoa que
         não é membro também devolve 204. Remover o próprio dono recebe 400 "O
         dono não pode ser removido."; um membro que tenta remover recebe 403
-        "Só o dono do espaço pode adicionar pessoas."; espaço inexistente, com
+        "Só o dono do espaço pode remover pessoas."; espaço inexistente, com
         id malformado, de unidade ou que quem chama não alcança recebe o mesmo
         404 "Espaço não encontrado.".
       parameters:
@@ -1404,7 +1404,7 @@ paths:
                 $ref: "#/components/schemas/Error"
         "403":
           description: >-
-            "Só o dono do espaço pode adicionar pessoas." para quem é membro
+            "Só o dono do espaço pode remover pessoas." para quem é membro
             do espaço sem ser o dono.
           content:
             application/json:

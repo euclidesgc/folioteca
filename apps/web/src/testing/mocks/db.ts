@@ -624,43 +624,113 @@ export const addSpaceMember = (
   };
 };
 
-// The people assigned directly to the unit of a space, the way GET
-// /spaces/:spaceId/members answers: whoever asks first, then by name and
-// e-mail with the pt-BR collator, the tie broken by `id`. `null` when the
-// person does not reach the unit, the 404 of the handler.
+// The order of GET /spaces/:spaceId/members, the one of
+// `compareMembers`: the owner first, then whoever asks, then by name and
+// e-mail with the pt-BR collator, the tie broken by `id`.
+const compareSpaceMembers = (a: SpaceMember, b: SpaceMember): number =>
+  Number(b.role === 'owner') - Number(a.role === 'owner') ||
+  Number(b.isCurrentPerson) - Number(a.isCurrentPerson) ||
+  spacesCollator.compare(a.name, b.name) ||
+  spacesCollator.compare(a.email, b.email) ||
+  a.id.localeCompare(b.id);
+
+// The people of a space, the way GET /spaces/:spaceId/members answers. A free
+// space: its owner (`owner`) and its members (`member`), only to the owner
+// and the members. A unit space: the people assigned directly to the unit
+// (`assigned`), to whoever reaches it. `null` otherwise, the 404 of the
+// handler.
 export const listSpaceMembers = (
   personId: string,
   spaceId: string,
 ): SpaceMember[] | null => {
-  if (spaceReachOf(personId, spaceId) === 'none') return null;
-
   const space = state.spaces.find((item) => item.id === spaceId);
-  if (space?.type !== 'unit') return null;
+  if (!space) return null;
 
   const people = allPeople();
+  const toMember = (
+    id: string,
+    role: SpaceMember['role'],
+  ): SpaceMember[] => {
+    const person = people.find((candidate) => candidate.id === id);
+    return person
+      ? [
+          {
+            id: person.id,
+            name: person.name,
+            email: person.email,
+            isCurrentPerson: person.id === personId,
+            role,
+          },
+        ]
+      : [];
+  };
+
+  if (space.type === 'free') {
+    if (space.ownerId !== personId && !isSpaceMember(personId, space.id)) {
+      return null;
+    }
+
+    return [
+      ...toMember(space.ownerId, 'owner'),
+      ...state.spaceMembers
+        .filter((item) => item.spaceId === space.id)
+        .flatMap((item) => toMember(item.personId, 'member')),
+    ].sort(compareSpaceMembers);
+  }
+
+  if (spaceReachOf(personId, spaceId) === 'none') return null;
 
   return state.assignments
     .filter((item) => item.orgUnitId === space.orgUnitId)
-    .flatMap((item): SpaceMember[] => {
-      const person = people.find((candidate) => candidate.id === item.personId);
-      return person
-        ? [
-            {
-              id: person.id,
-              name: person.name,
-              email: person.email,
-              isCurrentPerson: person.id === personId,
-            },
-          ]
-        : [];
-    })
-    .sort(
-      (a, b) =>
-        Number(b.isCurrentPerson) - Number(a.isCurrentPerson) ||
-        spacesCollator.compare(a.name, b.name) ||
-        spacesCollator.compare(a.email, b.email) ||
-        a.id.localeCompare(b.id),
-    );
+    .flatMap((item) => toMember(item.personId, 'assigned'))
+    .sort(compareSpaceMembers);
+};
+
+// What removing a member answers: the refusal with its status and message,
+// or done.
+export type RemoveSpaceMemberResult =
+  | { ok: false; status: 400 | 403 | 404; message: string }
+  | { ok: true };
+
+// Removes a person from a free space, the way DELETE /spaces/:spaceId/
+// members/:personId does, in the same order as `SpacesService.removeMember`:
+// a space the requester does not reach (unknown, a unit, a free space of
+// someone else) is 404, a member is 403, the owner is 400. Removing someone
+// who is not a member is done all the same.
+export const removeSpaceMember = (
+  requesterId: string,
+  spaceId: string,
+  personId: string,
+): RemoveSpaceMemberResult => {
+  const space = state.spaces.find((item) => item.id === spaceId);
+  if (
+    space?.type !== 'free' ||
+    (space.ownerId !== requesterId && !isSpaceMember(requesterId, spaceId))
+  ) {
+    return { ok: false, status: 404, message: 'Espaço não encontrado.' };
+  }
+
+  if (space.ownerId !== requesterId) {
+    return {
+      ok: false,
+      status: 403,
+      message: 'Só o dono do espaço pode remover pessoas.',
+    };
+  }
+
+  if (personId === space.ownerId) {
+    return {
+      ok: false,
+      status: 400,
+      message: 'O dono não pode ser removido.',
+    };
+  }
+
+  state.spaceMembers = state.spaceMembers.filter(
+    (item) => !(item.spaceId === spaceId && item.personId === personId),
+  );
+
+  return { ok: true };
 };
 
 // The same hard limit the real list of a space has.
