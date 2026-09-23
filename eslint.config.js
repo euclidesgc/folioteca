@@ -116,9 +116,9 @@ export default tseslint.config(
               except: ['./admin-roles'],
             },
             {
-              target: './apps/web/src/features/unit-spaces',
+              target: './apps/web/src/features/spaces',
               from: './apps/web/src/features',
-              except: ['./unit-spaces'],
+              except: ['./spaces'],
             },
             {
               target: './apps/web/src/features',

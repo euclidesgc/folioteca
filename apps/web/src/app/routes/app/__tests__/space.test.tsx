@@ -8,11 +8,12 @@ import { paths } from '@/config/paths';
 import { queryConfig } from '@/lib/react-query';
 import {
   addAssignment,
+  addFreeSpace,
   getDb,
   seedInstalled,
   seedSampleOrgUnits,
 } from '@/testing/mocks/db';
-import { screen, within } from '@/testing/test-utils';
+import { screen, userEvent, within } from '@/testing/test-utils';
 
 // The route is `lazy` and sits past the gate: every wait of this file gets
 // the same explicit budget.
@@ -42,7 +43,7 @@ const renderRoutes = (url: string): ReturnType<typeof render> => {
 };
 
 test('an assigned person opens the space by URL and sees the unit name', async () => {
-  renderRoutes(paths.unitSpace.getHref(CATALOGACAO_SPACE_ID));
+  renderRoutes(paths.space.getHref(CATALOGACAO_SPACE_ID));
 
   expect(
     await screen.findByRole(
@@ -68,14 +69,14 @@ test('an unknown id and a space the person is not assigned to render the same no
     ),
   ).toBe(false);
 
-  const unknown = renderRoutes(paths.unitSpace.getHref('space-que-nao-existe'));
+  const unknown = renderRoutes(paths.space.getHref('space-que-nao-existe'));
   const unknownAlert = await screen.findByRole('alert', {}, LAZY_TIMEOUT);
   const unknownMain = unknownAlert.closest('main');
   const unknownContent = unknownMain?.innerHTML;
   expect(unknownAlert).toHaveTextContent('Espaço não encontrado.');
   unknown.unmount();
 
-  renderRoutes(paths.unitSpace.getHref(RESTAURO_SPACE_ID));
+  renderRoutes(paths.space.getHref(RESTAURO_SPACE_ID));
   const notAssignedAlert = await screen.findByRole('alert', {}, LAZY_TIMEOUT);
   expect(notAssignedAlert).toHaveTextContent('Espaço não encontrado.');
 
@@ -84,7 +85,7 @@ test('an unknown id and a space the person is not assigned to render the same no
 });
 
 test('the Unidades section shows the open space as active', async () => {
-  renderRoutes(paths.unitSpace.getHref(CATALOGACAO_SPACE_ID));
+  renderRoutes(paths.space.getHref(CATALOGACAO_SPACE_ID));
 
   const nav = await screen.findByRole(
     'navigation',
@@ -103,4 +104,65 @@ test('the Unidades section shows the open space as active', async () => {
   expect(
     within(nav).getByRole('link', { name: 'Sala Infantil' }),
   ).not.toHaveAttribute('aria-current');
+});
+
+test('creating a space from the sidebar opens its page with the name in the heading and the item in the section', async () => {
+  const user = userEvent.setup();
+  renderRoutes(paths.home.getHref());
+
+  const nav = await screen.findByRole(
+    'navigation',
+    { name: 'Espaços' },
+    LAZY_TIMEOUT,
+  );
+  await within(nav).findByText(
+    'Você ainda não tem espaços.',
+    {},
+    LAZY_TIMEOUT,
+  );
+  await user.click(within(nav).getByRole('button', { name: 'Novo espaço' }));
+  const dialog = await screen.findByRole(
+    'dialog',
+    { name: 'Novo espaço' },
+    LAZY_TIMEOUT,
+  );
+  await user.type(within(dialog).getByLabelText('Nome'), 'Comissão de Leitura');
+  await user.click(within(dialog).getByRole('button', { name: 'Criar espaço' }));
+
+  const heading = await screen.findByRole(
+    'heading',
+    { level: 1, name: 'Comissão de Leitura' },
+    LAZY_TIMEOUT,
+  );
+  expect(
+    screen.getByText('Um espaço livre, de que você é dona.'),
+  ).toBeInTheDocument();
+  expect(heading.closest('main')).toHaveFocus();
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(
+    within(nav).getByRole('link', { name: 'Comissão de Leitura' }),
+  ).toHaveAttribute('aria-current', 'page');
+});
+
+test('a space of another owner and an unknown id render the same not found state', async () => {
+  const otherOwners = addFreeSpace('person-2', 'Comissão de Outra Pessoa');
+  expect(
+    getDb().spaces.some((space) => space.id === otherOwners.id),
+  ).toBe(true);
+
+  const unknown = renderRoutes(paths.space.getHref('space-que-nao-existe'));
+  const unknownAlert = await screen.findByRole('alert', {}, LAZY_TIMEOUT);
+  const unknownContent = unknownAlert.closest('main')?.innerHTML;
+  expect(unknownAlert).toHaveTextContent('Espaço não encontrado.');
+  unknown.unmount();
+
+  renderRoutes(paths.space.getHref(otherOwners.id));
+  const otherOwnerAlert = await screen.findByRole('alert', {}, LAZY_TIMEOUT);
+  expect(otherOwnerAlert).toHaveTextContent('Espaço não encontrado.');
+  expect(
+    screen.queryByText('Comissão de Outra Pessoa'),
+  ).not.toBeInTheDocument();
+
+  expect(unknownContent).toBeDefined();
+  expect(otherOwnerAlert.closest('main')?.innerHTML).toBe(unknownContent);
 });

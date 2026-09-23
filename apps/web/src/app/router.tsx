@@ -55,8 +55,8 @@ export const createRoutes = (): RouteObject[] => [
             lazy: () => import('@/app/routes/app/spaces'),
           },
           {
-            path: paths.unitSpace.path.slice(1),
-            lazy: () => import('@/app/routes/app/unit-space'),
+            path: paths.space.path.slice(1),
+            lazy: () => import('@/app/routes/app/space'),
           },
           {
             path: paths.trash.path.slice(1),

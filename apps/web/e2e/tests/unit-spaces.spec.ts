@@ -125,9 +125,11 @@ const assignSelf = async (page: Page): Promise<void> => {
   await expect(assignedPeople(page).first()).toContainText(PERSON_NAME);
 };
 
-// Opens the unit's space from the sidebar with the keyboard. The "Unidades"
-// section sits right before "Administração", so a Shift+Tab from its first
-// link lands on the single item of the section.
+// Opens the unit's space from the sidebar with the keyboard. The "Espaços"
+// section (slice 013) sits between "Unidades" and "Administração" and, with no
+// free space, its only stop is "Novo espaço": a Shift+Tab from the first link
+// of "Administração" lands on it, and another one on the single item of
+// "Unidades".
 const openSpaceFromSidebar = async (page: Page): Promise<void> => {
   const spaceLink = unitsNav(page).getByRole('link', { name: UNIT_NAME });
   await expect(spaceLink).toBeVisible();
@@ -137,6 +139,12 @@ const openSpaceFromSidebar = async (page: Page): Promise<void> => {
     .getByRole('link', { name: 'Estrutura' });
   await structureLink.focus();
   await expect(structureLink).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(
+    page
+      .getByRole('navigation', { name: 'Espaços' })
+      .getByRole('button', { name: 'Novo espaço' }),
+  ).toBeFocused();
   await page.keyboard.press('Shift+Tab');
   await expect(spaceLink).toBeFocused();
   await page.keyboard.press('Enter');

@@ -8,6 +8,7 @@ import type { QueryConfig } from '@/lib/react-query';
 // `types/api.ts`, because no other feature reads the spaces yet.
 export type Space = components['schemas']['Space'];
 export type SpacesResponse = components['schemas']['SpacesResponse'];
+export type SpaceResponse = components['schemas']['SpaceResponse'];
 
 // Both type arguments are given on purpose: the response comes in an envelope
 // (`{ data }`), and the default `AxiosResponse<T>` of axios only carries
@@ -27,7 +28,7 @@ type UseSpacesOptions = {
   queryConfig?: QueryConfig<typeof getSpacesQueryOptions>;
 };
 
-// Read by both the sidebar section and the unit space page: they share the
+// Read by both sidebar sections and the space page: they share the
 // cache, so opening a space from the sidebar asks the server nothing more.
 export const useSpaces = ({ queryConfig }: UseSpacesOptions = {}) =>
   useQuery({

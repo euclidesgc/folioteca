@@ -3,7 +3,7 @@ import { NavLink } from 'react-router';
 
 import { Button } from '@/components/ui/button/button';
 import { paths } from '@/config/paths';
-import { useSpaces } from '@/features/unit-spaces/api/get-spaces';
+import { useSpaces } from '@/features/spaces/api/get-spaces';
 import { cn } from '@/utils/cn';
 
 const sidebarItemClassName =
@@ -61,7 +61,7 @@ export function SidebarUnitSpaces(): React.JSX.Element | null {
         {spaces.map((space) => (
           <li key={space.id}>
             <NavLink
-              to={paths.unitSpace.getHref(space.id)}
+              to={paths.space.getHref(space.id)}
               title={space.name}
               className={spaceItemClassName}
             >

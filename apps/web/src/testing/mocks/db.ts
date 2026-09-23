@@ -1,7 +1,11 @@
 // Fake, hand-written in-memory database: this feature creates one
 // installation and a handful of documents, so `@mswjs/data` is overkill.
 
+import type { components } from '@folioteca/api-contract';
+
 import { MOCK_PASSWORD } from './utils';
+
+type Space = components['schemas']['Space'];
 
 export type MockOrganization = { id: string; name: string };
 export type MockPerson = {
@@ -64,7 +68,12 @@ export type MockAssignment = { orgUnitId: string; personId: string };
 // also creates its space, and removing the unit removes the space. Its id is
 // named after the unit, `space-${orgUnitId}`, the same convention
 // `space-${person.id}` already uses for the personal space.
-export type MockSpace = { id: string; type: 'unit'; orgUnitId: string };
+//
+// The `FREE` space is created by a person, who becomes its owner, and carries
+// its own name.
+export type MockSpace =
+  | { id: string; type: 'unit'; orgUnitId: string }
+  | { id: string; type: 'free'; name: string; ownerId: string };
 
 type DbState = {
   installation: MockInstallation | null;
@@ -353,7 +362,9 @@ export const removeOrgUnit = (id: string): void => {
   const index = state.orgUnits.findIndex((item) => item.id === id);
   if (index !== -1) state.orgUnits.splice(index, 1);
 
-  const spaceIndex = state.spaces.findIndex((item) => item.orgUnitId === id);
+  const spaceIndex = state.spaces.findIndex(
+    (item) => item.type === 'unit' && item.orgUnitId === id,
+  );
   if (spaceIndex !== -1) state.spaces.splice(spaceIndex, 1);
 };
 
@@ -371,24 +382,48 @@ export const addUnitSpace = (orgUnitId: string): MockSpace => {
   return space;
 };
 
-// The unit spaces a person is assigned to, the way GET /spaces answers: only
-// direct assignments (no inheritance from a parent unit), sorted by the pt-BR
+// Creates a `FREE` space owned by `ownerId` (see `MockSpace` above). The only
+// place a free space is born, used by the POST /spaces handler and by the
+// tests. Pushed into the array already in the database, never into a copy of
+// it (same reason as `touchDocumentUpdatedAt` above). The counter keeps two
+// spaces with the same name apart, as the real API accepts them.
+let freeSpaceCounter = 0;
+
+export const addFreeSpace = (ownerId: string, name: string): MockSpace => {
+  freeSpaceCounter += 1;
+  const space: MockSpace = {
+    id: `space-free-${freeSpaceCounter}`,
+    type: 'free',
+    name,
+    ownerId,
+  };
+  state.spaces.push(space);
+  return space;
+};
+
+// The spaces of a person, the way GET /spaces answers: the unit spaces of the
+// units the person is directly assigned to (no inheritance from a parent
+// unit) and the free spaces the person owns, mixed and sorted by the pt-BR
 // collator with the tie broken by `id`, the same pair of rules the service
 // applies.
 const spacesCollator = new Intl.Collator('pt-BR', { sensitivity: 'base' });
 
-export const listSpacesOf = (
-  personId: string,
-): { id: string; type: 'unit'; name: string }[] =>
+export const listSpacesOf = (personId: string): Space[] =>
   state.spaces
-    .flatMap((space) => {
+    .flatMap((space): Space[] => {
+      if (space.type === 'free') {
+        return space.ownerId === personId
+          ? [{ id: space.id, type: 'free', name: space.name }]
+          : [];
+      }
+
       const assigned = state.assignments.some(
         (item) =>
           item.orgUnitId === space.orgUnitId && item.personId === personId,
       );
       const unit = state.orgUnits.find((item) => item.id === space.orgUnitId);
       return assigned && unit
-        ? [{ id: space.id, type: space.type, name: unit.name }]
+        ? [{ id: space.id, type: 'unit', name: unit.name }]
         : [];
     })
     .sort(

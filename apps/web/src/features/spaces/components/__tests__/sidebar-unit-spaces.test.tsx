@@ -4,7 +4,7 @@ import { beforeEach, expect, test } from 'vitest';
 
 import { env } from '@/config/env';
 import { paths } from '@/config/paths';
-import { useSpaces } from '@/features/unit-spaces/api/get-spaces';
+import { useSpaces } from '@/features/spaces/api/get-spaces';
 import {
   addAssignment,
   listSpacesOf,
@@ -117,13 +117,13 @@ test('each link points to the unit space href', async () => {
     await screen.findByRole('link', { name: 'Catalogação' }, LAZY_TIMEOUT),
   ).toHaveAttribute(
     'href',
-    paths.unitSpace.getHref('space-org-unit-catalogacao'),
+    paths.space.getHref('space-org-unit-catalogacao'),
   );
   expect(
     screen.getByRole('link', { name: 'Empréstimos e Devoluções' }),
   ).toHaveAttribute(
     'href',
-    paths.unitSpace.getHref('space-org-unit-emprestimos'),
+    paths.space.getHref('space-org-unit-emprestimos'),
   );
 });
 

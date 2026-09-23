@@ -976,9 +976,9 @@ paths:
       operationId: listSpaces
       tags:
         - spaces
-      summary: Lista os espaços de unidade de quem chama
+      summary: Lista os espaços de unidade e os espaços livres de quem chama
       description: >-
-        Lista só os espaços de unidade em que a pessoa da sessão está lotada
+        Lista os espaços de unidade em que a pessoa da sessão está lotada
         diretamente: lotação numa unidade filha não traz a unidade pai, e não
         há herança em nenhum sentido. Ser administração não inclui nada a
         mais. A lista traz também os espaços livres de que a pessoa da sessão
@@ -988,7 +988,7 @@ paths:
         removida some já no pedido seguinte.
       responses:
         "200":
-          description: Os espaços de unidade foram listados.
+          description: Os espaços de unidade e os espaços livres foram listados.
           content:
             application/json:
               schema:

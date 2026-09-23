@@ -343,8 +343,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Lista os espaços de unidade de quem chama
-         * @description Lista só os espaços de unidade em que a pessoa da sessão está lotada diretamente: lotação numa unidade filha não traz a unidade pai, e não há herança em nenhum sentido. Ser administração não inclui nada a mais. A lista traz também os espaços livres de que a pessoa da sessão é dona, na organização dela, misturados aos de unidade na mesma ordem. A ordem é alfabética pelo nome com colador pt-BR, com desempate pelo id do espaço. A lista é relida a cada pedido, então uma lotação removida some já no pedido seguinte.
+         * Lista os espaços de unidade e os espaços livres de quem chama
+         * @description Lista os espaços de unidade em que a pessoa da sessão está lotada diretamente: lotação numa unidade filha não traz a unidade pai, e não há herança em nenhum sentido. Ser administração não inclui nada a mais. A lista traz também os espaços livres de que a pessoa da sessão é dona, na organização dela, misturados aos de unidade na mesma ordem. A ordem é alfabética pelo nome com colador pt-BR, com desempate pelo id do espaço. A lista é relida a cada pedido, então uma lotação removida some já no pedido seguinte.
          */
         get: operations["listSpaces"];
         put?: never;
@@ -1960,7 +1960,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Os espaços de unidade foram listados. */
+            /** @description Os espaços de unidade e os espaços livres foram listados. */
             200: {
                 headers: {
                     [name: string]: unknown;

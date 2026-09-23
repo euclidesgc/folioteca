@@ -75,10 +75,11 @@ export const networkDelay = (): Promise<void> =>
 //     500, to see the error of taking the administration role away; with a
 //     single administration the page already refuses the action by itself, so
 //     promote someone first to have a row to demote
-//   mock-error=spaces  -> the GET /spaces handler answers 500, to see the
-//     error of the "Unidades" section of the sidebar and of the unit space
-//     page; the section only shows up for a person assigned to a unit, so
-//     assign yourself on the people page of a unit first
+//   mock-error=spaces  -> the GET and POST /spaces handlers answer 500, to
+//     see the error of the "Unidades" and "Espaços" sections of the sidebar,
+//     of the space page and of the "Novo espaço" dialog; the "Unidades"
+//     section only shows up for a person assigned to a unit, so assign
+//     yourself on the people page of a unit first
 // Remove the key (or run localStorage.clear()) to go back to normal.
 const devKey = (key: string): string | null => {
   if (import.meta.env.MODE === 'test' || typeof window === 'undefined') {

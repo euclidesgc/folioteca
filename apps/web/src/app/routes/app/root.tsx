@@ -9,7 +9,8 @@ import { ConnectionIndicator } from '@/features/connection/components/connection
 import { NewDocumentButton } from '@/features/documents/components/new-document-button';
 import { SidebarDocuments } from '@/features/documents/components/sidebar-documents';
 import { useInstallation } from '@/features/installation/api/get-installation';
-import { SidebarUnitSpaces } from '@/features/unit-spaces/components/sidebar-unit-spaces';
+import { SidebarFreeSpaces } from '@/features/spaces/components/sidebar-free-spaces';
+import { SidebarUnitSpaces } from '@/features/spaces/components/sidebar-unit-spaces';
 import { ProtectedRoute } from '@/lib/auth';
 import { reportError } from '@/lib/report-error';
 
@@ -30,6 +31,7 @@ export function Root(): React.JSX.Element {
             <SidebarDocuments scope="favorites" />
             <SidebarDocuments />
             <SidebarUnitSpaces />
+            <SidebarFreeSpaces />
             <SidebarAdmin />
           </>
         }
