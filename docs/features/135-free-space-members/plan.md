@@ -134,13 +134,13 @@ Caminhos relativos à raiz do repositório. A ordem importa: API simulada e cham
 
 ## Fase 3 — e2e da jornada e documentação: a fatia utilizável de ponta a ponta
 
-- [ ] T3.1 — Documentação da arquitetura
+- [x] T3.1 — Documentação da arquitetura
   - Arquivos: `docs/architecture.md` (alterar)
   - O que fazer, em pt_BR: §6 (espaços) ganha o parágrafo **"Entrega `free-space-members` (fatia 135)"**: `GET /spaces/{spaceId}/members` serve também o espaço livre (dono e membros; dono primeiro); `SpaceMember.role` (`owner`, `member`, `assigned`); `DELETE /spaces/{spaceId}/members/{personId}` idempotente, só o dono, ordem 401 → 404 → 403 → 400 → 204; o removido recebe 404 e perde o espaço da barra lateral; a lista é refeita após adicionar ou remover (invalidação de `['space-members', spaceId]`).
   - Skills: —
   - Complexidade: baixa
 
-- [ ] T3.2 — Testes da fase 3 (e2e: dono remove pelo teclado, removido perde o acesso)
+- [x] T3.2 — Testes da fase 3 (e2e: dono remove pelo teclado, removido perde o acesso)
   - Arquivos: `apps/web/e2e/tests/free-space-members.spec.ts` (criar)
   - O que fazer (D7): API simulada com semente por `page.addInitScript`, segundo contexto como em `apps/web/e2e/tests/free-space-invite.spec.ts`. `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo; `toBeFocused()` antes de cada `Enter`/`Space`; nenhum `waitForTimeout`; nenhuma regra do axe desativada; outros specs e `apps/web/e2e/a11y.ts` intocados.
     - `the owner sees the people of a free space and removes a member using only the keyboard`: abre o espaço livre, vê "Pessoas neste espaço" com o selo "dono", foca "Remover {nome}", confirma em "Remover", vê "{nome} foi removida do espaço." e a linha some, `expectNoSeriousA11yViolations(page)`.
@@ -150,11 +150,11 @@ Caminhos relativos à raiz do repositório. A ordem importa: API simulada e cham
 
 ### Critérios de aceite da fase 3
 
-- [ ] CA3.1 — `pnpm test:e2e` na raiz sai com 0 (os e2e antigos e os novos), e `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` continuam saindo com 0 e sem aviso.
-- [ ] CA3.2 — `apps/web/e2e/tests/free-space-members.spec.ts` contém os casos `the owner sees the people of a free space and removes a member using only the keyboard` e `the removed person no longer sees the space`, e `pnpm --filter web exec playwright test --list` os lista. `rg -n "test\.skip|test\.only|waitForTimeout|disableRules" apps/web/e2e/tests/free-space-members.spec.ts` é vazio.
-- [ ] CA3.3 — Lendo o spec: `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo; a primeira asserção após mudança de rota usa `ROUTE_TIMEOUT`; asserção seguinte com timeout maior é aceita; `toBeFocused()` antes de cada tecla de ação; `expectNoSeriousA11yViolations(page)` nos dois casos; o primeiro assere `Pessoas neste espaço` e ` foi removida do espaço.`; o segundo usa um segundo contexto de navegador e assere `Espaço não encontrado.` e a ausência do espaço na barra lateral.
-- [ ] CA3.4 — `docs/architecture.md` tem o parágrafo "Entrega `free-space-members` (fatia 135)" citando `DELETE /spaces/{spaceId}/members/{personId}`, `role` e `['space-members', spaceId]`.
-- [ ] CA3.5 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `DELETE space member answers 204 and removes the row` e `GET space members lists a FREE space to its member`; `pnpm exec vitest run --project web` (0) inclui `removing a member announces it and removes the row`; `pnpm test:e2e` (0) inclui os dois casos de `free-space-members.spec.ts`.
+- [x] CA3.1 — `pnpm test:e2e` na raiz sai com 0 (os e2e antigos e os novos), e `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` continuam saindo com 0 e sem aviso.
+- [x] CA3.2 — `apps/web/e2e/tests/free-space-members.spec.ts` contém os casos `the owner sees the people of a free space and removes a member using only the keyboard` e `the removed person no longer sees the space`, e `pnpm --filter web exec playwright test --list` os lista. `rg -n "test\.skip|test\.only|waitForTimeout|disableRules" apps/web/e2e/tests/free-space-members.spec.ts` é vazio.
+- [x] CA3.3 — Lendo o spec: `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo; a primeira asserção após mudança de rota usa `ROUTE_TIMEOUT`; asserção seguinte com timeout maior é aceita; `toBeFocused()` antes de cada tecla de ação; `expectNoSeriousA11yViolations(page)` nos dois casos; o primeiro assere `Pessoas neste espaço` e ` foi removida do espaço.`; o segundo usa um segundo contexto de navegador e assere `Espaço não encontrado.` e a ausência do espaço na barra lateral.
+- [x] CA3.4 — `docs/architecture.md` tem o parágrafo "Entrega `free-space-members` (fatia 135)" citando `DELETE /spaces/{spaceId}/members/{personId}`, `role` e `['space-members', spaceId]`.
+- [x] CA3.5 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `DELETE space member answers 204 and removes the row` e `GET space members lists a FREE space to its member`; `pnpm exec vitest run --project web` (0) inclui `removing a member announces it and removes the row`; `pnpm test:e2e` (0) inclui os dois casos de `free-space-members.spec.ts`.
 
 ## Desvios esperados
 

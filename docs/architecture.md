@@ -750,9 +750,25 @@ encontrado."; membro que não é dono, 403; o próprio dono ou pessoa fora da
 instância, 400. O espaço é conferido antes da pessoa, para uma pessoa inválida
 não revelar espaço alheio. `GET /spaces` e `GET /spaces/{spaceId}` passam a
 enxergar o membro, com `reach: member` (o dono segue `owner`); `GET
-/spaces/{spaceId}/members` continua **só de espaço de unidade**. Na tela, a
+/spaces/{spaceId}/members` continua **só de espaço de unidade** (até a 135,
+que a abre ao espaço livre). Na tela, a
 lista da barra lateral (`get-spaces.ts`) usa `staleTime: 0`, para o membro ver
 o espaço assim que for adicionado.
+
+**Entrega `free-space-members` (fatia 135)**: `GET /spaces/{spaceId}/members`
+passa a servir **também o espaço livre**, ao dono e aos membros, com o **dono
+primeiro**, depois quem pede e o resto por nome e e-mail (`compareMembers`).
+Cada `SpaceMember` ganhou `role`: `owner` e `member` no espaço livre,
+`assigned` no de unidade. `DELETE /spaces/{spaceId}/members/{personId}` remove
+um membro, **só o dono** remove, e é **idempotente**: remover quem não é membro
+(ou id de pessoa malformado) responde o mesmo 204. A ordem é **401 → 404 → 403
+→ 400 → 204**: sem sessão, 401; espaço que a pessoa não alcança, o mesmo 404
+"Espaço não encontrado."; membro que não é dono, 403; remover o próprio dono,
+400. O removido passa a receber 404 no espaço e o **perde da barra lateral**
+na próxima leitura de `GET /spaces`. Na tela, a lista de pessoas é **refeita
+depois de adicionar ou remover**, pela invalidação de
+`['space-members', spaceId]` (`add-space-member.ts` e
+`remove-space-member.ts`), sem atualização otimista.
 
 ## 7. Testes
 

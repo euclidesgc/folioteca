@@ -1260,3 +1260,33 @@ export const seedFreeSpaceMembership = (): void => {
   const space = addFreeSpace(owner.id, MEMBER_FREE_SPACE_NAME);
   state.spaceMembers.push({ spaceId: space.id, personId: member.id });
 };
+
+// Id of the free space `seedRemovedFromFreeSpace` creates, fixed so its page
+// can be opened by URL.
+export const REMOVED_FREE_SPACE_ID = 'space-free-removed';
+
+// Adds "Clube de leitura", the free space of Otávio Mendes, without the
+// signed-in person among its members: the state the person is left in after
+// the owner removes them. The fake database lives in each tab, so a removal
+// made in one browser never reaches another; this seed reproduces the result.
+// Needs an installation already seeded; does nothing without it.
+export const seedRemovedFromFreeSpace = (): void => {
+  if (!getSignedInPerson()) return;
+
+  const owner: MockPerson = {
+    id: 'person-free-space-owner',
+    name: 'Otávio Mendes',
+    email: 'otavio.mendes@exemplo.com.br',
+    isAdmin: false,
+  };
+  if (!state.people.some((person) => person.id === owner.id)) {
+    state.people.push(owner);
+  }
+
+  state.spaces.push({
+    id: REMOVED_FREE_SPACE_ID,
+    type: 'free',
+    name: MEMBER_FREE_SPACE_NAME,
+    ownerId: owner.id,
+  });
+};
