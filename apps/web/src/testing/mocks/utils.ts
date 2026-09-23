@@ -40,8 +40,10 @@ export const networkDelay = (): Promise<void> =>
 //     localStorage.setItem('mock-org-units', 'sample') too)
 //   localStorage.setItem('mock-space-members', 'free-member')  -> adds
 //     "Clube de leitura", a free space of Otávio Mendes with the signed-in
-//     person as its member, to see it in "Espaços" and open it without
-//     "Adicionar pessoa" (needs an installation already seeded)
+//     person as its member and "Ata da primeira reunião", a document of
+//     Otávio in it, to see it in "Espaços", open it without "Adicionar
+//     pessoa" and edit the document of the owner (needs an installation
+//     already seeded)
 //   localStorage.setItem('mock-space-members', 'free-removed')  -> adds
 //     "Clube de leitura", the same free space of Otávio Mendes, without the
 //     signed-in person as its member, the state after the owner removes them:

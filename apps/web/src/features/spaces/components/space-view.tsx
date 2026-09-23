@@ -15,10 +15,9 @@ import { NotFoundError } from '@/lib/errors';
 // changing `<h1>` would jump in value for whoever uses a screen reader.
 const FALLBACK_TITLE = 'Espaço';
 
-// The texts of a found space, by its type. The documents of a unit space come
-// from whoever owns the page (`unitContent`), followed by the people assigned
-// to the unit; documents do not live in a free space yet, so its empty text
-// says what the place will hold.
+// The texts of a found space, by its type. The documents of both types come
+// from whoever owns the page (`documentsContent`), followed by the people of
+// the space.
 const SPACE_TEXTS = {
   unit: {
     description: 'O espaço de documentos da sua unidade.',
@@ -27,12 +26,10 @@ const SPACE_TEXTS = {
     description: 'Um espaço livre, de que você é dona.',
     // A member reads the space; only its owner adds people to it.
     memberDescription: 'Um espaço livre de que você é membro.',
-    empty:
-      'Os documentos deste espaço ainda não chegaram. Em breve você vai guardar e encontrar documentos aqui.',
   },
 } satisfies Record<
   Space['type'],
-  { description: string; memberDescription?: string; empty?: string }
+  { description: string; memberDescription?: string }
 >;
 
 // Only asks for the focus when the page was opened right after creating the
@@ -47,9 +44,9 @@ type SpaceViewProps = {
   // The space of the URL, read by whoever owns the page.
   query: ReturnType<typeof useSpace>;
   spaceId: string;
-  // What a unit space shows in the place of its documents, composed by the
-  // route: this feature does not know the documents one.
-  unitContent: ReactNode;
+  // What a space, unit or free, shows in the place of its documents, composed
+  // by the route: this feature does not know the documents one.
+  documentsContent: ReactNode;
 };
 
 // The same page frame as `ContentLayout`, for the states that have no support
@@ -70,7 +67,7 @@ function SpaceStatePage({
 export function SpaceView({
   query,
   spaceId,
-  unitContent,
+  documentsContent,
 }: SpaceViewProps): React.JSX.Element {
   const location = useLocation();
   const shouldFocusMain = hasFocusMainState(location.state);
@@ -173,7 +170,7 @@ export function SpaceView({
       >
         {space.type === 'unit' ? (
           <>
-            {unitContent}
+            {documentsContent}
             <SpaceMembers
               spaceId={spaceId}
               spaceType="unit"
@@ -190,9 +187,7 @@ export function SpaceView({
                 />
               </div>
             ) : null}
-            <p className="mt-6 rounded-md border border-dashed border-gray-300 p-6 text-center text-gray-600">
-              {SPACE_TEXTS.free.empty}
-            </p>
+            {documentsContent}
             <SpaceMembers
               spaceId={spaceId}
               spaceType="free"

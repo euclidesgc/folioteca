@@ -42,7 +42,7 @@ function View({ spaceId }: { spaceId: string }): React.JSX.Element {
     <SpaceView
       query={query}
       spaceId={spaceId}
-      unitContent={<p>Conteúdo do espaço da unidade</p>}
+      documentsContent={<p>Conteúdo do espaço da unidade</p>}
     />
   );
 }
@@ -172,10 +172,10 @@ test('shows the free space texts when the space is free', async () => {
     screen.getByText('Um espaço livre, de que você é dona.'),
   ).toBeInTheDocument();
   expect(
-    screen.getByText(
+    screen.queryByText(
       'Os documentos deste espaço ainda não chegaram. Em breve você vai guardar e encontrar documentos aqui.',
     ),
-  ).toBeInTheDocument();
+  ).not.toBeInTheDocument();
   expect(
     screen.queryByText('O espaço de documentos da sua unidade.'),
   ).not.toBeInTheDocument();
@@ -210,7 +210,7 @@ test('focuses the main element when focusMain is in the location state', async (
   expect(main).toHaveAttribute('tabindex', '-1');
 });
 
-test('renders unitContent for a unit space', async () => {
+test('renders documentsContent for a unit space', async () => {
   renderApp(<View spaceId={CATALOGACAO_SPACE_ID} />);
 
   expect(
@@ -224,20 +224,43 @@ test('renders unitContent for a unit space', async () => {
   ).not.toBeInTheDocument();
 });
 
-test('a free space keeps the notice and ignores unitContent', async () => {
+test('renders documentsContent for a free space above Pessoas neste espaço', async () => {
+  const space = addFreeSpace(INSTALLED_PERSON_ID, 'Comissão de Leitura');
+
+  renderApp(<View spaceId={space.id} />);
+
+  const membersHeading = await screen.findByRole(
+    'heading',
+    { level: 2, name: 'Pessoas neste espaço' },
+    LAZY_TIMEOUT,
+  );
+  const documentsContent = screen.getByText('Conteúdo do espaço da unidade');
+  expect(
+    documentsContent.compareDocumentPosition(membersHeading) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+});
+
+test('a free space no longer shows the documents notice', async () => {
   const space = addFreeSpace(INSTALLED_PERSON_ID, 'Comissão de Leitura');
 
   renderApp(<View spaceId={space.id} />);
 
   expect(
-    await screen.findByText(
-      'Os documentos deste espaço ainda não chegaram. Em breve você vai guardar e encontrar documentos aqui.',
-      {},
+    await screen.findByRole(
+      'heading',
+      { level: 1, name: 'Comissão de Leitura' },
       LAZY_TIMEOUT,
     ),
   ).toBeInTheDocument();
   expect(
-    screen.queryByText('Conteúdo do espaço da unidade'),
+    screen.getByText('Conteúdo do espaço da unidade'),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByText(/Os documentos deste espaço ainda não chegaram/),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByText(/Em breve você vai guardar e encontrar documentos aqui/),
   ).not.toBeInTheDocument();
 });
 
@@ -366,10 +389,10 @@ test('a FREE space shows Adicionar pessoa to its owner', async () => {
     screen.queryByText('Um espaço livre de que você é membro.'),
   ).not.toBeInTheDocument();
   expect(
-    screen.getByText(
+    screen.queryByText(
       'Os documentos deste espaço ainda não chegaram. Em breve você vai guardar e encontrar documentos aqui.',
     ),
-  ).toBeInTheDocument();
+  ).not.toBeInTheDocument();
 });
 
 test('a FREE space shows the member description without Adicionar pessoa', async () => {
@@ -397,10 +420,10 @@ test('a FREE space shows the member description without Adicionar pessoa', async
     screen.queryByRole('button', { name: 'Adicionar pessoa' }),
   ).not.toBeInTheDocument();
   expect(
-    screen.getByText(
+    screen.queryByText(
       'Os documentos deste espaço ainda não chegaram. Em breve você vai guardar e encontrar documentos aqui.',
     ),
-  ).toBeInTheDocument();
+  ).not.toBeInTheDocument();
 });
 
 test('a FREE space shows Pessoas neste espaço with Remover to its owner', async () => {
@@ -427,10 +450,10 @@ test('a FREE space shows Pessoas neste espaço with Remover to its owner', async
     within(list).getByRole('button', { name: 'Remover Beatriz Nogueira' }),
   ).toBeInTheDocument();
   expect(
-    screen.getByText(
+    screen.queryByText(
       'Os documentos deste espaço ainda não chegaram. Em breve você vai guardar e encontrar documentos aqui.',
     ),
-  ).toBeInTheDocument();
+  ).not.toBeInTheDocument();
 });
 
 test('a FREE space shows Pessoas neste espaço without Remover to a member', async () => {

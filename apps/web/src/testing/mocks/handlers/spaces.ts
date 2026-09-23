@@ -94,6 +94,8 @@ export const spacesHandlers = [
       if (!installation || !hasSession || !person) return unauthenticated();
 
       const spaceId = String(params.spaceId);
+      // The owner and the members of a free space reach it `direct`; a free
+      // space of someone else is `none`. The 403 below is only of a unit.
       const reach = spaceReachOf(person.id, spaceId);
 
       if (reach === 'none') {

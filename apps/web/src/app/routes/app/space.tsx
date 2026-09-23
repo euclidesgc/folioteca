@@ -9,17 +9,17 @@ import { SpaceView } from '@/features/spaces/components/space-view';
 // asks for the space of the URL, and the server answers 404 for any space the
 // person does not reach.
 export function Component(): React.JSX.Element {
-  const { spaceId } = useParams();
-  const id = spaceId ?? '';
-  const spaceQuery = useSpace({ spaceId: id });
+  const params = useParams();
+  const spaceId = params.spaceId ?? '';
+  const spaceQuery = useSpace({ spaceId });
 
-  // The documents of a unit space belong to the documents feature: the route
-  // is where the two features meet.
+  // The documents of a space, unit or free, belong to the documents feature:
+  // the route is where the two features meet.
   return (
     <SpaceView
       query={spaceQuery}
-      spaceId={id}
-      unitContent={<SpaceDocuments spaceId={id} />}
+      spaceId={spaceId}
+      documentsContent={<SpaceDocuments spaceId={spaceId} />}
     />
   );
 }

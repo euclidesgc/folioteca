@@ -518,16 +518,22 @@ export const listSpacesOf = (personId: string): Space[] =>
     );
 
 // How a person reaches a space, the way `SpacesService.reachOf` answers: the
-// same rule as `listSpacesOf` above, split in two. Assigned to the unit is
-// `direct`; reached only through the chain of inheriting spaces is
-// `inherited`. A free space, an unknown id and an unreached unit are `none`:
-// documents in a free space are a later slice.
+// same rule as `listSpacesOf` above, split in two. The owner or a member of a
+// free space and whoever is assigned to the unit are `direct`; reached only
+// through the chain of inheriting spaces is `inherited`. A free space of
+// someone else, an unknown id and an unreached unit are `none`.
 export const spaceReachOf = (
   personId: string,
   spaceId: string,
 ): 'direct' | 'inherited' | 'none' => {
   const space = state.spaces.find((item) => item.id === spaceId);
-  if (space?.type !== 'unit') return 'none';
+  if (!space) return 'none';
+
+  if (space.type === 'free') {
+    return space.ownerId === personId || isSpaceMember(personId, space.id)
+      ? 'direct'
+      : 'none';
+  }
 
   const assigned = state.assignments.some(
     (item) => item.orgUnitId === space.orgUnitId && item.personId === personId,
@@ -1239,8 +1245,9 @@ export const seedUnitSpaceDocuments = (): void => {
 const MEMBER_FREE_SPACE_NAME = 'Clube de leitura';
 
 // Adds a free space owned by someone else with the signed-in person as its
-// member, so the sidebar and the page of a space the person only reads can be
-// opened in the browser. Kept separate from `seedSpaceMembers`, which assigns
+// member, and a document of the owner in it, so the sidebar and the page of a
+// space the person only reads, with a document to edit, can be opened in the
+// browser. Kept separate from `seedSpaceMembers`, which assigns
 // people to a unit. Needs an installation already seeded; does nothing
 // without it.
 export const seedFreeSpaceMembership = (): void => {
@@ -1259,6 +1266,20 @@ export const seedFreeSpaceMembership = (): void => {
 
   const space = addFreeSpace(owner.id, MEMBER_FREE_SPACE_NAME);
   state.spaceMembers.push({ spaceId: space.id, personId: member.id });
+
+  // A member edits every document of the space, the owner's included.
+  const now = new Date().toISOString();
+  state.documents.push({
+    id: 'document-free-space-owner',
+    title: 'Ata da primeira reunião',
+    spaceId: space.id,
+    authorId: owner.id,
+    ownerId: owner.id,
+    createdAt: now,
+    updatedAt: now,
+    trashedAt: null,
+    accessLevel: 'edit',
+  });
 };
 
 // Id of the free space `seedRemovedFromFreeSpace` creates, fixed so its page

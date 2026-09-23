@@ -113,8 +113,9 @@ export const documentsHandlers = [
     if (spaceId === undefined) {
       document = createDocumentIn(person.id, `space-${person.id}`);
     } else {
-      // Only whoever is directly assigned to the unit creates there; any
-      // other reach answers the same 404 as an unknown space.
+      // Only whoever is directly assigned to the unit, or the owner or a
+      // member of the free space, creates there; any other reach answers the
+      // same 404 as an unknown space.
       const creator = getSignedInPerson() ?? person;
       if (spaceReachOf(creator.id, spaceId) !== 'direct') {
         return HttpResponse.json(
