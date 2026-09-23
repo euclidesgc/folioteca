@@ -28,6 +28,12 @@ export const networkDelay = (): Promise<void> =>
 //   localStorage.setItem('mock-installation', 'signed-in')  -> seeds an installation, signed in
 //   localStorage.setItem('mock-documents', 'sample')  -> adds a varied batch of documents
 //     owned by the signed-in person (needs an installation already seeded)
+//   localStorage.setItem('mock-documents', 'unit-space')  -> assigns the
+//     signed-in person directly to "Catalogação" and adds a document of a
+//     colleague to the space of that unit, to see the list of a unit space
+//     and create documents there (needs
+//     localStorage.setItem('mock-org-units', 'sample') too); the space of a
+//     unit reached only by inheritance shows the direct assignment notice
 //   localStorage.setItem('mock-favorites', 'sample')  -> marks the first documents
 //     as favorites (needs the documents already seeded)
 //   localStorage.setItem('mock-trash', 'sample')  -> moves the last documents

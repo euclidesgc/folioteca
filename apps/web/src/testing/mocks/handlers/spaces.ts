@@ -4,11 +4,19 @@ import { http, HttpResponse } from 'msw';
 import { env } from '@/config/env';
 import { spaceNameSchema } from '@/features/spaces/utils/space-name-schema';
 
-import { addFreeSpace, getDb, getSignedInPerson, listSpacesOf } from '../db';
+import {
+  addFreeSpace,
+  getDb,
+  getSignedInPerson,
+  listSpaceDocuments,
+  listSpacesOf,
+  spaceReachOf,
+} from '../db';
 import { devOverride, networkDelay, SESSION_COOKIE_NAME } from '../utils';
 
 type SpacesResponse = components['schemas']['SpacesResponse'];
 type SpaceResponse = components['schemas']['SpaceResponse'];
+type DocumentsResponse = components['schemas']['DocumentsResponse'];
 
 const unauthenticated = (): ReturnType<typeof HttpResponse.json> =>
   HttpResponse.json({ message: 'Sessão não encontrada.' }, { status: 401 });
@@ -61,4 +69,49 @@ export const spacesHandlers = [
     };
     return HttpResponse.json(body, { status: 201 });
   }),
+
+  http.get(
+    `${env.API_URL}/spaces/:spaceId/documents`,
+    async ({ cookies, params }) => {
+      await networkDelay();
+      const forced = await devOverride('spaces');
+      if (forced) return forced;
+
+      const { installation, favorites } = getDb();
+      const hasSession = Boolean(cookies[SESSION_COOKIE_NAME]);
+      const person = getSignedInPerson();
+
+      if (!installation || !hasSession || !person) return unauthenticated();
+
+      const spaceId = String(params.spaceId);
+      const reach = spaceReachOf(person.id, spaceId);
+
+      if (reach === 'none') {
+        return HttpResponse.json(
+          { message: 'Espaço não encontrado.' },
+          { status: 404 },
+        );
+      }
+
+      if (reach === 'inherited') {
+        return HttpResponse.json(
+          {
+            message:
+              'Os documentos deste espaço estão disponíveis para quem está lotado diretamente na unidade.',
+          },
+          { status: 403 },
+        );
+      }
+
+      const body: DocumentsResponse = {
+        data: listSpaceDocuments(spaceId).map((document) => ({
+          ...document,
+          isFavorite: favorites.some(
+            (favorite) => favorite.documentId === document.id,
+          ),
+        })),
+      };
+      return HttpResponse.json(body);
+    },
+  ),
 ];

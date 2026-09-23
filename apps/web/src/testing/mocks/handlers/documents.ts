@@ -11,10 +11,12 @@ import type {
 
 import {
   allPeople,
+  createDocumentIn,
   getDb,
   getSignedInPerson,
   type MockDocument,
   shareDocument,
+  spaceReachOf,
 } from '../db';
 import { devOverride, networkDelay, SESSION_COOKIE_NAME } from '../utils';
 
@@ -83,30 +85,45 @@ const checkShareBody = (
 };
 
 export const documentsHandlers = [
-  http.post(`${env.API_URL}/documents`, async ({ cookies }) => {
+  http.post(`${env.API_URL}/documents`, async ({ cookies, request }) => {
     await networkDelay();
     const forced = await devOverride('documents');
     if (forced) return forced;
 
     if (!cookies[SESSION_COOKIE_NAME]) return unauthenticated();
 
-    const { installation, documents } = getDb();
+    const { installation } = getDb();
     if (!installation) return unauthenticated();
 
+    // The body is optional: without it the document goes to the personal
+    // space, as it always did.
+    const text = await request.text();
+    const requestBody: unknown = text ? JSON.parse(text) : {};
+    const spaceId =
+      typeof requestBody === 'object' &&
+      requestBody !== null &&
+      'spaceId' in requestBody &&
+      typeof requestBody.spaceId === 'string'
+        ? requestBody.spaceId
+        : undefined;
+
     const { person } = installation;
-    const now = new Date().toISOString();
-    const document: MockDocument = {
-      id: crypto.randomUUID(),
-      title: DEFAULT_TITLE,
-      spaceId: `space-${person.id}`,
-      authorId: person.id,
-      ownerId: person.id,
-      createdAt: now,
-      updatedAt: now,
-      trashedAt: null,
-      accessLevel: 'owner',
-    };
-    documents.push(document);
+    let document: MockDocument;
+
+    if (spaceId === undefined) {
+      document = createDocumentIn(person.id, `space-${person.id}`);
+    } else {
+      // Only whoever is directly assigned to the unit creates there; any
+      // other reach answers the same 404 as an unknown space.
+      const creator = getSignedInPerson() ?? person;
+      if (spaceReachOf(creator.id, spaceId) !== 'direct') {
+        return HttpResponse.json(
+          { message: 'Espaço não encontrado.' },
+          { status: 404 },
+        );
+      }
+      document = createDocumentIn(creator.id, spaceId);
+    }
 
     const body: DocumentResponse = { data: toDocumentBody(document) };
     return HttpResponse.json(body, { status: 201 });

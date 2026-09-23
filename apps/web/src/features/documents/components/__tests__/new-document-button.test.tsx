@@ -1,12 +1,18 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import { delay, http, HttpResponse } from 'msw';
+import type React from 'react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { beforeEach, expect, test } from 'vitest';
 
 import { env } from '@/config/env';
 import { queryConfig } from '@/lib/react-query';
-import { seedInstalled } from '@/testing/mocks/db';
+import {
+  addAssignment,
+  getDb,
+  seedInstalled,
+  seedSampleOrgUnits,
+} from '@/testing/mocks/db';
 import { server } from '@/testing/mocks/server';
 import { screen, userEvent, waitFor } from '@/testing/test-utils';
 
@@ -18,11 +24,11 @@ beforeEach(() => {
 
 // The button navigates on success: the memory router needs a real destination
 // for the document address.
-const renderButton = () => {
+const renderButton = (button: React.ReactElement = <NewDocumentButton />) => {
   const queryClient = new QueryClient({ defaultOptions: queryConfig });
   const router = createMemoryRouter(
     [
-      { path: '/', element: <NewDocumentButton /> },
+      { path: '/', element: button },
       { path: '/documents/:documentId', element: <p>Página do documento</p> },
     ],
     { initialEntries: ['/'] },
@@ -122,4 +128,29 @@ test('a failed creation stays on the page and restores the button', async () => 
   );
   expect(router.state.location.pathname).toBe('/');
   expect(screen.queryByText('Página do documento')).not.toBeInTheDocument();
+});
+
+test('keeps w-full by default', () => {
+  renderButton();
+
+  expect(screen.getByRole('button', { name: 'Novo documento' })).toHaveClass(
+    'w-full',
+  );
+});
+
+test('sends the spaceId when given', async () => {
+  const user = userEvent.setup();
+  seedSampleOrgUnits();
+  addAssignment('org-unit-catalogacao', 'person-1');
+  const router = renderButton(
+    <NewDocumentButton spaceId="space-org-unit-catalogacao" />,
+  );
+
+  await user.click(screen.getByRole('button', { name: 'Novo documento' }));
+
+  expect(await screen.findByText('Página do documento')).toBeInTheDocument();
+  const documentId = router.state.location.pathname.replace('/documents/', '');
+  expect(
+    getDb().documents.find((document) => document.id === documentId),
+  ).toMatchObject({ spaceId: 'space-org-unit-catalogacao' });
 });

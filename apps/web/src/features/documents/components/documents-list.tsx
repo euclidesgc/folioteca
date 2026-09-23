@@ -1,3 +1,4 @@
+import type { UseQueryResult } from '@tanstack/react-query';
 import type React from 'react';
 import { Link } from 'react-router';
 
@@ -8,6 +9,7 @@ import {
   type DocumentsScope,
 } from '@/features/documents/api/get-documents';
 import { TrashedDocumentActions } from '@/features/documents/components/trashed-document-actions';
+import type { DocumentsResponse } from '@/types/api';
 import { formatDateTime } from '@/utils/format-date-time';
 
 // Only the words, which date each item shows and whether the item has
@@ -49,14 +51,26 @@ const scopeConfig: Record<
   },
 };
 
-export function DocumentsList({
-  scope = 'mine',
-}: {
-  scope?: DocumentsScope;
-} = {}): React.JSX.Element {
-  const documentsQuery = useDocuments({ scope });
-  const texts = scopeConfig[scope];
+type DocumentsListStatesProps = {
+  query: UseQueryResult<DocumentsResponse>;
+  texts: {
+    loading: string;
+    empty: string;
+    error: string;
+    datePrefix?: string;
+  };
+  dateField?: 'updatedAt' | 'trashedAt';
+  hasActions?: boolean;
+};
 
+// The four states of a list of documents and the list itself, for whoever
+// owns the query: "Meus documentos", favorites, the trash and a unit space.
+export function DocumentsListStates({
+  query: documentsQuery,
+  texts,
+  dateField = 'updatedAt',
+  hasActions = false,
+}: DocumentsListStatesProps): React.JSX.Element {
   // A retry after a failed load goes back to "pending" in TanStack Query v5:
   // showing the loading state keeps the alert from flickering.
   if (
@@ -102,7 +116,7 @@ export function DocumentsList({
       {documents.map((document) => {
         // The trashed date only exists in the trash; outside it the item
         // keeps showing when it was last updated.
-        const date = document[texts.dateField] ?? document.updatedAt;
+        const date = document[dateField] ?? document.updatedAt;
 
         return (
           <li
@@ -122,7 +136,7 @@ export function DocumentsList({
               {texts.datePrefix}
               {formatDateTime(date)}
             </time>
-            {texts.hasActions ? (
+            {hasActions ? (
               // No `onDeleted`: deleting from the list keeps the person here.
               <TrashedDocumentActions document={document} />
             ) : null}
@@ -130,5 +144,23 @@ export function DocumentsList({
         );
       })}
     </ul>
+  );
+}
+
+export function DocumentsList({
+  scope = 'mine',
+}: {
+  scope?: DocumentsScope;
+} = {}): React.JSX.Element {
+  const documentsQuery = useDocuments({ scope });
+  const config = scopeConfig[scope];
+
+  return (
+    <DocumentsListStates
+      query={documentsQuery}
+      texts={config}
+      dateField={config.dateField}
+      hasActions={config.hasActions}
+    />
   );
 }

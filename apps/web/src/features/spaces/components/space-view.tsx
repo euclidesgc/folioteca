@@ -11,21 +11,19 @@ import type { Space, useSpaces } from '@/features/spaces/api/get-spaces';
 // changing `<h1>` would jump in value for whoever uses a screen reader.
 const FALLBACK_TITLE = 'Espaço';
 
-// The texts of a found space, by its type. Documents do not live in a space
-// yet: the empty text says what the place will hold.
-const SPACE_TEXTS: Record<Space['type'], { description: string; empty: string }> =
-  {
-    unit: {
-      description: 'O espaço de documentos da sua unidade.',
-      empty:
-        'Os documentos deste espaço ainda não chegaram. Em breve você e as pessoas lotadas nesta unidade vão guardar e encontrar documentos aqui.',
-    },
-    free: {
-      description: 'Um espaço livre, de que você é dona.',
-      empty:
-        'Os documentos deste espaço ainda não chegaram. Em breve você vai guardar e encontrar documentos aqui.',
-    },
-  };
+// The texts of a found space, by its type. The documents of a unit space come
+// from whoever owns the page (`unitContent`); documents do not live in a free
+// space yet, so its empty text says what the place will hold.
+const SPACE_TEXTS = {
+  unit: {
+    description: 'O espaço de documentos da sua unidade.',
+  },
+  free: {
+    description: 'Um espaço livre, de que você é dona.',
+    empty:
+      'Os documentos deste espaço ainda não chegaram. Em breve você vai guardar e encontrar documentos aqui.',
+  },
+} satisfies Record<Space['type'], { description: string; empty?: string }>;
 
 // Only asks for the focus when the page was opened right after creating the
 // space (see `SidebarFreeSpaces`).
@@ -39,6 +37,9 @@ type SpaceViewProps = {
   // The list of the signed-in person, read by whoever owns the page.
   query: ReturnType<typeof useSpaces>;
   spaceId: string;
+  // What a unit space shows in the place of its documents, composed by the
+  // route: this feature does not know the documents one.
+  unitContent: ReactNode;
 };
 
 // The same page frame as `ContentLayout`, for the states that have no support
@@ -59,6 +60,7 @@ function SpaceStatePage({
 export function SpaceView({
   query,
   spaceId,
+  unitContent,
 }: SpaceViewProps): React.JSX.Element {
   const location = useLocation();
   const shouldFocusMain = hasFocusMainState(location.state);
@@ -135,7 +137,6 @@ export function SpaceView({
     );
   }
 
-  const texts = SPACE_TEXTS[space.type];
 
   // `break-words` on the wrapper: `overflow-wrap` is inherited, so a long
   // space name breaks inside the `<h1>` of `ContentLayout` instead of
@@ -146,11 +147,15 @@ export function SpaceView({
         ref={mainRef}
         tabIndex={-1}
         title={space.name}
-        description={texts.description}
+        description={SPACE_TEXTS[space.type].description}
       >
-        <p className="mt-6 rounded-md border border-dashed border-gray-300 p-6 text-center text-gray-600">
-          {texts.empty}
-        </p>
+        {space.type === 'unit' ? (
+          unitContent
+        ) : (
+          <p className="mt-6 rounded-md border border-dashed border-gray-300 p-6 text-center text-gray-600">
+            {SPACE_TEXTS.free.empty}
+          </p>
+        )}
       </ContentLayout>
     </div>
   );

@@ -36,7 +36,13 @@ beforeEach(() => {
 // The view receives the query from whoever owns the page, as the route does.
 function View({ spaceId }: { spaceId: string }): React.JSX.Element {
   const query = useSpaces();
-  return <SpaceView query={query} spaceId={spaceId} />;
+  return (
+    <SpaceView
+      query={query}
+      spaceId={spaceId}
+      unitContent={<p>Conteúdo do espaço da unidade</p>}
+    />
+  );
 }
 
 test('shows the loading status with the stable heading', async () => {
@@ -138,9 +144,7 @@ test('shows the unit name in the heading and the documents notice when found', a
     screen.getByText('O espaço de documentos da sua unidade.'),
   ).toBeInTheDocument();
   expect(
-    screen.getByText(
-      'Os documentos deste espaço ainda não chegaram. Em breve você e as pessoas lotadas nesta unidade vão guardar e encontrar documentos aqui.',
-    ),
+    screen.getByText('Conteúdo do espaço da unidade'),
   ).toBeInTheDocument();
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
@@ -197,4 +201,35 @@ test('focuses the main element when focusMain is in the location state', async (
   const main = screen.getByRole('main');
   expect(main).toHaveFocus();
   expect(main).toHaveAttribute('tabindex', '-1');
+});
+
+test('renders unitContent for a unit space', async () => {
+  renderApp(<View spaceId={CATALOGACAO_SPACE_ID} />);
+
+  expect(
+    await screen.findByText('Conteúdo do espaço da unidade', {}, LAZY_TIMEOUT),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole('heading', { level: 1, name: 'Catalogação' }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByText(/Os documentos deste espaço ainda não chegaram/),
+  ).not.toBeInTheDocument();
+});
+
+test('a free space keeps the notice and ignores unitContent', async () => {
+  const space = addFreeSpace(INSTALLED_PERSON_ID, 'Comissão de Leitura');
+
+  renderApp(<View spaceId={space.id} />);
+
+  expect(
+    await screen.findByText(
+      'Os documentos deste espaço ainda não chegaram. Em breve você vai guardar e encontrar documentos aqui.',
+      {},
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByText('Conteúdo do espaço da unidade'),
+  ).not.toBeInTheDocument();
 });

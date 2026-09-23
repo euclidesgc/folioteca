@@ -1,6 +1,7 @@
 import type React from 'react';
 import { useParams } from 'react-router';
 
+import { SpaceDocuments } from '@/features/documents/components/space-documents';
 import { useSpaces } from '@/features/spaces/api/get-spaces';
 import { SpaceView } from '@/features/spaces/components/space-view';
 
@@ -9,6 +10,15 @@ import { SpaceView } from '@/features/spaces/components/space-view';
 export function Component(): React.JSX.Element {
   const { spaceId } = useParams();
   const spacesQuery = useSpaces();
+  const id = spaceId ?? '';
 
-  return <SpaceView query={spacesQuery} spaceId={spaceId ?? ''} />;
+  // The documents of a unit space belong to the documents feature: the route
+  // is where the two features meet.
+  return (
+    <SpaceView
+      query={spacesQuery}
+      spaceId={id}
+      unitContent={<SpaceDocuments spaceId={id} />}
+    />
+  );
 }

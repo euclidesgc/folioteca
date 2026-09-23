@@ -12,7 +12,7 @@ import type { DocumentResponse } from '@/types/api';
 
 import { getDocumentQueryOptions } from '../get-document';
 import { getDocumentsQueryOptions } from '../get-documents';
-import { useCreateDocument } from '../create-document';
+import { createDocument, useCreateDocument } from '../create-document';
 
 beforeEach(() => {
   seedInstalled({ signedIn: true });
@@ -110,4 +110,64 @@ test('calls onSuccess with the response', async () => {
 
   expect(onSuccess).toHaveBeenCalledTimes(1);
   expect(onSuccess.mock.calls[0]?.[0]).toEqual(result.current.data);
+});
+
+// Answers the creation with a fixed document and hands the raw body to the
+// test, so the body sent is read as it went over the wire.
+const captureCreationBody = (): { read: () => string | null } => {
+  let body: string | null = null;
+  server.use(
+    http.post(`${env.API_URL}/documents`, async ({ request }) => {
+      body = await request.text();
+      return HttpResponse.json(
+        {
+          data: {
+            id: 'document-no-espaco',
+            title: 'Sem título',
+            spaceId: 'space-org-unit-catalogacao',
+            authorId: 'person-1',
+            ownerId: 'person-1',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            trashedAt: null,
+            accessLevel: 'owner',
+            isFavorite: false,
+          },
+        } satisfies DocumentResponse,
+        { status: 201 },
+      );
+    }),
+  );
+  return { read: () => body };
+};
+
+test('createDocument sends spaceId in the body', async () => {
+  const body = captureCreationBody();
+
+  await createDocument({ spaceId: 'space-org-unit-catalogacao' });
+
+  expect(JSON.parse(body.read() ?? '')).toEqual({
+    spaceId: 'space-org-unit-catalogacao',
+  });
+});
+
+test('createDocument without input sends no body', async () => {
+  const body = captureCreationBody();
+
+  await createDocument();
+
+  expect(body.read()).toBe('');
+});
+
+test('useCreateDocument invalidates the space documents list', async () => {
+  const { result, queryClient } = renderMutation();
+  const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
+
+  result.current.mutate(undefined);
+
+  await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+  expect(invalidateQueries).toHaveBeenCalledWith({
+    queryKey: ['space-documents'],
+  });
 });

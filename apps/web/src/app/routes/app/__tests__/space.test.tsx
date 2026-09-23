@@ -12,6 +12,8 @@ import {
   getDb,
   seedInstalled,
   seedSampleOrgUnits,
+  seedUnitSpaceDocuments,
+  setOrgUnitSpaceAccess,
 } from '@/testing/mocks/db';
 import { screen, userEvent, within } from '@/testing/test-utils';
 
@@ -165,4 +167,62 @@ test('a space of another owner and an unknown id render the same not found state
 
   expect(unknownContent).toBeDefined();
   expect(otherOwnerAlert.closest('main')?.innerHTML).toBe(unknownContent);
+});
+
+test('the unit space page shows the space documents list', async () => {
+  seedUnitSpaceDocuments();
+
+  renderRoutes(paths.space.getHref(CATALOGACAO_SPACE_ID));
+
+  const heading = await screen.findByRole(
+    'heading',
+    { level: 1, name: 'Catalogação' },
+    LAZY_TIMEOUT,
+  );
+  const main = heading.closest('main');
+  expect(main).not.toBeNull();
+  const content = within(main as HTMLElement);
+
+  const list = await content.findByRole('list', {}, LAZY_TIMEOUT);
+  expect(
+    within(list).getByRole('link', {
+      name: 'Manual de catalogação de periódicos',
+    }),
+  ).toHaveAttribute(
+    'href',
+    paths.document.getHref('document-unit-space-colleague'),
+  );
+  expect(
+    content.getByRole('button', { name: 'Novo documento' }),
+  ).toBeInTheDocument();
+});
+
+test('the inherited unit space page shows the direct assignment notice', async () => {
+  // Restauro inherits from Acervo, where the person is assigned: the page
+  // opens, its documents do not.
+  setOrgUnitSpaceAccess('org-unit-restauro', 'inherit');
+  addAssignment('org-unit-acervo', INSTALLED_PERSON_ID);
+
+  renderRoutes(paths.space.getHref(RESTAURO_SPACE_ID));
+
+  const heading = await screen.findByRole(
+    'heading',
+    { level: 1, name: 'Restauro e Conservação' },
+    LAZY_TIMEOUT,
+  );
+  const main = heading.closest('main');
+  expect(main).not.toBeNull();
+  const content = within(main as HTMLElement);
+
+  expect(
+    await content.findByText(
+      'Os documentos deste espaço estão disponíveis para quem está lotado diretamente na unidade.',
+      {},
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
+  expect(
+    content.queryByRole('button', { name: 'Novo documento' }),
+  ).not.toBeInTheDocument();
+  expect(content.queryByRole('list')).not.toBeInTheDocument();
 });

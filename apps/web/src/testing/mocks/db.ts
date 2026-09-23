@@ -501,6 +501,63 @@ export const listSpacesOf = (personId: string): Space[] =>
         spacesCollator.compare(a.name, b.name) || a.id.localeCompare(b.id),
     );
 
+// How a person reaches a space, the way `SpacesService.reachOf` answers: the
+// same rule as `listSpacesOf` above, split in two. Assigned to the unit is
+// `direct`; reached only through the chain of inheriting spaces is
+// `inherited`. A free space, an unknown id and an unreached unit are `none`:
+// documents in a free space are a later slice.
+export const spaceReachOf = (
+  personId: string,
+  spaceId: string,
+): 'direct' | 'inherited' | 'none' => {
+  const space = state.spaces.find((item) => item.id === spaceId);
+  if (space?.type !== 'unit') return 'none';
+
+  const assigned = state.assignments.some(
+    (item) => item.orgUnitId === space.orgUnitId && item.personId === personId,
+  );
+  if (assigned) return 'direct';
+
+  return reachesUnit(personId, space.orgUnitId) ? 'inherited' : 'none';
+};
+
+// The same hard limit the real list of a space has.
+const SPACE_DOCUMENTS_LIMIT = 100;
+
+// The documents of a space, the way GET /spaces/:spaceId/documents answers:
+// outside the trash, the most recently updated first, the tie broken by `id`.
+export const listSpaceDocuments = (spaceId: string): MockDocument[] =>
+  state.documents
+    .filter((item) => item.spaceId === spaceId && item.trashedAt === null)
+    .sort(
+      (a, b) =>
+        b.updatedAt.localeCompare(a.updatedAt) || b.id.localeCompare(a.id),
+    )
+    .slice(0, SPACE_DOCUMENTS_LIMIT);
+
+// Creates a document owned by `personId` in `spaceId`, the way POST
+// /documents does. Pushed into the array already in the database, never into
+// a copy of it (same reason as `touchDocumentUpdatedAt` above).
+export const createDocumentIn = (
+  personId: string,
+  spaceId: string,
+): MockDocument => {
+  const now = new Date().toISOString();
+  const document: MockDocument = {
+    id: crypto.randomUUID(),
+    title: 'Sem título',
+    spaceId,
+    authorId: personId,
+    ownerId: personId,
+    createdAt: now,
+    updatedAt: now,
+    trashedAt: null,
+    accessLevel: 'owner',
+  };
+  state.documents.push(document);
+  return document;
+};
+
 // The same seven days the real API gives an invitation.
 const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -903,4 +960,45 @@ export const seedSharedReadOnlyDocument = (): string | null => {
   shareDocument(SHARED_READ_ONLY_DOCUMENT_ID, reader.id);
 
   return SHARED_READ_ONLY_DOCUMENT_ID;
+};
+
+// The unit the signed-in person is directly assigned to by
+// `seedUnitSpaceDocuments`, one of the units of `seedSampleOrgUnits`.
+const UNIT_SPACE_SAMPLE_ORG_UNIT_ID = 'org-unit-catalogacao';
+
+// Assigns the signed-in person directly to "Catalogação" and adds a document
+// of a colleague to the space of that unit, so the list of a unit space can be
+// opened in the browser with something in it. Needs the sample units already
+// seeded; does nothing without them.
+export const seedUnitSpaceDocuments = (): void => {
+  const person = getSignedInPerson();
+  const unit = state.orgUnits.find(
+    (item) => item.id === UNIT_SPACE_SAMPLE_ORG_UNIT_ID,
+  );
+  if (!person || !unit) return;
+
+  addAssignment(unit.id, person.id);
+
+  const colleague: MockPerson = {
+    id: 'person-unit-colleague',
+    name: 'Marta Ribeiro',
+    email: 'marta.ribeiro@exemplo.com.br',
+    isAdmin: false,
+  };
+  if (!state.people.some((item) => item.id === colleague.id)) {
+    state.people.push(colleague);
+  }
+
+  const now = new Date().toISOString();
+  state.documents.push({
+    id: 'document-unit-space-colleague',
+    title: 'Manual de catalogação de periódicos',
+    spaceId: `space-${unit.id}`,
+    authorId: colleague.id,
+    ownerId: colleague.id,
+    createdAt: now,
+    updatedAt: now,
+    trashedAt: null,
+    accessLevel: 'edit',
+  });
 };
