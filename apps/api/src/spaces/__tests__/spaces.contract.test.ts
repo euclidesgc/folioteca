@@ -1,7 +1,9 @@
 import 'reflect-metadata';
 
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 
+import SwaggerParser from '@apidevtools/swagger-parser';
 import type { INestApplication } from '@nestjs/common';
 import type { Response } from 'supertest';
 
@@ -494,6 +496,141 @@ test('GET space answers the documented 200 with reach member', async () => {
   );
   await expectMatchesContract({
     path: '/spaces/{spaceId}',
+    method: 'get',
+    status: 200,
+    body: response.body,
+  });
+});
+
+/** `DELETE /api/spaces/:spaceId/members/:personId` com o cabeçalho de CSRF. */
+function deleteSpaceMember(
+  spaceId: string,
+  personId: string,
+  cookie?: string,
+): Promise<Response> {
+  const request = httpRequest(app)
+    .delete(`/api/spaces/${spaceId}/members/${personId}`)
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return cookie === undefined ? request : request.set('Cookie', cookie);
+}
+
+const openapiPath = path.resolve(
+  import.meta.dirname,
+  '../../../../../packages/api-contract/openapi.yaml',
+);
+
+type ContractDocument = {
+  paths?: Record<
+    string,
+    Partial<
+      Record<'delete', { responses?: Record<string, { content?: unknown }> }>
+    >
+  >;
+};
+
+/**
+ * O ajudante de contrato valida corpo contra schema; o 204 não tem corpo nem
+ * schema, então a conferência aqui é a do contrato: o status está documentado
+ * e sem conteúdo.
+ */
+async function expectDocumentedEmptyResponse(
+  requestPath: string,
+  status: number,
+): Promise<void> {
+  const document = (await SwaggerParser.dereference(
+    openapiPath,
+  )) as ContractDocument;
+  const response =
+    document.paths?.[requestPath]?.delete?.responses?.[String(status)];
+
+  expect(response).toBeDefined();
+  expect(response?.content).toBeUndefined();
+}
+
+test('DELETE space member answers the documented 204', async () => {
+  const { freeSpaceId, other } = await createFreeSpaceAndOther();
+  const added = await putSpaceMember(freeSpaceId, other.id, adminCookie);
+
+  const response = await deleteSpaceMember(freeSpaceId, other.id, adminCookie);
+
+  expect(added.status).toBe(200);
+  expect(response.status).toBe(204);
+  expect(response.text).toBe('');
+  await expectDocumentedEmptyResponse('/spaces/{spaceId}/members/{personId}', 204);
+});
+
+test('DELETE space member answers the documented 400', async () => {
+  const { freeSpaceId, adminId } = await createFreeSpaceAndOther();
+
+  const response = await deleteSpaceMember(freeSpaceId, adminId, adminCookie);
+
+  expect(response.status).toBe(400);
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}/members/{personId}',
+    method: 'delete',
+    status: 400,
+    body: response.body,
+  });
+});
+
+test('DELETE space member answers the documented 401', async () => {
+  const { freeSpaceId, other } = await createFreeSpaceAndOther();
+
+  const response = await deleteSpaceMember(freeSpaceId, other.id);
+
+  expect(response.status).toBe(401);
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}/members/{personId}',
+    method: 'delete',
+    status: 401,
+    body: response.body,
+  });
+});
+
+test('DELETE space member answers the documented 403', async () => {
+  const { freeSpaceId, adminId, other } = await createFreeSpaceAndOther();
+  const added = await putSpaceMember(freeSpaceId, other.id, adminCookie);
+
+  const response = await deleteSpaceMember(freeSpaceId, adminId, other.cookie);
+
+  expect(added.status).toBe(200);
+  expect(response.status).toBe(403);
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}/members/{personId}',
+    method: 'delete',
+    status: 403,
+    body: response.body,
+  });
+});
+
+test('DELETE space member answers the documented 404', async () => {
+  const { other } = await createFreeSpaceAndOther();
+
+  const response = await deleteSpaceMember(randomUUID(), other.id, adminCookie);
+
+  expect(response.status).toBe(404);
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}/members/{personId}',
+    method: 'delete',
+    status: 404,
+    body: response.body,
+  });
+});
+
+test('GET space members answers the documented 200 for a FREE space', async () => {
+  const { freeSpaceId, other } = await createFreeSpaceAndOther();
+  const added = await putSpaceMember(freeSpaceId, other.id, adminCookie);
+
+  const response = await getSpaceMembers(freeSpaceId, other.cookie);
+
+  expect(added.status).toBe(200);
+  expect(response.status).toBe(200);
+  expect(
+    (response.body as { data: { role: string }[] }).data.map((item) => item.role),
+  ).toEqual(['owner', 'member']);
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}/members',
     method: 'get',
     status: 200,
     body: response.body,

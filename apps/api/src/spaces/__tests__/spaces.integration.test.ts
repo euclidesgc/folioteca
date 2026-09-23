@@ -859,6 +859,7 @@ type SpaceMemberItem = {
   name: string;
   email: string;
   isCurrentPerson: boolean;
+  role: 'owner' | 'member' | 'assigned';
 };
 
 type SpaceMembersBody = { data: SpaceMemberItem[] };
@@ -1049,18 +1050,21 @@ test('GET space members lists the caller first with isCurrentPerson then Álvaro
         name: 'João Souza',
         email: 'joao@exemplo.org',
         isCurrentPerson: true,
+        role: 'assigned',
       },
       {
         id: alvaro.person.id,
         name: 'Álvaro Dias',
         email: 'alvaro@exemplo.org',
         isCurrentPerson: false,
+        role: 'assigned',
       },
       {
         id: zilda.person.id,
         name: 'Zilda Rocha',
         email: 'zilda@exemplo.org',
         isCurrentPerson: false,
+        role: 'assigned',
       },
     ],
   });
@@ -1145,17 +1149,50 @@ test('GET space members answers 404 after the caller assignment is removed', asy
   expect(after.body).toEqual(random.body);
 });
 
-test('GET space members answers 404 for the owner FREE space', async () => {
-  const { cookie } = await createMember();
+test('GET space members lists a FREE space to its owner with the owner first', async () => {
+  const { person, cookie } = await createMember();
   const created = await postSpace({ name: 'Projeto Alfa' }, cookie);
   const freeSpaceId = (created.body as { data: SpaceItem }).data.id;
-  const random = await randomMembersResponse(cookie);
+  const alvaro = await createPersonWithSession(app, {
+    name: 'Álvaro Dias',
+    email: 'alvaro@exemplo.org',
+  });
+  await prisma.spaceMember.create({
+    data: { spaceId: freeSpaceId, personId: alvaro.person.id },
+  });
+  await prisma.spaceMember.create({
+    data: { spaceId: freeSpaceId, personId: adminPerson.id },
+  });
 
   const response = await getSpaceMembers(freeSpaceId, cookie);
 
   expect(created.status).toBe(201);
-  expect(response.status).toBe(random.status);
-  expect(response.body).toEqual(random.body);
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual({
+    data: [
+      {
+        id: person.id,
+        name: 'João Souza',
+        email: 'joao@exemplo.org',
+        isCurrentPerson: true,
+        role: 'owner',
+      },
+      {
+        id: alvaro.person.id,
+        name: 'Álvaro Dias',
+        email: 'alvaro@exemplo.org',
+        isCurrentPerson: false,
+        role: 'member',
+      },
+      {
+        id: adminPerson.id,
+        name: 'Maria Souza',
+        email: EMAIL,
+        isCurrentPerson: false,
+        role: 'member',
+      },
+    ],
+  });
 });
 
 test('GET space members answers 404 to an unassigned admin', async () => {
@@ -1250,6 +1287,7 @@ function member(
     name: 'Ana Lima',
     email: 'ana@exemplo.org',
     isCurrentPerson: false,
+    role: 'assigned',
     ...overrides,
   };
 }
@@ -1509,14 +1547,308 @@ test('GET space answers 404 for a FREE space to a person who is not a member', a
   expect(response.body).toEqual(random.body);
 });
 
-test('GET space members still answers 404 for a FREE space to its member', async () => {
+test('GET space members lists a FREE space to its member', async () => {
   const { owner, other, freeSpaceId } = await createOwnerAndOther();
-  const added = await putSpaceMember(freeSpaceId, other.person.id, owner.cookie);
-  const random = await randomMembersResponse(other.cookie);
+  const zilda = await createPersonWithSession(app, {
+    name: 'Zilda Rocha',
+    email: 'zilda@exemplo.org',
+  });
+  const bruno = await createPersonWithSession(app, {
+    name: 'Bruno Alves',
+    email: 'bruno@exemplo.org',
+  });
+  const added = await Promise.all(
+    [zilda.person.id, other.person.id, bruno.person.id].map((id) =>
+      putSpaceMember(freeSpaceId, id, owner.cookie),
+    ),
+  );
 
-  const response = await getSpaceMembers(freeSpaceId, other.cookie);
+  const response = await getSpaceMembers(freeSpaceId, zilda.cookie);
+
+  expect(added.map((item) => item.status)).toEqual([200, 200, 200]);
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual({
+    data: [
+      {
+        id: owner.person.id,
+        name: 'João Souza',
+        email: 'joao@exemplo.org',
+        isCurrentPerson: false,
+        role: 'owner',
+      },
+      {
+        id: zilda.person.id,
+        name: 'Zilda Rocha',
+        email: 'zilda@exemplo.org',
+        isCurrentPerson: true,
+        role: 'member',
+      },
+      {
+        id: other.person.id,
+        name: 'Ana Lima',
+        email: 'ana@exemplo.org',
+        isCurrentPerson: false,
+        role: 'member',
+      },
+      {
+        id: bruno.person.id,
+        name: 'Bruno Alves',
+        email: 'bruno@exemplo.org',
+        isCurrentPerson: false,
+        role: 'member',
+      },
+    ],
+  });
+});
+
+/** `DELETE /api/spaces/:spaceId/members/:personId` com o cabeçalho de CSRF. */
+function deleteSpaceMember(
+  spaceId: string,
+  personId: string,
+  cookie?: string,
+): Promise<Response> {
+  const request = httpRequest(app)
+    .delete(`/api/spaces/${spaceId}/members/${personId}`)
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return cookie === undefined ? request : request.set('Cookie', cookie);
+}
+
+/** Dono, Ana já adicionada como membro e o espaço livre. */
+async function createOwnerWithMember(): Promise<{
+  owner: { person: Person; cookie: string };
+  other: { person: Person; cookie: string };
+  freeSpaceId: string;
+}> {
+  const created = await createOwnerAndOther();
+  const added = await putSpaceMember(
+    created.freeSpaceId,
+    created.other.person.id,
+    created.owner.cookie,
+  );
+
+  expect(added.status).toBe(200);
+
+  return created;
+}
+
+test('GET space members answers 404 for a FREE space to a person who is not a member', async () => {
+  const { owner, freeSpaceId } = await createOwnerAndOther();
+  const added = await putSpaceMember(freeSpaceId, adminPerson.id, owner.cookie);
+  const outsider = await createPersonWithSession(app, {
+    name: 'Zilda Rocha',
+    email: 'zilda@exemplo.org',
+  });
+  const random = await randomMembersResponse(outsider.cookie);
+
+  const response = await getSpaceMembers(freeSpaceId, outsider.cookie);
 
   expect(added.status).toBe(200);
   expect(response.status).toBe(random.status);
   expect(response.body).toEqual(random.body);
+});
+
+test('GET space members answers 404 to a removed member', async () => {
+  const { owner, other, freeSpaceId } = await createOwnerAndOther();
+  const added = await putSpaceMember(freeSpaceId, other.person.id, owner.cookie);
+  const before = await getSpaceMembers(freeSpaceId, other.cookie);
+  const removed = await deleteSpaceMember(
+    freeSpaceId,
+    other.person.id,
+    owner.cookie,
+  );
+
+  const response = await getSpaceMembers(freeSpaceId, other.cookie);
+
+  expect(added.status).toBe(200);
+  expect(before.status).toBe(200);
+  expect(removed.status).toBe(204);
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({ message: 'Espaço não encontrado.' });
+});
+
+test('GET space answers 404 to a removed member', async () => {
+  const { owner, other, freeSpaceId } = await createOwnerAndOther();
+  const added = await putSpaceMember(freeSpaceId, other.person.id, owner.cookie);
+  const before = await getSpace(freeSpaceId, other.cookie);
+  const removed = await deleteSpaceMember(
+    freeSpaceId,
+    other.person.id,
+    owner.cookie,
+  );
+
+  const response = await getSpace(freeSpaceId, other.cookie);
+
+  expect(added.status).toBe(200);
+  expect(before.status).toBe(200);
+  expect(removed.status).toBe(204);
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({ message: 'Espaço não encontrado.' });
+});
+
+test('GET space members of a UNIT space answers role assigned', async () => {
+  const unit = await createUnit('Protocolo');
+  const { person, cookie } = await createMember();
+  await assign(unit.orgUnitId, person.id);
+  await assign(unit.orgUnitId, adminPerson.id);
+
+  const response = await getSpaceMembers(unit.spaceId, cookie);
+
+  expect(response.status).toBe(200);
+  expect(
+    (response.body as SpaceMembersBody).data.map((item) => item.role),
+  ).toEqual(['assigned', 'assigned']);
+});
+
+test('DELETE space member answers 204 and removes the row', async () => {
+  const { owner, other, freeSpaceId } = await createOwnerWithMember();
+  const before = await countSpaceMembers();
+
+  const response = await deleteSpaceMember(
+    freeSpaceId,
+    other.person.id,
+    owner.cookie,
+  );
+
+  expect(before).toBe(1);
+  expect(response.status).toBe(204);
+  expect(response.body).toEqual({});
+  expect(
+    await prisma.spaceMember.count({
+      where: { spaceId: freeSpaceId, personId: other.person.id },
+    }),
+  ).toBe(0);
+});
+
+test('DELETE space member repeated answers 204', async () => {
+  const { owner, other, freeSpaceId } = await createOwnerWithMember();
+
+  const first = await deleteSpaceMember(freeSpaceId, other.person.id, owner.cookie);
+  const second = await deleteSpaceMember(freeSpaceId, other.person.id, owner.cookie);
+
+  expect(first.status).toBe(204);
+  expect(second.status).toBe(204);
+  expect(await countSpaceMembers()).toBe(0);
+});
+
+test('DELETE space member answers 204 for a person who is not a member', async () => {
+  const { owner, freeSpaceId } = await createOwnerWithMember();
+
+  const response = await deleteSpaceMember(freeSpaceId, adminPerson.id, owner.cookie);
+
+  expect(response.status).toBe(204);
+  expect(await countSpaceMembers()).toBe(1);
+});
+
+test('DELETE space member answers 204 for a malformed person id', async () => {
+  const { owner, freeSpaceId } = await createOwnerWithMember();
+
+  const response = await deleteSpaceMember(freeSpaceId, 'nao-e-uuid', owner.cookie);
+
+  expect(response.status).toBe(204);
+  expect(await countSpaceMembers()).toBe(1);
+});
+
+test('DELETE space member answers 400 when removing the owner', async () => {
+  const { owner, freeSpaceId } = await createOwnerWithMember();
+
+  const response = await deleteSpaceMember(
+    freeSpaceId,
+    owner.person.id,
+    owner.cookie,
+  );
+
+  expect(response.status).toBe(400);
+  expect(response.body).toEqual({ message: 'O dono não pode ser removido.' });
+  expect(await countSpaceMembers()).toBe(1);
+});
+
+test('DELETE space member answers 400 when the owner removes himself', async () => {
+  const { owner, freeSpaceId } = await createOwnerAndOther();
+
+  const response = await deleteSpaceMember(
+    freeSpaceId,
+    owner.person.id,
+    owner.cookie,
+  );
+  const detail = await getSpace(freeSpaceId, owner.cookie);
+
+  expect(response.status).toBe(400);
+  expect(response.body).toEqual({ message: 'O dono não pode ser removido.' });
+  expect((detail.body as { data: { reach: string } }).data.reach).toBe('owner');
+});
+
+test('DELETE space member answers 403 to a member', async () => {
+  const { owner, other, freeSpaceId } = await createOwnerWithMember();
+  const second = await putSpaceMember(freeSpaceId, adminPerson.id, owner.cookie);
+
+  const response = await deleteSpaceMember(freeSpaceId, adminPerson.id, other.cookie);
+
+  expect(second.status).toBe(200);
+  expect(response.status).toBe(403);
+  expect(response.body).toEqual({
+    message: 'Só o dono do espaço pode adicionar pessoas.',
+  });
+  expect(await countSpaceMembers()).toBe(2);
+});
+
+test('DELETE space member answers 404 for a malformed space id', async () => {
+  const { owner, other } = await createOwnerWithMember();
+
+  const response = await deleteSpaceMember('nao-e-uuid', other.person.id, owner.cookie);
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({ message: 'Espaço não encontrado.' });
+  expect(await countSpaceMembers()).toBe(1);
+});
+
+test('DELETE space member answers 404 for a random space id', async () => {
+  const { owner, other } = await createOwnerWithMember();
+
+  const response = await deleteSpaceMember(randomUUID(), other.person.id, owner.cookie);
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({ message: 'Espaço não encontrado.' });
+  expect(await countSpaceMembers()).toBe(1);
+});
+
+test('DELETE space member answers 404 for a FREE space of another person', async () => {
+  const { other, freeSpaceId } = await createOwnerWithMember();
+
+  const response = await deleteSpaceMember(freeSpaceId, other.person.id, adminCookie);
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({ message: 'Espaço não encontrado.' });
+  expect(await countSpaceMembers()).toBe(1);
+});
+
+test('DELETE space member answers 404 for a UNIT space', async () => {
+  const unit = await createUnit('Protocolo');
+  const { person, cookie } = await createMember();
+  const other = await createPersonWithSession(app, {
+    name: 'Ana Lima',
+    email: 'ana@exemplo.org',
+  });
+  await assign(unit.orgUnitId, person.id);
+  await assign(unit.orgUnitId, other.person.id);
+  const detail = await getSpace(unit.spaceId, cookie);
+
+  const response = await deleteSpaceMember(unit.spaceId, other.person.id, cookie);
+
+  expect((detail.body as { data: { reach: string } }).data.reach).toBe('direct');
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({ message: 'Espaço não encontrado.' });
+  expect(
+    await prisma.orgUnitAssignment.count({ where: { orgUnitId: unit.orgUnitId } }),
+  ).toBe(2);
+});
+
+test('DELETE space member answers 401 without session', async () => {
+  const { other, freeSpaceId } = await createOwnerWithMember();
+
+  const response = await deleteSpaceMember(freeSpaceId, other.person.id);
+
+  expect(response.status).toBe(401);
+  expect(response.body).toEqual({ message: 'Sessão não encontrada.' });
+  expect(await countSpaceMembers()).toBe(1);
 });

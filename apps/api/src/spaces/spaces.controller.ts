@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   HttpCode,
@@ -86,9 +87,10 @@ export class SpacesController {
   }
 
   /**
-   * Pessoas lotadas diretamente na unidade do espaço, para quem o alcança
-   * direto ou por herança. Id malformado, espaço inexistente, fora de alcance
-   * ou que não é de unidade: o mesmo 404. Não há 403.
+   * Pessoas do espaço: no de unidade, as lotadas diretamente nela, para quem
+   * o alcança direto ou por herança; no livre, o dono e os membros, para o
+   * dono e os membros. Id malformado, espaço inexistente ou fora de alcance:
+   * o mesmo 404. Não há 403.
    */
   @Get(':spaceId/members')
   async listSpaceMembers(
@@ -126,6 +128,21 @@ export class SpacesController {
     @Param('personId') personId: string,
   ): Promise<SpaceMemberResponse> {
     return this.spaces.addMember(person, spaceId, personId);
+  }
+
+  /**
+   * Remove uma pessoa do espaço livre; só o dono remove e repetir é
+   * idempotente. Espaço inexistente, malformado, de unidade ou fora de
+   * alcance: 404; membro que não é dono: 403; o próprio dono: 400.
+   */
+  @Delete(':spaceId/members/:personId')
+  @HttpCode(204)
+  async removeSpaceMember(
+    @CurrentPerson() person: PersonWithOrganization,
+    @Param('spaceId') spaceId: string,
+    @Param('personId') personId: string,
+  ): Promise<void> {
+    await this.spaces.removeMember(person, spaceId, personId);
   }
 
   /**

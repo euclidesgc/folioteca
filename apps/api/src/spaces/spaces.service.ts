@@ -27,16 +27,23 @@ const ADD_OWNER_MESSAGE = 'Você já é o dono deste espaço.';
 
 const PERSON_NOT_FOUND_MESSAGE = 'Pessoa não encontrada nesta instância.';
 
+const REMOVE_OWNER_MESSAGE = 'O dono não pode ser removido.';
+
 type UnitReach = {
   reach: 'direct' | 'inherited' | 'none';
   orgUnitId: string | null;
 };
 
 /**
- * Order of the members of a unit space: the caller first, then by name, then
- * by e-mail, and the id as the last tie-breaker so the order is stable.
+ * Order of the members of a space: the owner of a free space first, then the
+ * caller, then by name, then by e-mail, and the id as the last tie-breaker so
+ * the order is stable. A unit space has no owner, so its order is unchanged.
  */
 export function compareMembers(a: SpaceMember, b: SpaceMember): number {
+  if ((a.role === 'owner') !== (b.role === 'owner')) {
+    return a.role === 'owner' ? -1 : 1;
+  }
+
   if (a.isCurrentPerson !== b.isCurrentPerson) {
     return a.isCurrentPerson ? -1 : 1;
   }
@@ -286,15 +293,61 @@ export class SpacesService {
   }
 
   /**
-   * As pessoas lotadas diretamente na unidade do espaço, para quem alcança o
-   * espaço direto ou por herança, com quem pede primeiro. Espaço sem alcance,
-   * livre, pessoal, inexistente ou de outra organização é `null`.
+   * As pessoas do espaço, na ordem de `compareMembers`. Espaço livre: o dono
+   * e os membros, só para o dono e os membros. Espaço de unidade: as pessoas
+   * lotadas diretamente na unidade, para quem alcança o espaço direto ou por
+   * herança. Espaço sem alcance, pessoal, inexistente ou de outra organização
+   * é `null`.
    */
   async listMembers(
     organizationId: string,
     personId: string,
     spaceId: string,
   ): Promise<SpaceMembersResponse | null> {
+    const freeSpace = await this.prisma.space.findFirst({
+      where: {
+        id: spaceId,
+        type: 'FREE',
+        organizationId,
+        OR: [{ ownerId: personId }, { members: { some: { personId } } }],
+      },
+      include: {
+        owner: { select: { id: true, name: true, email: true } },
+        members: {
+          include: {
+            person: { select: { id: true, name: true, email: true } },
+          },
+        },
+      },
+    });
+
+    if (freeSpace !== null) {
+      const owner = freeSpace.owner;
+      const ownerRow: SpaceMember[] =
+        owner === null
+          ? []
+          : [
+              {
+                id: owner.id,
+                name: owner.name,
+                email: owner.email,
+                isCurrentPerson: owner.id === personId,
+                role: 'owner',
+              },
+            ];
+      const memberRows = freeSpace.members.map(
+        ({ person }): SpaceMember => ({
+          id: person.id,
+          name: person.name,
+          email: person.email,
+          isCurrentPerson: person.id === personId,
+          role: 'member',
+        }),
+      );
+
+      return { data: [...ownerRow, ...memberRows].sort(compareMembers) };
+    }
+
     const { reach, orgUnitId } = await this.reachOfUnit(
       organizationId,
       personId,
@@ -316,6 +369,7 @@ export class SpacesService {
         name: person.name,
         email: person.email,
         isCurrentPerson: person.id === personId,
+        role: 'assigned',
       }))
       .sort(compareMembers);
 
@@ -380,6 +434,53 @@ export class SpacesService {
     });
 
     return { data: { id: person.id, name: person.name, email: person.email } };
+  }
+
+  /**
+   * Remove a pessoa dos membros do espaço livre; só o dono remove. O espaço é
+   * conferido antes da pessoa, como em `addMember`. Remover quem não é membro
+   * (ou um id malformado) não faz nada, e repetir é idempotente. Organização e
+   * quem pede chegam só da sessão.
+   */
+  async removeMember(
+    requester: { organizationId: string; id: string },
+    spaceId: string,
+    personId: string,
+  ): Promise<void> {
+    if (!isUuid(spaceId)) {
+      throw spaceNotFound();
+    }
+
+    const space = await this.prisma.space.findFirst({
+      where: {
+        id: spaceId,
+        type: 'FREE',
+        organizationId: requester.organizationId,
+        OR: [
+          { ownerId: requester.id },
+          { members: { some: { personId: requester.id } } },
+        ],
+      },
+      select: { ownerId: true },
+    });
+
+    if (space === null) {
+      throw spaceNotFound();
+    }
+
+    if (space.ownerId !== requester.id) {
+      throw new ForbiddenException(OWNER_ONLY_MESSAGE);
+    }
+
+    if (personId === space.ownerId) {
+      throw new BadRequestException(REMOVE_OWNER_MESSAGE);
+    }
+
+    if (!isUuid(personId)) {
+      return;
+    }
+
+    await this.prisma.spaceMember.deleteMany({ where: { spaceId, personId } });
   }
 
   /**

@@ -447,8 +447,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Lista as pessoas lotadas na unidade de um espaço
-         * @description Lista as pessoas lotadas diretamente na unidade do espaço informado, com quem chama primeiro e depois por nome e e-mail. Quem alcança o espaço, diretamente ou por herança, vê a lista; não há 403. Espaço sem alcance, inexistente, com id malformado ou que não é de unidade recebe o mesmo 404 opaco.
+         * Lista as pessoas de um espaço
+         * @description No espaço de unidade, lista as pessoas lotadas diretamente na unidade, com quem chama primeiro e depois por nome e e-mail; quem alcança o espaço, diretamente ou por herança, vê a lista. No espaço livre, o dono e os membros veem a lista: o dono primeiro, depois quem chama se for membro, depois os demais por nome e e-mail. Não há 403. Espaço sem alcance, inexistente, com id malformado ou livre que quem chama não alcança recebe o mesmo 404 opaco.
          */
         get: operations["listSpaceMembers"];
         put?: never;
@@ -473,7 +473,11 @@ export interface paths {
          */
         put: operations["addSpaceMember"];
         post?: never;
-        delete?: never;
+        /**
+         * Remove uma pessoa de um espaço livre
+         * @description Remove a pessoa informada dos membros do espaço livre. Só o dono do espaço livre remove. A operação é idempotente: remover uma pessoa que não é membro também devolve 204. Remover o próprio dono recebe 400 "O dono não pode ser removido."; um membro que tenta remover recebe 403 "Só o dono do espaço pode adicionar pessoas."; espaço inexistente, com id malformado, de unidade ou que quem chama não alcança recebe o mesmo 404 "Espaço não encontrado.".
+         */
+        delete: operations["removeSpaceMember"];
         options?: never;
         head?: never;
         patch?: never;
@@ -802,6 +806,11 @@ export interface components {
             email: string;
             /** @description Verdadeiro na linha de quem chama. */
             isCurrentPerson: boolean;
+            /**
+             * @description Papel da pessoa no espaço: `owner` é o dono do espaço livre, `member` é membro do espaço livre e `assigned` é lotada na unidade do espaço de unidade.
+             * @enum {string}
+             */
+            role: "owner" | "member" | "assigned";
         };
         SpaceMembersResponse: {
             data: components["schemas"]["SpaceMember"][];
@@ -2482,7 +2491,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description As pessoas lotadas na unidade do espaço foram listadas. */
+            /** @description As pessoas do espaço foram listadas. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2500,7 +2509,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description O espaço não existe, tem id malformado, não é de unidade ou quem chama não o alcança. */
+            /** @description O espaço não existe, tem id malformado, é livre e quem chama não é dono nem membro, ou quem chama não o alcança. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -2533,6 +2542,63 @@ export interface operations {
                 };
             };
             /** @description "Você já é o dono deste espaço." ao adicionar o dono, ou "Pessoa não encontrada nesta instância." para pessoa inexistente, com id malformado ou de outra instância. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description "Só o dono do espaço pode adicionar pessoas." para quem é membro do espaço sem ser o dono. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description "Espaço não encontrado." para espaço inexistente, com id malformado, de unidade ou que quem chama não alcança. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    removeSpaceMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                spaceId: string;
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A pessoa não é membro do espaço livre. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description "O dono não pode ser removido." ao remover o dono do espaço. */
             400: {
                 headers: {
                     [name: string]: unknown;
