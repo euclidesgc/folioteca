@@ -437,6 +437,76 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /documents/{documentId}/shares/{personId}:
+    put:
+      operationId: shareDocument
+      tags:
+        - documents
+      summary: Compartilha o documento com uma pessoa da instância
+      description: >-
+        Dá a uma pessoa da instância acesso de leitura ao documento. Só o
+        proprietário compartilha. Repetir a chamada para a mesma pessoa devolve
+        o mesmo 200, sem criar um segundo compartilhamento. As checagens
+        acontecem nesta ordem: 401, 404 (documento inexistente ou sem acesso),
+        403 (quem chama não é o proprietário), 409 (documento na lixeira), 400
+        (corpo inválido, compartilhar consigo mesmo ou pessoa fora da
+        instância).
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShareDocumentInput"
+      responses:
+        "200":
+          description: A pessoa tem acesso de leitura ao documento.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentShareResponse"
+        "400":
+          description: >-
+            O corpo é inválido, a pessoa é o próprio proprietário ou a pessoa
+            não existe nesta instância.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Só o proprietário pode compartilhar este documento.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: O documento não existe ou não está acessível.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: O documento está na lixeira.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /org-units:
     get:
       operationId: getOrgUnits
@@ -895,6 +965,37 @@ paths:
                 $ref: "#/components/schemas/Error"
         "403":
           description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /people/search:
+    get:
+      operationId: searchPeopleToShare
+      tags:
+        - people
+      summary: Busca pessoas da instância para compartilhar um documento
+      description: >-
+        Busca pessoas da organização de quem chama, por parte do nome ou do
+        e-mail, sem diferenciar maiúsculas de minúsculas. Qualquer pessoa com
+        sessão pode buscar. `q` com menos de 2 caracteres (depois de tirar os
+        espaços das pontas) devolve lista vazia, sem tocar o banco. Devolve no
+        máximo 10 pessoas, com `hasMore` avisando que há mais, e nunca inclui
+        quem pede.
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: As pessoas encontradas foram listadas.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PeopleResponse"
+        "401":
+          description: Não há sessão válida.
           content:
             application/json:
               schema:
@@ -1879,6 +1980,38 @@ components:
         - name
         - password
       additionalProperties: false
+    ShareDocumentInput:
+      type: object
+      properties:
+        level:
+          type: string
+          enum: [view]
+          description: Nível de acesso dado à pessoa.
+      required: [level]
+      additionalProperties: false
+    DocumentShare:
+      type: object
+      properties:
+        personId:
+          type: string
+          description: Identificador da pessoa com acesso.
+        name:
+          type: string
+          description: Nome da pessoa.
+        email:
+          type: string
+          description: E-mail da pessoa.
+        level:
+          type: string
+          enum: [view]
+          description: Nível de acesso da pessoa.
+      required: [personId, name, email, level]
+    DocumentShareResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/DocumentShare"
+      required: [data]
     UpdateDocumentBody:
       type: object
       properties:

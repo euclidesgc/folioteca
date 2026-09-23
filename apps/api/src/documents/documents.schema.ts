@@ -25,3 +25,11 @@ export const listDocumentsQuerySchema = z.object({
 });
 
 export type ListDocumentsQuery = z.infer<typeof listDocumentsQuerySchema>;
+
+/** Corpo do compartilhamento: nesta fatia, só o nível de leitura. */
+export const shareDocumentSchema = z.strictObject(
+  {
+    level: z.literal('view', { error: 'Escolha o nível de acesso.' }),
+  },
+  { error: 'Campo não permitido.' },
+);

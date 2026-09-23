@@ -26,7 +26,7 @@ type AccessLevel = components['schemas']['AccessLevel'];
 const CANNOT_EDIT_MESSAGE =
   'Você não tem permissão para editar este documento.';
 
-const TRASHED_DOCUMENT_MESSAGE =
+export const TRASHED_DOCUMENT_MESSAGE =
   'Este documento está na lixeira. Restaure-o para editar.';
 
 const DELETE_OUTSIDE_TRASH_MESSAGE =

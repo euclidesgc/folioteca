@@ -767,3 +767,106 @@ test('rule 6 flags a sample offender and accepts a sample compliant snippet', ()
   ]);
   expect(report(compliant)).toEqual([]);
 });
+
+const SHARES_SERVICE_FILE = 'documents/shares.service.ts';
+
+const SHARE_TABLE_FILES = [ACCESS_SERVICE_FILE, SHARES_SERVICE_FILE];
+
+const SHARE_TABLE_PATTERN = /\.documentShare\s*\./g;
+const SHARE_RAW_TABLE_PATTERN = /"DocumentShare"/g;
+const SHARE_FIND_UNIQUE_PATTERN = /\.documentShare\.findUnique\s*\(/g;
+
+/**
+ * Regra 9: só `access.service.ts` e `shares.service.ts` tocam a tabela
+ * `DocumentShare`, `shares.service.ts` decide pelo `resolveAccess` e
+ * `documentShare.findUnique` só aparece na decisão de acesso.
+ */
+function checkShareTable({ file, source }: SourceFile): Violation[] {
+  const violations: Violation[] = [];
+
+  if (!SHARE_TABLE_FILES.includes(file)) {
+    for (const pattern of [SHARE_TABLE_PATTERN, SHARE_RAW_TABLE_PATTERN]) {
+      for (const match of source.matchAll(pattern)) {
+        violations.push({
+          file,
+          line: lineAt(source, match.index),
+          message:
+            'toca na tabela DocumentShare fora de access.service.ts e shares.service.ts',
+        });
+      }
+    }
+  }
+
+  if (file === SHARES_SERVICE_FILE && !source.includes('resolveAccess(')) {
+    violations.push({ file, line: 1, message: 'não chama resolveAccess' });
+  }
+
+  if (file !== ACCESS_SERVICE_FILE) {
+    for (const match of source.matchAll(SHARE_FIND_UNIQUE_PATTERN)) {
+      violations.push({
+        file,
+        line: lineAt(source, match.index),
+        message: 'usa documentShare.findUnique fora de access.service.ts',
+      });
+    }
+  }
+
+  return violations;
+}
+
+test('rule 9 flags documentShare outside access and shares service', () => {
+  const outsideOffender = checkShareTable({
+    file: 'documents/documents.service.ts',
+    source: [
+      'await this.prisma.documentShare.findUnique({ where: { documentId_personId } });',
+      'await this.prisma.$queryRaw`SELECT "personId" FROM "DocumentShare"`;',
+    ].join('\n'),
+  });
+
+  const insideOffender = checkShareTable({
+    file: SHARES_SERVICE_FILE,
+    source:
+      'await this.prisma.documentShare.findUnique({ where: { documentId_personId } });',
+  });
+
+  expect(report(outsideOffender)).toEqual([
+    'documents/documents.service.ts:1 toca na tabela DocumentShare fora de access.service.ts e shares.service.ts',
+    'documents/documents.service.ts:2 toca na tabela DocumentShare fora de access.service.ts e shares.service.ts',
+    'documents/documents.service.ts:1 usa documentShare.findUnique fora de access.service.ts',
+  ]);
+  expect(report(insideOffender)).toEqual([
+    'documents/shares.service.ts:1 não chama resolveAccess',
+    'documents/shares.service.ts:1 usa documentShare.findUnique fora de access.service.ts',
+  ]);
+});
+
+test('rule 9 accepts documentShare in access service and shares service', () => {
+  const compliantShares = checkShareTable({
+    file: SHARES_SERVICE_FILE,
+    source: [
+      'const level = await this.access.resolveAccess(requester.id, documentId);',
+      'await this.prisma.documentShare.upsert({ where: { documentId_personId } });',
+    ].join('\n'),
+  });
+
+  const compliantAccess = checkShareTable({
+    file: ACCESS_SERVICE_FILE,
+    source: [
+      'await this.prisma.documentShare.findUnique({ where: { documentId_personId } });',
+      'await this.prisma.$queryRaw`SELECT "personId" FROM "DocumentShare"`;',
+    ].join('\n'),
+  });
+
+  // O código real responde pela mesma regra: nenhum outro arquivo de `src/`
+  // toca a tabela, e o serviço de compartilhamento decide pelo acesso.
+  const realViolations = sourceFiles.flatMap(checkShareTable);
+  const sharesSource = sourceFiles.find(
+    ({ file }) => file === SHARES_SERVICE_FILE,
+  )?.source;
+
+  expect(report(compliantShares)).toEqual([]);
+  expect(report(compliantAccess)).toEqual([]);
+  expect(sourceFiles.map(({ file }) => file)).toContain(SHARES_SERVICE_FILE);
+  expect(sharesSource).toContain('resolveAccess(');
+  expect(report(realViolations)).toEqual([]);
+});

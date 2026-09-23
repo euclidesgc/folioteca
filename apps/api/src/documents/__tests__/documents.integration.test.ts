@@ -605,3 +605,99 @@ test('deleting a document deletes its content', async () => {
     await prisma.documentContent.count({ where: { documentId: created.id } }),
   ).toBe(0);
 });
+
+/** A dona dá leitura do documento à pessoa, pela API. */
+async function shareWith(documentId: string, personId: string): Promise<void> {
+  const response = await httpRequest(app)
+    .put(`/api/documents/${documentId}/shares/${personId}`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send({ level: 'view' });
+
+  expect(response.status).toBe(200);
+}
+
+/** Pessoa com sessão que recebe leitura do documento criado pela dona. */
+async function createSharedDocument(): Promise<{
+  document: DocumentBody;
+  viewerCookie: string;
+}> {
+  const document = await createDocument(cookieA);
+  const { person, cookie } = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+  await shareWith(document.id, person.id);
+
+  return { document, viewerCookie: cookie };
+}
+
+test('GET a shared document answers 200 with accessLevel view', async () => {
+  const { document, viewerCookie } = await createSharedDocument();
+
+  const response = await getDocument(viewerCookie, document.id);
+
+  expect(response.status).toBe(200);
+  expect((response.body as { data: DocumentBody }).data).toEqual(
+    expect.objectContaining({
+      id: document.id,
+      ownerId: personA.id,
+      accessLevel: 'view',
+    }),
+  );
+});
+
+test('PATCH a shared document by a view person answers 403', async () => {
+  const { document, viewerCookie } = await createSharedDocument();
+
+  const response = await patchDocument(viewerCookie, document.id, {
+    title: 'Título da visitante',
+  });
+  const stored = await prisma.document.findFirstOrThrow({
+    where: { id: document.id },
+  });
+
+  expect(response.status).toBe(403);
+  expect(stored.title).toBe('Sem título');
+});
+
+test('POST trash on a shared document by a view person answers 404', async () => {
+  const { document, viewerCookie } = await createSharedDocument();
+
+  const response = await httpRequest(app)
+    .post(`/api/documents/${document.id}/trash`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', viewerCookie)
+    .send();
+  const stored = await prisma.document.findFirstOrThrow({
+    where: { id: document.id },
+  });
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({ message: NOT_FOUND_MESSAGE });
+  expect(stored.trashedAt).toBeNull();
+});
+
+test('GET a shared document by a third person answers the same 404 as a missing one', async () => {
+  const { document } = await createSharedDocument();
+  const { cookie: thirdCookie } = await createPersonWithSession(app, {
+    name: 'Ana Ramos',
+    email: 'ana@exemplo.org',
+  });
+
+  const shared = await getDocument(thirdCookie, document.id);
+  const missing = await getDocument(thirdCookie, randomUUID());
+
+  expect(missing.status).toBe(404);
+  expect(shared.status).toBe(missing.status);
+  expect(shared.body).toEqual(missing.body);
+});
+
+test('my documents of the view person does not list the shared document', async () => {
+  const { viewerCookie } = await createSharedDocument();
+
+  const response = await getDocuments(viewerCookie);
+
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual({ data: [] });
+});

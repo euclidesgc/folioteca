@@ -218,3 +218,104 @@ test('an anonymous request answers 401', async () => {
 
   expect(response.status).toBe(401);
 });
+
+/** `GET /api/people/search`, a busca aberta a quem tem sessão. */
+function searchToShare(q: string, cookie?: string): Promise<Response> {
+  const request = httpRequest(app).get('/api/people/search').query({ q });
+
+  return cookie === undefined ? request : request.set('Cookie', cookie);
+}
+
+test('GET people search answers 200 to a non-admin member', async () => {
+  const personId = await createPerson('Ana Silva', 'ana@exemplo.org');
+  const { cookie } = await createPersonWithSession(app, {
+    name: 'João Souza',
+    email: 'joao@exemplo.org',
+  });
+
+  const response = await searchToShare('Silva', cookie);
+
+  expect(response.status).toBe(200);
+  expect(bodyOf(response)).toEqual({
+    data: [{ id: personId, name: 'Ana Silva', email: 'ana@exemplo.org' }],
+    hasMore: false,
+  });
+});
+
+test('GET people search excludes the requester', async () => {
+  const { person, cookie } = await createPersonWithSession(app, {
+    name: 'João Silva',
+    email: 'joao@exemplo.org',
+  });
+  const otherId = await createPerson('Ana Silva', 'ana@exemplo.org');
+
+  const response = await searchToShare('Silva', cookie);
+  const ids = bodyOf(response).data.map((found) => found.id);
+
+  expect(response.status).toBe(200);
+  expect(ids).toEqual([otherId]);
+  expect(ids).not.toContain(person.id);
+});
+
+test('GET people search with 1 character returns empty', async () => {
+  await createPerson('Ana Silva', 'ana@exemplo.org');
+
+  const response = await searchToShare('a', adminCookie);
+
+  expect(response.status).toBe(200);
+  expect(bodyOf(response)).toEqual({ data: [], hasMore: false });
+});
+
+test('GET people search caps at 10 with hasMore', async () => {
+  await createSilvas(PEOPLE_SEARCH_LIMIT + 1);
+
+  const response = await searchToShare('Silva', adminCookie);
+
+  expect(response.status).toBe(200);
+  expect(bodyOf(response).data).toHaveLength(PEOPLE_SEARCH_LIMIT);
+  expect(bodyOf(response).hasMore).toBe(true);
+});
+
+test('GET people search ignores case in name and email', async () => {
+  const byName = await createPerson('Ana Silva', 'ana@exemplo.org');
+  const byEmail = await createPerson('Bruno Costa', 'bruno.silva@exemplo.org');
+
+  const upper = await searchToShare('SILVA', adminCookie);
+  const lower = await searchToShare('silva', adminCookie);
+
+  expect(upper.status).toBe(200);
+  expect(bodyOf(upper).data.map((found) => found.id)).toEqual([
+    byName,
+    byEmail,
+  ]);
+  expect(bodyOf(lower).data).toEqual(bodyOf(upper).data);
+});
+
+test('GET people search answers 401 without session', async () => {
+  const response = await searchToShare('Silva');
+
+  expect(response.status).toBe(401);
+});
+
+/**
+ * A organização é única por instância (`Organization_singleton_check`), então
+ * o escopo é provado no serviço real, contra o mesmo Postgres, com outro
+ * `organizationId`.
+ */
+test('searchToShare with another organization id returns empty', async () => {
+  await createSilvas(1);
+
+  const mine = await people.searchToShare(
+    adminPerson.organizationId,
+    adminPerson.id,
+    'Silva',
+  );
+  const others = await people.searchToShare(
+    randomUUID(),
+    adminPerson.id,
+    'Silva',
+  );
+
+  expect(mine.data).toHaveLength(1);
+  expect(others).toEqual({ data: [], hasMore: false });
+});

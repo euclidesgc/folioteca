@@ -605,3 +605,53 @@ test('closing the app stores the pending content', { timeout: 15000 }, async () 
     await connection.close();
   }
 });
+
+test('a view person connects read only and an update is not stored', async () => {
+  const created = await createDocument(cookieA);
+  const first = open({ documentId: created.id, cookie: cookieA });
+
+  await first.synced;
+  writeText(first.ydoc, 'Plano de obras');
+  await waitFor(() => hasContentRow(created.id), {
+    message: 'A linha de conteúdo não apareceu',
+  });
+  await first.close();
+
+  const { person: viewerPerson, cookie: viewerCookie } =
+    await createPersonWithSession(app, {
+      name: 'João Lima',
+      email: 'joao@exemplo.org',
+    });
+  const share = await httpRequest(app)
+    .put(`/api/documents/${created.id}/shares/${viewerPerson.id}`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send({ level: 'view' });
+
+  expect(share.status).toBe(200);
+
+  const viewer = open({ documentId: created.id, cookie: viewerCookie });
+  await viewer.synced;
+
+  await waitFor(() => readText(viewer.ydoc) === 'Plano de obras', {
+    message: 'A pessoa com leitura não recebeu o conteúdo',
+  });
+
+  expect(viewer.provider.authorizedScope).toBe('readonly');
+
+  writeText(viewer.ydoc, ' — rascunho da visitante');
+
+  // Um documento de controle grava normalmente: quando a confirmação dele
+  // chega, a janela em que a escrita da visitante teria sido gravada já passou.
+  const control = await createDocument(cookieA);
+  const controlConnection = open({ documentId: control.id, cookie: cookieA });
+  await controlConnection.synced;
+  writeText(controlConnection.ydoc, 'Documento de controle');
+  await waitFor(
+    () => controlConnection.statelessPayloads.includes(STORED_MESSAGE),
+    { message: 'A gravação do documento de controle não foi confirmada' },
+  );
+
+  expect(await storedText(created.id)).toBe('Plano de obras');
+  expect(viewer.statelessPayloads).not.toContain(STORED_MESSAGE);
+});

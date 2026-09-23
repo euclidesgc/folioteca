@@ -179,6 +179,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/documents/{documentId}/shares/{personId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Compartilha o documento com uma pessoa da instância
+         * @description Dá a uma pessoa da instância acesso de leitura ao documento. Só o proprietário compartilha. Repetir a chamada para a mesma pessoa devolve o mesmo 200, sem criar um segundo compartilhamento. As checagens acontecem nesta ordem: 401, 404 (documento inexistente ou sem acesso), 403 (quem chama não é o proprietário), 409 (documento na lixeira), 400 (corpo inválido, compartilhar consigo mesmo ou pessoa fora da instância).
+         */
+        put: operations["shareDocument"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/org-units": {
         parameters: {
             query?: never;
@@ -303,6 +323,26 @@ export interface paths {
          * @description Busca pessoas da organização de quem chama, por parte do nome ou do e-mail, sem diferenciar maiúsculas de minúsculas, só para a administração. O limite é duro, de 10 resultados, e não há parâmetro de limite na rota: `hasMore` avisa que há mais do que o mostrado. `q` ausente, vazio ou só com espaços devolve lista vazia, sem tocar o banco e sem erro — o campo de busca nasce vazio e volta a ficar vazio.
          */
         get: operations["searchPeople"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/people/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Busca pessoas da instância para compartilhar um documento
+         * @description Busca pessoas da organização de quem chama, por parte do nome ou do e-mail, sem diferenciar maiúsculas de minúsculas. Qualquer pessoa com sessão pode buscar. `q` com menos de 2 caracteres (depois de tirar os espaços das pontas) devolve lista vazia, sem tocar o banco. Devolve no máximo 10 pessoas, com `hasMore` avisando que há mais, e nunca inclui quem pede.
+         */
+        get: operations["searchPeopleToShare"];
         put?: never;
         post?: never;
         delete?: never;
@@ -726,6 +766,29 @@ export interface components {
             name: string;
             /** @description Senha escolhida, de 12 a 128 caracteres. */
             password: string;
+        };
+        ShareDocumentInput: {
+            /**
+             * @description Nível de acesso dado à pessoa.
+             * @enum {string}
+             */
+            level: "view";
+        };
+        DocumentShare: {
+            /** @description Identificador da pessoa com acesso. */
+            personId: string;
+            /** @description Nome da pessoa. */
+            name: string;
+            /** @description E-mail da pessoa. */
+            email: string;
+            /**
+             * @description Nível de acesso da pessoa.
+             * @enum {string}
+             */
+            level: "view";
+        };
+        DocumentShareResponse: {
+            data: components["schemas"]["DocumentShare"];
         };
         UpdateDocumentBody: {
             title: string;
@@ -1397,6 +1460,78 @@ export interface operations {
             };
         };
     };
+    shareDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: string;
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShareDocumentInput"];
+            };
+        };
+        responses: {
+            /** @description A pessoa tem acesso de leitura ao documento. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentShareResponse"];
+                };
+            };
+            /** @description O corpo é inválido, a pessoa é o próprio proprietário ou a pessoa não existe nesta instância. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Só o proprietário pode compartilhar este documento. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O documento não existe ou não está acessível. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O documento está na lixeira. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     getOrgUnits: {
         parameters: {
             query?: never;
@@ -1901,6 +2036,37 @@ export interface operations {
             };
             /** @description A requisição foi recusada. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    searchPeopleToShare: {
+        parameters: {
+            query?: {
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description As pessoas encontradas foram listadas. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PeopleResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

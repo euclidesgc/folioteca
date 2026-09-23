@@ -81,6 +81,7 @@ model Person {
   favorites         Favorite[]
   sentInvitations   Invitation[]        @relation("InvitationInviter")
   assignments       OrgUnitAssignment[]
+  documentShares    DocumentShare[]
 }
 
 enum SpaceType {
@@ -131,6 +132,7 @@ model Document {
 
   content   DocumentContent?
   favorites Favorite[]
+  shares    DocumentShare[]
   space     Space            @relation(fields: [spaceId], references: [id], onDelete: Restrict)
   author    Person           @relation("DocumentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
   owner     Person           @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Restrict)
@@ -152,6 +154,26 @@ model Favorite {
   @@id([personId, documentId])
   @@index([personId, createdAt(sort: Desc)])
   @@index([documentId])
+}
+
+/// Nível de um compartilhamento direto. `EDIT` fica reservado para a fatia 148.
+enum ShareLevel {
+  VIEW
+  EDIT
+}
+
+/// Compartilhamento direto de um documento com uma pessoa da instância.
+model DocumentShare {
+  documentId String
+  personId   String
+  level      ShareLevel
+  createdAt  DateTime   @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  person   Person   @relation(fields: [personId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([documentId, personId])
+  @@index([personId])
 }
 
 /// Estado Yjs consolidado do documento, fora do modelo lido pelas listas.

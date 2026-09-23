@@ -278,3 +278,113 @@ test('the doors agree: resolveAccess is not none exactly when the document is in
   expect(inBothLists).toEqual([]);
   expect(pairs.flat()).toHaveLength(12);
 });
+
+/** Dá à pessoa acesso de leitura ao documento, direto pelo Prisma. */
+async function shareView(documentId: string, person: Person): Promise<void> {
+  await prisma.documentShare.create({
+    data: { documentId, personId: person.id, level: 'VIEW' },
+  });
+}
+
+/** Pessoa da organização sem nenhuma relação com o documento. */
+async function createViewer(): Promise<Person> {
+  const { person } = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+
+  return person;
+}
+
+test('resolveAccess returns view for a person with a view share', async () => {
+  const owner = await install();
+  const documentId = await createDocument(owner, 'Documento da Maria');
+  const viewer = await createViewer();
+  await shareView(documentId, viewer);
+
+  expect(await access.resolveAccess(viewer.id, documentId)).toBe('view');
+});
+
+test('canWrite is false for a view share', async () => {
+  const owner = await install();
+  const documentId = await createDocument(owner, 'Documento da Maria');
+  const viewer = await createViewer();
+  await shareView(documentId, viewer);
+
+  expect(await access.canWrite(viewer.id, documentId)).toBe(false);
+});
+
+test('resolveAccess returns none without a share', async () => {
+  const owner = await install();
+  const sharedId = await createDocument(owner, 'Documento compartilhado');
+  const notSharedId = await createDocument(owner, 'Documento não compartilhado');
+  const viewer = await createViewer();
+  await shareView(sharedId, viewer);
+
+  expect(await access.resolveAccess(viewer.id, notSharedId)).toBe('none');
+});
+
+test('a shared document in the trash is none and view again after restore', async () => {
+  const owner = await install();
+  const documentId = await createDocument(owner, 'Documento da Maria');
+  const viewer = await createViewer();
+  await shareView(documentId, viewer);
+
+  await prisma.document.update({
+    where: { id: documentId },
+    data: { trashedAt: new Date('2026-03-01T10:00:00.000Z') },
+  });
+  const inTrash = await access.resolveAccess(viewer.id, documentId);
+
+  await prisma.document.update({
+    where: { id: documentId },
+    data: { trashedAt: null },
+  });
+  const restored = await access.resolveAccess(viewer.id, documentId);
+
+  expect(inTrash).toBe('none');
+  expect(restored).toBe('view');
+});
+
+test('readableDocumentsWhere includes the shared document and excludes it in the trash', async () => {
+  const owner = await install();
+  const documentId = await createDocument(owner, 'Documento da Maria');
+  await createDocument(owner, 'Documento não compartilhado');
+  const viewer = await createViewer();
+  await shareView(documentId, viewer);
+
+  const beforeTrash = await prisma.document.findMany({
+    where: access.readableDocumentsWhere(viewer.id),
+    select: { id: true },
+  });
+
+  await prisma.document.update({
+    where: { id: documentId },
+    data: { trashedAt: new Date('2026-03-01T10:00:00.000Z') },
+  });
+
+  const afterTrash = await prisma.document.findMany({
+    where: access.readableDocumentsWhere(viewer.id),
+    select: { id: true },
+  });
+
+  expect(beforeTrash).toEqual([{ id: documentId }]);
+  expect(afterTrash).toEqual([]);
+});
+
+test('deleting the share row makes the next resolveAccess none', async () => {
+  const owner = await install();
+  const documentId = await createDocument(owner, 'Documento da Maria');
+  const viewer = await createViewer();
+  await shareView(documentId, viewer);
+
+  expect(await access.resolveAccess(viewer.id, documentId)).toBe('view');
+
+  await prisma.documentShare.delete({
+    where: {
+      documentId_personId: { documentId, personId: viewer.id },
+    },
+  });
+
+  expect(await access.resolveAccess(viewer.id, documentId)).toBe('none');
+});

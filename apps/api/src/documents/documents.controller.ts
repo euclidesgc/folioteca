@@ -20,9 +20,11 @@ import { parseBody } from '../common/parse-body';
 import { listDocumentsQuerySchema } from './documents.schema';
 import { DocumentsService } from './documents.service';
 import { FavoritesService } from './favorites.service';
+import { SharesService } from './shares.service';
 
 type DocumentResponse = components['schemas']['DocumentResponse'];
 type DocumentsResponse = components['schemas']['DocumentsResponse'];
+type DocumentShareResponse = components['schemas']['DocumentShareResponse'];
 
 /**
  * O id do documento chega cru, sem validação de formato: id malformado vira
@@ -34,6 +36,7 @@ export class DocumentsController {
   constructor(
     private readonly documents: DocumentsService,
     private readonly favorites: FavoritesService,
+    private readonly shares: SharesService,
   ) {}
 
   @Post()
@@ -137,5 +140,15 @@ export class DocumentsController {
     @Param('documentId') documentId: string,
   ): Promise<void> {
     await this.favorites.remove(person.id, documentId);
+  }
+
+  @Put(':documentId/shares/:personId')
+  async shareDocument(
+    @CurrentPerson() person: PersonWithOrganization,
+    @Param('documentId') documentId: string,
+    @Param('personId') personId: string,
+    @Body() body: unknown,
+  ): Promise<DocumentShareResponse> {
+    return this.shares.share(person, documentId, personId, body);
   }
 }
