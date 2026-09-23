@@ -38,6 +38,10 @@ export const networkDelay = (): Promise<void> =>
 //     signed-in person and a colleague, Marta Ribeiro, directly to
 //     "Catalogação", to see "Pessoas nesta unidade" with two rows (needs
 //     localStorage.setItem('mock-org-units', 'sample') too)
+//   localStorage.setItem('mock-space-members', 'free-member')  -> adds
+//     "Clube de leitura", a free space of Otávio Mendes with the signed-in
+//     person as its member, to see it in "Espaços" and open it without
+//     "Adicionar pessoa" (needs an installation already seeded)
 //   localStorage.setItem('mock-favorites', 'sample')  -> marks the first documents
 //     as favorites (needs the documents already seeded)
 //   localStorage.setItem('mock-trash', 'sample')  -> moves the last documents

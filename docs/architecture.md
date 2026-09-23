@@ -667,7 +667,8 @@ unidade é a 127.
 caminho** do `GET`, no mesmo controller, com o `SessionGuard` **na classe** e
 **sem `AdminGuard`**: qualquer pessoa logada cria um espaço livre. O
 `organizationId` e o `ownerId` vêm **sempre da sessão** (`@CurrentPerson()`),
-nunca do corpo, que só traz o nome. O espaço livre é **visível só ao dono**: o
+nunca do corpo, que só traz o nome. O espaço livre é **visível só ao dono**
+(até a 134, que o mostra também aos membros): o
 `GET /spaces` passa a trazer, além dos espaços `UNIT` da lotação direta, os
 `FREE` cujo `ownerId` é a pessoa da sessão — `isAdmin` **continua não sendo
 lido**, e administrar a instância não dá acesso ao espaço livre de ninguém. No
@@ -737,6 +738,21 @@ para agir sobre ela (hoje, compartilhar documento) são **compartilhadas**:
 letras, e `src/components/person-picker/` (`person-picker.tsx`) desenha busca,
 resultados e pessoa escolhida. A administração de pessoas segue com
 `src/hooks/use-people-search.ts`, sem mudança.
+
+**Entrega `free-space-invite` (fatia 134)**: os membros do espaço livre ficam na
+tabela `SpaceMember`, com chave primária `spaceId`+`personId`, **sem papel** e
+com exclusão em cascata a partir do espaço e da pessoa; o dono continua em
+coluna. `PUT /spaces/{spaceId}/members/{personId}` adiciona a pessoa, **só o
+dono** adiciona, e repetir é **idempotente** (sem segunda linha); a ordem é
+**401 → 404 → 403 → 400**: sem sessão, 401; id malformado, espaço inexistente,
+de unidade, de outra organização ou fora de alcance, o mesmo 404 "Espaço não
+encontrado."; membro que não é dono, 403; o próprio dono ou pessoa fora da
+instância, 400. O espaço é conferido antes da pessoa, para uma pessoa inválida
+não revelar espaço alheio. `GET /spaces` e `GET /spaces/{spaceId}` passam a
+enxergar o membro, com `reach: member` (o dono segue `owner`); `GET
+/spaces/{spaceId}/members` continua **só de espaço de unidade**. Na tela, a
+lista da barra lateral (`get-spaces.ts`) usa `staleTime: 0`, para o membro ver
+o espaço assim que for adicionado.
 
 ## 7. Testes
 

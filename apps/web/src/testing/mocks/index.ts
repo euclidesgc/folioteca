@@ -7,6 +7,7 @@ export const enableMocking = async (): Promise<void> => {
 
   const { worker } = await import('./browser');
   const {
+    seedFreeSpaceMembership,
     seedInstalled,
     seedSampleDocuments,
     seedSampleFavorites,
@@ -64,6 +65,9 @@ export const enableMocking = async (): Promise<void> => {
   // sample units: it assigns people to one of them.
   const spaceMembersKey = window.localStorage.getItem('mock-space-members');
   if (spaceMembersKey === 'sample') seedSpaceMembers();
+  // `free-member` adds a free space of someone else with the signed-in person
+  // as its member (needs an installation already seeded).
+  if (spaceMembersKey === 'free-member') seedFreeSpaceMembership();
 
   // See the `mock-favorites` key documented in utils.ts. Read after the
   // documents seed: it marks the documents already in the database.

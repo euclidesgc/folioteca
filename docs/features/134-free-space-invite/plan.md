@@ -149,13 +149,13 @@ Caminhos relativos à raiz do repositório. A ordem importa: API simulada e cham
 
 ## Fase 3 — e2e da jornada e documentação: a fatia utilizável de ponta a ponta
 
-- [ ] T3.1 — Documentação da arquitetura
+- [x] T3.1 — Documentação da arquitetura
   - Arquivos: `docs/architecture.md` (alterar)
   - O que fazer, em pt_BR: §6 (espaços) ganha o parágrafo **"Entrega `free-space-invite` (fatia 134)"**: tabela `SpaceMember` (PK `spaceId`+`personId`, sem papel, cascata); `PUT /spaces/{spaceId}/members/{personId}` idempotente, só o dono, ordem 401 → 404 → 403 → 400; `GET /spaces` e `GET /spaces/{spaceId}` enxergam o membro (`reach: member`); `GET /spaces/{spaceId}/members` continua só de unidade; a lista da barra lateral usa `staleTime: 0`.
   - Skills: —
   - Complexidade: baixa
 
-- [ ] T3.2 — Testes da fase 3 (e2e: dono adiciona pelo teclado, membro vê o espaço)
+- [x] T3.2 — Testes da fase 3 (e2e: dono adiciona pelo teclado, membro vê o espaço)
   - Arquivos: `apps/web/e2e/tests/free-space-invite.spec.ts` (criar)
   - O que fazer (D7): API simulada com semente por `page.addInitScript`, segundo contexto como em `apps/web/e2e/tests/share-with-person-view.spec.ts`. `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo; `toBeFocused()` antes de cada `Enter`/`Space`; nenhum `waitForTimeout`; nenhuma regra do axe desativada; outros specs e `apps/web/e2e/a11y.ts` intocados.
     - `the owner adds a person to a free space using only the keyboard`: abre o espaço livre, ativa "Adicionar pessoa", busca, seleciona, ativa "Adicionar", vê "<nome> agora é membro deste espaço.", `expectNoSeriousA11yViolations(page)`.
@@ -165,11 +165,11 @@ Caminhos relativos à raiz do repositório. A ordem importa: API simulada e cham
 
 ### Critérios de aceite da fase 3
 
-- [ ] CA3.1 — `pnpm test:e2e` na raiz sai com 0 (os e2e antigos e os novos), e `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` continuam saindo com 0 e sem aviso.
-- [ ] CA3.2 — `apps/web/e2e/tests/free-space-invite.spec.ts` contém os casos `the owner adds a person to a free space using only the keyboard` e `the added person sees the space in the sidebar and opens it without Adicionar pessoa`, e `pnpm --filter web exec playwright test --list` os lista. `rg -n "test\.skip|test\.only|waitForTimeout|disableRules" apps/web/e2e/tests/free-space-invite.spec.ts` é vazio.
-- [ ] CA3.3 — Lendo o spec: `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo; a primeira asserção após mudança de rota usa `ROUTE_TIMEOUT`; asserção seguinte com timeout maior é aceita; `toBeFocused()` antes de cada tecla de ação; `expectNoSeriousA11yViolations(page)` nos dois casos; o primeiro assere o texto `agora é membro deste espaço.`; o segundo usa um segundo contexto de navegador e assere `Um espaço livre de que você é membro.` e a ausência do botão "Adicionar pessoa".
-- [ ] CA3.4 — `docs/architecture.md` tem o parágrafo "Entrega `free-space-invite` (fatia 134)" citando `SpaceMember`, `PUT /spaces/{spaceId}/members/{personId}`, `reach: member` e `staleTime: 0`.
-- [ ] CA3.5 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `PUT space member answers 200 with the person summary to the owner` e `GET spaces lists a FREE space to its member`; `pnpm exec vitest run --project web` (0) inclui `adds the selected person and announces the confirmation`; `pnpm test:e2e` (0) inclui os dois casos de `free-space-invite.spec.ts`.
+- [x] CA3.1 — `pnpm test:e2e` na raiz sai com 0 (os e2e antigos e os novos), e `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` continuam saindo com 0 e sem aviso.
+- [x] CA3.2 — `apps/web/e2e/tests/free-space-invite.spec.ts` contém os casos `the owner adds a person to a free space using only the keyboard` e `the added person sees the space in the sidebar and opens it without Adicionar pessoa`, e `pnpm --filter web exec playwright test --list` os lista. `rg -n "test\.skip|test\.only|waitForTimeout|disableRules" apps/web/e2e/tests/free-space-invite.spec.ts` é vazio.
+- [x] CA3.3 — Lendo o spec: `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo; a primeira asserção após mudança de rota usa `ROUTE_TIMEOUT`; asserção seguinte com timeout maior é aceita; `toBeFocused()` antes de cada tecla de ação; `expectNoSeriousA11yViolations(page)` nos dois casos; o primeiro assere o texto `agora é membro deste espaço.`; o segundo usa um segundo contexto de navegador e assere `Um espaço livre de que você é membro.` e a ausência do botão "Adicionar pessoa".
+- [x] CA3.4 — `docs/architecture.md` tem o parágrafo "Entrega `free-space-invite` (fatia 134)" citando `SpaceMember`, `PUT /spaces/{spaceId}/members/{personId}`, `reach: member` e `staleTime: 0`.
+- [x] CA3.5 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `PUT space member answers 200 with the person summary to the owner` e `GET spaces lists a FREE space to its member`; `pnpm exec vitest run --project web` (0) inclui `adds the selected person and announces the confirmation`; `pnpm test:e2e` (0) inclui os dois casos de `free-space-invite.spec.ts`.
 
 ## DoD da entrega
 

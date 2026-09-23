@@ -1164,3 +1164,29 @@ export const seedUnitSpaceDocuments = (): void => {
     accessLevel: 'edit',
   });
 };
+
+// Name of the free space `seedFreeSpaceMembership` creates.
+const MEMBER_FREE_SPACE_NAME = 'Clube de leitura';
+
+// Adds a free space owned by someone else with the signed-in person as its
+// member, so the sidebar and the page of a space the person only reads can be
+// opened in the browser. Kept separate from `seedSpaceMembers`, which assigns
+// people to a unit. Needs an installation already seeded; does nothing
+// without it.
+export const seedFreeSpaceMembership = (): void => {
+  const member = getSignedInPerson();
+  if (!member) return;
+
+  const owner: MockPerson = {
+    id: 'person-free-space-owner',
+    name: 'Otávio Mendes',
+    email: 'otavio.mendes@exemplo.com.br',
+    isAdmin: false,
+  };
+  if (!state.people.some((person) => person.id === owner.id)) {
+    state.people.push(owner);
+  }
+
+  const space = addFreeSpace(owner.id, MEMBER_FREE_SPACE_NAME);
+  state.spaceMembers.push({ spaceId: space.id, personId: member.id });
+};
