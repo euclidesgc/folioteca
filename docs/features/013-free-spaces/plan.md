@@ -209,7 +209,7 @@ Caminhos relativos à raiz do repositório. A ordem importa: a renomeação e a 
 
 Caminhos relativos à raiz do repositório.
 
-- [ ] T3.1 — Documentação: arquitetura, receita nova e roadmap
+- [x] T3.1 — Documentação: arquitetura, receita nova e roadmap
   - Arquivos: `docs/architecture.md` (alterar); `docs/design.md` (alterar); `docs/roadmap.md` (alterar)
   - O que fazer (D10), em pt_BR:
     - `docs/architecture.md` §6: parágrafo novo **"Entrega `free-spaces` (fatia 013)"**: `POST /spaces` no mesmo caminho do `GET`, `SessionGuard` na classe, sem `AdminGuard`; `organizationId` e `ownerId` sempre da sessão; espaço livre visível só ao dono, `isAdmin` não lido; colunas nulas com a restrição de tipo exigindo as três só em FREE (0013 escrita à mão); dono em coluna até a 134; nome repetido aceito até a 137; não encontrado único continua da tela; API simulada cria espaço livre por um helper só; espaço livre não dá acesso a documento (§3). No parágrafo da 012, "a 128" passa a "a primeira rota por id (128/134)" onde cita a rota por id; nada mais é reescrito.
@@ -218,7 +218,7 @@ Caminhos relativos à raiz do repositório.
   - Skills: interface-design
   - Complexidade: baixa
 
-- [ ] T3.2 — Testes da fase 3 (e2e: criar um espaço livre só pelo teclado)
+- [x] T3.2 — Testes da fase 3 (e2e: criar um espaço livre só pelo teclado)
   - Arquivos: `apps/web/e2e/tests/free-spaces.spec.ts` (criar)
   - O que fazer (D9): contra a API simulada, estado inicial por `page.addInitScript` com `mock-installation=signed-in`. No topo, `const ROUTE_TIMEOUT = { timeout: 10_000 }`; **toda** espera logo após mudança de rota (`toHaveURL`, primeira visibilidade da tela nova) o recebe; nenhum `waitForTimeout` nem espera fixa. Depois de cada `Tab` e antes do `Enter`, `await expect(locator).toBeFocused()`. `apps/web/e2e/a11y.ts` e os outros specs não são tocados; nenhuma regra do axe é desativada.
     - Caso `the Espaços section shows the empty text and the Novo espaço button`: `navigation` "Espaços" com "Você ainda não tem espaços." e o botão "Novo espaço".
@@ -229,11 +229,11 @@ Caminhos relativos à raiz do repositório.
 
 ### Critérios de aceite da fase 3
 
-- [ ] CA3.1 — `pnpm test:e2e` na raiz termina com exit code 0, e continuam terminando com exit code 0 e **sem aviso**, com `docker compose up -d` e o cache do `tsc` limpo: `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build`.
-- [ ] CA3.2 — `apps/web/e2e/tests/free-spaces.spec.ts` contém os casos `the Espaços section shows the empty text and the Novo espaço button`, `a person creates a free space using only the keyboard` e `closing the dialog with Escape returns focus to Novo espaço`, e `pnpm --filter web exec playwright test --list` os lista. `git diff --stat feature/012-unit-spaces -- apps/web/e2e` é vazio e `git status --porcelain -uall apps/web/e2e` lista **só** `apps/web/e2e/tests/free-spaces.spec.ts` (nenhum e2e existente alterado, inclusive `unit-spaces.spec.ts`). `rg -n "test\.skip|test\.only|waitForTimeout|disableRules" apps/web/e2e/tests/free-spaces.spec.ts` é vazio.
-- [ ] CA3.3 — Lendo o spec: `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo e passado em toda asserção logo após mudança de rota; há `toBeFocused()` antes de cada `Enter`; o segundo caso asserta o foco no campo "Nome", o texto "Informe o nome.", o `heading` de nível 1 "Projeto Alfa", o link na `navigation` "Espaços" e chama `expectNoSeriousA11yViolations(page)` duas vezes (diálogo aberto e página); o terceiro asserta `toBeFocused()` no botão "Novo espaço" depois do `Escape`.
-- [ ] CA3.4 — `docs/architecture.md` tem, na §6, o parágrafo "Entrega `free-spaces` (fatia 013)" com os pontos de T3.1, e o parágrafo da 012 cita "a primeira rota por id (128/134)". `docs/design.md` tem a receita "Ação da seção da barra lateral" e `git diff feature/012-unit-spaces -- docs/design.md` só acrescenta linhas. `docs/roadmap.md` marca a 013 como concluída e registra as duas dívidas.
-- [ ] CA3.5 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project api` (exit code 0) inclui `POST spaces creates a free space owned by the session person` e `a free space is not listed for an admin who is not the owner`; `pnpm exec vitest run --project web` (exit code 0) inclui `creating a space from the sidebar opens its page with the name in the heading and the item in the section`; `pnpm test:e2e` (exit code 0) inclui os três casos de `free-spaces.spec.ts`.
+- [x] CA3.1 — `pnpm test:e2e` na raiz termina com exit code 0, e continuam terminando com exit code 0 e **sem aviso**, com `docker compose up -d` e o cache do `tsc` limpo: `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build`.
+- [x] CA3.2 — `apps/web/e2e/tests/free-spaces.spec.ts` contém os casos `the Espaços section shows the empty text and the Novo espaço button`, `a person creates a free space using only the keyboard` e `closing the dialog with Escape returns focus to Novo espaço`, e `pnpm --filter web exec playwright test --list` os lista. `git diff --stat feature/012-unit-spaces -- apps/web/e2e` é vazio e `git status --porcelain -uall apps/web/e2e` lista **só** `apps/web/e2e/tests/free-spaces.spec.ts` (nenhum e2e existente alterado, inclusive `unit-spaces.spec.ts`). `rg -n "test\.skip|test\.only|waitForTimeout|disableRules" apps/web/e2e/tests/free-spaces.spec.ts` é vazio.
+- [x] CA3.3 — Lendo o spec: `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo e passado em toda asserção logo após mudança de rota; há `toBeFocused()` antes de cada `Enter`; o segundo caso asserta o foco no campo "Nome", o texto "Informe o nome.", o `heading` de nível 1 "Projeto Alfa", o link na `navigation` "Espaços" e chama `expectNoSeriousA11yViolations(page)` duas vezes (diálogo aberto e página); o terceiro asserta `toBeFocused()` no botão "Novo espaço" depois do `Escape`.
+- [x] CA3.4 — `docs/architecture.md` tem, na §6, o parágrafo "Entrega `free-spaces` (fatia 013)" com os pontos de T3.1, e o parágrafo da 012 cita "a primeira rota por id (128/134)". `docs/design.md` tem a receita "Ação da seção da barra lateral" e `git diff feature/012-unit-spaces -- docs/design.md` só acrescenta linhas. `docs/roadmap.md` marca a 013 como concluída e registra as duas dívidas.
+- [x] CA3.5 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project api` (exit code 0) inclui `POST spaces creates a free space owned by the session person` e `a free space is not listed for an admin who is not the owner`; `pnpm exec vitest run --project web` (exit code 0) inclui `creating a space from the sidebar opens its page with the name in the heading and the item in the section`; `pnpm test:e2e` (exit code 0) inclui os três casos de `free-spaces.spec.ts`.
 
 ## DoD da entrega
 

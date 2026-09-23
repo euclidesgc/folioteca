@@ -610,7 +610,7 @@ instância não dá espaço de unidade nenhum. O "não encontrado" é **um só e
 tela, por construção**: a página do espaço procura o id na lista da própria
 pessoa, então espaço inexistente, de outra organização ou de unidade em que ela
 não está lotada caem no mesmo "Espaço não encontrado." sem nenhuma resposta
-distinta do servidor. **Não há rota por id** até a 128, que usará `findFirst`
+distinta do servidor. **Não há rota por id** até a primeira rota por id (128/134), que usará `findFirst`
 escopado por organização e lotação e responderá um **404 opaco, sem `isUuid`**,
 pela mesma razão da 114. Vale para `/spaces` a regra de `/admins`: **nenhum
 segmento literal sob `/spaces/`**, porque casaria com o futuro `{spaceId}`.
@@ -621,6 +621,27 @@ isso fecha a 075 —, e o handler novo decide quem está logado por
 handlers antigos. O espaço de unidade **continua sem dar acesso a documento**:
 a decisão de acesso segue o caminho único da §3, e documento no espaço da
 unidade é a 127.
+
+**Entrega `free-spaces` (fatia 013)**: `POST /spaces` entra **no mesmo
+caminho** do `GET`, no mesmo controller, com o `SessionGuard` **na classe** e
+**sem `AdminGuard`**: qualquer pessoa logada cria um espaço livre. O
+`organizationId` e o `ownerId` vêm **sempre da sessão** (`@CurrentPerson()`),
+nunca do corpo, que só traz o nome. O espaço livre é **visível só ao dono**: o
+`GET /spaces` passa a trazer, além dos espaços `UNIT` da lotação direta, os
+`FREE` cujo `ownerId` é a pessoa da sessão — `isAdmin` **continua não sendo
+lido**, e administrar a instância não dá acesso ao espaço livre de ninguém. No
+esquema, as colunas próprias do espaço livre são **nulas**, e a restrição de
+tipo da tabela exige as três **só quando o tipo é `FREE`**; a migration
+`0013_free_space` foi **escrita à mão**, porque o Prisma não gera `CHECK`. O
+dono fica **em coluna** até a 134, que traz a tabela de membros do espaço. Nome
+repetido é **aceito** até a 137, que traz a unicidade por dono sem diferenciar
+maiúsculas. O "não encontrado" **continua um só e da tela**: a página do espaço
+procura o id na lista da própria pessoa, então espaço livre alheio cai no mesmo
+"Espaço não encontrado." do espaço de unidade. Na API simulada, o espaço livre
+**nasce por um helper só** (`addFreeSpace`), usado pelo handler falso de
+`POST /spaces` e pelos testes. O espaço livre **não dá acesso a documento**: a
+decisão de acesso segue o caminho único da §3, e documento no espaço livre é a
+136.
 
 ## 7. Testes
 
