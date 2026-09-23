@@ -100,7 +100,7 @@ export interface paths {
         /** Lista os documentos do escopo informado */
         get: operations["getDocuments"];
         put?: never;
-        /** Cria um documento sem título no espaço pessoal de quem chama ou no espaço de unidade informado */
+        /** Cria um documento sem título no espaço pessoal de quem chama, no espaço de unidade informado ou no espaço livre de que a pessoa é dona ou membro */
         post: operations["createDocument"];
         delete?: never;
         options?: never;
@@ -492,7 +492,7 @@ export interface paths {
         };
         /**
          * Lista os documentos de um espaço de unidade
-         * @description Lista os documentos fora da lixeira do espaço de unidade informado, dos mais recentes para os mais antigos. Só quem está lotado diretamente na unidade vê a lista. Quem alcança o espaço só por herança recebe 403. Espaço sem alcance, inexistente, com id malformado ou que não é de unidade recebe o mesmo 404 opaco.
+         * @description Lista os documentos fora da lixeira do espaço de unidade ou do espaço livre informado, dos mais recentes para os mais antigos. No espaço de unidade, só quem está lotado diretamente na unidade vê a lista; no espaço livre, o dono ou membro do espaço recebe 200. O 403 continua só para quem alcança um espaço de unidade apenas por herança. Espaço sem alcance, inexistente, com id malformado ou pessoal recebe o mesmo 404 opaco.
          */
         get: operations["listSpaceDocuments"];
         put?: never;

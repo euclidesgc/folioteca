@@ -13,7 +13,9 @@ type ShareRow = { level: 'VIEW' | 'EDIT' };
 
 type SpaceRow = {
   type: 'PERSONAL' | 'UNIT' | 'FREE';
+  ownerId?: string | null;
   orgUnit: { assignments: { personId: string }[] } | null;
+  members?: { personId: string }[];
 };
 
 const PERSONAL_SPACE: SpaceRow = { type: 'PERSONAL', orgUnit: null };
@@ -131,7 +133,12 @@ test('levelOf ignores membership outside a UNIT space', async () => {
     ownerId: OWNER_ID,
     trashedAt: null,
     shares: [],
-    space: { type: 'FREE', orgUnit: { assignments: [{ personId: VIEWER_ID }] } },
+    space: {
+      type: 'FREE',
+      ownerId: OWNER_ID,
+      orgUnit: { assignments: [{ personId: VIEWER_ID }] },
+      members: [],
+    },
   });
   const personalAccess = accessWith({
     ownerId: OWNER_ID,
@@ -147,4 +154,65 @@ test('levelOf ignores membership outside a UNIT space', async () => {
   expect(await personalAccess.resolveAccess(VIEWER_ID, randomUUID())).toBe(
     'view',
   );
+});
+
+const FREE_SPACE_OWNER_ID = 'dona-do-espaco';
+
+/**
+ * Espaço `FREE` como o `select` o devolve: `members` já filtrado pela pessoa
+ * que pede o acesso.
+ */
+function freeSpace(members: { personId: string }[]): SpaceRow {
+  return {
+    type: 'FREE',
+    ownerId: FREE_SPACE_OWNER_ID,
+    orgUnit: null,
+    members,
+  };
+}
+
+test('levelOf returns edit for a member of a FREE space', async () => {
+  const access = accessWith({
+    ownerId: OWNER_ID,
+    trashedAt: null,
+    shares: [],
+    space: freeSpace([{ personId: VIEWER_ID }]),
+  });
+
+  expect(await access.resolveAccess(VIEWER_ID, randomUUID())).toBe('edit');
+});
+
+test('levelOf returns edit for the owner of a FREE space on a document of a member', async () => {
+  const access = accessWith({
+    ownerId: VIEWER_ID,
+    trashedAt: null,
+    shares: [],
+    space: freeSpace([]),
+  });
+
+  expect(await access.resolveAccess(FREE_SPACE_OWNER_ID, randomUUID())).toBe(
+    'edit',
+  );
+});
+
+test('levelOf returns none for a FREE space member on a trashed document', async () => {
+  const access = accessWith({
+    ownerId: OWNER_ID,
+    trashedAt: new Date('2026-03-01T10:00:00.000Z'),
+    shares: [],
+    space: freeSpace([{ personId: VIEWER_ID }]),
+  });
+
+  expect(await access.resolveAccess(VIEWER_ID, randomUUID())).toBe('none');
+});
+
+test('levelOf returns none for a FREE space when the person is neither owner nor member', async () => {
+  const access = accessWith({
+    ownerId: OWNER_ID,
+    trashedAt: null,
+    shares: [],
+    space: freeSpace([]),
+  });
+
+  expect(await access.resolveAccess(VIEWER_ID, randomUUID())).toBe('none');
 });

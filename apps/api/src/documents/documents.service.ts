@@ -96,8 +96,9 @@ export class DocumentsService {
    * Cria um documento sem título. Sem `spaceId` no corpo, nasce no espaço
    * pessoal de quem chamou, que nasce junto na mesma transação se ainda não
    * existir. Com `spaceId`, nasce no espaço da unidade em que a pessoa está
-   * lotada diretamente, na organização dela; qualquer outro espaço (inclusive
-   * o alcançado só por herança) é o mesmo 404 opaco.
+   * lotada diretamente ou no espaço livre de que ela é dona ou membro, na
+   * organização dela; qualquer outro espaço (inclusive o alcançado só por
+   * herança) é o mesmo 404 opaco.
    */
   async create(
     person: PersonWithOrganization,
@@ -126,11 +127,23 @@ export class DocumentsService {
         const space = await tx.space.findFirst({
           where: {
             id: spaceId,
-            type: 'UNIT',
-            orgUnit: {
-              organizationId: person.organizationId,
-              assignments: { some: { personId: person.id } },
-            },
+            OR: [
+              {
+                type: 'UNIT',
+                orgUnit: {
+                  organizationId: person.organizationId,
+                  assignments: { some: { personId: person.id } },
+                },
+              },
+              {
+                type: 'FREE',
+                organizationId: person.organizationId,
+                OR: [
+                  { ownerId: person.id },
+                  { members: { some: { personId: person.id } } },
+                ],
+              },
+            ],
           },
           select: { id: true },
         });

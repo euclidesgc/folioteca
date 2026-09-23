@@ -178,16 +178,31 @@ export class SpacesService {
   }
 
   /**
-   * Como a pessoa alcança o espaço de unidade informado, na organização dela:
-   * `'direct'` se está lotada na unidade, `'inherited'` se o alcança só pela
-   * herança entre unidades e `'none'` se não o alcança ou se o espaço não
-   * existe ou não é de unidade.
+   * Como a pessoa alcança o espaço informado, na organização dela: `'direct'`
+   * se é dona ou membro do espaço livre ou se está lotada na unidade do
+   * espaço de unidade, `'inherited'` se o alcança só pela herança entre
+   * unidades e `'none'` se não o alcança ou se o espaço não existe ou é
+   * pessoal.
    */
   async reachOf(
     organizationId: string,
     personId: string,
     spaceId: string,
   ): Promise<'direct' | 'inherited' | 'none'> {
+    const freeSpace = await this.prisma.space.findFirst({
+      where: {
+        id: spaceId,
+        type: 'FREE',
+        organizationId,
+        OR: [{ ownerId: personId }, { members: { some: { personId } } }],
+      },
+      select: { id: true },
+    });
+
+    if (freeSpace !== null) {
+      return 'direct';
+    }
+
     const { reach } = await this.reachOfUnit(organizationId, personId, spaceId);
 
     return reach;

@@ -12,8 +12,11 @@ type DocumentDecision = {
   ownerId: string;
   trashedAt: Date | null;
   shareLevel: 'view' | 'edit' | null;
-  /** Lotada diretamente na unidade dona do espaço (`UNIT`) do documento. */
-  isUnitMember: boolean;
+  /**
+   * Participa do espaço do documento: lotada diretamente na unidade dona do
+   * espaço (`UNIT`), ou dona ou membro do espaço livre (`FREE`).
+   */
+  isSpaceMember: boolean;
 };
 
 /**
@@ -40,9 +43,10 @@ function levelOf(
     return 'none';
   }
 
-  // Lotação direta na unidade do espaço vale edição; a herança entre
-  // unidades não entra aqui. Vale o maior entre ela e o compartilhamento.
-  if (document.isUnitMember) {
+  // Participar do espaço (lotação direta na unidade, ou dono ou membro do
+  // espaço livre) vale edição; a herança entre unidades não entra aqui. Vale
+  // o maior entre ela e o compartilhamento.
+  if (document.isSpaceMember) {
     return 'edit';
   }
 
@@ -63,8 +67,9 @@ export class AccessService {
 
   /**
    * Lê uma vez só o que decide o acesso ao documento, com o compartilhamento
-   * direto da pessoa e a lotação dela na unidade do espaço na mesma consulta. Id malformado não chega ao banco e não
-   * tem decisão alguma.
+   * direto da pessoa e a participação dela no espaço (lotação na unidade, ou
+   * dono ou membro do espaço livre) na mesma consulta. Id malformado não chega
+   * ao banco e não tem decisão alguma.
    */
   private async findDecision(
     documentId: string,
@@ -83,6 +88,7 @@ export class AccessService {
         space: {
           select: {
             type: true,
+            ownerId: true,
             orgUnit: {
               select: {
                 assignments: {
@@ -91,6 +97,7 @@ export class AccessService {
                 },
               },
             },
+            members: { where: { personId }, select: { personId: true } },
           },
         },
       },
@@ -101,15 +108,18 @@ export class AccessService {
     }
 
     const share = document.shares[0];
+    const { space } = document;
 
     return {
       ownerId: document.ownerId,
       trashedAt: document.trashedAt,
       shareLevel:
         share === undefined ? null : share.level === 'EDIT' ? 'edit' : 'view',
-      isUnitMember:
-        document.space.type === 'UNIT' &&
-        (document.space.orgUnit?.assignments.length ?? 0) > 0,
+      isSpaceMember:
+        (space.type === 'UNIT' &&
+          (space.orgUnit?.assignments.length ?? 0) > 0) ||
+        (space.type === 'FREE' &&
+          (space.ownerId === personId || space.members.length > 0)),
     };
   }
 
@@ -152,6 +162,12 @@ export class AccessService {
           space: {
             type: 'UNIT',
             orgUnit: { assignments: { some: { personId } } },
+          },
+        },
+        {
+          space: {
+            type: 'FREE',
+            OR: [{ ownerId: personId }, { members: { some: { personId } } }],
           },
         },
       ],

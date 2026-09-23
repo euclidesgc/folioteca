@@ -748,3 +748,88 @@ test('after removing the assignment the next connection is refused', async () =>
   expect(next.provider.isSynced).toBe(false);
   expect(readText(next.ydoc)).toBe('');
 });
+
+type FreeSpaceMember = {
+  documentId: string;
+  spaceId: string;
+  memberId: string;
+  memberCookie: string;
+};
+
+/**
+ * A dona de um espaço livre e um membro dele, com um documento da dona criado
+ * pela API no espaço.
+ */
+async function createFreeSpaceDocument(): Promise<FreeSpaceMember> {
+  const owner = await prisma.person.findFirstOrThrow({
+    where: { email: EMAIL },
+  });
+  const space = await prisma.space.create({
+    data: {
+      type: 'FREE',
+      organizationId: owner.organizationId,
+      name: 'Projeto Alfa',
+      ownerId: owner.id,
+    },
+  });
+  const { person: member, cookie: memberCookie } =
+    await createPersonWithSession(app, {
+      name: 'João Lima',
+      email: 'joao@exemplo.org',
+    });
+  await prisma.spaceMember.create({
+    data: { spaceId: space.id, personId: member.id },
+  });
+
+  const response = await httpRequest(app)
+    .post('/api/documents')
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send({ spaceId: space.id });
+
+  expect(response.status).toBe(201);
+
+  return {
+    documentId: (response.body as { data: { id: string } }).data.id,
+    spaceId: space.id,
+    memberId: member.id,
+    memberCookie,
+  };
+}
+
+test('a free space member connects and an update is stored', async () => {
+  const { documentId, memberCookie } = await createFreeSpaceDocument();
+  const member = open({ documentId, cookie: memberCookie });
+
+  await member.synced;
+
+  expect(member.provider.authorizedScope).not.toBe('readonly');
+
+  writeText(member.ydoc, 'Plano do projeto');
+
+  await waitFor(() => member.statelessPayloads.includes(STORED_MESSAGE), {
+    message: 'A gravação do membro do espaço livre não foi confirmada',
+  });
+
+  expect(await storedText(documentId)).toBe('Plano do projeto');
+});
+
+test('after removing the free space member the next connection is refused', async () => {
+  const { documentId, spaceId, memberId, memberCookie } =
+    await createFreeSpaceDocument();
+  const first = open({ documentId, cookie: memberCookie });
+
+  await first.synced;
+  await first.close();
+
+  await prisma.spaceMember.delete({
+    where: { spaceId_personId: { spaceId, personId: memberId } },
+  });
+
+  const next = open({ documentId, cookie: memberCookie });
+  const reason = await next.refused;
+
+  expect(reason).toBeTruthy();
+  expect(next.provider.isSynced).toBe(false);
+  expect(readText(next.ydoc)).toBe('');
+});

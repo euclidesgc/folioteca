@@ -570,3 +570,164 @@ test('readableDocumentsWhere includes the unit space document and excludes it in
   expect(beforeTrash).toEqual([{ id: documentId }]);
   expect(afterTrash).toEqual([]);
 });
+
+type FreeScenario = {
+  spaceOwner: Person;
+  member: Person;
+  spaceId: string;
+  documentId: string;
+};
+
+/** Espaço livre da pessoa, gravado direto pelo Prisma. */
+async function createFreeSpace(owner: Person): Promise<string> {
+  const space = await prisma.space.create({
+    data: {
+      type: 'FREE',
+      organizationId: owner.organizationId,
+      name: 'Projeto Alfa',
+      ownerId: owner.id,
+    },
+  });
+
+  return space.id;
+}
+
+/** Torna a pessoa membro do espaço livre, pelo Prisma. */
+async function addFreeMember(spaceId: string, person: Person): Promise<void> {
+  await prisma.spaceMember.create({ data: { spaceId, personId: person.id } });
+}
+
+/** Dona do espaço livre e um membro, com um documento da dona no espaço. */
+async function createFreeScenario(): Promise<FreeScenario> {
+  const spaceOwner = await install();
+  const spaceId = await createFreeSpace(spaceOwner);
+  const member = await createViewer();
+  await addFreeMember(spaceId, member);
+  const documentId = await createDocumentIn(
+    spaceId,
+    spaceOwner,
+    'Plano do projeto',
+  );
+
+  return { spaceOwner, member, spaceId, documentId };
+}
+
+test('resolveAccess returns edit for a member of the free space', async () => {
+  const { member, documentId } = await createFreeScenario();
+
+  expect(await access.resolveAccess(member.id, documentId)).toBe('edit');
+});
+
+test('canWrite is true for a member of the free space', async () => {
+  const { member, documentId } = await createFreeScenario();
+
+  expect(await access.canWrite(member.id, documentId)).toBe(true);
+});
+
+test('the free space owner gets edit on a document created by a member', async () => {
+  const { spaceOwner, member, spaceId } = await createFreeScenario();
+  const memberDocumentId = await createDocumentIn(
+    spaceId,
+    member,
+    'Rascunho do João',
+  );
+
+  expect(await access.resolveAccess(spaceOwner.id, memberDocumentId)).toBe(
+    'edit',
+  );
+  expect(await access.canWrite(spaceOwner.id, memberDocumentId)).toBe(true);
+});
+
+test('removing the member makes the next resolveAccess none and the member keeps owner on their own document', async () => {
+  const { member, spaceId, documentId } = await createFreeScenario();
+  const memberDocumentId = await createDocumentIn(
+    spaceId,
+    member,
+    'Rascunho do João',
+  );
+
+  const before = await access.resolveAccess(member.id, documentId);
+
+  await prisma.spaceMember.delete({
+    where: { spaceId_personId: { spaceId, personId: member.id } },
+  });
+
+  expect(before).toBe('edit');
+  expect(await access.resolveAccess(member.id, documentId)).toBe('none');
+  expect(await access.resolveAccess(member.id, memberDocumentId)).toBe('owner');
+});
+
+test('a trashed free space document is none for the space owner and members and edit again after restore', async () => {
+  const { spaceOwner, member, spaceId } = await createFreeScenario();
+  const { person: author } = await createPersonWithSession(app, {
+    name: 'Ana Ramos',
+    email: 'ana@exemplo.org',
+  });
+  await addFreeMember(spaceId, author);
+  const documentId = await createDocumentIn(spaceId, author, 'Rascunho da Ana');
+
+  await prisma.document.update({
+    where: { id: documentId },
+    data: { trashedAt: new Date('2026-03-01T10:00:00.000Z') },
+  });
+  const ownerInTrash = await access.resolveAccess(spaceOwner.id, documentId);
+  const memberInTrash = await access.resolveAccess(member.id, documentId);
+  const authorInTrash = await access.resolveAccess(author.id, documentId);
+
+  await prisma.document.update({
+    where: { id: documentId },
+    data: { trashedAt: null },
+  });
+  const ownerRestored = await access.resolveAccess(spaceOwner.id, documentId);
+  const memberRestored = await access.resolveAccess(member.id, documentId);
+
+  expect(ownerInTrash).toBe('none');
+  expect(memberInTrash).toBe('none');
+  expect(authorInTrash).toBe('owner');
+  expect(ownerRestored).toBe('edit');
+  expect(memberRestored).toBe('edit');
+});
+
+test('a view share to a non member of the free space resolves to view', async () => {
+  const { documentId } = await createFreeScenario();
+  const { person: outsider } = await createPersonWithSession(app, {
+    name: 'Ana Ramos',
+    email: 'ana@exemplo.org',
+  });
+  await shareView(documentId, outsider);
+
+  expect(await access.resolveAccess(outsider.id, documentId)).toBe('view');
+  expect(await access.canWrite(outsider.id, documentId)).toBe(false);
+});
+
+test('readableDocumentsWhere includes the free space document for owner and member and excludes it in the trash and for a third person', async () => {
+  const { spaceOwner, member, documentId } = await createFreeScenario();
+  const { person: third } = await createPersonWithSession(app, {
+    name: 'Ana Ramos',
+    email: 'ana@exemplo.org',
+  });
+
+  const readableBy = (person: Person): Promise<{ id: string }[]> =>
+    prisma.document.findMany({
+      where: access.readableDocumentsWhere(person.id),
+      select: { id: true },
+    });
+
+  const ownerBefore = await readableBy(spaceOwner);
+  const memberBefore = await readableBy(member);
+  const thirdBefore = await readableBy(third);
+
+  await prisma.document.update({
+    where: { id: documentId },
+    data: { trashedAt: new Date('2026-03-01T10:00:00.000Z') },
+  });
+
+  const ownerAfter = await readableBy(spaceOwner);
+  const memberAfter = await readableBy(member);
+
+  expect(ownerBefore).toEqual([{ id: documentId }]);
+  expect(memberBefore).toEqual([{ id: documentId }]);
+  expect(thirdBefore).toEqual([]);
+  expect(ownerAfter).toEqual([]);
+  expect(memberAfter).toEqual([]);
+});
