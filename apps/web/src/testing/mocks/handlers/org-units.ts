@@ -9,6 +9,7 @@ import {
   type MockOrgUnit,
   removeOrgUnit,
   renameOrgUnit,
+  setOrgUnitSpaceAccess,
 } from '../db';
 import { devOverride, networkDelay, SESSION_COOKIE_NAME } from '../utils';
 
@@ -107,6 +108,13 @@ const collator = new Intl.Collator('pt-BR', { sensitivity: 'base' });
 const byName = (a: MockOrgUnit, b: MockOrgUnit): number =>
   collator.compare(a.name, b.name) || a.id.localeCompare(b.id);
 
+const SPACE_ACCESS_MODES = ['own', 'inherit'] as const;
+
+const isSpaceAccess = (
+  value: unknown,
+): value is (typeof SPACE_ACCESS_MODES)[number] =>
+  SPACE_ACCESS_MODES.some((mode) => mode === value);
+
 export const orgUnitsHandlers = [
   http.get(`${env.API_URL}/org-units`, async ({ cookies }) => {
     await networkDelay();
@@ -187,6 +195,48 @@ export const orgUnitsHandlers = [
       }
 
       const body: OrgUnitResponse = { data: renameOrgUnit(unit.id, name) };
+      return HttpResponse.json(body);
+    },
+  ),
+
+  // Same order of checks the API follows: 401, 403, 404, 400, 409. Marking the
+  // mode the space already has is still a 200.
+  http.patch(
+    `${env.API_URL}/org-units/:orgUnitId/space`,
+    async ({ params, request, cookies }) => {
+      await networkDelay();
+      const forced = await devOverride('org-units');
+      if (forced) return forced;
+
+      if (!cookies[SESSION_COOKIE_NAME]) return unauthenticated();
+
+      const { installation, orgUnits } = getDb();
+      if (!installation) return unauthenticated();
+      if (!installation.person.isAdmin) return forbidden();
+
+      const unit = orgUnits.find((item) => item.id === params.orgUnitId);
+      if (!unit) return notFound();
+
+      const requestBody = (await request.json()) as Record<string, unknown>;
+
+      const refused = unknownKey(requestBody, ['access']);
+      if (refused) return invalid(refused, 'Campo não permitido.');
+
+      const { access } = requestBody;
+      if (!isSpaceAccess(access)) {
+        return invalid('access', 'Escolha o modo de acesso.');
+      }
+
+      if (access === 'inherit' && unit.parentId === null) {
+        return HttpResponse.json(
+          { message: 'A unidade raiz não tem unidade-pai.' },
+          { status: 409 },
+        );
+      }
+
+      const body: OrgUnitResponse = {
+        data: setOrgUnitSpaceAccess(unit.id, access),
+      };
       return HttpResponse.json(body);
     },
   ),

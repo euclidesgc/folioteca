@@ -40,8 +40,15 @@ export type MockDocument = {
 export type MockFavorite = { documentId: string; createdAt: string };
 
 // An organization unit, in the same flat shape the API answers with:
-// `parentId` is null on the root of the organization.
-export type MockOrgUnit = { id: string; parentId: string | null; name: string };
+// `parentId` is null on the root of the organization. `spaceAccess` is the
+// access mode of the unit space: only the people assigned to the unit
+// (`own`), or also whoever sees the space of the parent unit (`inherit`).
+export type MockOrgUnit = {
+  id: string;
+  parentId: string | null;
+  name: string;
+  spaceAccess: 'own' | 'inherit';
+};
 
 // An invitation. The token is kept in the clear on purpose: from slice 086 on
 // the browser has to check the link for the journey to exist at all, and this
@@ -137,6 +144,7 @@ export const rootOrgUnit = (organizationName: string): MockOrgUnit => ({
   id: ROOT_ORG_UNIT_ID,
   parentId: null,
   name: organizationName,
+  spaceAccess: 'own',
 });
 
 // Example installation, matching the shape a real POST /installation creates.
@@ -257,41 +265,49 @@ export const seedSampleOrgUnits = (): void => {
       id: 'org-unit-acervo',
       parentId: ROOT_ORG_UNIT_ID,
       name: 'Acervo e Processamento Técnico',
+      spaceAccess: 'own',
     },
     {
       id: 'org-unit-catalogacao',
       parentId: 'org-unit-acervo',
       name: 'Catalogação',
+      spaceAccess: 'own',
     },
     {
       id: 'org-unit-restauro',
       parentId: 'org-unit-acervo',
       name: 'Restauro e Conservação',
+      spaceAccess: 'own',
     },
     {
       id: 'org-unit-atendimento',
       parentId: ROOT_ORG_UNIT_ID,
       name: 'Atendimento ao Público',
+      spaceAccess: 'own',
     },
     {
       id: 'org-unit-emprestimos',
       parentId: 'org-unit-atendimento',
       name: 'Empréstimos e Devoluções',
+      spaceAccess: 'own',
     },
     {
       id: 'org-unit-sala-infantil',
       parentId: 'org-unit-atendimento',
       name: 'Sala Infantil',
+      spaceAccess: 'own',
     },
     {
       id: 'org-unit-administrativa',
       parentId: ROOT_ORG_UNIT_ID,
       name: 'Área Administrativa',
+      spaceAccess: 'own',
     },
     {
       id: 'org-unit-projetos-especiais',
       parentId: 'org-unit-atendimento',
       name: LONG_ORG_UNIT_NAME,
+      spaceAccess: 'own',
     },
   ];
 
@@ -328,7 +344,12 @@ export const addOrgUnit = ({
   parentId: string;
   name: string;
 }): MockOrgUnit => {
-  const unit: MockOrgUnit = { id: crypto.randomUUID(), parentId, name };
+  const unit: MockOrgUnit = {
+    id: crypto.randomUUID(),
+    parentId,
+    name,
+    spaceAccess: 'own',
+  };
   state.orgUnits.push(unit);
   addUnitSpace(unit.id);
   return unit;
@@ -368,6 +389,21 @@ export const removeOrgUnit = (id: string): void => {
   if (spaceIndex !== -1) state.spaces.splice(spaceIndex, 1);
 };
 
+// Sets the access mode of a unit space, the way PATCH
+// /org-units/:orgUnitId/space does. Written on the unit already in the
+// database, never on a copy of it (same reason as `touchDocumentUpdatedAt`
+// above).
+export const setOrgUnitSpaceAccess = (
+  id: string,
+  access: 'own' | 'inherit',
+): MockOrgUnit => {
+  const unit = state.orgUnits.find((item) => item.id === id);
+  if (!unit) throw new Error(`Unknown org unit: ${id}`);
+
+  unit.spaceAccess = access;
+  return unit;
+};
+
 // Creates the `UNIT` space of a unit (see `MockSpace` above). Called wherever
 // a unit is born: `seedInstalled`, `seedSampleOrgUnits`, `addOrgUnit` and the
 // POST /installation handler. Pushed into the array already in the database,
@@ -401,12 +437,39 @@ export const addFreeSpace = (ownerId: string, name: string): MockSpace => {
   return space;
 };
 
-// The spaces of a person, the way GET /spaces answers: the unit spaces of the
-// units the person is directly assigned to (no inheritance from a parent
-// unit) and the free spaces the person owns, mixed and sorted by the pt-BR
-// collator with the tie broken by `id`, the same pair of rules the service
-// applies.
+// The spaces of a person, the way GET /spaces answers: the unit spaces the
+// person reaches and the free spaces the person owns, mixed and sorted by the
+// pt-BR collator with the tie broken by `id`, the same pair of rules the
+// service applies.
+//
+// A unit is reached when the person is assigned to it, or when its space
+// inherits and its parent is reached — the chain climbs while the spaces
+// inherit and stops at the first one with its own access. The root never
+// inherits, and a cycle (which must not exist) counts as not reached.
 const spacesCollator = new Intl.Collator('pt-BR', { sensitivity: 'base' });
+
+const reachesUnit = (
+  personId: string,
+  orgUnitId: string,
+  visited: Set<string> = new Set(),
+): boolean => {
+  if (visited.has(orgUnitId)) return false;
+  visited.add(orgUnitId);
+
+  const unit = state.orgUnits.find((item) => item.id === orgUnitId);
+  if (!unit) return false;
+
+  const assigned = state.assignments.some(
+    (item) => item.orgUnitId === unit.id && item.personId === personId,
+  );
+  if (assigned) return true;
+
+  return (
+    unit.spaceAccess === 'inherit' &&
+    unit.parentId !== null &&
+    reachesUnit(personId, unit.parentId, visited)
+  );
+};
 
 export const listSpacesOf = (personId: string): Space[] =>
   state.spaces
@@ -417,12 +480,8 @@ export const listSpacesOf = (personId: string): Space[] =>
           : [];
       }
 
-      const assigned = state.assignments.some(
-        (item) =>
-          item.orgUnitId === space.orgUnitId && item.personId === personId,
-      );
       const unit = state.orgUnits.find((item) => item.id === space.orgUnitId);
-      return assigned && unit
+      return unit && reachesUnit(personId, unit.id)
         ? [{ id: space.id, type: 'unit', name: unit.name }]
         : [];
     })

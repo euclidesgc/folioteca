@@ -16,6 +16,7 @@ const unit = (id: string, name: string, parentId: string | null): OrgUnit => ({
   id,
   name,
   parentId,
+  spaceAccess: 'own',
 });
 
 const threeLevels: OrgUnit[] = [

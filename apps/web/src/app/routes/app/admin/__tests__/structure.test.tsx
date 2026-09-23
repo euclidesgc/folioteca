@@ -13,12 +13,13 @@ import { getOrgUnits } from '@/features/org-units/api/get-org-units';
 import { updateOrgUnit } from '@/features/org-units/api/update-org-unit';
 import { queryConfig } from '@/lib/react-query';
 import {
+  addAssignment,
   ROOT_ORG_UNIT_ID,
   seedInstalled,
   seedSampleOrgUnits,
 } from '@/testing/mocks/db';
 import { server } from '@/testing/mocks/server';
-import { screen, userEvent, waitFor } from '@/testing/test-utils';
+import { screen, userEvent, waitFor, within } from '@/testing/test-utils';
 
 // Lazy routes resolve after their chunk loads: give those waits an explicit
 // budget instead of the implicit default.
@@ -229,4 +230,53 @@ test('deleteOrgUnit called directly by a person who is not admin gets 403 from t
   await expect(
     deleteOrgUnit({ orgUnitId: 'org-unit-restauro' }),
   ).rejects.toMatchObject({ response: { status: 403 } });
+});
+
+test('switching a child to inherit shows its space in the sidebar of the person assigned to the parent', async () => {
+  const user = userEvent.setup();
+  seedSampleOrgUnits();
+  // The signed-in person is assigned to the parent only.
+  addAssignment('org-unit-acervo', 'person-1');
+
+  renderRoutes(paths.admin.structure.getHref());
+
+  await screen.findByRole(
+    'tree',
+    { name: 'Estrutura de unidades' },
+    LAZY_TIMEOUT,
+  );
+  const units = await screen.findByRole(
+    'navigation',
+    { name: 'Unidades' },
+    LAZY_TIMEOUT,
+  );
+  expect(
+    within(units).getByRole('link', { name: 'Acervo e Processamento Técnico' }),
+  ).toBeInTheDocument();
+  expect(
+    within(units).queryByRole('link', { name: 'Catalogação' }),
+  ).not.toBeInTheDocument();
+
+  await user.click(
+    screen.getByRole('button', { name: 'Acesso ao espaço de Catalogação' }),
+  );
+  const dialog = await screen.findByRole('dialog', {
+    name: 'Acesso ao espaço',
+  });
+  const inherit = within(dialog).getByRole('radio', {
+    name: 'Herda da unidade-pai',
+  });
+  await user.click(inherit);
+  await waitFor(() => expect(inherit).toBeEnabled(), LAZY_TIMEOUT);
+  expect(inherit).toBeChecked();
+
+  // The modal hides the rest of the page while open.
+  await user.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+  await waitFor(() => expect(dialog).not.toBeInTheDocument());
+
+  expect(
+    await within(
+      screen.getByRole('navigation', { name: 'Unidades' }),
+    ).findByRole('link', { name: 'Catalogação' }, LAZY_TIMEOUT),
+  ).toBeInTheDocument();
 });

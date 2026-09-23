@@ -53,6 +53,7 @@ test('posts parentId and name to org-units', async () => {
             id: 'org-unit-nova',
             parentId: ROOT_ORG_UNIT_ID,
             name: 'Nova unidade',
+            spaceAccess: 'own',
           },
         },
         { status: 201 },
