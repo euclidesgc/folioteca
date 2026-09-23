@@ -870,3 +870,91 @@ test('rule 9 accepts documentShare in access service and shares service', () => 
   expect(sharesSource).toContain('resolveAccess(');
   expect(report(realViolations)).toEqual([]);
 });
+
+/** Leituras de `Document` que a regra 10 examina. */
+const ASSIGNMENT_READ_METHODS = ['findMany', 'findFirst', 'findUnique', 'count'];
+
+const ASSIGNMENT_READ_CALL_PATTERN = new RegExp(
+  `\\.document\\.(${ASSIGNMENT_READ_METHODS.join('|')})\\s*\\(`,
+  'g',
+);
+
+/**
+ * Regra 10: a lotação só dá acesso a documento pela porta. Fora de
+ * `access.service.ts`, nenhuma leitura de `Document` filtra por `assignments`.
+ */
+function checkAssignmentFilter({ file, source }: SourceFile): Violation[] {
+  const violations: Violation[] = [];
+
+  if (file === ACCESS_SERVICE_FILE) {
+    return violations;
+  }
+
+  for (const match of source.matchAll(ASSIGNMENT_READ_CALL_PATTERN)) {
+    const openIndex = match.index + match[0].length - 1;
+    const call = source.slice(openIndex, endOfCall(source, openIndex) + 1);
+
+    if (call.includes('assignments')) {
+      violations.push({
+        file,
+        line: lineAt(source, match.index),
+        message: `leitura document.${match[1]} filtra por assignments fora de access.service.ts`,
+      });
+    }
+  }
+
+  return violations;
+}
+
+test('rule 10 flags a Document read filtered by assignments outside access service', () => {
+  const offender = checkAssignmentFilter({
+    file: DOCUMENTS_SERVICE_FILE,
+    source: [
+      'await this.prisma.document.findMany({',
+      '  where: { space: { orgUnit: { assignments: { some: { personId } } } } },',
+      '});',
+      'await this.prisma.document.findFirst({ where: { id, space: { orgUnit: { assignments: { some: { personId } } } } } });',
+      'await this.prisma.document.findUnique({ where: { id }, include: { space: { include: { orgUnit: { include: { assignments: true } } } } } });',
+      'await this.prisma.document.count({ where: { space: { orgUnit: { assignments: { some: { personId } } } } } });',
+    ].join('\n'),
+  });
+
+  expect(report(offender)).toEqual([
+    'documents/documents.service.ts:1 leitura document.findMany filtra por assignments fora de access.service.ts',
+    'documents/documents.service.ts:4 leitura document.findFirst filtra por assignments fora de access.service.ts',
+    'documents/documents.service.ts:5 leitura document.findUnique filtra por assignments fora de access.service.ts',
+    'documents/documents.service.ts:6 leitura document.count filtra por assignments fora de access.service.ts',
+  ]);
+});
+
+test('rule 10 accepts assignments in the access service', () => {
+  const compliantAccess = checkAssignmentFilter({
+    file: ACCESS_SERVICE_FILE,
+    source: [
+      'await this.prisma.document.findFirst({',
+      '  where: { id: documentId },',
+      '  select: { space: { select: { orgUnit: { select: { assignments: { where: { personId } } } } } } },',
+      '});',
+    ].join('\n'),
+  });
+
+  const compliantService = checkAssignmentFilter({
+    file: DOCUMENTS_SERVICE_FILE,
+    source: [
+      'await this.prisma.document.findMany({ where: { AND: [this.access.readableDocumentsWhere(personId), { spaceId }] } });',
+      'await tx.space.findFirst({ where: { id: spaceId, orgUnit: { assignments: { some: { personId } } } } });',
+    ].join('\n'),
+  });
+
+  // O código real responde pela mesma regra: fora da porta de acesso nenhuma
+  // leitura de `Document` enxerga a lotação.
+  const realViolations = sourceFiles.flatMap(checkAssignmentFilter);
+  const accessSource = sourceFiles.find(
+    ({ file }) => file === ACCESS_SERVICE_FILE,
+  )?.source;
+
+  expect(report(compliantAccess)).toEqual([]);
+  expect(report(compliantService)).toEqual([]);
+  expect(accessSource).toContain('assignments: { some: { personId } }');
+  expect(report(realViolations)).toEqual([]);
+});

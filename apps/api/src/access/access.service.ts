@@ -12,6 +12,8 @@ type DocumentDecision = {
   ownerId: string;
   trashedAt: Date | null;
   shareLevel: 'view' | 'edit' | null;
+  /** Lotada diretamente na unidade dona do espaço (`UNIT`) do documento. */
+  isUnitMember: boolean;
 };
 
 /**
@@ -38,6 +40,12 @@ function levelOf(
     return 'none';
   }
 
+  // Lotação direta na unidade do espaço vale edição; a herança entre
+  // unidades não entra aqui. Vale o maior entre ela e o compartilhamento.
+  if (document.isUnitMember) {
+    return 'edit';
+  }
+
   return document.shareLevel ?? 'none';
 }
 
@@ -55,7 +63,7 @@ export class AccessService {
 
   /**
    * Lê uma vez só o que decide o acesso ao documento, com o compartilhamento
-   * direto da pessoa na mesma consulta. Id malformado não chega ao banco e não
+   * direto da pessoa e a lotação dela na unidade do espaço na mesma consulta. Id malformado não chega ao banco e não
    * tem decisão alguma.
    */
   private async findDecision(
@@ -72,6 +80,19 @@ export class AccessService {
         ownerId: true,
         trashedAt: true,
         shares: { where: { personId }, select: { level: true } },
+        space: {
+          select: {
+            type: true,
+            orgUnit: {
+              select: {
+                assignments: {
+                  where: { personId },
+                  select: { personId: true },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
@@ -86,6 +107,9 @@ export class AccessService {
       trashedAt: document.trashedAt,
       shareLevel:
         share === undefined ? null : share.level === 'EDIT' ? 'edit' : 'view',
+      isUnitMember:
+        document.space.type === 'UNIT' &&
+        (document.space.orgUnit?.assignments.length ?? 0) > 0,
     };
   }
 
@@ -121,7 +145,16 @@ export class AccessService {
   readableDocumentsWhere(personId: string): Prisma.DocumentWhereInput {
     return {
       trashedAt: null,
-      OR: [{ ownerId: personId }, { shares: { some: { personId } } }],
+      OR: [
+        { ownerId: personId },
+        { shares: { some: { personId } } },
+        {
+          space: {
+            type: 'UNIT',
+            orgUnit: { assignments: { some: { personId } } },
+          },
+        },
+      ],
     };
   }
 

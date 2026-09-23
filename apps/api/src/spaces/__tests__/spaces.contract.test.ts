@@ -172,3 +172,104 @@ test('GET spaces with an inherited unit space matches the documented 200', async
     body: response.body,
   });
 });
+
+const DOCUMENTS_CONTRACT_PATH = '/spaces/{spaceId}/documents';
+
+type ContractUnits = { parentSpaceId: string; childSpaceId: string };
+
+/**
+ * Unidade-mãe com a administração lotada e unidade filha que herda dela: a mãe
+ * é alcance direto, a filha só por herança.
+ */
+async function createUnitsWithAssignedParent(): Promise<ContractUnits> {
+  const admin = await prisma.person.findFirstOrThrow({
+    select: { id: true, organizationId: true },
+  });
+  const root = await prisma.orgUnit.findFirstOrThrow({ where: { parentId: null } });
+  const parent = await prisma.orgUnit.create({
+    data: { organizationId: admin.organizationId, parentId: root.id, name: 'Secretaria' },
+  });
+  const parentSpace = await prisma.space.create({
+    data: { type: 'UNIT', orgUnitId: parent.id },
+  });
+  const child = await prisma.orgUnit.create({
+    data: { organizationId: admin.organizationId, parentId: parent.id, name: 'Protocolo' },
+  });
+  const childSpace = await prisma.space.create({
+    data: { type: 'UNIT', orgUnitId: child.id, inheritsParent: true },
+  });
+  await prisma.orgUnitAssignment.create({
+    data: { orgUnitId: parent.id, personId: admin.id },
+  });
+  await prisma.document.create({
+    data: {
+      title: 'Regulamento',
+      spaceId: parentSpace.id,
+      authorId: admin.id,
+      ownerId: admin.id,
+    },
+  });
+
+  return { parentSpaceId: parentSpace.id, childSpaceId: childSpace.id };
+}
+
+function getSpaceDocuments(spaceId: string, cookie?: string): Promise<Response> {
+  const request = httpRequest(app).get(`/api/spaces/${spaceId}/documents`);
+
+  return cookie === undefined ? request : request.set('Cookie', cookie);
+}
+
+test('GET space documents answers the documented 200', async () => {
+  const { parentSpaceId } = await createUnitsWithAssignedParent();
+
+  const response = await getSpaceDocuments(parentSpaceId, adminCookie);
+
+  expect(response.status).toBe(200);
+  expect((response.body as { data: unknown[] }).data).toHaveLength(1);
+  await expectMatchesContract({
+    path: DOCUMENTS_CONTRACT_PATH,
+    method: 'get',
+    status: 200,
+    body: response.body,
+  });
+});
+
+test('GET space documents answers the documented 401', async () => {
+  const { parentSpaceId } = await createUnitsWithAssignedParent();
+
+  const response = await getSpaceDocuments(parentSpaceId);
+
+  expect(response.status).toBe(401);
+  await expectMatchesContract({
+    path: DOCUMENTS_CONTRACT_PATH,
+    method: 'get',
+    status: 401,
+    body: response.body,
+  });
+});
+
+test('GET space documents answers the documented 403', async () => {
+  const { childSpaceId } = await createUnitsWithAssignedParent();
+
+  const response = await getSpaceDocuments(childSpaceId, adminCookie);
+
+  expect(response.status).toBe(403);
+  await expectMatchesContract({
+    path: DOCUMENTS_CONTRACT_PATH,
+    method: 'get',
+    status: 403,
+    body: response.body,
+  });
+});
+
+test('GET space documents answers the documented 404', async () => {
+  const response = await getSpaceDocuments(randomUUID(), adminCookie);
+
+  expect(response.status).toBe(404);
+  await expectMatchesContract({
+    path: DOCUMENTS_CONTRACT_PATH,
+    method: 'get',
+    status: 404,
+    body: response.body,
+  });
+});

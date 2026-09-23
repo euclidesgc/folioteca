@@ -43,8 +43,9 @@ export class DocumentsController {
   @HttpCode(201)
   async createDocument(
     @CurrentPerson() person: PersonWithOrganization,
+    @Body() body: unknown,
   ): Promise<DocumentResponse> {
-    const document = await this.documents.create(person);
+    const document = await this.documents.create(person, body);
 
     return { data: document };
   }

@@ -626,3 +626,229 @@ test('list with another organization id returns nothing', async () => {
   ]);
   expect(others).toEqual({ data: [] });
 });
+
+type SpaceDocumentsBody = {
+  data: { id: string; title: string; updatedAt: string; trashedAt: null }[];
+};
+
+/** `GET /api/spaces/:spaceId/documents`. */
+function getSpaceDocuments(spaceId: string, cookie?: string): Promise<Response> {
+  const request = httpRequest(app).get(`/api/spaces/${spaceId}/documents`);
+
+  return cookie === undefined ? request : request.set('Cookie', cookie);
+}
+
+/** Documento da pessoa no espaço, com `updatedAt` gravado direto no banco. */
+async function createSpaceDocument(
+  spaceId: string,
+  owner: Person,
+  title: string,
+  updatedAt: Date,
+): Promise<string> {
+  const document = await prisma.document.create({
+    data: { title, spaceId, authorId: owner.id, ownerId: owner.id },
+  });
+
+  await prisma.$executeRaw`UPDATE "Document" SET "updatedAt" = ${updatedAt} WHERE "id" = ${document.id}`;
+
+  return document.id;
+}
+
+/** Resposta do id aleatório: o 404 opaco com que todos os outros se comparam. */
+async function randomIdResponse(cookie: string): Promise<Response> {
+  const response = await getSpaceDocuments(randomUUID(), cookie);
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({ message: 'Espaço não encontrado.' });
+
+  return response;
+}
+
+test('GET space documents answers 200 to a direct member ordered by updatedAt desc', async () => {
+  const unit = await createUnit('Protocolo');
+  const { person, cookie } = await createMember();
+  await assign(unit.orgUnitId, person.id);
+  await assign(unit.orgUnitId, adminPerson.id);
+  const older = await createSpaceDocument(
+    unit.spaceId,
+    adminPerson,
+    'Ata antiga',
+    new Date('2026-01-01T10:00:00.000Z'),
+  );
+  const newer = await createSpaceDocument(
+    unit.spaceId,
+    person,
+    'Ata nova',
+    new Date('2026-02-01T10:00:00.000Z'),
+  );
+  const middle = await createSpaceDocument(
+    unit.spaceId,
+    adminPerson,
+    'Ata do meio',
+    new Date('2026-01-15T10:00:00.000Z'),
+  );
+
+  const response = await getSpaceDocuments(unit.spaceId, cookie);
+
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual({
+    data: [
+      {
+        id: newer,
+        title: 'Ata nova',
+        updatedAt: '2026-02-01T10:00:00.000Z',
+        trashedAt: null,
+      },
+      {
+        id: middle,
+        title: 'Ata do meio',
+        updatedAt: '2026-01-15T10:00:00.000Z',
+        trashedAt: null,
+      },
+      {
+        id: older,
+        title: 'Ata antiga',
+        updatedAt: '2026-01-01T10:00:00.000Z',
+        trashedAt: null,
+      },
+    ],
+  });
+});
+
+test('GET space documents omits trashed documents', async () => {
+  const unit = await createUnit('Protocolo');
+  const { person, cookie } = await createMember();
+  await assign(unit.orgUnitId, person.id);
+  const kept = await createSpaceDocument(
+    unit.spaceId,
+    adminPerson,
+    'Ata vigente',
+    new Date('2026-01-01T10:00:00.000Z'),
+  );
+  const trashed = await createSpaceDocument(
+    unit.spaceId,
+    adminPerson,
+    'Ata descartada',
+    new Date('2026-02-01T10:00:00.000Z'),
+  );
+  await prisma.document.update({
+    where: { id: trashed },
+    data: { trashedAt: new Date('2026-03-01T10:00:00.000Z') },
+  });
+
+  const response = await getSpaceDocuments(unit.spaceId, cookie);
+
+  expect(response.status).toBe(200);
+  expect(
+    (response.body as SpaceDocumentsBody).data.map((item) => item.id),
+  ).toEqual([kept]);
+});
+
+test('GET space documents answers 403 with the direct assignment message to an inherited member', async () => {
+  const parent = await createUnit('Secretaria de Educação');
+  const child = await createUnit('Protocolo', { parentId: parent.orgUnitId });
+  const { person, cookie } = await createMember();
+  await assign(parent.orgUnitId, person.id);
+  await setSpaceAccess(child.orgUnitId, 'inherit');
+  await createSpaceDocument(
+    child.spaceId,
+    adminPerson,
+    'Ata do protocolo',
+    new Date('2026-01-01T10:00:00.000Z'),
+  );
+
+  const listed = await spaceIdsOf(cookie);
+  const response = await getSpaceDocuments(child.spaceId, cookie);
+
+  expect(listed).toContain(child.spaceId);
+  expect(response.status).toBe(403);
+  expect(response.body).toEqual({
+    message:
+      'Os documentos deste espaço estão disponíveis para quem está lotado diretamente na unidade.',
+  });
+});
+
+test('GET space documents answers 404 without assignment', async () => {
+  const unit = await createUnit('Protocolo');
+  const { cookie } = await createMember();
+  const random = await randomIdResponse(cookie);
+
+  const response = await getSpaceDocuments(unit.spaceId, cookie);
+
+  expect(response.status).toBe(random.status);
+  expect(response.body).toEqual(random.body);
+});
+
+test('GET space documents answers 404 to an unassigned admin', async () => {
+  const unit = await createUnit('Protocolo');
+  const random = await randomIdResponse(adminCookie);
+
+  const response = await getSpaceDocuments(unit.spaceId, adminCookie);
+
+  expect(adminPerson.isAdmin).toBe(true);
+  expect(response.status).toBe(random.status);
+  expect(response.body).toEqual(random.body);
+});
+
+test('GET space documents answers 404 for a random id', async () => {
+  const { cookie } = await createMember();
+
+  const response = await getSpaceDocuments(randomUUID(), cookie);
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({ message: 'Espaço não encontrado.' });
+});
+
+test('GET space documents answers 404 for a malformed id', async () => {
+  const { cookie } = await createMember();
+  const random = await randomIdResponse(cookie);
+
+  const response = await getSpaceDocuments('nao-e-uuid', cookie);
+
+  expect(response.status).toBe(random.status);
+  expect(response.body).toEqual(random.body);
+});
+
+test('GET space documents answers 404 for a FREE space', async () => {
+  const { cookie } = await createMember();
+  const created = await postSpace({ name: 'Projeto Alfa' }, cookie);
+  const freeSpaceId = (created.body as { data: SpaceItem }).data.id;
+  const random = await randomIdResponse(cookie);
+
+  const response = await getSpaceDocuments(freeSpaceId, cookie);
+
+  expect(created.status).toBe(201);
+  expect(response.status).toBe(random.status);
+  expect(response.body).toEqual(random.body);
+});
+
+test('GET space documents answers 401 without session', async () => {
+  const unit = await createUnit('Protocolo');
+  await assign(unit.orgUnitId, adminPerson.id);
+
+  const response = await getSpaceDocuments(unit.spaceId);
+
+  expect(response.status).toBe(401);
+  expect(response.body).toEqual({ message: 'Sessão não encontrada.' });
+});
+
+/**
+ * Organização única por instância (`Organization_singleton_check`): o escopo
+ * é provado no serviço real, contra o mesmo Postgres, com um
+ * `organizationId` que não é o da instalação.
+ */
+test('reachOf with another organization id returns none', async () => {
+  const unit = await createUnit('Protocolo');
+  const { person } = await createMember();
+  await assign(unit.orgUnitId, person.id);
+
+  const mine = await spaces.reachOf(
+    adminPerson.organizationId,
+    person.id,
+    unit.spaceId,
+  );
+  const others = await spaces.reachOf(randomUUID(), person.id, unit.spaceId);
+
+  expect(mine).toBe('direct');
+  expect(others).toBe('none');
+});

@@ -48,9 +48,9 @@ model OrgUnit {
 /// Lotação: a pessoa está lotada na unidade. Uma pessoa pode estar lotada em
 /// várias unidades, e a chave primária composta é a única garantia de que ela
 /// não se lota duas vezes na mesma — não há consulta prévia de duplicidade em
-/// lugar nenhum, o 409 nasce do índice. Esta linha **não dá acesso a
-/// documento**: nada em `access/` a lê, e é o teste estrutural de fronteira
-/// que segura isso.
+/// lugar nenhum, o 409 nasce do índice. A lotação direta dá acesso de edição
+/// aos documentos do espaço da unidade, decidido só pela porta
+/// `AccessService`; a herança entre unidades não dá acesso a documento.
 model OrgUnitAssignment {
   orgUnitId String
   personId  String

@@ -388,3 +388,185 @@ test('deleting the share row makes the next resolveAccess none', async () => {
 
   expect(await access.resolveAccess(viewer.id, documentId)).toBe('none');
 });
+
+type UnitWithSpace = { orgUnitId: string; spaceId: string };
+
+/** Cria uma unidade sob a raiz (ou sob `parentId`) com o espaço `UNIT` dela. */
+async function createUnitSpace(
+  organizationId: string,
+  name: string,
+  options: { parentId?: string; inheritsParent?: boolean } = {},
+): Promise<UnitWithSpace> {
+  const root = await prisma.orgUnit.findFirstOrThrow({
+    where: { organizationId, parentId: null },
+  });
+  const unit = await prisma.orgUnit.create({
+    data: { organizationId, parentId: options.parentId ?? root.id, name },
+  });
+  const space = await prisma.space.create({
+    data: {
+      type: 'UNIT',
+      orgUnitId: unit.id,
+      inheritsParent: options.inheritsParent ?? false,
+    },
+  });
+
+  return { orgUnitId: unit.id, spaceId: space.id };
+}
+
+/** Lota a pessoa diretamente na unidade, pelo Prisma. */
+async function assign(orgUnitId: string, person: Person): Promise<void> {
+  await prisma.orgUnitAssignment.create({
+    data: { orgUnitId, personId: person.id },
+  });
+}
+
+/** Documento da dona gravado no espaço informado, pelo Prisma. */
+async function createDocumentIn(
+  spaceId: string,
+  owner: Person,
+  title: string,
+): Promise<string> {
+  const document = await prisma.document.create({
+    data: { title, spaceId, authorId: owner.id, ownerId: owner.id },
+  });
+
+  return document.id;
+}
+
+type UnitScenario = {
+  owner: Person;
+  member: Person;
+  unit: UnitWithSpace;
+  documentId: string;
+};
+
+/** Dona e colega lotadas na mesma unidade, com um documento da dona no espaço dela. */
+async function createUnitScenario(): Promise<UnitScenario> {
+  const owner = await install();
+  const unit = await createUnitSpace(owner.organizationId, 'Protocolo');
+  const member = await createViewer();
+  await assign(unit.orgUnitId, owner);
+  await assign(unit.orgUnitId, member);
+  const documentId = await createDocumentIn(
+    unit.spaceId,
+    owner,
+    'Regulamento do protocolo',
+  );
+
+  return { owner, member, unit, documentId };
+}
+
+test('resolveAccess returns edit for a direct member of the unit space', async () => {
+  const { member, documentId } = await createUnitScenario();
+
+  expect(await access.resolveAccess(member.id, documentId)).toBe('edit');
+});
+
+test('canWrite is true for a direct unit member', async () => {
+  const { member, documentId } = await createUnitScenario();
+
+  expect(await access.canWrite(member.id, documentId)).toBe(true);
+});
+
+test('removing the assignment makes the next resolveAccess none', async () => {
+  const { member, unit, documentId } = await createUnitScenario();
+
+  const before = await access.resolveAccess(member.id, documentId);
+
+  await prisma.orgUnitAssignment.delete({
+    where: {
+      orgUnitId_personId: { orgUnitId: unit.orgUnitId, personId: member.id },
+    },
+  });
+
+  expect(before).toBe('edit');
+  expect(await access.resolveAccess(member.id, documentId)).toBe('none');
+});
+
+test('a person assigned only to the parent unit gets none on an inheriting child space', async () => {
+  const owner = await install();
+  const parent = await createUnitSpace(owner.organizationId, 'Secretaria');
+  const child = await createUnitSpace(owner.organizationId, 'Protocolo', {
+    parentId: parent.orgUnitId,
+    inheritsParent: true,
+  });
+  const parentMember = await createViewer();
+  await assign(parent.orgUnitId, parentMember);
+  const documentId = await createDocumentIn(
+    child.spaceId,
+    owner,
+    'Regulamento do protocolo',
+  );
+
+  const childSpace = await prisma.space.findUniqueOrThrow({
+    where: { id: child.spaceId },
+  });
+
+  expect(childSpace.inheritsParent).toBe(true);
+  expect(await access.resolveAccess(parentMember.id, documentId)).toBe('none');
+});
+
+test('a trashed unit space document is none for the member and owner for the owner, edit again after restore', async () => {
+  const { owner, member, documentId } = await createUnitScenario();
+
+  await prisma.document.update({
+    where: { id: documentId },
+    data: { trashedAt: new Date('2026-03-01T10:00:00.000Z') },
+  });
+  const memberInTrash = await access.resolveAccess(member.id, documentId);
+  const ownerInTrash = await access.resolveAccess(owner.id, documentId);
+
+  await prisma.document.update({
+    where: { id: documentId },
+    data: { trashedAt: null },
+  });
+  const memberRestored = await access.resolveAccess(member.id, documentId);
+
+  expect(memberInTrash).toBe('none');
+  expect(ownerInTrash).toBe('owner');
+  expect(memberRestored).toBe('edit');
+});
+
+test('the owner removed from the unit still gets owner', async () => {
+  const { owner, unit, documentId } = await createUnitScenario();
+
+  await prisma.orgUnitAssignment.delete({
+    where: {
+      orgUnitId_personId: { orgUnitId: unit.orgUnitId, personId: owner.id },
+    },
+  });
+
+  expect(await access.resolveAccess(owner.id, documentId)).toBe('owner');
+});
+
+test('a view share plus unit membership resolves to edit', async () => {
+  const { member, documentId } = await createUnitScenario();
+  await shareView(documentId, member);
+
+  expect(await access.resolveAccess(member.id, documentId)).toBe('edit');
+  expect(await access.canWrite(member.id, documentId)).toBe(true);
+});
+
+test('readableDocumentsWhere includes the unit space document and excludes it in the trash', async () => {
+  const { owner, member, documentId } = await createUnitScenario();
+  await createDocument(owner, 'Documento pessoal da Maria');
+
+  const beforeTrash = await prisma.document.findMany({
+    where: access.readableDocumentsWhere(member.id),
+    select: { id: true },
+  });
+
+  await prisma.document.update({
+    where: { id: documentId },
+    data: { trashedAt: new Date('2026-03-01T10:00:00.000Z') },
+  });
+
+  const afterTrash = await prisma.document.findMany({
+    where: access.readableDocumentsWhere(member.id),
+    select: { id: true },
+  });
+
+  expect(beforeTrash).toEqual([{ id: documentId }]);
+  expect(afterTrash).toEqual([]);
+});

@@ -655,3 +655,96 @@ test('a view person connects read only and an update is not stored', async () =>
   expect(await storedText(created.id)).toBe('Plano de obras');
   expect(viewer.statelessPayloads).not.toContain(STORED_MESSAGE);
 });
+
+type UnitMember = {
+  documentId: string;
+  orgUnitId: string;
+  memberId: string;
+  memberCookie: string;
+};
+
+/**
+ * A dona e o colega lotados diretamente na mesma unidade, com um documento da
+ * dona criado pela API no espaço dela.
+ */
+async function createUnitSpaceDocument(): Promise<UnitMember> {
+  const owner = await prisma.person.findFirstOrThrow({
+    where: { email: EMAIL },
+  });
+  const root = await prisma.orgUnit.findFirstOrThrow({
+    where: { organizationId: owner.organizationId, parentId: null },
+  });
+  const unit = await prisma.orgUnit.create({
+    data: {
+      organizationId: owner.organizationId,
+      parentId: root.id,
+      name: 'Protocolo',
+    },
+  });
+  const space = await prisma.space.create({
+    data: { type: 'UNIT', orgUnitId: unit.id },
+  });
+  const { person: member, cookie: memberCookie } =
+    await createPersonWithSession(app, {
+      name: 'João Lima',
+      email: 'joao@exemplo.org',
+    });
+  await prisma.orgUnitAssignment.createMany({
+    data: [
+      { orgUnitId: unit.id, personId: owner.id },
+      { orgUnitId: unit.id, personId: member.id },
+    ],
+  });
+
+  const response = await httpRequest(app)
+    .post('/api/documents')
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send({ spaceId: space.id });
+
+  expect(response.status).toBe(201);
+
+  return {
+    documentId: (response.body as { data: { id: string } }).data.id,
+    orgUnitId: unit.id,
+    memberId: member.id,
+    memberCookie,
+  };
+}
+
+test('a direct unit member connects and an update is stored', async () => {
+  const { documentId, memberCookie } = await createUnitSpaceDocument();
+  const member = open({ documentId, cookie: memberCookie });
+
+  await member.synced;
+
+  expect(member.provider.authorizedScope).not.toBe('readonly');
+
+  writeText(member.ydoc, 'Ata do protocolo');
+
+  await waitFor(() => member.statelessPayloads.includes(STORED_MESSAGE), {
+    message: 'A gravação do colega da unidade não foi confirmada',
+  });
+
+  expect(await storedText(documentId)).toBe('Ata do protocolo');
+});
+
+test('after removing the assignment the next connection is refused', async () => {
+  const { documentId, orgUnitId, memberId, memberCookie } =
+    await createUnitSpaceDocument();
+  const first = open({ documentId, cookie: memberCookie });
+
+  await first.synced;
+  await first.close();
+
+  await prisma.orgUnitAssignment.delete({
+    where: { orgUnitId_personId: { orgUnitId, personId: memberId } },
+  });
+
+  const next = open({ documentId, cookie: memberCookie });
+  const reason = await next.refused;
+
+  expect(reason).toBeTruthy();
+  expect(next.provider.isSynced).toBe(false);
+  expect(readText(next.ydoc)).toBe('');
+});

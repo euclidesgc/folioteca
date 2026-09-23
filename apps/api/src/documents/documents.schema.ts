@@ -6,6 +6,12 @@ export const DEFAULT_DOCUMENT_TITLE = 'Sem título';
 /** Tamanho máximo do título, contado depois de aparar os espaços. */
 export const TITLE_MAX_LENGTH = 200;
 
+/** Corpo opcional da criação: só o espaço de unidade onde o documento nasce. */
+export const createDocumentSchema = z.strictObject(
+  { spaceId: z.string().optional() },
+  { error: 'Campo não permitido.' },
+);
+
 /** Campos aceitos ao renomear: título aparado, com o vazio virando o padrão. */
 export const updateDocumentSchema = z.object({
   title: z

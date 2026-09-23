@@ -223,9 +223,12 @@ test('rename reports isFavorite from the include', async () => {
 test('create reports isFavorite false', async () => {
   const service = createCreatingService();
 
-  const document = await service.create({
-    id: 'pessoa',
-  } as Parameters<DocumentsService['create']>[0]);
+  const document = await service.create(
+    {
+      id: 'pessoa',
+    } as Parameters<DocumentsService['create']>[0],
+    undefined,
+  );
 
   expect(document.isFavorite).toBe(false);
 });

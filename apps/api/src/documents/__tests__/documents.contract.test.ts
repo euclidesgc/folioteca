@@ -569,3 +569,80 @@ test('PUT documents shares answers the documented 409', async () => {
 
   await expectShareContract(await putShare(documentId, person.id, cookie), 409);
 });
+
+/** `POST /api/documents` com o corpo informado, na sessão da instalação. */
+function postDocumentWith(body: object): Promise<Response> {
+  return httpRequest(app)
+    .post('/api/documents')
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie)
+    .send(body);
+}
+
+/** Unidade sob a raiz com o espaço `UNIT` dela e a pessoa da sessão lotada. */
+async function createAssignedUnitSpaceId(): Promise<string> {
+  const person = await prisma.person.findFirstOrThrow({
+    where: { email: EMAIL },
+  });
+  const root = await prisma.orgUnit.findFirstOrThrow({
+    where: { parentId: null },
+  });
+  const unit = await prisma.orgUnit.create({
+    data: {
+      organizationId: person.organizationId,
+      parentId: root.id,
+      name: 'Protocolo',
+    },
+  });
+  const space = await prisma.space.create({
+    data: { type: 'UNIT', orgUnitId: unit.id },
+  });
+  await prisma.orgUnitAssignment.create({
+    data: { orgUnitId: unit.id, personId: person.id },
+  });
+
+  return space.id;
+}
+
+test('POST documents with spaceId answers the documented 201', async () => {
+  const spaceId = await createAssignedUnitSpaceId();
+
+  const response = await postDocumentWith({ spaceId });
+
+  expect(response.status).toBe(201);
+  expect((response.body as { data: { spaceId: string } }).data.spaceId).toBe(
+    spaceId,
+  );
+  await expectMatchesContract({
+    path: '/documents',
+    method: 'post',
+    status: 201,
+    body: response.body,
+  });
+});
+
+test('POST documents with spaceId answers the documented 400', async () => {
+  const spaceId = await createAssignedUnitSpaceId();
+
+  const response = await postDocumentWith({ spaceId, title: 'Regulamento' });
+
+  expect(response.status).toBe(400);
+  await expectMatchesContract({
+    path: '/documents',
+    method: 'post',
+    status: 400,
+    body: response.body,
+  });
+});
+
+test('POST documents with spaceId answers the documented 404', async () => {
+  const response = await postDocumentWith({ spaceId: randomUUID() });
+
+  expect(response.status).toBe(404);
+  await expectMatchesContract({
+    path: '/documents',
+    method: 'post',
+    status: 404,
+    body: response.body,
+  });
+});

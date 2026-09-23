@@ -81,6 +81,23 @@ export class SpacesService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
+   * As unidades da organização com o espaço de cada uma e a lotação direta da
+   * pessoa: a leitura de que `resolveReach` precisa.
+   */
+  private findReachUnits(organizationId: string, personId: string) {
+    return this.prisma.orgUnit.findMany({
+      where: { organizationId },
+      select: {
+        id: true,
+        parentId: true,
+        name: true,
+        space: { select: { id: true, inheritsParent: true } },
+        assignments: { where: { personId }, select: { personId: true } },
+      },
+    });
+  }
+
+  /**
    * Os espaços das unidades que a pessoa alcança e os espaços livres de que
    * ela é dona, sempre na organização dela. Alcança o espaço de uma unidade
    * quem está lotado nela ou, se o espaço herda da unidade-pai, quem alcança
@@ -93,16 +110,7 @@ export class SpacesService {
         where: { type: 'FREE', organizationId, ownerId: personId },
         select: { id: true, name: true },
       }),
-      this.prisma.orgUnit.findMany({
-        where: { organizationId },
-        select: {
-          id: true,
-          parentId: true,
-          name: true,
-          space: { select: { id: true, inheritsParent: true } },
-          assignments: { where: { personId }, select: { personId: true } },
-        },
-      }),
+      this.findReachUnits(organizationId, personId),
     ]);
 
     const reaches = resolveReach(units);
@@ -122,6 +130,42 @@ export class SpacesService {
     );
 
     return { data };
+  }
+
+  /**
+   * Como a pessoa alcança o espaço de unidade informado, na organização dela:
+   * `'direct'` se está lotada na unidade, `'inherited'` se o alcança só pela
+   * herança entre unidades e `'none'` se não o alcança ou se o espaço não
+   * existe ou não é de unidade.
+   */
+  async reachOf(
+    organizationId: string,
+    personId: string,
+    spaceId: string,
+  ): Promise<'direct' | 'inherited' | 'none'> {
+    const space = await this.prisma.space.findFirst({
+      where: { id: spaceId, type: 'UNIT', orgUnit: { organizationId } },
+      select: {
+        orgUnit: {
+          select: {
+            id: true,
+            assignments: { where: { personId }, select: { personId: true } },
+          },
+        },
+      },
+    });
+
+    if (space === null || space.orgUnit === null) {
+      return 'none';
+    }
+
+    if (space.orgUnit.assignments.length > 0) {
+      return 'direct';
+    }
+
+    const units = await this.findReachUnits(organizationId, personId);
+
+    return resolveReach(units)(space.orgUnit.id) ? 'inherited' : 'none';
   }
 
   /**

@@ -140,7 +140,13 @@ paths:
   /documents:
     post:
       operationId: createDocument
-      summary: Cria um documento sem título no espaço pessoal de quem chama
+      summary: Cria um documento sem título no espaço pessoal de quem chama ou no espaço de unidade informado
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDocumentInput"
       responses:
         "201":
           description: O documento foi criado.
@@ -148,6 +154,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DocumentResponse"
+        "400":
+          description: Os dados informados são inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
         "401":
           description: Não há sessão válida.
           content:
@@ -156,6 +168,14 @@ paths:
                 $ref: "#/components/schemas/Error"
         "403":
           description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            O espaço informado não existe, tem id malformado, não é de unidade
+            ou quem chama não está lotado diretamente na unidade.
           content:
             application/json:
               schema:
@@ -1198,6 +1218,53 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /spaces/{spaceId}/documents:
+    get:
+      operationId: listSpaceDocuments
+      tags:
+        - spaces
+      summary: Lista os documentos de um espaço de unidade
+      description: >-
+        Lista os documentos fora da lixeira do espaço de unidade informado, dos
+        mais recentes para os mais antigos. Só quem está lotado diretamente na
+        unidade vê a lista. Quem alcança o espaço só por herança recebe 403.
+        Espaço sem alcance, inexistente, com id malformado ou que não é de
+        unidade recebe o mesmo 404 opaco.
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Os documentos do espaço foram listados.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentsResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: >-
+            Quem chama alcança o espaço só por herança, sem lotação direta na
+            unidade.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            O espaço não existe, tem id malformado, não é de unidade ou quem
+            chama não o alcança.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /invitations:
     post:
       operationId: createInvitation
@@ -1604,6 +1671,15 @@ components:
           $ref: "#/components/schemas/Document"
       required:
         - data
+    CreateDocumentInput:
+      type: object
+      properties:
+        spaceId:
+          type: string
+          description: >-
+            Espaço de unidade onde o documento nasce. Ausente, o documento
+            nasce no espaço pessoal de quem chama.
+      additionalProperties: false
     DocumentsResponse:
       type: object
       properties:

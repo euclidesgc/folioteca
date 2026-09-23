@@ -100,7 +100,7 @@ export interface paths {
         /** Lista os documentos do escopo informado */
         get: operations["getDocuments"];
         put?: never;
-        /** Cria um documento sem título no espaço pessoal de quem chama */
+        /** Cria um documento sem título no espaço pessoal de quem chama ou no espaço de unidade informado */
         post: operations["createDocument"];
         delete?: never;
         options?: never;
@@ -419,6 +419,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/spaces/{spaceId}/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista os documentos de um espaço de unidade
+         * @description Lista os documentos fora da lixeira do espaço de unidade informado, dos mais recentes para os mais antigos. Só quem está lotado diretamente na unidade vê a lista. Quem alcança o espaço só por herança recebe 403. Espaço sem alcance, inexistente, com id malformado ou que não é de unidade recebe o mesmo 404 opaco.
+         */
+        get: operations["listSpaceDocuments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/invitations": {
         parameters: {
             query?: never;
@@ -583,6 +603,10 @@ export interface components {
         };
         DocumentResponse: {
             data: components["schemas"]["Document"];
+        };
+        CreateDocumentInput: {
+            /** @description Espaço de unidade onde o documento nasce. Ausente, o documento nasce no espaço pessoal de quem chama. */
+            spaceId?: string;
         };
         DocumentsResponse: {
             data: components["schemas"]["DocumentSummary"][];
@@ -1070,7 +1094,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CreateDocumentInput"];
+            };
+        };
         responses: {
             /** @description O documento foi criado. */
             201: {
@@ -1079,6 +1107,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DocumentResponse"];
+                };
+            };
+            /** @description Os dados informados são inválidos. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"];
                 };
             };
             /** @description Não há sessão válida. */
@@ -1092,6 +1129,15 @@ export interface operations {
             };
             /** @description A requisição foi recusada. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O espaço informado não existe, tem id malformado, não é de unidade ou quem chama não está lotado diretamente na unidade. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2283,6 +2329,55 @@ export interface operations {
             };
             /** @description Não há sessão válida. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listSpaceDocuments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                spaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Os documentos do espaço foram listados. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentsResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Quem chama alcança o espaço só por herança, sem lotação direta na unidade. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O espaço não existe, tem id malformado, não é de unidade ou quem chama não o alcança. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
