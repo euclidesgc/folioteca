@@ -72,7 +72,7 @@ Caminhos relativos à raiz do repositório. Ao fim da fase, `usePersonLookup` e 
 
 Caminhos relativos à raiz do repositório. Ao fim da fase, o diálogo usa `PersonPicker`, o módulo `search-people-to-share` não existe mais, os testes e o e2e da 145 passam **sem nenhuma mudança** e a documentação registra o padrão.
 
-- [ ] T2.1 — `SharePanel` compõe `PersonPicker` e o módulo antigo sai
+- [x] T2.1 — `SharePanel` compõe `PersonPicker` e o módulo antigo sai
   - Arquivos: `apps/web/src/features/documents/components/share-document-dialog.tsx` (alterar); `apps/web/src/features/documents/api/search-people-to-share.ts` (excluir); `apps/web/src/features/documents/api/__tests__/search-people-to-share.test.tsx` (excluir)
   - O que fazer (D2, D3, D4, R1, R2):
     - `SharePanel` deixa de ter `term`, `deferredTerm`, debounce, `useId` do campo/dica e `renderResults`; `PersonPicker` de `@/components/person-picker/person-picker` recebe `selected`, `onSelect={setSelected}`, `onClear={() => setSelected(null)}`, `ref={pickerRef}` (`useRef<PersonPickerHandle>(null)`), `selectedAside` = o selo **"Pode ver"**, `children` = a frase **"Esta pessoa poderá ler o documento."**, `selectedActions` = o botão **"Compartilhar"** com o `ref` e o `aria-disabled` de hoje.
@@ -81,7 +81,7 @@ Caminhos relativos à raiz do repositório. Ao fim da fase, o diálogo usa `Pers
   - Skills: ui-components, project-structure
   - Complexidade: média
 
-- [ ] T2.2 — Documentação do padrão
+- [x] T2.2 — Documentação do padrão
   - Arquivos: `docs/design.md` (alterar); `docs/architecture.md` (alterar)
   - O que fazer (R5), em pt_BR:
     - `docs/design.md`, em "Padrões acrescentados pelas entregas": receita **"Seletor de pessoa"** (fatia 159) — usar `PersonPicker` de `@/components/person-picker/person-picker`; quem usa guarda `selected`; `selectedAside` (ao lado do nome, ex.: selo), `children` (texto entre cabeçalho e botões), `selectedActions` (ações depois de "Trocar pessoa"); chamar `reset()` pelo `ref` após a ação concluída.
@@ -89,7 +89,7 @@ Caminhos relativos à raiz do repositório. Ao fim da fase, o diálogo usa `Pers
   - Skills: interface-design, project-structure
   - Complexidade: baixa
 
-- [ ] T2.3 — Testes da fase 2 (regressão da 145 sem mudança)
+- [x] T2.3 — Testes da fase 2 (regressão da 145 sem mudança)
   - Arquivos: nenhum criado nem alterado.
   - O que fazer (R1, R6): rodar `pnpm test` e `pnpm test:e2e` inteiros. `share-document-dialog.test.tsx` precisa passar **sem mudar**, incluindo `asks for at least 2 letters before searching`, `lists the people with the result count`, `selecting a person shows Pode ver and the Compartilhar button`, `Trocar pessoa goes back to the results keeping the term`, `sharing announces success with the name from the response and clears the search`, `a 400 shows the server message and keeps the selected person`, `the share button keeps focus while sending` e `Escape closes the dialog and returns focus to the trigger`; `apps/web/e2e/tests/share-with-person-view.spec.ts` idem. Se algum quebrar, o conserto é em `person-picker.tsx` ou `share-document-dialog.tsx`, nunca no teste.
   - Skills: component-testing, e2e-testing
@@ -97,13 +97,13 @@ Caminhos relativos à raiz do repositório. Ao fim da fase, o diálogo usa `Pers
 
 ### Critérios de aceite da fase 2
 
-- [ ] CA2.1 — Na raiz: `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` saem com 0 e sem aviso; a saída de `pnpm test` não tem `console.error`, `console.warn` nem aviso de `act(...)`. `pnpm test:e2e` (todos os e2e) sai com 0.
-- [ ] CA2.2 — Módulo antigo removido: `test ! -e apps/web/src/features/documents/api/search-people-to-share.ts` e `test ! -e apps/web/src/features/documents/api/__tests__/search-people-to-share.test.tsx` saem com 0; `rg -n "from '@/features/documents/api/search-people-to-share'" apps/web/src` é vazio.
-- [ ] CA2.3 — `apps/web/src/features/documents/components/share-document-dialog.tsx` importa `PersonPicker` e `PersonPickerHandle` de `@/components/person-picker/person-picker` e `PersonSummary` de `@/hooks/use-person-lookup`; passa `selectedAside`, `selectedActions`, `onSelect`, `onClear` e `ref`; chama `.reset()` no sucesso; contém literalmente `Pode ver`, `Esta pessoa poderá ler o documento.` e `Compartilhar`. `rg -n "useSearchPeopleToShare|renderResults|SEARCH_DEBOUNCE_MS|useId\(" apps/web/src/features/documents/components/share-document-dialog.tsx` é vazio; `rg -n "forwardRef|: JSX\.|<button" apps/web/src/features/documents/components/share-document-dialog.tsx` é vazio.
-- [ ] CA2.4 — Regressão da 145 sem mudança: para `apps/web/src/features/documents/components/__tests__/share-document-dialog.test.tsx` e `apps/web/e2e/tests/share-with-person-view.spec.ts`, `git status --porcelain -- <arquivo>` é vazio e `git diff --quiet feature/128-unit-space-members..HEAD -- <arquivo>` sai com 0; `pnpm exec vitest run --project web` sai com 0 e inclui os 13 casos de `share-document-dialog.test.tsx` (entre eles `Trocar pessoa goes back to the results keeping the term` e `sharing announces success with the name from the response and clears the search`); `pnpm test:e2e` inclui `share-with-person-view.spec.ts` e sai com 0. `apps/web/src/hooks/use-people-search.ts` segue intocado pelo mesmo par de comandos.
-- [ ] CA2.5 — `docs/design.md` contém a receita "Seletor de pessoa" citando `PersonPicker`, `@/components/person-picker/person-picker`, `selectedAside`, `selectedActions`, `children` e `reset()`; `docs/architecture.md` cita `use-person-lookup.ts`, `person-picker` e `use-people-search.ts`.
-- [ ] CA2.6 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project web` (0) inclui `reset clears the term and focuses the field` e `selecting a person shows Pode ver and the Compartilhar button`; `rg -n "from '@/features/(?!documents/)" -P apps/web/src/features/documents` é vazio.
-- [ ] CA2.7 — Cobertura ≥ 80% de linhas para `apps/web/src/features/documents/components/share-document-dialog.tsx`, `apps/web/src/components/person-picker/person-picker.tsx` e `apps/web/src/hooks/use-person-lookup.ts`, lida em `coverage/coverage-summary.json` gerado na raiz com `pnpm exec vitest run --coverage --coverage.reporter=json-summary`.
+- [x] CA2.1 — Na raiz: `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` saem com 0 e sem aviso; a saída de `pnpm test` não tem `console.error`, `console.warn` nem aviso de `act(...)`. `pnpm test:e2e` (todos os e2e) sai com 0.
+- [x] CA2.2 — Módulo antigo removido: `test ! -e apps/web/src/features/documents/api/search-people-to-share.ts` e `test ! -e apps/web/src/features/documents/api/__tests__/search-people-to-share.test.tsx` saem com 0; `rg -n "from '@/features/documents/api/search-people-to-share'" apps/web/src` é vazio.
+- [x] CA2.3 — `apps/web/src/features/documents/components/share-document-dialog.tsx` importa `PersonPicker` e `PersonPickerHandle` de `@/components/person-picker/person-picker` e `PersonSummary` de `@/hooks/use-person-lookup`; passa `selectedAside`, `selectedActions`, `onSelect`, `onClear` e `ref`; chama `.reset()` no sucesso; contém literalmente `Pode ver`, `Esta pessoa poderá ler o documento.` e `Compartilhar`. `rg -n "useSearchPeopleToShare|renderResults|SEARCH_DEBOUNCE_MS|useId\(" apps/web/src/features/documents/components/share-document-dialog.tsx` é vazio; `rg -n "forwardRef|: JSX\.|<button" apps/web/src/features/documents/components/share-document-dialog.tsx` é vazio.
+- [x] CA2.4 — Regressão da 145 sem mudança: para `apps/web/src/features/documents/components/__tests__/share-document-dialog.test.tsx` e `apps/web/e2e/tests/share-with-person-view.spec.ts`, `git status --porcelain -- <arquivo>` é vazio e `git diff --quiet feature/128-unit-space-members..HEAD -- <arquivo>` sai com 0; `pnpm exec vitest run --project web` sai com 0 e inclui os 13 casos de `share-document-dialog.test.tsx` (entre eles `Trocar pessoa goes back to the results keeping the term` e `sharing announces success with the name from the response and clears the search`); `pnpm test:e2e` inclui `share-with-person-view.spec.ts` e sai com 0. `apps/web/src/hooks/use-people-search.ts` segue intocado pelo mesmo par de comandos.
+- [x] CA2.5 — `docs/design.md` contém a receita "Seletor de pessoa" citando `PersonPicker`, `@/components/person-picker/person-picker`, `selectedAside`, `selectedActions`, `children` e `reset()`; `docs/architecture.md` cita `use-person-lookup.ts`, `person-picker` e `use-people-search.ts`.
+- [x] CA2.6 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project web` (0) inclui `reset clears the term and focuses the field` e `selecting a person shows Pode ver and the Compartilhar button`; `rg -n "from '@/features/(?!documents/)" -P apps/web/src/features/documents` é vazio.
+- [x] CA2.7 — Cobertura ≥ 80% de linhas para `apps/web/src/features/documents/components/share-document-dialog.tsx`, `apps/web/src/components/person-picker/person-picker.tsx` e `apps/web/src/hooks/use-person-lookup.ts`, lida em `coverage/coverage-summary.json` gerado na raiz com `pnpm exec vitest run --coverage --coverage.reporter=json-summary`.
 
 ## DoD da entrega
 

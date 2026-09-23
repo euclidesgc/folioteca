@@ -731,6 +731,13 @@ chave `['space', id]`, `staleTime: 0`, fora do prefixo `['spaces']` que as
 mutações invalidam) em vez de procurar na lista, e o 404 vira o estado
 "Espaço não encontrado."; a barra lateral segue em `GET /spaces`.
 
+**Entrega `person-picker-shared` (fatia 159)**: a busca e a seleção de pessoa
+para agir sobre ela (hoje, compartilhar documento) são **compartilhadas**:
+`src/hooks/use-person-lookup.ts` chama `GET /people/search` só a partir de 2
+letras, e `src/components/person-picker/` (`person-picker.tsx`) desenha busca,
+resultados e pessoa escolhida. A administração de pessoas segue com
+`src/hooks/use-people-search.ts`, sem mudança.
+
 ## 7. Testes
 
 Vitest em tudo. Na API, integração contra Postgres real (`docker compose`,
