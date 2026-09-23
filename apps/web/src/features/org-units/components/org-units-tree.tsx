@@ -339,9 +339,15 @@ function LoadedOrgUnitsTree({
         {dialog && dialogUnit ? (
           <DialogContent
             onOpenAutoFocus={(event) => {
-              // The space access has no field: the box focuses its first
-              // option by itself.
-              if (dialog.mode === 'space-access') return;
+              // The space access has no field: the focus goes to the checked
+              // option, as the radio group pattern asks, not to the first one.
+              if (dialog.mode === 'space-access') {
+                event.preventDefault();
+                (event.currentTarget as HTMLElement | null)
+                  ?.querySelector<HTMLInputElement>('input[type=radio]:checked')
+                  ?.focus();
+                return;
+              }
               // The field, not the first focusable of the box.
               event.preventDefault();
               formFocusRef.current?.focusName();

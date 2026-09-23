@@ -145,7 +145,7 @@ Caminhos relativos à raiz do repositório. A ordem importa: API simulada e muta
 
 ## Fase 3 — e2e da jornada e documentação: a fatia utilizável de ponta a ponta
 
-- [ ] T3.1 — Documentação: receita nova e arquitetura
+- [x] T3.1 — Documentação: receita nova e arquitetura
   - Arquivos: `docs/design.md` (alterar); `docs/architecture.md` (alterar)
   - O que fazer, em pt_BR, só acrescentando linhas:
     - `docs/design.md`, em "Padrões acrescentados pelas entregas": receita **"Escolha entre opções (rádios)"** (fatia 140) com as classes usadas em `space-access-control.tsx`.
@@ -153,7 +153,7 @@ Caminhos relativos à raiz do repositório. A ordem importa: API simulada e muta
   - Skills: interface-design
   - Complexidade: baixa
 
-- [ ] T3.2 — Testes da fase 3 (e2e: herdar e voltar só pelo teclado)
+- [x] T3.2 — Testes da fase 3 (e2e: herdar e voltar só pelo teclado)
   - Arquivos: `apps/web/e2e/tests/unit-space-inherit-parent.spec.ts` (criar)
   - O que fazer (D8): API simulada, sessão de administração lotada na mãe (estado inicial por `page.addInitScript`, como os specs existentes). `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo, usado em toda espera após mudança de rota; `toBeFocused()` antes de cada `Enter`/`Space`; nenhum `waitForTimeout`; nenhuma regra do axe desativada; outros specs e `apps/web/e2e/a11y.ts` intocados.
     - `the root unit has no space access button`.
@@ -164,11 +164,11 @@ Caminhos relativos à raiz do repositório. A ordem importa: API simulada e muta
 
 ### Critérios de aceite da fase 3
 
-- [ ] CA3.1 — `pnpm test:e2e` na raiz sai com 0 (os e2e antigos e os novos), e `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` continuam saindo com 0 e sem aviso, com o cache do `tsc` limpo.
-- [ ] CA3.2 — `apps/web/e2e/tests/unit-space-inherit-parent.spec.ts` contém os casos `the root unit has no space access button`, `an admin makes a child space inherit using only the keyboard` e `switching back to Permissões próprias removes the space from the sidebar`, e `pnpm --filter web exec playwright test --list` os lista. `rg -n "test\.skip|test\.only|waitForTimeout|disableRules" apps/web/e2e/tests/unit-space-inherit-parent.spec.ts` é vazio.
-- [ ] CA3.3 — Lendo o spec: `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo, passado em toda asserção após mudança de rota; `toBeFocused()` antes de cada tecla de ação; `expectNoSeriousA11yViolations(page)` com o diálogo aberto; o segundo caso assere o link na `navigation` "Unidades" e o `heading` de nível 1; o terceiro assere que o link sumiu.
-- [ ] CA3.4 — `docs/design.md` tem a receita "Escolha entre opções (rádios)" com `has-[:checked]`; `docs/architecture.md` tem o parágrafo "Entrega `unit-space-inherit-parent` (fatia 140)" citando `inheritsParent`, `PATCH /org-units/{orgUnitId}/space` e a resolução a cada `GET /spaces`.
-- [ ] CA3.5 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `a person assigned to the parent sees the inheriting child space`; `pnpm exec vitest run --project web` (0) inclui `switching a child to inherit shows its space in the sidebar of the person assigned to the parent`; `pnpm test:e2e` (0) inclui os três casos de `unit-space-inherit-parent.spec.ts`.
+- [x] CA3.1 — `pnpm test:e2e` na raiz sai com 0 (os e2e antigos e os novos), e `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` continuam saindo com 0 e sem aviso, com o cache do `tsc` limpo.
+- [x] CA3.2 — `apps/web/e2e/tests/unit-space-inherit-parent.spec.ts` contém os casos `the root unit has no space access button`, `an admin makes a child space inherit using only the keyboard` e `switching back to Permissões próprias removes the space from the sidebar`, e `pnpm --filter web exec playwright test --list` os lista. `rg -n "test\.skip|test\.only|waitForTimeout|disableRules" apps/web/e2e/tests/unit-space-inherit-parent.spec.ts` é vazio.
+- [x] CA3.3 — Lendo o spec: `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo, passado em toda asserção após mudança de rota; `toBeFocused()` antes de cada tecla de ação; `expectNoSeriousA11yViolations(page)` com o diálogo aberto; o segundo caso assere o link na `navigation` "Unidades" e o `heading` de nível 1; o terceiro assere que o link sumiu.
+- [x] CA3.4 — `docs/design.md` tem a receita "Escolha entre opções (rádios)" com `has-[:checked]`; `docs/architecture.md` tem o parágrafo "Entrega `unit-space-inherit-parent` (fatia 140)" citando `inheritsParent`, `PATCH /org-units/{orgUnitId}/space` e a resolução a cada `GET /spaces`.
+- [x] CA3.5 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `a person assigned to the parent sees the inheriting child space`; `pnpm exec vitest run --project web` (0) inclui `switching a child to inherit shows its space in the sidebar of the person assigned to the parent`; `pnpm test:e2e` (0) inclui os três casos de `unit-space-inherit-parent.spec.ts`.
 
 ## DoD da entrega
 

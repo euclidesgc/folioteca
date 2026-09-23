@@ -643,6 +643,21 @@ procura o id na lista da própria pessoa, então espaço livre alheio cai no mes
 decisão de acesso segue o caminho único da §3, e documento no espaço livre é a
 136.
 
+**Entrega `unit-space-inherit-parent` (fatia 140)**: quem vê um espaço de
+unidade passa a ser quem tem **lotação direta** nela **mais** quem vê o espaço
+da unidade-pai, enquanto o espaço herda — a herança desce de cima para baixo e
+para no primeiro espaço com permissões próprias. A resolução é **em memória, a
+cada `GET /spaces`**: nada é gravado por pessoa, então mudar o modo vale na
+próxima leitura. O modo **mora no espaço**, na coluna `inheritsParent`; a
+restrição de tabela da `0014_space_inherits_parent` só a deixa verdadeira
+**quando o tipo é `UNIT`**, e a migration foi **escrita à mão**, porque o Prisma
+não gera `CHECK`. A escrita é `PATCH /org-units/{orgUnitId}/space`, sob
+`AdminGuard`, com `organizationId` sempre da sessão; na **raiz**, que não tem
+pai de quem herdar, responde **409**. A administração **não ganha acesso** por
+mudar o modo: `isAdmin` continua não sendo lido no `GET /spaces`. O espaço de
+unidade **continua sem dar acesso a documento**: a decisão de acesso segue o
+caminho único da §3.
+
 ## 7. Testes
 
 Vitest em tudo. Na API, integração contra Postgres real (`docker compose`,

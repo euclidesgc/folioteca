@@ -14,7 +14,7 @@ const OPTIONS: { value: SpaceAccess; label: string }[] = [
 // the border, the highlight of the checked one, the visible focus and the
 // dimmed look while sending all follow the native radio inside it.
 const OPTION_CLASS_NAME =
-  'flex items-start gap-3 rounded-md border border-gray-200 p-3 text-sm text-gray-900 hover:bg-gray-50 has-[:checked]:border-gray-900 has-[:checked]:bg-gray-50 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-blue-600 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60';
+  'flex items-start gap-3 rounded-md border border-gray-200 p-3 text-sm text-gray-900 hover:bg-gray-50 has-[:checked]:border-gray-900 has-[:checked]:bg-gray-50 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-blue-600 has-[[aria-disabled=true]]:cursor-not-allowed has-[[aria-disabled=true]]:opacity-60';
 
 const sentenceFor = (
   access: SpaceAccess,
@@ -71,9 +71,9 @@ export function SpaceAccessControl({
               name={name}
               value={option.value}
               checked={checked === option.value}
-              disabled={updateOrgUnitSpaceMutation.isPending}
+              aria-disabled={updateOrgUnitSpaceMutation.isPending}
               onChange={() => handleChange(option.value)}
-              className="mt-0.5 size-4 shrink-0 accent-gray-900 outline-none disabled:cursor-not-allowed"
+              className="mt-0.5 size-4 shrink-0 accent-gray-900 outline-none aria-disabled:cursor-not-allowed"
             />
             <span className="min-w-0 break-words">{option.label}</span>
           </label>

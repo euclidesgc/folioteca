@@ -4,7 +4,11 @@ import { beforeEach, expect, test } from 'vitest';
 import { useNotifications } from '@/components/ui/notifications/notifications-store';
 import { env } from '@/config/env';
 import { paths } from '@/config/paths';
-import { seedInstalled, seedSampleOrgUnits } from '@/testing/mocks/db';
+import {
+  seedInstalled,
+  seedSampleOrgUnits,
+  setOrgUnitSpaceAccess,
+} from '@/testing/mocks/db';
 import { server } from '@/testing/mocks/server';
 import {
   renderApp,
@@ -808,6 +812,31 @@ test('the space access button opens the Acesso ao espaço dialog', async () => {
   await user.click(within(dialog).getByRole('button', { name: 'Fechar' }));
 
   await waitFor(() => expect(dialog).not.toBeInTheDocument());
+});
+
+test('the space access dialog focuses the checked option', async () => {
+  const user = userEvent.setup();
+  seedSampleOrgUnits();
+  setOrgUnitSpaceAccess('org-unit-acervo', 'inherit');
+
+  renderApp(<OrgUnitsTree />);
+
+  await screen.findByRole(
+    'tree',
+    { name: 'Estrutura de unidades' },
+    LAZY_TIMEOUT,
+  );
+
+  await user.click(spaceAccessAction('Acervo e Processamento Técnico'));
+
+  const dialog = await screen.findByRole('dialog', {
+    name: 'Acesso ao espaço',
+  });
+  const inheritOption = within(dialog).getByRole('radio', {
+    name: 'Herda da unidade-pai',
+  });
+  expect(inheritOption).toBeChecked();
+  await waitFor(() => expect(inheritOption).toHaveFocus());
 });
 
 test('Escape closes the space access dialog and returns focus to the button', async () => {

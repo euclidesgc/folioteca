@@ -90,8 +90,8 @@ test('disables the options and shows Salvando while sending', async () => {
     await screen.findByRole('radio', { name: 'Herda da unidade-pai' }),
   );
 
-  await waitFor(() => expect(inheritOption()).toBeDisabled());
-  expect(ownOption()).toBeDisabled();
+  await waitFor(() => expect(inheritOption()).toHaveAttribute('aria-disabled', 'true'));
+  expect(ownOption()).toHaveAttribute('aria-disabled', 'true');
   expect(inheritOption()).toBeChecked();
   expect(
     screen.getByText(`${INHERIT_SENTENCE} Salvando…`),
