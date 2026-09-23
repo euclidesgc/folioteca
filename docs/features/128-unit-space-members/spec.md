@@ -63,8 +63,11 @@ O que **já existe** e esta fatia só aproveita (conferido no código):
   012): `{spaceId}` não colide com `/spaces` nem com `{spaceId}/documents`.
 - `SpaceDetail` = campos de `Space` (`id`, `type`, `name`) + `reach`, enum
   `direct | inherited | owner`, obrigatório. `owner` é o espaço livre de quem
-  chama (a única forma de alcançar um `FREE` hoje). Escrito com `allOf: [Space]`
-  + objeto com `reach`, para `Space` continuar sendo a forma da lista.
+  chama (a única forma de alcançar um `FREE` hoje). Escrito como objeto plano,
+  **sem `allOf`**: `type: object`, `required: [id, type, name, reach]`,
+  `additionalProperties: false`, propriedades iguais às de `Space` mais `reach`
+  com `enum: [direct, inherited, owner]`. `Space` continua intocado, como a
+  forma da lista.
   - Decisão: incluir `reach` agora. A web desta fatia não depende dele (membros
     aparecem para `direct` e `inherited`), mas é a resposta de "como alcanço
     este espaço" que o servidor já calcula; a 152 (documentos por herança) e a
@@ -73,6 +76,9 @@ O que **já existe** e esta fatia só aproveita (conferido no código):
     curto hoje, mas obrigaria mudar a forma de uma resposta publicada depois.
   - Alternativa descartada: `reach` opcional — um campo que às vezes vem deixa
     a web com um terceiro caso sem significado.
+  - Alternativa descartada: `allOf: [Space]` + objeto com `reach` — o Ajv dos
+    testes de contrato aplica o `additionalProperties: false` de `Space` dentro
+    do `allOf` e recusa `reach`.
 - Identidade de caminho conferida à mão: YAML `/spaces/{spaceId}` ↔
   `@Get(':spaceId')` no `SpacesController` com `@Param('spaceId')`. O teste de
   contrato chama exatamente esse caminho.

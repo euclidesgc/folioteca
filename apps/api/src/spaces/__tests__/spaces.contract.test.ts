@@ -273,3 +273,99 @@ test('GET space documents answers the documented 404', async () => {
     body: response.body,
   });
 });
+
+function getSpace(spaceId: string, cookie?: string): Promise<Response> {
+  const request = httpRequest(app).get(`/api/spaces/${spaceId}`);
+
+  return cookie === undefined ? request : request.set('Cookie', cookie);
+}
+
+function getSpaceMembers(spaceId: string, cookie?: string): Promise<Response> {
+  const request = httpRequest(app).get(`/api/spaces/${spaceId}/members`);
+
+  return cookie === undefined ? request : request.set('Cookie', cookie);
+}
+
+test('GET space answers the documented 200', async () => {
+  const { childSpaceId } = await createUnitsWithAssignedParent();
+
+  const response = await getSpace(childSpaceId, adminCookie);
+
+  expect(response.status).toBe(200);
+  expect((response.body as { data: { reach: string } }).data.reach).toBe(
+    'inherited',
+  );
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}',
+    method: 'get',
+    status: 200,
+    body: response.body,
+  });
+});
+
+test('GET space answers the documented 401', async () => {
+  const { parentSpaceId } = await createUnitsWithAssignedParent();
+
+  const response = await getSpace(parentSpaceId);
+
+  expect(response.status).toBe(401);
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}',
+    method: 'get',
+    status: 401,
+    body: response.body,
+  });
+});
+
+test('GET space answers the documented 404', async () => {
+  const response = await getSpace(randomUUID(), adminCookie);
+
+  expect(response.status).toBe(404);
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}',
+    method: 'get',
+    status: 404,
+    body: response.body,
+  });
+});
+
+test('GET space members answers the documented 200', async () => {
+  const { parentSpaceId } = await createUnitsWithAssignedParent();
+
+  const response = await getSpaceMembers(parentSpaceId, adminCookie);
+
+  expect(response.status).toBe(200);
+  expect((response.body as { data: unknown[] }).data).toHaveLength(1);
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}/members',
+    method: 'get',
+    status: 200,
+    body: response.body,
+  });
+});
+
+test('GET space members answers the documented 401', async () => {
+  const { parentSpaceId } = await createUnitsWithAssignedParent();
+
+  const response = await getSpaceMembers(parentSpaceId);
+
+  expect(response.status).toBe(401);
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}/members',
+    method: 'get',
+    status: 401,
+    body: response.body,
+  });
+});
+
+test('GET space members answers the documented 404', async () => {
+  const response = await getSpaceMembers(randomUUID(), adminCookie);
+
+  expect(response.status).toBe(404);
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}/members',
+    method: 'get',
+    status: 404,
+    body: response.body,
+  });
+});

@@ -5,6 +5,7 @@ import { Prisma } from '@prisma/client';
 import { DomainNotFoundException } from '../common/domain-not-found.exception';
 import { isUuid } from '../common/is-uuid';
 import { parseBody } from '../common/parse-body';
+import { ptBrCollator } from '../common/pt-br-collator';
 import { orgUnitNotFound } from '../org-units/org-unit-not-found';
 import { PrismaService } from '../prisma/prisma.service';
 import { assignPersonSchema } from './unit-assignments.schema';
@@ -21,13 +22,6 @@ export const ALREADY_ASSIGNED_MESSAGE =
 
 /** Campos que descrevem uma pessoa lotada para quem chama a API. */
 const personFields = { id: true, name: true, email: true } as const;
-
-/**
- * Sorting in the database would depend on the Postgres collation of each
- * instance ("Álvaro" would come after "Zilda" under `C`), so the order is
- * built in memory with a pt-BR collator.
- */
-const collator = new Intl.Collator('pt-BR', { sensitivity: 'base' });
 
 /**
  * Reconhece a violação da chave primária composta `(orgUnitId, personId)`. O
@@ -75,7 +69,7 @@ export class UnitAssignmentsService {
     const data = rows
       .map((row) => row.person)
       .sort(
-        (a, b) => collator.compare(a.name, b.name) || a.id.localeCompare(b.id),
+        (a, b) => ptBrCollator.compare(a.name, b.name) || a.id.localeCompare(b.id),
       );
 
     return { data, orgUnit: { id: orgUnit.id, name: orgUnit.name } };

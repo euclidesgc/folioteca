@@ -1218,6 +1218,85 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /spaces/{spaceId}:
+    get:
+      operationId: getSpace
+      tags:
+        - spaces
+      summary: Lê um espaço
+      description: >-
+        Lê o espaço informado com a forma de alcance de quem chama. O espaço
+        livre só é lido pelo dono (reach owner). O espaço de unidade é lido por
+        quem a alcança diretamente (reach direct) ou por herança (reach
+        inherited). Qualquer outro caso (espaço inexistente, id malformado,
+        espaço pessoal, espaço livre de outra pessoa, sem alcance ou
+        administração não lotada) recebe o mesmo 404 "Espaço não encontrado.".
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: O espaço foi lido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceDetailResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            O espaço não existe, tem id malformado, é pessoal, é livre de outra
+            pessoa ou quem chama não o alcança.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /spaces/{spaceId}/members:
+    get:
+      operationId: listSpaceMembers
+      tags:
+        - spaces
+      summary: Lista as pessoas lotadas na unidade de um espaço
+      description: >-
+        Lista as pessoas lotadas diretamente na unidade do espaço informado,
+        com quem chama primeiro e depois por nome e e-mail. Quem alcança o
+        espaço, diretamente ou por herança, vê a lista; não há 403. Espaço sem
+        alcance, inexistente, com id malformado ou que não é de unidade recebe
+        o mesmo 404 opaco.
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: As pessoas lotadas na unidade do espaço foram listadas.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceMembersResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            O espaço não existe, tem id malformado, não é de unidade ou quem
+            chama não o alcança.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /spaces/{spaceId}/documents:
     get:
       operationId: listSpaceDocuments
@@ -1929,6 +2008,73 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/Space"
+      required:
+        - data
+    SpaceDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identificador do espaço (não da unidade).
+        type:
+          type: string
+          enum:
+            - unit
+            - free
+          description: Tipo do espaço, de unidade ou livre.
+        name:
+          type: string
+          description: >-
+            Nome da unidade, no espaço de unidade; nome dado pelo dono, no
+            espaço livre.
+        reach:
+          type: string
+          enum:
+            - direct
+            - inherited
+            - owner
+          description: >-
+            Como quem chama alcança o espaço: lotação direta na unidade,
+            herança entre unidades ou dono do espaço livre.
+      required:
+        - id
+        - type
+        - name
+        - reach
+      additionalProperties: false
+    SpaceDetailResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/SpaceDetail"
+      required:
+        - data
+    SpaceMember:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identificador da pessoa.
+        name:
+          type: string
+        email:
+          type: string
+        isCurrentPerson:
+          type: boolean
+          description: Verdadeiro na linha de quem chama.
+      required:
+        - id
+        - name
+        - email
+        - isCurrentPerson
+      additionalProperties: false
+    SpaceMembersResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/SpaceMember"
       required:
         - data
     CreateSpaceInput:

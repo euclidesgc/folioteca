@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { components } from '@folioteca/api-contract';
 
 import { parseBody } from '../common/parse-body';
+import { ptBrCollator } from '../common/pt-br-collator';
 import { PrismaService } from '../prisma/prisma.service';
 import { createSpaceSchema } from './spaces.schema';
 
@@ -9,12 +10,30 @@ type Space = components['schemas']['Space'];
 type SpaceResponse = components['schemas']['SpaceResponse'];
 type SpacesResponse = components['schemas']['SpacesResponse'];
 
+type SpaceDetail = components['schemas']['SpaceDetail'];
+type SpaceMember = components['schemas']['SpaceMember'];
+type SpaceMembersResponse = components['schemas']['SpaceMembersResponse'];
+
+type UnitReach = {
+  reach: 'direct' | 'inherited' | 'none';
+  orgUnitId: string | null;
+};
+
 /**
- * Ordenar no banco dependeria da collation do Postgres de cada instância
- * ("Álvaro" viria depois de "Zilda" sob `C`), então a ordem é montada em
- * memória com um colador pt-BR, como em `admin-roles.service.ts`.
+ * Order of the members of a unit space: the caller first, then by name, then
+ * by e-mail, and the id as the last tie-breaker so the order is stable.
  */
-const collator = new Intl.Collator('pt-BR', { sensitivity: 'base' });
+export function compareMembers(a: SpaceMember, b: SpaceMember): number {
+  if (a.isCurrentPerson !== b.isCurrentPerson) {
+    return a.isCurrentPerson ? -1 : 1;
+  }
+
+  return (
+    ptBrCollator.compare(a.name, b.name) ||
+    ptBrCollator.compare(a.email, b.email) ||
+    a.id.localeCompare(b.id)
+  );
+}
 
 type ReachUnit = {
   id: string;
@@ -126,7 +145,7 @@ export class SpacesService {
     );
 
     const data = [...unitSpaces, ...freeSpaces].sort(
-      (a, b) => collator.compare(a.name, b.name) || a.id.localeCompare(b.id),
+      (a, b) => ptBrCollator.compare(a.name, b.name) || a.id.localeCompare(b.id),
     );
 
     return { data };
@@ -143,6 +162,21 @@ export class SpacesService {
     personId: string,
     spaceId: string,
   ): Promise<'direct' | 'inherited' | 'none'> {
+    const { reach } = await this.reachOfUnit(organizationId, personId, spaceId);
+
+    return reach;
+  }
+
+  /**
+   * O alcance de `reachOf` junto com a unidade do espaço, para quem precisa
+   * ler a unidade depois. `orgUnitId` é `null` quando o espaço não existe ou
+   * não é de unidade da organização.
+   */
+  private async reachOfUnit(
+    organizationId: string,
+    personId: string,
+    spaceId: string,
+  ): Promise<UnitReach> {
     const space = await this.prisma.space.findFirst({
       where: { id: spaceId, type: 'UNIT', orgUnit: { organizationId } },
       select: {
@@ -156,16 +190,109 @@ export class SpacesService {
     });
 
     if (space === null || space.orgUnit === null) {
-      return 'none';
+      return { reach: 'none', orgUnitId: null };
     }
 
+    const orgUnitId = space.orgUnit.id;
+
     if (space.orgUnit.assignments.length > 0) {
-      return 'direct';
+      return { reach: 'direct', orgUnitId };
     }
 
     const units = await this.findReachUnits(organizationId, personId);
 
-    return resolveReach(units)(space.orgUnit.id) ? 'inherited' : 'none';
+    return {
+      reach: resolveReach(units)(orgUnitId) ? 'inherited' : 'none',
+      orgUnitId,
+    };
+  }
+
+  /**
+   * O espaço informado com a forma de alcance de quem pede. Espaço livre só
+   * para o dono (`owner`); espaço de unidade para quem a alcança direto ou
+   * por herança. Qualquer outro caso (inexistente, pessoal, livre de outra
+   * pessoa, sem alcance, outra organização) é `null`. Ser administração não
+   * amplia o alcance.
+   */
+  async getDetail(
+    organizationId: string,
+    personId: string,
+    spaceId: string,
+  ): Promise<SpaceDetail | null> {
+    const space = await this.prisma.space.findFirst({
+      where: {
+        id: spaceId,
+        OR: [
+          { type: 'FREE', organizationId, ownerId: personId },
+          { type: 'UNIT', orgUnit: { organizationId } },
+        ],
+      },
+      select: {
+        id: true,
+        type: true,
+        name: true,
+        orgUnit: { select: { id: true, name: true } },
+      },
+    });
+
+    if (space === null) {
+      return null;
+    }
+
+    if (space.type === 'FREE') {
+      return space.name === null
+        ? null
+        : { id: space.id, type: 'free', name: space.name, reach: 'owner' };
+    }
+
+    if (space.orgUnit === null) {
+      return null;
+    }
+
+    const { reach } = await this.reachOfUnit(organizationId, personId, spaceId);
+
+    if (reach === 'none') {
+      return null;
+    }
+
+    return { id: space.id, type: 'unit', name: space.orgUnit.name, reach };
+  }
+
+  /**
+   * As pessoas lotadas diretamente na unidade do espaço, para quem alcança o
+   * espaço direto ou por herança, com quem pede primeiro. Espaço sem alcance,
+   * livre, pessoal, inexistente ou de outra organização é `null`.
+   */
+  async listMembers(
+    organizationId: string,
+    personId: string,
+    spaceId: string,
+  ): Promise<SpaceMembersResponse | null> {
+    const { reach, orgUnitId } = await this.reachOfUnit(
+      organizationId,
+      personId,
+      spaceId,
+    );
+
+    if (reach === 'none' || orgUnitId === null) {
+      return null;
+    }
+
+    const assignments = await this.prisma.orgUnitAssignment.findMany({
+      where: { orgUnitId },
+      select: { person: { select: { id: true, name: true, email: true } } },
+    });
+
+    const data = assignments
+      .map(({ person }): SpaceMember => ({
+        id: person.id,
+        name: person.name,
+        email: person.email,
+        isCurrentPerson: person.id === personId,
+      }))
+      .sort(compareMembers);
+
+    return { data };
   }
 
   /**

@@ -419,6 +419,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/spaces/{spaceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lê um espaço
+         * @description Lê o espaço informado com a forma de alcance de quem chama. O espaço livre só é lido pelo dono (reach owner). O espaço de unidade é lido por quem a alcança diretamente (reach direct) ou por herança (reach inherited). Qualquer outro caso (espaço inexistente, id malformado, espaço pessoal, espaço livre de outra pessoa, sem alcance ou administração não lotada) recebe o mesmo 404 "Espaço não encontrado.".
+         */
+        get: operations["getSpace"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/spaces/{spaceId}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista as pessoas lotadas na unidade de um espaço
+         * @description Lista as pessoas lotadas diretamente na unidade do espaço informado, com quem chama primeiro e depois por nome e e-mail. Quem alcança o espaço, diretamente ou por herança, vê a lista; não há 403. Espaço sem alcance, inexistente, com id malformado ou que não é de unidade recebe o mesmo 404 opaco.
+         */
+        get: operations["listSpaceMembers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/spaces/{spaceId}/documents": {
         parameters: {
             query?: never;
@@ -715,6 +755,36 @@ export interface components {
         };
         SpaceResponse: {
             data: components["schemas"]["Space"];
+        };
+        SpaceDetail: {
+            /** @description Identificador do espaço (não da unidade). */
+            id: string;
+            /**
+             * @description Tipo do espaço, de unidade ou livre.
+             * @enum {string}
+             */
+            type: "unit" | "free";
+            /** @description Nome da unidade, no espaço de unidade; nome dado pelo dono, no espaço livre. */
+            name: string;
+            /**
+             * @description Como quem chama alcança o espaço: lotação direta na unidade, herança entre unidades ou dono do espaço livre.
+             * @enum {string}
+             */
+            reach: "direct" | "inherited" | "owner";
+        };
+        SpaceDetailResponse: {
+            data: components["schemas"]["SpaceDetail"];
+        };
+        SpaceMember: {
+            /** @description Identificador da pessoa. */
+            id: string;
+            name: string;
+            email: string;
+            /** @description Verdadeiro na linha de quem chama. */
+            isCurrentPerson: boolean;
+        };
+        SpaceMembersResponse: {
+            data: components["schemas"]["SpaceMember"][];
         };
         CreateSpaceInput: {
             /** @description Nome do espaço livre, contado depois de aparar os espaços. */
@@ -2329,6 +2399,86 @@ export interface operations {
             };
             /** @description Não há sessão válida. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getSpace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                spaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O espaço foi lido. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpaceDetailResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O espaço não existe, tem id malformado, é pessoal, é livre de outra pessoa ou quem chama não o alcança. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listSpaceMembers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                spaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description As pessoas lotadas na unidade do espaço foram listadas. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpaceMembersResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O espaço não existe, tem id malformado, não é de unidade ou quem chama não o alcança. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

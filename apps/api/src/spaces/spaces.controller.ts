@@ -21,6 +21,8 @@ import { SpacesService } from './spaces.service';
 type SpaceResponse = components['schemas']['SpaceResponse'];
 type SpacesResponse = components['schemas']['SpacesResponse'];
 type DocumentsResponse = components['schemas']['DocumentsResponse'];
+type SpaceDetailResponse = components['schemas']['SpaceDetailResponse'];
+type SpaceMembersResponse = components['schemas']['SpaceMembersResponse'];
 
 const INHERITED_REACH_MESSAGE =
   'Os documentos deste espaço estão disponíveis para quem está lotado diretamente na unidade.';
@@ -52,6 +54,60 @@ export class SpacesController {
     @Body() body: unknown,
   ): Promise<SpaceResponse> {
     return this.spaces.create(person.organizationId, person.id, body);
+  }
+
+  /**
+   * O espaço informado com a forma de alcance de quem pede. Id malformado,
+   * espaço inexistente, pessoal, livre de outra pessoa ou sem alcance: o
+   * mesmo 404. Não há 403.
+   */
+  @Get(':spaceId')
+  async getSpace(
+    @CurrentPerson() person: PersonWithOrganization,
+    @Param('spaceId') spaceId: string,
+  ): Promise<SpaceDetailResponse> {
+    if (!isUuid(spaceId)) {
+      throw spaceNotFound();
+    }
+
+    const detail = await this.spaces.getDetail(
+      person.organizationId,
+      person.id,
+      spaceId,
+    );
+
+    if (detail === null) {
+      throw spaceNotFound();
+    }
+
+    return { data: detail };
+  }
+
+  /**
+   * Pessoas lotadas diretamente na unidade do espaço, para quem o alcança
+   * direto ou por herança. Id malformado, espaço inexistente, fora de alcance
+   * ou que não é de unidade: o mesmo 404. Não há 403.
+   */
+  @Get(':spaceId/members')
+  async listSpaceMembers(
+    @CurrentPerson() person: PersonWithOrganization,
+    @Param('spaceId') spaceId: string,
+  ): Promise<SpaceMembersResponse> {
+    if (!isUuid(spaceId)) {
+      throw spaceNotFound();
+    }
+
+    const members = await this.spaces.listMembers(
+      person.organizationId,
+      person.id,
+      spaceId,
+    );
+
+    if (members === null) {
+      throw spaceNotFound();
+    }
+
+    return members;
   }
 
   /**
