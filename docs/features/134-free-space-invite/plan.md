@@ -31,7 +31,7 @@ Pré-condição de todas as fases: `docker compose up -d` na raiz (Postgres loca
 
 Caminhos relativos à raiz do repositório. Ao fim da fase, pela API, o dono de um espaço livre adiciona uma pessoa da organização com `PUT /spaces/{spaceId}/members/{personId}` (idempotente), e essa pessoa passa a receber o espaço em `GET /spaces` e a lê-lo em `GET /spaces/{spaceId}` com `reach: 'member'`.
 
-- [ ] T1.1 — Tabela `SpaceMember` (migration à mão e schema)
+- [x] T1.1 — Tabela `SpaceMember` (migration à mão e schema)
   - Arquivos: `apps/api/prisma/migrations/0016_space_member/migration.sql` (criar); `apps/api/prisma/schema.prisma` (alterar)
   - O que fazer (D1):
     - `migration.sql`, com comentários em pt_BR no estilo da `0015_document_share`, contendo exatamente estes comandos:
@@ -54,7 +54,7 @@ Caminhos relativos à raiz do repositório. Ao fim da fase, pela API, o dono de 
   - Skills: —
   - Complexidade: baixa
 
-- [ ] T1.2 — Contrato: o PUT de membro e `reach: member`
+- [x] T1.2 — Contrato: o PUT de membro e `reach: member`
   - Arquivos: `packages/api-contract/openapi.yaml` (alterar); `packages/api-contract/src/generated/openapi.d.ts` (alterar, **só** pelo script)
   - O que fazer (D2, D3):
     - Chave nova `/spaces/{spaceId}/members/{personId}` com `put`, `operationId: addSpaceMember`, tag `spaces`, parâmetros de caminho `spaceId` e `personId` (string, obrigatórios), **sem** `requestBody`; respostas **200** `SpaceMemberResponse`, **400**, **401**, **403** e **404** com `Error`. `description` em pt_BR: só o dono do espaço livre adiciona; idempotente (repetir devolve o mesmo 200 sem duplicar); 400 "Você já é o dono deste espaço." ou "Pessoa não encontrada nesta instância."; 403 "Só o dono do espaço pode adicionar pessoas." para membro; 404 "Espaço não encontrado." para inexistente, id malformado, espaço de unidade ou espaço que quem pede não alcança.
@@ -64,7 +64,7 @@ Caminhos relativos à raiz do repositório. Ao fim da fase, pela API, o dono de 
   - Skills: api-requests
   - Complexidade: baixa
 
-- [ ] T1.3 — `SpacesService` e `SpacesController`: `addMember`, `list` e `getDetail` com membro
+- [x] T1.3 — `SpacesService` e `SpacesController`: `addMember`, `list` e `getDetail` com membro
   - Arquivos: `apps/api/src/spaces/spaces.service.ts` (alterar); `apps/api/src/spaces/spaces.controller.ts` (alterar)
   - O que fazer (D2, D3, R4–R8):
     - `list`: o filtro do espaço FREE passa de `ownerId: personId` para `OR: [{ ownerId: personId }, { members: { some: { personId } } }]`, sempre com `organizationId`. Nada mais muda na lista.
@@ -74,7 +74,7 @@ Caminhos relativos à raiz do repositório. Ao fim da fase, pela API, o dono de 
   - Skills: security, authorization
   - Complexidade: alta
 
-- [ ] T1.4 — Testes da fase 1
+- [x] T1.4 — Testes da fase 1
   - Arquivos: `apps/api/src/spaces/__tests__/spaces.integration.test.ts` (alterar); `apps/api/src/spaces/__tests__/spaces.service.test.ts` (alterar); `apps/api/src/spaces/__tests__/spaces.contract.test.ts` (alterar)
   - O que fazer (D7): Postgres real, `resetDatabase(prisma)` em `beforeEach`, ajudantes existentes; casos existentes não são renomeados; `apps/api/test/**` não muda.
     - `spaces.integration.test.ts`, PUT: `PUT space member answers 200 with the person summary to the owner`; `PUT space member repeated answers the same 200 without a second row` (conta `spaceMember.count` = 1); `PUT space member answers 404 for a malformed space id`; `PUT space member answers 404 for a random space id`; `PUT space member answers 404 for a FREE space of another person`; `PUT space member answers 404 for a UNIT space` (quem pede está lotado diretamente na unidade; nenhuma linha em `SpaceMember`); `PUT space member answers 403 to a member`; `PUT space member answers 400 when adding the owner`; `PUT space member answers 400 for a random person id`; `PUT space member answers 400 for a malformed person id`; `PUT space member answers 401 without session`.
@@ -86,14 +86,14 @@ Caminhos relativos à raiz do repositório. Ao fim da fase, pela API, o dono de 
 
 ### Critérios de aceite da fase 1
 
-- [ ] CA1.1 — Com `docker compose up -d`, na raiz: `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` terminam com exit code 0 e sem aviso.
-- [ ] CA1.2 — `apps/api/prisma/migrations/0016_space_member/migration.sql` existe e contém literalmente `CREATE TABLE "SpaceMember"`, `CONSTRAINT "SpaceMember_pkey" PRIMARY KEY ("spaceId", "personId")`, `CREATE INDEX "SpaceMember_personId_idx" ON "SpaceMember"("personId")`, `REFERENCES "Space"("id") ON DELETE CASCADE` e `REFERENCES "Person"("id") ON DELETE CASCADE`; não tem coluna `role`. `apps/api/prisma/schema.prisma` tem `model SpaceMember` com `@@id([spaceId, personId])` e `@@index([personId])`. `pnpm --filter api exec prisma validate` sai com 0 e `DATABASE_URL=postgresql://folioteca@localhost:5433/folioteca_test pnpm --filter api exec prisma migrate status` diz que o banco está em dia.
-- [ ] CA1.3 — `packages/api-contract/openapi.yaml` tem a chave `/spaces/{spaceId}/members/{personId}:` com `put`, `operationId: addSpaceMember`, tag `spaces`, parâmetros de caminho `spaceId` e `personId`, sem `requestBody`, e respostas exatamente `200` (`SpaceMemberResponse`), `400`, `401`, `403`, `404`. O schema `SpaceMemberResponse` tem `data` obrigatório referenciando `PersonSummary`. O `enum` de `reach` em `SpaceDetail` é `direct`, `inherited`, `owner`, `member`. `rg -n "addSpaceMember|SpaceMemberResponse" packages/api-contract/src/generated/openapi.d.ts` encontra os dois.
-- [ ] CA1.4 — Identidade de caminho conferida à mão: `apps/api/src/spaces/spaces.controller.ts` continua com `@Controller('spaces')` e tem `@Put(':spaceId/members/:personId')` com `@HttpCode(200)`, `@Param('spaceId')` e `@Param('personId')`, formando `/spaces/{spaceId}/members/{personId}`; `@Get(':spaceId/members')` segue presente.
-- [ ] CA1.5 — `apps/api/src/spaces/spaces.service.ts` tem `addMember(` e, lido, segue a ordem `isUuid(spaceId)` → `spaceNotFound()` → busca com `type: 'FREE'` e `organizationId` → 403 → 400 dono → `isUuid(personId)`/pessoa da organização → `spaceMember.upsert` com `update: {}`; contém literalmente `Só o dono do espaço pode adicionar pessoas.`, `Você já é o dono deste espaço.` e `Pessoa não encontrada nesta instância.`. `list` e `getDetail` contêm `members: { some: { personId } }`, e `getDetail` devolve `'member'` quando o `ownerId` difere de quem pede. `listMembers` e `reachOf` mantêm as assinaturas.
-- [ ] CA1.6 — `pnpm exec vitest run --project api` sai com 0 e existem, conferidos com `rg -n "^\s*(it|test)(\.each)?\(" apps/api/src/spaces/__tests__`, todos os casos nomeados em T1.4 com os nomes literais (`spaces.integration.test.ts`: 16 novos; `spaces.service.test.ts`: 1 novo; `spaces.contract.test.ts`: 6 novos). `rg -n "vi\.mock\(.*prisma" apps/api/src/spaces/__tests__/spaces.integration.test.ts` é vazio; `rg -n "DROP CONSTRAINT|DISABLE TRIGGER|session_replication_role" apps/api/src/spaces/__tests__` é vazio.
-- [ ] CA1.7 — Lendo os testes: `PUT space member answers 404 for a UNIT space` usa um espaço de unidade que quem pede alcança (lotação direta) e assere 404 com `Espaço não encontrado.` e zero linhas em `SpaceMember`; `PUT space member repeated answers the same 200 without a second row` faz dois PUTs e assere corpos iguais e uma linha; `addMember with another organization id throws not found` instancia o serviço real com o Prisma de teste e passa `randomUUID()` como `organizationId`; os casos `PUT space member answers the documented …` citam literalmente `/spaces/{spaceId}/members/{personId}`.
-- [ ] CA1.8 — Cobertura ≥ 80% de linhas para `apps/api/src/spaces/spaces.service.ts` e `apps/api/src/spaces/spaces.controller.ts`, lida em `coverage/coverage-summary.json` gerado na raiz com `pnpm exec vitest run --coverage --coverage.reporter=json-summary`.
+- [x] CA1.1 — Com `docker compose up -d`, na raiz: `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` terminam com exit code 0 e sem aviso.
+- [x] CA1.2 — `apps/api/prisma/migrations/0016_space_member/migration.sql` existe e contém literalmente `CREATE TABLE "SpaceMember"`, `CONSTRAINT "SpaceMember_pkey" PRIMARY KEY ("spaceId", "personId")`, `CREATE INDEX "SpaceMember_personId_idx" ON "SpaceMember"("personId")`, `REFERENCES "Space"("id") ON DELETE CASCADE` e `REFERENCES "Person"("id") ON DELETE CASCADE`; não tem coluna `role`. `apps/api/prisma/schema.prisma` tem `model SpaceMember` com `@@id([spaceId, personId])` e `@@index([personId])`. `pnpm --filter api exec prisma validate` sai com 0 e `DATABASE_URL=postgresql://folioteca@localhost:5433/folioteca_test pnpm --filter api exec prisma migrate status` diz que o banco está em dia.
+- [x] CA1.3 — `packages/api-contract/openapi.yaml` tem a chave `/spaces/{spaceId}/members/{personId}:` com `put`, `operationId: addSpaceMember`, tag `spaces`, parâmetros de caminho `spaceId` e `personId`, sem `requestBody`, e respostas exatamente `200` (`SpaceMemberResponse`), `400`, `401`, `403`, `404`. O schema `SpaceMemberResponse` tem `data` obrigatório referenciando `PersonSummary`. O `enum` de `reach` em `SpaceDetail` é `direct`, `inherited`, `owner`, `member`. `rg -n "addSpaceMember|SpaceMemberResponse" packages/api-contract/src/generated/openapi.d.ts` encontra os dois.
+- [x] CA1.4 — Identidade de caminho conferida à mão: `apps/api/src/spaces/spaces.controller.ts` continua com `@Controller('spaces')` e tem `@Put(':spaceId/members/:personId')` com `@HttpCode(200)`, `@Param('spaceId')` e `@Param('personId')`, formando `/spaces/{spaceId}/members/{personId}`; `@Get(':spaceId/members')` segue presente.
+- [x] CA1.5 — `apps/api/src/spaces/spaces.service.ts` tem `addMember(` e, lido, segue a ordem `isUuid(spaceId)` → `spaceNotFound()` → busca com `type: 'FREE'` e `organizationId` → 403 → 400 dono → `isUuid(personId)`/pessoa da organização → `spaceMember.upsert` com `update: {}`; contém literalmente `Só o dono do espaço pode adicionar pessoas.`, `Você já é o dono deste espaço.` e `Pessoa não encontrada nesta instância.`. `list` e `getDetail` contêm `members: { some: { personId } }`, e `getDetail` devolve `'member'` quando o `ownerId` difere de quem pede. `listMembers` e `reachOf` mantêm as assinaturas.
+- [x] CA1.6 — `pnpm exec vitest run --project api` sai com 0 e existem, conferidos com `rg -n "^\s*(it|test)(\.each)?\(" apps/api/src/spaces/__tests__`, todos os casos nomeados em T1.4 com os nomes literais (`spaces.integration.test.ts`: 16 novos; `spaces.service.test.ts`: 1 novo; `spaces.contract.test.ts`: 6 novos). `rg -n "vi\.mock\(.*prisma" apps/api/src/spaces/__tests__/spaces.integration.test.ts` é vazio; `rg -n "DROP CONSTRAINT|DISABLE TRIGGER|session_replication_role" apps/api/src/spaces/__tests__` é vazio.
+- [x] CA1.7 — Lendo os testes: `PUT space member answers 404 for a UNIT space` usa um espaço de unidade que quem pede alcança (lotação direta) e assere 404 com `Espaço não encontrado.` e zero linhas em `SpaceMember`; `PUT space member repeated answers the same 200 without a second row` faz dois PUTs e assere corpos iguais e uma linha; `addMember with another organization id throws not found` instancia o serviço real com o Prisma de teste e passa `randomUUID()` como `organizationId`; os casos `PUT space member answers the documented …` citam literalmente `/spaces/{spaceId}/members/{personId}`.
+- [x] CA1.8 — Cobertura ≥ 80% de linhas para `apps/api/src/spaces/spaces.service.ts` e `apps/api/src/spaces/spaces.controller.ts`, lida em `coverage/coverage-summary.json` gerado na raiz com `pnpm exec vitest run --coverage --coverage.reporter=json-summary`.
 
 ## Fase 2 — Web: o botão "Adicionar pessoa" e a página do espaço para o membro
 

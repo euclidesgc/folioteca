@@ -1297,6 +1297,69 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /spaces/{spaceId}/members/{personId}:
+    put:
+      operationId: addSpaceMember
+      tags:
+        - spaces
+      summary: Adiciona uma pessoa a um espaço livre
+      description: >-
+        Adiciona a pessoa informada, da mesma instância, como membro do espaço
+        livre. Só o dono do espaço livre adiciona. A operação é idempotente:
+        repetir para a mesma pessoa devolve o mesmo 200 sem duplicar. Adicionar
+        o próprio dono ou uma pessoa que não existe nesta instância recebe
+        400; um membro que tenta adicionar recebe 403; espaço inexistente, com
+        id malformado, de unidade ou que quem chama não alcança recebe o mesmo
+        404 opaco.
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A pessoa é membro do espaço livre.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceMemberResponse"
+        "400":
+          description: >-
+            "Você já é o dono deste espaço." ao adicionar o dono, ou "Pessoa
+            não encontrada nesta instância." para pessoa inexistente, com id
+            malformado ou de outra instância.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: >-
+            "Só o dono do espaço pode adicionar pessoas." para quem é membro
+            do espaço sem ser o dono.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            "Espaço não encontrado." para espaço inexistente, com id
+            malformado, de unidade ou que quem chama não alcança.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /spaces/{spaceId}/documents:
     get:
       operationId: listSpaceDocuments
@@ -2033,9 +2096,11 @@ components:
             - direct
             - inherited
             - owner
+            - member
           description: >-
             Como quem chama alcança o espaço: lotação direta na unidade,
-            herança entre unidades ou dono do espaço livre.
+            herança entre unidades, dono do espaço livre ou membro do espaço
+            livre.
       required:
         - id
         - type
@@ -2077,6 +2142,14 @@ components:
             $ref: "#/components/schemas/SpaceMember"
       required:
         - data
+    SpaceMemberResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/PersonSummary"
+      required:
+        - data
+      additionalProperties: false
     CreateSpaceInput:
       type: object
       properties:

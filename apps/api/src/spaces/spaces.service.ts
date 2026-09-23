@@ -1,8 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import type { components } from '@folioteca/api-contract';
 
+import { isUuid } from '../common/is-uuid';
 import { parseBody } from '../common/parse-body';
 import { ptBrCollator } from '../common/pt-br-collator';
+import { spaceNotFound } from '../common/space-not-found';
 import { PrismaService } from '../prisma/prisma.service';
 import { createSpaceSchema } from './spaces.schema';
 
@@ -13,6 +19,13 @@ type SpacesResponse = components['schemas']['SpacesResponse'];
 type SpaceDetail = components['schemas']['SpaceDetail'];
 type SpaceMember = components['schemas']['SpaceMember'];
 type SpaceMembersResponse = components['schemas']['SpaceMembersResponse'];
+type SpaceMemberResponse = components['schemas']['SpaceMemberResponse'];
+
+const OWNER_ONLY_MESSAGE = 'Só o dono do espaço pode adicionar pessoas.';
+
+const ADD_OWNER_MESSAGE = 'Você já é o dono deste espaço.';
+
+const PERSON_NOT_FOUND_MESSAGE = 'Pessoa não encontrada nesta instância.';
 
 type UnitReach = {
   reach: 'direct' | 'inherited' | 'none';
@@ -118,7 +131,7 @@ export class SpacesService {
 
   /**
    * Os espaços das unidades que a pessoa alcança e os espaços livres de que
-   * ela é dona, sempre na organização dela. Alcança o espaço de uma unidade
+   * ela é dona ou membro, sempre na organização dela. Alcança o espaço de uma unidade
    * quem está lotado nela ou, se o espaço herda da unidade-pai, quem alcança
    * o espaço da mãe (em cadeia, enquanto os espaços herdam). Ser
    * administração não amplia a lista.
@@ -126,7 +139,11 @@ export class SpacesService {
   async list(organizationId: string, personId: string): Promise<SpacesResponse> {
     const [freeRows, units] = await Promise.all([
       this.prisma.space.findMany({
-        where: { type: 'FREE', organizationId, ownerId: personId },
+        where: {
+          type: 'FREE',
+          organizationId,
+          OR: [{ ownerId: personId }, { members: { some: { personId } } }],
+        },
         select: { id: true, name: true },
       }),
       this.findReachUnits(organizationId, personId),
@@ -209,7 +226,7 @@ export class SpacesService {
 
   /**
    * O espaço informado com a forma de alcance de quem pede. Espaço livre só
-   * para o dono (`owner`); espaço de unidade para quem a alcança direto ou
+   * para o dono (`owner`) e os membros (`member`); espaço de unidade para quem a alcança direto ou
    * por herança. Qualquer outro caso (inexistente, pessoal, livre de outra
    * pessoa, sem alcance, outra organização) é `null`. Ser administração não
    * amplia o alcance.
@@ -223,7 +240,11 @@ export class SpacesService {
       where: {
         id: spaceId,
         OR: [
-          { type: 'FREE', organizationId, ownerId: personId },
+          {
+            type: 'FREE',
+            organizationId,
+            OR: [{ ownerId: personId }, { members: { some: { personId } } }],
+          },
           { type: 'UNIT', orgUnit: { organizationId } },
         ],
       },
@@ -231,6 +252,7 @@ export class SpacesService {
         id: true,
         type: true,
         name: true,
+        ownerId: true,
         orgUnit: { select: { id: true, name: true } },
       },
     });
@@ -242,7 +264,12 @@ export class SpacesService {
     if (space.type === 'FREE') {
       return space.name === null
         ? null
-        : { id: space.id, type: 'free', name: space.name, reach: 'owner' };
+        : {
+            id: space.id,
+            type: 'free',
+            name: space.name,
+            reach: space.ownerId === personId ? 'owner' : 'member',
+          };
     }
 
     if (space.orgUnit === null) {
@@ -293,6 +320,66 @@ export class SpacesService {
       .sort(compareMembers);
 
     return { data };
+  }
+
+  /**
+   * Adiciona a pessoa como membro do espaço livre; só o dono adiciona.
+   * O espaço é conferido antes da pessoa, para uma pessoa inválida não revelar
+   * que um espaço alheio existe. Repetir para a mesma pessoa não cria uma
+   * segunda linha. Organização e quem pede chegam só da sessão.
+   */
+  async addMember(
+    requester: { organizationId: string; id: string },
+    spaceId: string,
+    personId: string,
+  ): Promise<SpaceMemberResponse> {
+    if (!isUuid(spaceId)) {
+      throw spaceNotFound();
+    }
+
+    const space = await this.prisma.space.findFirst({
+      where: {
+        id: spaceId,
+        type: 'FREE',
+        organizationId: requester.organizationId,
+        OR: [
+          { ownerId: requester.id },
+          { members: { some: { personId: requester.id } } },
+        ],
+      },
+      select: { ownerId: true },
+    });
+
+    if (space === null) {
+      throw spaceNotFound();
+    }
+
+    if (space.ownerId !== requester.id) {
+      throw new ForbiddenException(OWNER_ONLY_MESSAGE);
+    }
+
+    if (personId === space.ownerId) {
+      throw new BadRequestException(ADD_OWNER_MESSAGE);
+    }
+
+    const person = isUuid(personId)
+      ? await this.prisma.person.findFirst({
+          where: { id: personId, organizationId: requester.organizationId },
+          select: { id: true, name: true, email: true },
+        })
+      : null;
+
+    if (person === null) {
+      throw new BadRequestException(PERSON_NOT_FOUND_MESSAGE);
+    }
+
+    await this.prisma.spaceMember.upsert({
+      where: { spaceId_personId: { spaceId, personId } },
+      create: { spaceId, personId },
+      update: {},
+    });
+
+    return { data: { id: person.id, name: person.name, email: person.email } };
   }
 
   /**

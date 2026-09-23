@@ -82,6 +82,7 @@ model Person {
   sentInvitations   Invitation[]        @relation("InvitationInviter")
   assignments       OrgUnitAssignment[]
   documentShares    DocumentShare[]
+  spaceMemberships  SpaceMember[]
 }
 
 enum SpaceType {
@@ -113,8 +114,22 @@ model Space {
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   owner        Person?       @relation("SpaceOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   documents    Document[]
+  members      SpaceMember[]
 
   @@index([ownerId])
+}
+
+/// Pessoa adicionada a um espaço livre pelo dono. Sem papel por enquanto.
+model SpaceMember {
+  spaceId   String
+  personId  String
+  createdAt DateTime @default(now())
+
+  space  Space  @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@id([spaceId, personId])
+  @@index([personId])
 }
 
 /// Documento de um espaço: quem escreveu (`authorId`) e quem é dono (`ownerId`).
