@@ -3,7 +3,13 @@ import { http, HttpResponse } from 'msw';
 
 import { env } from '@/config/env';
 
-import { allPeople, getDb, type MockPerson } from '../db';
+import {
+  allPeople,
+  getDb,
+  getSignedInPerson,
+  type MockPerson,
+  searchPeopleToShare,
+} from '../db';
 import { devOverride, networkDelay, SESSION_COOKIE_NAME } from '../utils';
 
 type PeopleResponse = components['schemas']['PeopleResponse'];
@@ -72,6 +78,26 @@ export const peopleHandlers = [
         .slice(0, PEOPLE_SEARCH_LIMIT)
         .map(({ id, name, email }) => ({ id, name, email })),
       hasMore: matches.length > PEOPLE_SEARCH_LIMIT,
+    };
+    return HttpResponse.json(body);
+  }),
+
+  // The search to share a document: any signed-in person may ask, so there
+  // is no 403 here, unlike the administration search above.
+  http.get(`${env.API_URL}/people/search`, async ({ request, cookies }) => {
+    await networkDelay();
+
+    if (!cookies[SESSION_COOKIE_NAME]) return unauthenticated();
+
+    const requester = getSignedInPerson();
+    if (!requester) return unauthenticated();
+
+    const term = new URL(request.url).searchParams.get('q') ?? '';
+    const { data, hasMore } = searchPeopleToShare(term, requester.id);
+
+    const body: PeopleResponse = {
+      data: data.map(({ id, name, email }) => ({ id, name, email })),
+      hasMore,
     };
     return HttpResponse.json(body);
   }),

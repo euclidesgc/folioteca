@@ -14,6 +14,7 @@ export const enableMocking = async (): Promise<void> => {
     seedSampleOrgUnits,
     seedSamplePeople,
     seedSampleTrash,
+    seedSharedReadOnlyDocument,
     touchDocumentUpdatedAt,
   } = await import('./db');
 
@@ -49,6 +50,9 @@ export const enableMocking = async (): Promise<void> => {
   // See the `mock-documents` key documented in utils.ts.
   const documentsKey = window.localStorage.getItem('mock-documents');
   if (documentsKey === 'sample') seedSampleDocuments();
+  // `shared-view` adds a document of someone else that the signed-in person
+  // only reads (needs an installation already seeded).
+  if (documentsKey === 'shared-view') seedSharedReadOnlyDocument();
 
   // See the `mock-favorites` key documented in utils.ts. Read after the
   // documents seed: it marks the documents already in the database.

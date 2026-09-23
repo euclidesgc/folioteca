@@ -39,6 +39,15 @@ export type MockDocument = {
 // only needs the document it points at and when it was marked.
 export type MockFavorite = { documentId: string; createdAt: string };
 
+// A share: the person reads a document someone else owns. The pair is the
+// row, like the composite primary key of the real table, and `view` is the
+// only level this slice gives.
+export type MockDocumentShare = {
+  documentId: string;
+  personId: string;
+  level: 'view';
+};
+
 // An organization unit, in the same flat shape the API answers with:
 // `parentId` is null on the root of the organization. `spaceAccess` is the
 // access mode of the unit space: only the people assigned to the unit
@@ -86,6 +95,7 @@ type DbState = {
   installation: MockInstallation | null;
   documents: MockDocument[];
   favorites: MockFavorite[];
+  shares: MockDocumentShare[];
   orgUnits: MockOrgUnit[];
   assignments: MockAssignment[];
   spaces: MockSpace[];
@@ -101,6 +111,7 @@ const initialState = (): DbState => ({
   installation: null,
   documents: [],
   favorites: [],
+  shares: [],
   orgUnits: [],
   assignments: [],
   spaces: [],
@@ -789,4 +800,107 @@ export const seedSampleTrash = (): void => {
         now - index * 1000 * 60 * 60,
       ).toISOString();
     });
+};
+
+// Shares a document with a person, the way PUT /documents/:documentId/shares/
+// :personId does: sharing the same pair again keeps a single row, the upsert
+// of the real service. Pushed into the array already in the database, never
+// into a copy of it (same reason as `touchDocumentUpdatedAt` above).
+export const shareDocument = (
+  documentId: string,
+  personId: string,
+): MockDocumentShare => {
+  const existing = state.shares.find(
+    (item) => item.documentId === documentId && item.personId === personId,
+  );
+  if (existing) {
+    existing.level = 'view';
+    return existing;
+  }
+
+  const share: MockDocumentShare = { documentId, personId, level: 'view' };
+  state.shares.push(share);
+  return share;
+};
+
+// The same hard limit the real search has, with no parameter to raise it.
+const SHARE_SEARCH_LIMIT = 10;
+
+const shareSearchCollator = new Intl.Collator('pt-BR', {
+  sensitivity: 'base',
+});
+
+// Case and accents ignored, name or e-mail, like the real search.
+const normalizeSearchText = (value: string): string =>
+  value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+// The people a document can be shared with, the way GET /people/search
+// answers: at least 2 letters, whoever asks is left out, sorted by the pt-BR
+// collator with the tie broken by `id`, and at most ten with `hasMore`.
+export const searchPeopleToShare = (
+  term: string,
+  requesterId: string,
+): { data: MockPerson[]; hasMore: boolean } => {
+  const trimmed = term.trim();
+  if (trimmed.length < 2) return { data: [], hasMore: false };
+
+  const needle = normalizeSearchText(trimmed);
+  const matches = allPeople()
+    .filter(
+      (person) =>
+        person.id !== requesterId &&
+        (normalizeSearchText(person.name).includes(needle) ||
+          normalizeSearchText(person.email).includes(needle)),
+    )
+    .sort(
+      (a, b) =>
+        shareSearchCollator.compare(a.name, b.name) ||
+        a.id.localeCompare(b.id),
+    );
+
+  return {
+    data: matches.slice(0, SHARE_SEARCH_LIMIT),
+    hasMore: matches.length > SHARE_SEARCH_LIMIT,
+  };
+};
+
+// Id of the document `seedSharedReadOnlyDocument` creates.
+const SHARED_READ_ONLY_DOCUMENT_ID = 'document-shared-view';
+
+// Adds a document owned by someone else and shared with the signed-in person
+// in `view`, so the read-only page can be opened in the browser. Kept separate
+// from the other seeds because the existing journeys expect only documents of
+// their own. Answers the id of the document, or null without an installation.
+export const seedSharedReadOnlyDocument = (): string | null => {
+  const reader = getSignedInPerson();
+  if (!reader) return null;
+
+  const owner: MockPerson = {
+    id: 'person-shared-owner',
+    name: 'Roberto Lima',
+    email: 'roberto.lima@exemplo.com.br',
+    isAdmin: false,
+  };
+  if (!state.people.some((person) => person.id === owner.id)) {
+    state.people.push(owner);
+  }
+
+  const now = new Date().toISOString();
+  state.documents.push({
+    id: SHARED_READ_ONLY_DOCUMENT_ID,
+    title: 'Normas de uso do acervo de obras raras',
+    spaceId: `space-${owner.id}`,
+    authorId: owner.id,
+    ownerId: owner.id,
+    createdAt: now,
+    updatedAt: now,
+    trashedAt: null,
+    accessLevel: 'view',
+  });
+  shareDocument(SHARED_READ_ONLY_DOCUMENT_ID, reader.id);
+
+  return SHARED_READ_ONLY_DOCUMENT_ID;
 };
