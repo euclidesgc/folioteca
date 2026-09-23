@@ -11,7 +11,9 @@ export const healthHandlers = [
     const forced = await devOverride('health');
     if (forced) return forced;
 
-    const body: HealthResponse = { data: { status: 'ok', database: 'up' } };
+    const body: HealthResponse = {
+      data: { status: 'ok', database: 'up', commit: 'test-commit' },
+    };
     return HttpResponse.json(body);
   }),
 ];

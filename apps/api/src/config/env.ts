@@ -36,6 +36,8 @@ const envSchema = z.object({
     .int('COLLAB_STORE_DEBOUNCE_MS precisa ser um número inteiro.')
     .positive('COLLAB_STORE_DEBOUNCE_MS precisa ser maior que zero.')
     .default(2000),
+  /** Commit publicado, injetado no build da imagem. Ausente vira `unknown`. */
+  SOURCE_COMMIT: z.string().min(1).default('unknown'),
 });
 
 export type Env = z.infer<typeof envSchema>;

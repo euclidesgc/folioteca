@@ -20,6 +20,7 @@
     "@prisma/client": "^6.17.1",
     "cookie": "^0.7.2",
     "cookie-parser": "^1.4.7",
+    "prisma": "^6.17.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "ws": "8.21.3",
@@ -42,7 +43,6 @@
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "openapi-typescript": "^7.9.1",
-    "prisma": "^6.17.1",
     "supertest": "^7.1.4",
     "unplugin-swc": "^1.6.0"
   }

@@ -452,6 +452,7 @@ export interface components {
             status: "ok";
             /** @enum {string} */
             database: "up";
+            commit: string;
         };
         HealthResponse: {
             data: components["schemas"]["Health"];

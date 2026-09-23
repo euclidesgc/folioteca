@@ -14,9 +14,54 @@ test('GET /api/health returns 200 with status ok and database up', async () => {
   const response = await httpRequest(app).get('/api/health');
 
   expect(response.status).toBe(200);
-  expect(response.body).toEqual({ data: { status: 'ok', database: 'up' } });
+  const body = response.body as { data: Record<string, unknown> };
+  expect(body.data).toMatchObject({ status: 'ok', database: 'up' });
+  expect(Object.keys(body.data).sort()).toEqual([
+    'commit',
+    'database',
+    'status',
+  ]);
+  expect(typeof body.data.commit).toBe('string');
 
   await app.close();
+});
+
+/**
+ * O `env` é lido quando o módulo carrega; recarrega o app com o ambiente
+ * trocado para provar que o `commit` vem de `SOURCE_COMMIT`.
+ */
+async function getHealthWithSourceCommit(value: string | undefined) {
+  vi.stubEnv('SOURCE_COMMIT', value);
+  vi.resetModules();
+
+  const { createApp: createFreshApp } = await import('../../create-app');
+  const app = await createFreshApp();
+
+  try {
+    return await httpRequest(app).get('/api/health');
+  } finally {
+    await app.close();
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  }
+}
+
+test('returns commit from SOURCE_COMMIT', async () => {
+  const response = await getHealthWithSourceCommit('abc1234');
+
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual({
+    data: { status: 'ok', database: 'up', commit: 'abc1234' },
+  });
+});
+
+test('returns commit unknown when SOURCE_COMMIT is not set', async () => {
+  const response = await getHealthWithSourceCommit(undefined);
+
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual({
+    data: { status: 'ok', database: 'up', commit: 'unknown' },
+  });
 });
 
 test('GET /health without the api prefix returns 404', async () => {
