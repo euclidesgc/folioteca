@@ -148,13 +148,13 @@ Caminhos relativos à raiz do repositório. A ordem importa: API simulada e muta
 
 ## Fase 3 — e2e da jornada e documentação: a fatia utilizável de ponta a ponta
 
-- [ ] T3.1 — Documentação de arquitetura
+- [x] T3.1 — Documentação de arquitetura
   - Arquivos: `docs/architecture.md` (alterar)
   - O que fazer, em pt_BR, só acrescentando linhas: em §3, parágrafo **"Entrega `free-space-restrict-invite` (fatia 141)"**: quem adiciona pessoas a espaço livre é o dono e, com `membersCanInvite`, qualquer membro; remoção continua só do dono; o flag mora em `Space` (restrição só-FREE na 0018 escrita à mão); `PATCH /spaces/{spaceId}` só para o dono; `addMember` relê o flag a cada pedido.
   - Skills: —
   - Complexidade: baixa
 
-- [ ] T3.2 — Testes da fase 3 (e2e: abrir o espaço pelo teclado e o membro adicionar)
+- [x] T3.2 — Testes da fase 3 (e2e: abrir o espaço pelo teclado e o membro adicionar)
   - Arquivos: `apps/web/e2e/tests/free-space-restrict-invite.spec.ts` (criar)
   - O que fazer (D8): API simulada, estado inicial por `page.addInitScript` como os specs existentes. `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo; a primeira asserção após cada mudança de rota o usa; `toBeFocused()` antes de cada `Enter`/`Space`/`Escape`/seta; nenhum `waitForTimeout`; nenhuma regra do axe desativada; outros specs e `apps/web/e2e/a11y.ts` intocados.
     - `the owner opens the free space to members using only the keyboard`: dono abre a página do espaço livre, alcança o grupo "Quem adiciona pessoas", escolhe "Qualquer membro adiciona pessoas" com seta, vê "Salvando…", o rádio continua focado e marcado, vê "Modo de convite atualizado"; `expectNoSeriousA11yViolations(page)`.
@@ -164,11 +164,11 @@ Caminhos relativos à raiz do repositório. A ordem importa: API simulada e muta
 
 ### Critérios de aceite da fase 3
 
-- [ ] CA3.1 — `pnpm test:e2e` na raiz sai com 0 (antigos e novos), e `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` continuam saindo com 0 e sem aviso, com o cache do `tsc` limpo. Repetição única permitida só para teste antigo instável.
-- [ ] CA3.2 — `apps/web/e2e/tests/free-space-restrict-invite.spec.ts` contém `the owner opens the free space to members using only the keyboard` e `a member of an open space adds a third person and cannot find the owner`, e `pnpm --filter web exec playwright test --list` os lista. `rg -n "test\.skip|test\.only|waitForTimeout|disableRules" apps/web/e2e/tests/free-space-restrict-invite.spec.ts` é vazio.
-- [ ] CA3.3 — Lendo o spec: `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo, usado na primeira asserção após cada mudança de rota (asserção seguinte com timeout maior é aceita); `toBeFocused()` antes de cada tecla de ação; `expectNoSeriousA11yViolations(page)` no primeiro caso; o primeiro caso assere `Salvando…` e o rádio "Qualquer membro adiciona pessoas" focado e marcado; o segundo usa `free-open`, assere a ausência de "Quem adiciona pessoas" e o texto `agora é membro deste espaço.`.
-- [ ] CA3.4 — `docs/architecture.md` tem o parágrafo "Entrega `free-space-restrict-invite` (fatia 141)" citando `membersCanInvite`, `PATCH /spaces/{spaceId}` e que remover continua só do dono.
-- [ ] CA3.5 — Utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `PUT space member answers 200 to a member of an open space and the person sees the space in GET spaces`; `pnpm exec vitest run --project web` (0) inclui `a FREE space shows Adicionar pessoa to a member when open`; `pnpm test:e2e` (0) inclui os dois casos de `free-space-restrict-invite.spec.ts`.
+- [x] CA3.1 — `pnpm test:e2e` na raiz sai com 0 (antigos e novos), e `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` continuam saindo com 0 e sem aviso, com o cache do `tsc` limpo. Repetição única permitida só para teste antigo instável.
+- [x] CA3.2 — `apps/web/e2e/tests/free-space-restrict-invite.spec.ts` contém `the owner opens the free space to members using only the keyboard` e `a member of an open space adds a third person and cannot find the owner`, e `pnpm --filter web exec playwright test --list` os lista. `rg -n "test\.skip|test\.only|waitForTimeout|disableRules" apps/web/e2e/tests/free-space-restrict-invite.spec.ts` é vazio.
+- [x] CA3.3 — Lendo o spec: `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo, usado na primeira asserção após cada mudança de rota (asserção seguinte com timeout maior é aceita); `toBeFocused()` antes de cada tecla de ação; `expectNoSeriousA11yViolations(page)` no primeiro caso; o primeiro caso assere `Salvando…` e o rádio "Qualquer membro adiciona pessoas" focado e marcado; o segundo usa `free-open`, assere a ausência de "Quem adiciona pessoas" e o texto `agora é membro deste espaço.`.
+- [x] CA3.4 — `docs/architecture.md` tem o parágrafo "Entrega `free-space-restrict-invite` (fatia 141)" citando `membersCanInvite`, `PATCH /spaces/{spaceId}` e que remover continua só do dono.
+- [x] CA3.5 — Utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `PUT space member answers 200 to a member of an open space and the person sees the space in GET spaces`; `pnpm exec vitest run --project web` (0) inclui `a FREE space shows Adicionar pessoa to a member when open`; `pnpm test:e2e` (0) inclui os dois casos de `free-space-restrict-invite.spec.ts`.
 
 ## DoD da entrega
 

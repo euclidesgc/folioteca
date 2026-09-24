@@ -184,6 +184,17 @@ estrutural `document-access-boundary.test.ts` garante que, fora de
 `access.service.ts`, nenhuma leitura de `Document` filtra por `members` nem
 pelo `ownerId` do espaço.
 
+**Entrega `free-space-restrict-invite` (fatia 141).** Quem adiciona pessoas ao
+espaço livre é o dono e, quando o espaço está aberto com `membersCanInvite`,
+qualquer membro; remover continua **só do dono**. O flag mora na coluna
+`Space.membersCanInvite` (padrão `false`, fechado), e a restrição de que só
+espaço `FREE` pode abrir é o `CHECK` `Space_members_can_invite_free_check`,
+escrito à mão na migration 0018 porque o Prisma não o expressa. `PATCH
+/spaces/{spaceId}` (`SpacesService.updateSettings`) muda o flag e é **só do
+dono**: membro recebe 403, e quem não alcança o espaço, 404. `addMember` relê
+o flag a cada pedido, na mesma consulta do espaço, por isso fechar o espaço
+barra o membro na hora.
+
 ## 4. Árvore de unidades
 
 `parentId` + consulta recursiva (`WITH RECURSIVE`). "Unidade e tudo abaixo"
@@ -776,7 +787,8 @@ enxergar o membro, com `reach: member` (o dono segue `owner`); `GET
 /spaces/{spaceId}/members` continua **só de espaço de unidade** (até a 135,
 que a abre ao espaço livre). Na tela, a
 lista da barra lateral (`get-spaces.ts`) usa `staleTime: 0`, para o membro ver
-o espaço assim que for adicionado.
+o espaço assim que for adicionado. A 141 (§3) passa a deixar o dono abrir a
+adição a qualquer membro.
 
 **Entrega `free-space-members` (fatia 135)**: `GET /spaces/{spaceId}/members`
 passa a servir **também o espaço livre**, ao dono e aos membros, com o **dono
