@@ -132,6 +132,8 @@ model SpaceMember {
   spaceId   String
   personId  String
   createdAt DateTime @default(now())
+  /// Nível do membro no espaço livre: EDIT cria e edita, VIEW só lê. O dono do espaço não tem linha aqui nem nível.
+  level     ShareLevel @default(EDIT)
 
   space  Space  @relation(fields: [spaceId], references: [id], onDelete: Cascade)
   person Person @relation(fields: [personId], references: [id], onDelete: Cascade)

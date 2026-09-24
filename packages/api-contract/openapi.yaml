@@ -1489,6 +1489,74 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+    patch:
+      operationId: updateSpaceMemberLevel
+      tags:
+        - spaces
+      summary: Muda o nível de um membro de um espaço livre
+      description: >-
+        Só o dono do espaço livre muda o nível de um membro: "edit" cria e
+        edita documentos, "view" só lê. A operação é idempotente. Um membro
+        que tenta mudar recebe 403; o dono como alvo, corpo ausente, nível
+        inválido ou campo a mais recebem 400; espaço inexistente, com id
+        malformado, de unidade ou que quem chama não alcança, e pessoa que não
+        é membro, recebem 404.
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSpaceMemberInput"
+      responses:
+        "200":
+          description: O membro está com o nível informado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceMemberLevelResponse"
+        "400":
+          description: >-
+            "O dono do espaço não tem nível." quando o alvo é o dono, ou
+            "Dados inválidos." para corpo ausente, nível inválido ou campo a
+            mais.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: >-
+            "Só o dono do espaço pode mudar o nível de um membro." para quem é
+            membro do espaço sem ser o dono.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            "Espaço não encontrado." para espaço inexistente, com id
+            malformado, de unidade ou que quem chama não alcança, ou "Esta
+            pessoa não é membro deste espaço." para pessoa que não é membro.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /spaces/{spaceId}/documents:
     get:
       operationId: listSpaceDocuments
@@ -2237,12 +2305,22 @@ components:
           description: >-
             Se qualquer membro pode adicionar pessoas ao espaço livre; sempre
             false em espaço de unidade.
+        canCreateDocuments:
+          type: boolean
+          description: Se quem pede pode criar documentos neste espaço.
+        canAddPeople:
+          type: boolean
+          description: >-
+            Se quem pede pode adicionar pessoas; permissão calculada, diferente
+            da configuração membersCanInvite.
       required:
         - id
         - type
         - name
         - reach
         - membersCanInvite
+        - canCreateDocuments
+        - canAddPeople
       additionalProperties: false
     SpaceDetailResponse:
       type: object
@@ -2274,12 +2352,22 @@ components:
             Papel da pessoa no espaço: `owner` é o dono do espaço livre,
             `member` é membro do espaço livre e `assigned` é lotada na unidade
             do espaço de unidade.
+        level:
+          type: [string, "null"]
+          enum:
+            - view
+            - edit
+            - null
+          description: >-
+            Nível do membro no espaço livre; null para o dono e para lotados
+            de unidade.
       required:
         - id
         - name
         - email
         - isCurrentPerson
         - role
+        - level
       additionalProperties: false
     SpaceMembersResponse:
       type: object
@@ -2297,6 +2385,26 @@ components:
           $ref: "#/components/schemas/PersonSummary"
       required:
         - data
+      additionalProperties: false
+    SpaceMemberLevelResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/SpaceMember"
+      required:
+        - data
+    UpdateSpaceMemberInput:
+      type: object
+      properties:
+        level:
+          type: string
+          enum:
+            - view
+            - edit
+          description: >-
+            "edit" para criar e editar documentos; "view" para só ler.
+      required:
+        - level
       additionalProperties: false
     CreateSpaceInput:
       type: object

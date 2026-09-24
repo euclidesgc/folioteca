@@ -39,3 +39,16 @@ export const updateSpaceSchema = z.strictObject(
 );
 
 export type UpdateSpaceInput = z.infer<typeof updateSpaceSchema>;
+
+/**
+ * Nível de um membro do espaço livre que o dono muda: `'edit'` cria e edita,
+ * `'view'` só lê. Só o campo `level`; qualquer outro é campo extra e recusado.
+ */
+export const updateSpaceMemberSchema = z.strictObject(
+  {
+    level: z.enum(['view', 'edit'], { error: 'Escolha o nível do membro.' }),
+  },
+  { error: 'Campo não permitido.' },
+);
+
+export type UpdateSpaceMemberInput = z.infer<typeof updateSpaceMemberSchema>;

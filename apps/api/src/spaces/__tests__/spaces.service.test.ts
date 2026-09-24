@@ -12,7 +12,7 @@ import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { compareMembers, SpacesService } from '../spaces.service';
-import { updateSpaceSchema } from '../spaces.schema';
+import { updateSpaceMemberSchema, updateSpaceSchema } from '../spaces.schema';
 import { resetDatabase } from '../../../test/reset-database';
 
 const ORGANIZATION_ID = '11111111-1111-4111-8111-111111111111';
@@ -459,6 +459,7 @@ test('compareMembers puts the owner before the current person', () => {
     email: 'zilda@exemplo.org',
     isCurrentPerson: false,
     role: 'owner' as const,
+    level: null,
   };
   const current = {
     id: 'a',
@@ -466,6 +467,7 @@ test('compareMembers puts the owner before the current person', () => {
     email: 'alvaro@exemplo.org',
     isCurrentPerson: true,
     role: 'member' as const,
+    level: 'edit' as const,
   };
 
   expect(compareMembers(owner, current)).toBeLessThan(0);
@@ -703,6 +705,8 @@ test('updateSettings updates membersCanInvite by id', async () => {
       name: 'Projeto Alfa',
       reach: 'owner',
       membersCanInvite: true,
+      canCreateDocuments: true,
+      canAddPeople: true,
     },
   });
 });
@@ -732,12 +736,14 @@ test('getDetail returns membersCanInvite false for a unit space', async () => {
     name: 'Protocolo',
     reach: 'direct',
     membersCanInvite: false,
+    canCreateDocuments: true,
+    canAddPeople: false,
   });
 });
 
 test('addMember accepts a member when membersCanInvite is true', async () => {
   const { service, upsert } = createSettingsService([
-    { ownerId: OWNER_ID, membersCanInvite: true },
+    { ownerId: OWNER_ID, membersCanInvite: true, members: [{ level: 'EDIT' }] },
   ]);
 
   const result = await service.addMember(
@@ -772,4 +778,258 @@ test('addMember throws forbidden to a member when membersCanInvite is false', as
     'Só o dono do espaço pode adicionar pessoas.',
   );
   expect(upsert).not.toHaveBeenCalled();
+});
+
+test('updateSpaceMemberSchema accepts view and edit', () => {
+  expect(updateSpaceMemberSchema.safeParse({ level: 'view' })).toEqual({
+    success: true,
+    data: { level: 'view' },
+  });
+  expect(updateSpaceMemberSchema.safeParse({ level: 'edit' })).toEqual({
+    success: true,
+    data: { level: 'edit' },
+  });
+});
+
+test('updateSpaceMemberSchema rejects a missing value with Escolha o nível do membro.', () => {
+  const result = updateSpaceMemberSchema.safeParse({});
+
+  expect(result.success).toBe(false);
+  expect(result.error?.issues[0]?.message).toBe('Escolha o nível do membro.');
+});
+
+test('updateSpaceMemberSchema rejects extra fields with Campo não permitido.', () => {
+  const result = updateSpaceMemberSchema.safeParse({
+    level: 'view',
+    personId: PERSON_ID,
+  });
+
+  expect(result.success).toBe(false);
+  expect(result.error?.issues[0]?.message).toBe('Campo não permitido.');
+});
+
+/**
+ * Serviço com o Prisma falso para `updateMemberLevel`: o `space.findFirst`
+ * devolve a linha dada e `spaceMember.findUnique` devolve o membro dado.
+ */
+function createLevelService(
+  spaceRow: unknown,
+  memberRow: unknown,
+): {
+  service: SpacesService;
+  findFirst: ReturnType<typeof vi.fn>;
+  findUnique: ReturnType<typeof vi.fn>;
+  update: ReturnType<typeof vi.fn>;
+} {
+  const findFirst = vi.fn().mockResolvedValue(spaceRow);
+  const findUnique = vi.fn().mockResolvedValue(memberRow);
+  const update = vi.fn().mockResolvedValue({ level: 'VIEW' });
+
+  const prisma = {
+    space: { findFirst },
+    spaceMember: { findUnique, update },
+  } as unknown as PrismaService;
+
+  return { service: new SpacesService(prisma), findFirst, findUnique, update };
+}
+
+const TARGET_MEMBER_ROW = {
+  person: { id: TARGET_ID, name: 'Ana Lima', email: 'ana@exemplo.org' },
+};
+
+test('updateMemberLevel throws not found for a malformed space id', async () => {
+  const { service, findFirst, update } = createLevelService(
+    { ownerId: OWNER_ID },
+    TARGET_MEMBER_ROW,
+  );
+
+  const attempt = service.updateMemberLevel(
+    { organizationId: ORGANIZATION_ID, id: OWNER_ID },
+    'nao-e-uuid',
+    TARGET_ID,
+    { level: 'view' },
+  );
+
+  await expect(attempt).rejects.toThrow(NotFoundException);
+  await expect(attempt).rejects.toThrow('Espaço não encontrado.');
+  expect(findFirst).not.toHaveBeenCalled();
+  expect(update).not.toHaveBeenCalled();
+});
+
+test('updateMemberLevel throws forbidden to a member', async () => {
+  const { service, update } = createLevelService(
+    { ownerId: OWNER_ID },
+    TARGET_MEMBER_ROW,
+  );
+
+  const attempt = service.updateMemberLevel(
+    { organizationId: ORGANIZATION_ID, id: PERSON_ID },
+    FREE_SPACE_ID,
+    TARGET_ID,
+    { level: 'view' },
+  );
+
+  await expect(attempt).rejects.toThrow(ForbiddenException);
+  await expect(attempt).rejects.toThrow(
+    'Só o dono do espaço pode mudar o nível de um membro.',
+  );
+  expect(update).not.toHaveBeenCalled();
+});
+
+test('updateMemberLevel throws bad request for the owner', async () => {
+  const { service, update } = createLevelService(
+    { ownerId: OWNER_ID },
+    TARGET_MEMBER_ROW,
+  );
+
+  const attempt = service.updateMemberLevel(
+    { organizationId: ORGANIZATION_ID, id: OWNER_ID },
+    FREE_SPACE_ID,
+    OWNER_ID,
+    { level: 'view' },
+  );
+
+  await expect(attempt).rejects.toThrow(BadRequestException);
+  await expect(attempt).rejects.toThrow('O dono do espaço não tem nível.');
+  expect(update).not.toHaveBeenCalled();
+});
+
+test('updateMemberLevel throws not found for a person who is not a member', async () => {
+  const { service, update } = createLevelService({ ownerId: OWNER_ID }, null);
+
+  const attempt = service.updateMemberLevel(
+    { organizationId: ORGANIZATION_ID, id: OWNER_ID },
+    FREE_SPACE_ID,
+    TARGET_ID,
+    { level: 'view' },
+  );
+
+  await expect(attempt).rejects.toThrow(NotFoundException);
+  await expect(attempt).rejects.toThrow(
+    'Esta pessoa não é membro deste espaço.',
+  );
+  expect(update).not.toHaveBeenCalled();
+});
+
+test('updateMemberLevel updates the level by spaceId and personId', async () => {
+  const { service, findFirst, update } = createLevelService(
+    { ownerId: OWNER_ID },
+    TARGET_MEMBER_ROW,
+  );
+
+  const result = await service.updateMemberLevel(
+    { organizationId: ORGANIZATION_ID, id: OWNER_ID },
+    FREE_SPACE_ID,
+    TARGET_ID,
+    { level: 'view' },
+  );
+
+  expect(findFirst).toHaveBeenCalledWith(
+    expect.objectContaining({
+      where: expect.objectContaining({
+        id: FREE_SPACE_ID,
+        type: 'FREE',
+        organizationId: ORGANIZATION_ID,
+      }) as unknown,
+    }),
+  );
+  expect(update).toHaveBeenCalledWith(
+    expect.objectContaining({
+      where: {
+        spaceId_personId: { spaceId: FREE_SPACE_ID, personId: TARGET_ID },
+      },
+      data: { level: 'VIEW' },
+    }),
+  );
+  expect(result).toEqual({
+    data: {
+      id: TARGET_ID,
+      name: 'Ana Lima',
+      email: 'ana@exemplo.org',
+      isCurrentPerson: false,
+      role: 'member',
+      level: 'view',
+    },
+  });
+});
+
+test('listMembers returns level null for the owner and the member level', async () => {
+  const findFirst = vi.fn().mockResolvedValue({
+    owner: { id: OWNER_ID, name: 'João Souza', email: 'joao@exemplo.org' },
+    members: [
+      {
+        level: 'VIEW',
+        person: { id: TARGET_ID, name: 'Ana Lima', email: 'ana@exemplo.org' },
+      },
+      {
+        level: 'EDIT',
+        person: { id: PERSON_ID, name: 'Bruno Reis', email: 'bruno@exemplo.org' },
+      },
+    ],
+  });
+  const service = new SpacesService({
+    space: { findFirst },
+  } as unknown as PrismaService);
+
+  const result = await service.listMembers(
+    ORGANIZATION_ID,
+    OWNER_ID,
+    FREE_SPACE_ID,
+  );
+
+  expect(
+    result?.data.map(({ id, role, level }) => ({ id, role, level })),
+  ).toEqual([
+    { id: OWNER_ID, role: 'owner', level: null },
+    { id: TARGET_ID, role: 'member', level: 'view' },
+    { id: PERSON_ID, role: 'member', level: 'edit' },
+  ]);
+});
+
+test('addMember throws forbidden to a viewer of an open space', async () => {
+  const { service, upsert } = createSettingsService([
+    { ownerId: OWNER_ID, membersCanInvite: true, members: [{ level: 'VIEW' }] },
+  ]);
+
+  const attempt = service.addMember(
+    { organizationId: ORGANIZATION_ID, id: PERSON_ID },
+    FREE_SPACE_ID,
+    TARGET_ID,
+  );
+
+  await expect(attempt).rejects.toThrow(ForbiddenException);
+  await expect(attempt).rejects.toThrow(
+    'Só quem pode editar adiciona pessoas a este espaço.',
+  );
+  expect(upsert).not.toHaveBeenCalled();
+});
+
+test('getDetail returns canCreateDocuments and canAddPeople false to a viewer', async () => {
+  const { service } = createSettingsService([
+    {
+      id: FREE_SPACE_ID,
+      type: 'FREE',
+      name: 'Projeto Alfa',
+      ownerId: OWNER_ID,
+      membersCanInvite: true,
+      orgUnit: null,
+      members: [{ level: 'VIEW' }],
+    },
+  ]);
+
+  const detail = await service.getDetail(
+    ORGANIZATION_ID,
+    PERSON_ID,
+    FREE_SPACE_ID,
+  );
+
+  expect(detail).toEqual({
+    id: FREE_SPACE_ID,
+    type: 'free',
+    name: 'Projeto Alfa',
+    reach: 'member',
+    membersCanInvite: true,
+    canCreateDocuments: false,
+    canAddPeople: false,
+  });
 });

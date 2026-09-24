@@ -27,6 +27,8 @@ type DocumentsResponse = components['schemas']['DocumentsResponse'];
 type SpaceDetailResponse = components['schemas']['SpaceDetailResponse'];
 type SpaceMembersResponse = components['schemas']['SpaceMembersResponse'];
 type SpaceMemberResponse = components['schemas']['SpaceMemberResponse'];
+type SpaceMemberLevelResponse =
+  components['schemas']['SpaceMemberLevelResponse'];
 
 const INHERITED_REACH_MESSAGE =
   'Os documentos deste espaço estão disponíveis para quem está lotado diretamente na unidade.';
@@ -144,6 +146,23 @@ export class SpacesController {
     @Param('personId') personId: string,
   ): Promise<SpaceMemberResponse> {
     return this.spaces.addMember(person, spaceId, personId);
+  }
+
+  /**
+   * Muda o nível de um membro do espaço livre; só o dono muda e repetir é
+   * idempotente. Espaço inexistente, malformado, de unidade ou fora de
+   * alcance: 404; membro que não é dono: 403; o próprio dono ou corpo
+   * inválido: 400; pessoa que não é membro: 404.
+   */
+  @Patch(':spaceId/members/:personId')
+  @HttpCode(200)
+  async updateSpaceMemberLevel(
+    @CurrentPerson() person: PersonWithOrganization,
+    @Param('spaceId') spaceId: string,
+    @Param('personId') personId: string,
+    @Body() body: unknown,
+  ): Promise<SpaceMemberLevelResponse> {
+    return this.spaces.updateMemberLevel(person, spaceId, personId, body);
   }
 
   /**

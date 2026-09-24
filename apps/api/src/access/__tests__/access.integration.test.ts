@@ -731,3 +731,47 @@ test('readableDocumentsWhere includes the free space document for owner and memb
   expect(ownerAfter).toEqual([]);
   expect(memberAfter).toEqual([]);
 });
+
+/** Grava o nível de leitura para o membro do espaço livre, pelo Prisma. */
+async function demoteToView(spaceId: string, person: Person): Promise<void> {
+  await prisma.spaceMember.update({
+    where: { spaceId_personId: { spaceId, personId: person.id } },
+    data: { level: 'VIEW' },
+  });
+}
+
+test('resolveAccess returns view for a viewer member of the free space', async () => {
+  const { member, spaceId, documentId } = await createFreeScenario();
+  await demoteToView(spaceId, member);
+
+  expect(await access.resolveAccess(member.id, documentId)).toBe('view');
+});
+
+test('canWrite is false for a viewer member of the free space', async () => {
+  const { member, spaceId, documentId } = await createFreeScenario();
+  await demoteToView(spaceId, member);
+
+  expect(await access.canWrite(member.id, documentId)).toBe(false);
+});
+
+test('an edit share to a viewer member of the free space resolves to edit', async () => {
+  const { member, spaceId, documentId } = await createFreeScenario();
+  await demoteToView(spaceId, member);
+  await prisma.documentShare.create({
+    data: { documentId, personId: member.id, level: 'EDIT' },
+  });
+
+  expect(await access.resolveAccess(member.id, documentId)).toBe('edit');
+  expect(await access.canWrite(member.id, documentId)).toBe(true);
+});
+
+test('a space member created without level is EDIT', async () => {
+  const { member, spaceId } = await createFreeScenario();
+
+  const row = await prisma.spaceMember.findUniqueOrThrow({
+    where: { spaceId_personId: { spaceId, personId: member.id } },
+    select: { level: true },
+  });
+
+  expect(row.level).toBe('EDIT');
+});

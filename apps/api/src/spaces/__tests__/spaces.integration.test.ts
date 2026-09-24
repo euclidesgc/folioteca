@@ -970,6 +970,7 @@ type SpaceMemberItem = {
   email: string;
   isCurrentPerson: boolean;
   role: 'owner' | 'member' | 'assigned';
+  level: 'view' | 'edit' | null;
 };
 
 type SpaceMembersBody = { data: SpaceMemberItem[] };
@@ -1037,6 +1038,8 @@ test('GET space answers 200 with reach direct and the unit name to a direct memb
       name: 'Protocolo',
       reach: 'direct',
       membersCanInvite: false,
+      canCreateDocuments: true,
+      canAddPeople: false,
     },
   });
 });
@@ -1056,6 +1059,8 @@ test('GET space answers reach inherited to an inherited member', async () => {
       name: 'Protocolo',
       reach: 'inherited',
       membersCanInvite: false,
+      canCreateDocuments: false,
+      canAddPeople: false,
     },
   });
 });
@@ -1076,6 +1081,8 @@ test('GET space answers reach owner with the space name to the owner of a FREE s
       name: 'Projeto Alfa',
       reach: 'owner',
       membersCanInvite: false,
+      canCreateDocuments: true,
+      canAddPeople: true,
     },
   });
 });
@@ -1174,6 +1181,7 @@ test('GET space members lists the caller first with isCurrentPerson then Álvaro
         email: 'joao@exemplo.org',
         isCurrentPerson: true,
         role: 'assigned',
+        level: null,
       },
       {
         id: alvaro.person.id,
@@ -1181,6 +1189,7 @@ test('GET space members lists the caller first with isCurrentPerson then Álvaro
         email: 'alvaro@exemplo.org',
         isCurrentPerson: false,
         role: 'assigned',
+        level: null,
       },
       {
         id: zilda.person.id,
@@ -1188,6 +1197,7 @@ test('GET space members lists the caller first with isCurrentPerson then Álvaro
         email: 'zilda@exemplo.org',
         isCurrentPerson: false,
         role: 'assigned',
+        level: null,
       },
     ],
   });
@@ -1299,6 +1309,7 @@ test('GET space members lists a FREE space to its owner with the owner first', a
         email: 'joao@exemplo.org',
         isCurrentPerson: true,
         role: 'owner',
+        level: null,
       },
       {
         id: alvaro.person.id,
@@ -1306,6 +1317,7 @@ test('GET space members lists a FREE space to its owner with the owner first', a
         email: 'alvaro@exemplo.org',
         isCurrentPerson: false,
         role: 'member',
+        level: 'edit',
       },
       {
         id: adminPerson.id,
@@ -1313,6 +1325,7 @@ test('GET space members lists a FREE space to its owner with the owner first', a
         email: EMAIL,
         isCurrentPerson: false,
         role: 'member',
+        level: 'edit',
       },
     ],
   });
@@ -1384,6 +1397,8 @@ test('getDetail with another organization id returns null', async () => {
     name: 'Protocolo',
     reach: 'direct',
     membersCanInvite: false,
+    canCreateDocuments: true,
+    canAddPeople: false,
   });
   expect(others).toBeNull();
 });
@@ -1417,6 +1432,7 @@ function member(
     email: 'ana@exemplo.org',
     isCurrentPerson: false,
     role: 'assigned',
+    level: null,
     ...overrides,
   };
 }
@@ -1668,6 +1684,8 @@ test('GET space answers reach member to a member of a FREE space', async () => {
       name: 'Projeto Alfa',
       reach: 'member',
       membersCanInvite: false,
+      canCreateDocuments: true,
+      canAddPeople: false,
     },
   });
 });
@@ -1710,6 +1728,7 @@ test('GET space members lists a FREE space to its member', async () => {
         email: 'joao@exemplo.org',
         isCurrentPerson: false,
         role: 'owner',
+        level: null,
       },
       {
         id: zilda.person.id,
@@ -1717,6 +1736,7 @@ test('GET space members lists a FREE space to its member', async () => {
         email: 'zilda@exemplo.org',
         isCurrentPerson: true,
         role: 'member',
+        level: 'edit',
       },
       {
         id: other.person.id,
@@ -1724,6 +1744,7 @@ test('GET space members lists a FREE space to its member', async () => {
         email: 'ana@exemplo.org',
         isCurrentPerson: false,
         role: 'member',
+        level: 'edit',
       },
       {
         id: bruno.person.id,
@@ -1731,6 +1752,7 @@ test('GET space members lists a FREE space to its member', async () => {
         email: 'bruno@exemplo.org',
         isCurrentPerson: false,
         role: 'member',
+        level: 'edit',
       },
     ],
   });
@@ -2314,6 +2336,8 @@ test('PATCH space answers 200 to the owner and GET space reflects membersCanInvi
       name: 'Projeto Alfa',
       reach: 'owner',
       membersCanInvite: true,
+      canCreateDocuments: true,
+      canAddPeople: true,
     },
   });
   expect(detail.status).toBe(200);
@@ -2519,4 +2543,422 @@ test('the database rejects membersCanInvite on a UNIT space', async () => {
     }),
   ).rejects.toThrow(/Space_members_can_invite_free_check/);
   expect(await membersCanInviteOf(unit.spaceId)).toBe(false);
+});
+
+/** `PATCH /api/spaces/:spaceId/members/:personId` com o cabeçalho de CSRF. */
+function patchSpaceMember(
+  spaceId: string,
+  personId: string,
+  body: unknown,
+  cookie?: string,
+): Promise<Response> {
+  const request = httpRequest(app)
+    .patch(`/api/spaces/${spaceId}/members/${personId}`)
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return cookie === undefined
+    ? request.send(body as object)
+    : request.set('Cookie', cookie).send(body as object);
+}
+
+/** Nível gravado no banco para o membro do espaço livre. */
+async function memberLevelOf(
+  spaceId: string,
+  personId: string,
+): Promise<'VIEW' | 'EDIT'> {
+  const row = await prisma.spaceMember.findUniqueOrThrow({
+    where: { spaceId_personId: { spaceId, personId } },
+  });
+
+  return row.level;
+}
+
+/** Grava o nível de leitura para o membro, direto pelo Prisma. */
+async function setViewLevel(spaceId: string, personId: string): Promise<void> {
+  await prisma.spaceMember.update({
+    where: { spaceId_personId: { spaceId, personId } },
+    data: { level: 'VIEW' },
+  });
+}
+
+test('PATCH space member answers 200 to the owner and GET space members reflects the level', async () => {
+  const { owner, other, freeSpaceId } = await createOwnerWithMember();
+
+  const response = await patchSpaceMember(
+    freeSpaceId,
+    other.person.id,
+    { level: 'view' },
+    owner.cookie,
+  );
+  const members = await getSpaceMembers(freeSpaceId, owner.cookie);
+
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual({
+    data: {
+      id: other.person.id,
+      name: 'Ana Lima',
+      email: 'ana@exemplo.org',
+      isCurrentPerson: false,
+      role: 'member',
+      level: 'view',
+    },
+  });
+  expect(members.status).toBe(200);
+  expect(
+    (members.body as SpaceMembersBody).data.find(
+      (item) => item.id === other.person.id,
+    ),
+  ).toEqual({
+    id: other.person.id,
+    name: 'Ana Lima',
+    email: 'ana@exemplo.org',
+    isCurrentPerson: false,
+    role: 'member',
+    level: 'view',
+  });
+  expect(await memberLevelOf(freeSpaceId, other.person.id)).toBe('VIEW');
+});
+
+test('PATCH space member is idempotent', async () => {
+  const { owner, other, freeSpaceId } = await createOwnerWithMember();
+
+  const first = await patchSpaceMember(
+    freeSpaceId,
+    other.person.id,
+    { level: 'view' },
+    owner.cookie,
+  );
+  const second = await patchSpaceMember(
+    freeSpaceId,
+    other.person.id,
+    { level: 'view' },
+    owner.cookie,
+  );
+
+  expect(first.status).toBe(200);
+  expect(second.status).toBe(200);
+  expect(second.body).toEqual(first.body);
+  expect(await memberLevelOf(freeSpaceId, other.person.id)).toBe('VIEW');
+  expect(await countSpaceMembers()).toBe(1);
+});
+
+test('PATCH space member answers 403 to a member with Só o dono do espaço pode mudar o nível de um membro.', async () => {
+  const { owner, other, freeSpaceId } = await createOwnerWithMember();
+  const added = await putSpaceMember(freeSpaceId, adminPerson.id, owner.cookie);
+
+  const response = await patchSpaceMember(
+    freeSpaceId,
+    adminPerson.id,
+    { level: 'view' },
+    other.cookie,
+  );
+
+  expect(added.status).toBe(200);
+  expect(response.status).toBe(403);
+  expect(response.body).toEqual({
+    message: 'Só o dono do espaço pode mudar o nível de um membro.',
+  });
+  expect(await memberLevelOf(freeSpaceId, adminPerson.id)).toBe('EDIT');
+});
+
+test('PATCH space member answers 400 when the owner targets himself with O dono do espaço não tem nível.', async () => {
+  const { owner, freeSpaceId } = await createOwnerWithMember();
+
+  const response = await patchSpaceMember(
+    freeSpaceId,
+    owner.person.id,
+    { level: 'view' },
+    owner.cookie,
+  );
+
+  expect(response.status).toBe(400);
+  expect(response.body).toEqual({ message: 'O dono do espaço não tem nível.' });
+  expect(await countSpaceMembers()).toBe(1);
+});
+
+test('PATCH space member answers 404 for a person who is not a member with Esta pessoa não é membro deste espaço.', async () => {
+  const { owner, freeSpaceId } = await createOwnerWithMember();
+
+  const response = await patchSpaceMember(
+    freeSpaceId,
+    adminPerson.id,
+    { level: 'view' },
+    owner.cookie,
+  );
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({
+    message: 'Esta pessoa não é membro deste espaço.',
+  });
+  expect(await countSpaceMembers()).toBe(1);
+});
+
+test('PATCH space member answers 404 to a stranger', async () => {
+  const { other, freeSpaceId } = await createOwnerWithMember();
+  const outsider = await createOutsider();
+
+  const response = await patchSpaceMember(
+    freeSpaceId,
+    other.person.id,
+    { level: 'view' },
+    outsider.cookie,
+  );
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({ message: 'Espaço não encontrado.' });
+  expect(await memberLevelOf(freeSpaceId, other.person.id)).toBe('EDIT');
+});
+
+test('PATCH space member answers 404 for a malformed space id', async () => {
+  const { owner, other } = await createOwnerWithMember();
+
+  const response = await patchSpaceMember(
+    'nao-e-uuid',
+    other.person.id,
+    { level: 'view' },
+    owner.cookie,
+  );
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({ message: 'Espaço não encontrado.' });
+});
+
+test('PATCH space member answers 404 for a UNIT space', async () => {
+  const unit = await createUnit('Protocolo');
+  const { person, cookie } = await createMember();
+  await assign(unit.orgUnitId, person.id);
+  await assign(unit.orgUnitId, adminPerson.id);
+  const detail = await getSpace(unit.spaceId, cookie);
+
+  const response = await patchSpaceMember(
+    unit.spaceId,
+    adminPerson.id,
+    { level: 'view' },
+    cookie,
+  );
+
+  expect((detail.body as { data: { reach: string } }).data.reach).toBe('direct');
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({ message: 'Espaço não encontrado.' });
+  expect(await countSpaceMembers()).toBe(0);
+});
+
+test('PATCH space member rejects an empty body with 400', async () => {
+  const { owner, other, freeSpaceId } = await createOwnerWithMember();
+
+  const response = await patchSpaceMember(
+    freeSpaceId,
+    other.person.id,
+    {},
+    owner.cookie,
+  );
+
+  expect(response.status).toBe(400);
+  expect(response.body).toEqual({
+    message: 'Dados inválidos.',
+    errors: [{ field: 'level', message: 'Escolha o nível do membro.' }],
+  });
+  expect(await memberLevelOf(freeSpaceId, other.person.id)).toBe('EDIT');
+});
+
+test('PATCH space member rejects an invalid level with 400', async () => {
+  const { owner, other, freeSpaceId } = await createOwnerWithMember();
+
+  const response = await patchSpaceMember(
+    freeSpaceId,
+    other.person.id,
+    { level: 'owner' },
+    owner.cookie,
+  );
+
+  expect(response.status).toBe(400);
+  expect(response.body).toEqual({
+    message: 'Dados inválidos.',
+    errors: [{ field: 'level', message: 'Escolha o nível do membro.' }],
+  });
+  expect(await memberLevelOf(freeSpaceId, other.person.id)).toBe('EDIT');
+});
+
+test('PATCH space member rejects extra fields with 400', async () => {
+  const { owner, other, freeSpaceId } = await createOwnerWithMember();
+
+  const response = await patchSpaceMember(
+    freeSpaceId,
+    other.person.id,
+    { level: 'view', role: 'owner' },
+    owner.cookie,
+  );
+
+  expect(response.status).toBe(400);
+  expect(response.body).toEqual({
+    message: 'Dados inválidos.',
+    errors: [{ field: '', message: 'Campo não permitido.' }],
+  });
+  expect(await memberLevelOf(freeSpaceId, other.person.id)).toBe('EDIT');
+});
+
+test('PATCH space member answers 401 without session', async () => {
+  const { other, freeSpaceId } = await createOwnerWithMember();
+
+  const response = await patchSpaceMember(freeSpaceId, other.person.id, {
+    level: 'view',
+  });
+
+  expect(response.status).toBe(401);
+  expect(response.body).toEqual({ message: 'Sessão não encontrada.' });
+  expect(await memberLevelOf(freeSpaceId, other.person.id)).toBe('EDIT');
+});
+
+/**
+ * Organização única por instância (`Organization_singleton_check`): o escopo
+ * de `updateMemberLevel` é provado no serviço real, contra o mesmo Postgres,
+ * com um `organizationId` que não é o da instalação, sobre um espaço de que a
+ * pessoa é dona e um membro existente.
+ */
+test('updateMemberLevel with another organization id answers 404', async () => {
+  const { owner, other, freeSpaceId } = await createOwnerWithMember();
+
+  const attempt = spaces.updateMemberLevel(
+    { organizationId: randomUUID(), id: owner.person.id },
+    freeSpaceId,
+    other.person.id,
+    { level: 'view' },
+  );
+
+  await expect(attempt).rejects.toThrow(NotFoundException);
+  await expect(attempt).rejects.toThrow('Espaço não encontrado.');
+  expect(await memberLevelOf(freeSpaceId, other.person.id)).toBe('EDIT');
+});
+
+test('PUT space member answers 403 to a viewer of an open space with Só quem pode editar adiciona pessoas a este espaço.', async () => {
+  const { other, freeSpaceId } = await createOpenSpaceWithMember();
+  await setViewLevel(freeSpaceId, other.person.id);
+  const outsider = await createOutsider();
+
+  const response = await putSpaceMember(
+    freeSpaceId,
+    outsider.person.id,
+    other.cookie,
+  );
+
+  expect(response.status).toBe(403);
+  expect(response.body).toEqual({
+    message: 'Só quem pode editar adiciona pessoas a este espaço.',
+  });
+  expect(await countSpaceMembers()).toBe(1);
+});
+
+test('PUT space member answers 200 to an editor of an open space', async () => {
+  const { other, freeSpaceId } = await createOpenSpaceWithMember();
+  const outsider = await createOutsider();
+
+  const response = await putSpaceMember(
+    freeSpaceId,
+    outsider.person.id,
+    other.cookie,
+  );
+
+  expect(await memberLevelOf(freeSpaceId, other.person.id)).toBe('EDIT');
+  expect(response.status).toBe(200);
+  expect((response.body as SpaceMemberBody).data.id).toBe(outsider.person.id);
+  expect(await countSpaceMembers()).toBe(2);
+});
+
+type SpacePermissions = {
+  data: { canCreateDocuments: boolean; canAddPeople: boolean };
+};
+
+/** Os dois flags de permissão de `GET /api/spaces/:spaceId`. */
+function permissionsOf(response: Response): {
+  canCreateDocuments: boolean;
+  canAddPeople: boolean;
+} {
+  const { canCreateDocuments, canAddPeople } = (
+    response.body as SpacePermissions
+  ).data;
+
+  return { canCreateDocuments, canAddPeople };
+}
+
+test('GET space answers canCreateDocuments and canAddPeople true to the owner', async () => {
+  const { owner, freeSpaceId } = await createOwnerWithMember();
+
+  const response = await getSpace(freeSpaceId, owner.cookie);
+
+  expect(response.status).toBe(200);
+  expect(permissionsOf(response)).toEqual({
+    canCreateDocuments: true,
+    canAddPeople: true,
+  });
+});
+
+test('GET space answers canCreateDocuments true and canAddPeople false to an editor of a closed space', async () => {
+  const { other, freeSpaceId } = await createOwnerWithMember();
+
+  const response = await getSpace(freeSpaceId, other.cookie);
+
+  expect(response.status).toBe(200);
+  expect(permissionsOf(response)).toEqual({
+    canCreateDocuments: true,
+    canAddPeople: false,
+  });
+});
+
+test('GET space answers canCreateDocuments and canAddPeople true to an editor of an open space', async () => {
+  const { other, freeSpaceId } = await createOpenSpaceWithMember();
+
+  const response = await getSpace(freeSpaceId, other.cookie);
+
+  expect(response.status).toBe(200);
+  expect(permissionsOf(response)).toEqual({
+    canCreateDocuments: true,
+    canAddPeople: true,
+  });
+});
+
+test('GET space answers canCreateDocuments and canAddPeople false to a viewer of an open space', async () => {
+  const { other, freeSpaceId } = await createOpenSpaceWithMember();
+  await setViewLevel(freeSpaceId, other.person.id);
+
+  const response = await getSpace(freeSpaceId, other.cookie);
+
+  expect(response.status).toBe(200);
+  expect((response.body as { data: { membersCanInvite: boolean } }).data.membersCanInvite).toBe(
+    true,
+  );
+  expect(permissionsOf(response)).toEqual({
+    canCreateDocuments: false,
+    canAddPeople: false,
+  });
+});
+
+test('GET space answers canCreateDocuments true and canAddPeople false to a direct unit member', async () => {
+  const unit = await createUnit('Protocolo');
+  const { person, cookie } = await createMember();
+  await assign(unit.orgUnitId, person.id);
+
+  const response = await getSpace(unit.spaceId, cookie);
+
+  expect(response.status).toBe(200);
+  expect(permissionsOf(response)).toEqual({
+    canCreateDocuments: true,
+    canAddPeople: false,
+  });
+});
+
+test('GET space answers canCreateDocuments false to an inherited unit member', async () => {
+  const { parent, child } = await createInheritingChild();
+  const { person, cookie } = await createMember();
+  await assign(parent.orgUnitId, person.id);
+
+  const response = await getSpace(child.spaceId, cookie);
+
+  expect(response.status).toBe(200);
+  expect((response.body as { data: { reach: string } }).data.reach).toBe(
+    'inherited',
+  );
+  expect(permissionsOf(response)).toEqual({
+    canCreateDocuments: false,
+    canAddPeople: false,
+  });
 });

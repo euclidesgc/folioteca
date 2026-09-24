@@ -484,7 +484,11 @@ export interface paths {
         delete: operations["removeSpaceMember"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Muda o nível de um membro de um espaço livre
+         * @description Só o dono do espaço livre muda o nível de um membro: "edit" cria e edita documentos, "view" só lê. A operação é idempotente. Um membro que tenta mudar recebe 403; o dono como alvo, corpo ausente, nível inválido ou campo a mais recebem 400; espaço inexistente, com id malformado, de unidade ou que quem chama não alcança, e pessoa que não é membro, recebem 404.
+         */
+        patch: operations["updateSpaceMemberLevel"];
         trace?: never;
     };
     "/spaces/{spaceId}/documents": {
@@ -801,6 +805,10 @@ export interface components {
             reach: "direct" | "inherited" | "owner" | "member";
             /** @description Se qualquer membro pode adicionar pessoas ao espaço livre; sempre false em espaço de unidade. */
             membersCanInvite: boolean;
+            /** @description Se quem pede pode criar documentos neste espaço. */
+            canCreateDocuments: boolean;
+            /** @description Se quem pede pode adicionar pessoas; permissão calculada, diferente da configuração membersCanInvite. */
+            canAddPeople: boolean;
         };
         SpaceDetailResponse: {
             data: components["schemas"]["SpaceDetail"];
@@ -817,12 +825,27 @@ export interface components {
              * @enum {string}
              */
             role: "owner" | "member" | "assigned";
+            /**
+             * @description Nível do membro no espaço livre; null para o dono e para lotados de unidade.
+             * @enum {string|null}
+             */
+            level: "view" | "edit" | null;
         };
         SpaceMembersResponse: {
             data: components["schemas"]["SpaceMember"][];
         };
         SpaceMemberResponse: {
             data: components["schemas"]["PersonSummary"];
+        };
+        SpaceMemberLevelResponse: {
+            data: components["schemas"]["SpaceMember"];
+        };
+        UpdateSpaceMemberInput: {
+            /**
+             * @description "edit" para criar e editar documentos; "view" para só ler.
+             * @enum {string}
+             */
+            level: "view" | "edit";
         };
         CreateSpaceInput: {
             /** @description Nome do espaço livre, contado depois de aparar os espaços. */
@@ -2707,6 +2730,69 @@ export interface operations {
                 };
             };
             /** @description "Espaço não encontrado." para espaço inexistente, com id malformado, de unidade ou que quem chama não alcança. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateSpaceMemberLevel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                spaceId: string;
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSpaceMemberInput"];
+            };
+        };
+        responses: {
+            /** @description O membro está com o nível informado. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpaceMemberLevelResponse"];
+                };
+            };
+            /** @description "O dono do espaço não tem nível." quando o alvo é o dono, ou "Dados inválidos." para corpo ausente, nível inválido ou campo a mais. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description "Só o dono do espaço pode mudar o nível de um membro." para quem é membro do espaço sem ser o dono. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description "Espaço não encontrado." para espaço inexistente, com id malformado, de unidade ou que quem chama não alcança, ou "Esta pessoa não é membro deste espaço." para pessoa que não é membro. */
             404: {
                 headers: {
                     [name: string]: unknown;

@@ -1219,3 +1219,116 @@ test('create in a free space with another organization id answers 404', async ()
   expect(created.spaceId).toBe(spaceId);
   expect(await prisma.document.count({ where: { spaceId } })).toBe(1);
 });
+
+/** Grava o nível do membro do espaço livre, direto pelo Prisma. */
+async function setFreeMemberLevel(
+  spaceId: string,
+  personId: string,
+  level: 'VIEW' | 'EDIT',
+): Promise<void> {
+  await prisma.spaceMember.update({
+    where: { spaceId_personId: { spaceId, personId } },
+    data: { level },
+  });
+}
+
+test('POST documents with a free spaceId answers 403 to a viewer member with Só quem pode editar cria documentos neste espaço.', async () => {
+  const { spaceId, member, memberCookie } = await createFreeDocument();
+  await setFreeMemberLevel(spaceId, member.id, 'VIEW');
+  const before = await prisma.document.count();
+
+  const response = await postDocumentWith(memberCookie, { spaceId });
+
+  expect(response.status).toBe(403);
+  expect(response.body).toEqual({
+    message: 'Só quem pode editar cria documentos neste espaço.',
+  });
+  expect(await prisma.document.count()).toBe(before);
+});
+
+test('POST documents with a free spaceId answers 201 again after the viewer is promoted to edit', async () => {
+  const { spaceId, member, memberCookie } = await createFreeDocument();
+  await setFreeMemberLevel(spaceId, member.id, 'VIEW');
+  const refused = await postDocumentWith(memberCookie, { spaceId });
+
+  await setFreeMemberLevel(spaceId, member.id, 'EDIT');
+  const response = await postDocumentWith(memberCookie, { spaceId });
+
+  expect(refused.status).toBe(403);
+  expect(response.status).toBe(201);
+  expect((response.body as { data: DocumentBody }).data).toEqual(
+    expect.objectContaining({ spaceId, ownerId: member.id }),
+  );
+  expect(await prisma.document.count({ where: { spaceId } })).toBe(2);
+});
+
+/** Documento da dona do espaço livre (A) no espaço, com João já leitor. */
+async function createColleagueDocumentForViewer(): Promise<{
+  spaceId: string;
+  document: DocumentBody;
+  memberCookie: string;
+}> {
+  const { spaceId, member, memberCookie } = await createFreeDocument();
+  const created = await postDocumentWith(cookieA, { spaceId });
+  await setFreeMemberLevel(spaceId, member.id, 'VIEW');
+
+  expect(created.status).toBe(201);
+
+  return {
+    spaceId,
+    document: (created.body as { data: DocumentBody }).data,
+    memberCookie,
+  };
+}
+
+test('a viewer member GETs a colleague document of the free space with accessLevel view', async () => {
+  const { document, memberCookie } = await createColleagueDocumentForViewer();
+
+  const response = await getDocument(memberCookie, document.id);
+
+  expect(response.status).toBe(200);
+  expect((response.body as { data: DocumentBody }).data).toEqual(
+    expect.objectContaining({
+      id: document.id,
+      ownerId: personA.id,
+      accessLevel: 'view',
+    }),
+  );
+});
+
+test('a viewer member PATCH on a colleague document of the free space is refused and keeps the title', async () => {
+  const { document, memberCookie } = await createColleagueDocumentForViewer();
+
+  const response = await patchDocument(memberCookie, document.id, {
+    title: 'Título do leitor',
+  });
+  const stored = await prisma.document.findFirstOrThrow({
+    where: { id: document.id },
+  });
+
+  expect(response.status).toBe(403);
+  expect(stored.title).toBe('Sem título');
+});
+
+test('a viewer member renames and trashes their own document in the free space', async () => {
+  const { spaceId, document, member, memberCookie } =
+    await createFreeDocument();
+  await setFreeMemberLevel(spaceId, member.id, 'VIEW');
+
+  const renamed = await patchDocument(memberCookie, document.id, {
+    title: 'Rascunho do João',
+  });
+  const trashed = await httpRequest(app)
+    .post(`/api/documents/${document.id}/trash`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', memberCookie)
+    .send();
+  const stored = await prisma.document.findFirstOrThrow({
+    where: { id: document.id },
+  });
+
+  expect(renamed.status).toBe(200);
+  expect(trashed.status).toBe(200);
+  expect(stored.title).toBe('Rascunho do João');
+  expect(stored.trashedAt).not.toBeNull();
+});

@@ -5,14 +5,20 @@ import {
   Injectable,
 } from '@nestjs/common';
 import type { components } from '@folioteca/api-contract';
+import type { ShareLevel } from '@prisma/client';
 
+import { DomainNotFoundException } from '../common/domain-not-found.exception';
 import { isUniqueViolation } from '../common/is-unique-violation';
 import { isUuid } from '../common/is-uuid';
 import { parseBody } from '../common/parse-body';
 import { ptBrCollator } from '../common/pt-br-collator';
 import { spaceNotFound } from '../common/space-not-found';
 import { PrismaService } from '../prisma/prisma.service';
-import { createSpaceSchema, updateSpaceSchema } from './spaces.schema';
+import {
+  createSpaceSchema,
+  updateSpaceMemberSchema,
+  updateSpaceSchema,
+} from './spaces.schema';
 
 type Space = components['schemas']['Space'];
 type SpaceResponse = components['schemas']['SpaceResponse'];
@@ -23,6 +29,8 @@ type SpaceDetailResponse = components['schemas']['SpaceDetailResponse'];
 type SpaceMember = components['schemas']['SpaceMember'];
 type SpaceMembersResponse = components['schemas']['SpaceMembersResponse'];
 type SpaceMemberResponse = components['schemas']['SpaceMemberResponse'];
+type SpaceMemberLevelResponse =
+  components['schemas']['SpaceMemberLevelResponse'];
 
 const OWNER_ONLY_MESSAGE = 'Só o dono do espaço pode adicionar pessoas.';
 
@@ -41,7 +49,22 @@ const PERSON_NOT_FOUND_MESSAGE = 'Pessoa não encontrada nesta instância.';
 
 const REMOVE_OWNER_MESSAGE = 'O dono não pode ser removido.';
 
+const LEVEL_OWNER_ONLY_MESSAGE =
+  'Só o dono do espaço pode mudar o nível de um membro.';
+
+const OWNER_HAS_NO_LEVEL_MESSAGE = 'O dono do espaço não tem nível.';
+
+const NOT_A_MEMBER_MESSAGE = 'Esta pessoa não é membro deste espaço.';
+
+const VIEWER_ADDS_MESSAGE =
+  'Só quem pode editar adiciona pessoas a este espaço.';
+
 const DUPLICATE_NAME_MESSAGE = 'Você já tem um espaço com esse nome.';
+
+/** Nível do membro do espaço livre como o contrato o expõe. */
+function toMemberLevel(level: ShareLevel): 'view' | 'edit' {
+  return level === 'EDIT' ? 'edit' : 'view';
+}
 
 type UnitReach = {
   reach: 'direct' | 'inherited' | 'none';
@@ -291,6 +314,7 @@ export class SpacesService {
         ownerId: true,
         membersCanInvite: true,
         orgUnit: { select: { id: true, name: true } },
+        members: { where: { personId }, select: { level: true } },
       },
     });
 
@@ -299,15 +323,22 @@ export class SpacesService {
     }
 
     if (space.type === 'FREE') {
-      return space.name === null
-        ? null
-        : {
-            id: space.id,
-            type: 'free',
-            name: space.name,
-            reach: space.ownerId === personId ? 'owner' : 'member',
-            membersCanInvite: space.membersCanInvite,
-          };
+      if (space.name === null) {
+        return null;
+      }
+
+      const isOwner = space.ownerId === personId;
+      const isEditor = isOwner || space.members[0]?.level === 'EDIT';
+
+      return {
+        id: space.id,
+        type: 'free',
+        name: space.name,
+        reach: isOwner ? 'owner' : 'member',
+        membersCanInvite: space.membersCanInvite,
+        canCreateDocuments: isEditor,
+        canAddPeople: isOwner || (isEditor && space.membersCanInvite),
+      };
     }
 
     if (space.orgUnit === null) {
@@ -326,6 +357,8 @@ export class SpacesService {
       name: space.orgUnit.name,
       reach,
       membersCanInvite: false,
+      canCreateDocuments: reach === 'direct',
+      canAddPeople: false,
     };
   }
 
@@ -427,15 +460,17 @@ export class SpacesService {
                 email: owner.email,
                 isCurrentPerson: owner.id === personId,
                 role: 'owner',
+                level: null,
               },
             ];
       const memberRows = freeSpace.members.map(
-        ({ person }): SpaceMember => ({
+        ({ person, level }): SpaceMember => ({
           id: person.id,
           name: person.name,
           email: person.email,
           isCurrentPerson: person.id === personId,
           role: 'member',
+          level: toMemberLevel(level),
         }),
       );
 
@@ -464,6 +499,7 @@ export class SpacesService {
         email: person.email,
         isCurrentPerson: person.id === personId,
         role: 'assigned',
+        level: null,
       }))
       .sort(compareMembers);
 
@@ -496,7 +532,14 @@ export class SpacesService {
           { members: { some: { personId: requester.id } } },
         ],
       },
-      select: { ownerId: true, membersCanInvite: true },
+      select: {
+        ownerId: true,
+        membersCanInvite: true,
+        members: {
+          where: { personId: requester.id },
+          select: { level: true },
+        },
+      },
     });
 
     if (space === null) {
@@ -507,6 +550,10 @@ export class SpacesService {
 
     if (!isOwner && !space.membersCanInvite) {
       throw new ForbiddenException(OWNER_ONLY_MESSAGE);
+    }
+
+    if (!isOwner && space.members[0]?.level === 'VIEW') {
+      throw new ForbiddenException(VIEWER_ADDS_MESSAGE);
     }
 
     if (!isOwner && personId === space.ownerId) {
@@ -539,6 +586,80 @@ export class SpacesService {
     });
 
     return { data: { id: person.id, name: person.name, email: person.email } };
+  }
+
+  /**
+   * Muda o nível de um membro do espaço livre; só o dono muda. O acesso é
+   * conferido antes do corpo e da pessoa, para quem não é dono não descobrir
+   * a forma do recurso: 404 (malformado, de unidade, pessoal, alheio ou de
+   * outra organização) → 403 (membro) → 400 (o dono como alvo, corpo) → 404
+   * (quem não é membro). Repetir o mesmo nível é idempotente. Organização e
+   * quem pede chegam só da sessão.
+   */
+  async updateMemberLevel(
+    requester: { organizationId: string; id: string },
+    spaceId: string,
+    personId: string,
+    body: unknown,
+  ): Promise<SpaceMemberLevelResponse> {
+    if (!isUuid(spaceId)) {
+      throw spaceNotFound();
+    }
+
+    const space = await this.prisma.space.findFirst({
+      where: {
+        id: spaceId,
+        type: 'FREE',
+        organizationId: requester.organizationId,
+        OR: [
+          { ownerId: requester.id },
+          { members: { some: { personId: requester.id } } },
+        ],
+      },
+      select: { ownerId: true },
+    });
+
+    if (space === null) {
+      throw spaceNotFound();
+    }
+
+    if (space.ownerId !== requester.id) {
+      throw new ForbiddenException(LEVEL_OWNER_ONLY_MESSAGE);
+    }
+
+    if (personId === space.ownerId) {
+      throw new BadRequestException(OWNER_HAS_NO_LEVEL_MESSAGE);
+    }
+
+    const { level } = parseBody(updateSpaceMemberSchema, body);
+
+    const member = isUuid(personId)
+      ? await this.prisma.spaceMember.findUnique({
+          where: { spaceId_personId: { spaceId, personId } },
+          select: { person: { select: { id: true, name: true, email: true } } },
+        })
+      : null;
+
+    if (member === null) {
+      throw new DomainNotFoundException(NOT_A_MEMBER_MESSAGE);
+    }
+
+    const updated = await this.prisma.spaceMember.update({
+      where: { spaceId_personId: { spaceId, personId } },
+      data: { level: level === 'view' ? 'VIEW' : 'EDIT' },
+      select: { level: true },
+    });
+
+    return {
+      data: {
+        id: member.person.id,
+        name: member.person.name,
+        email: member.person.email,
+        isCurrentPerson: false,
+        role: 'member',
+        level: toMemberLevel(updated.level),
+      },
+    };
   }
 
   /**

@@ -583,6 +583,8 @@ export const spaceDetailOf = (
         name: space.name,
         reach: 'owner',
         membersCanInvite: space.membersCanInvite,
+        canCreateDocuments: true,
+        canAddPeople: true,
       };
     }
 
@@ -593,6 +595,8 @@ export const spaceDetailOf = (
           name: space.name,
           reach: 'member',
           membersCanInvite: space.membersCanInvite,
+          canCreateDocuments: true,
+          canAddPeople: space.membersCanInvite,
         }
       : null;
   }
@@ -607,6 +611,8 @@ export const spaceDetailOf = (
     name: unit.name,
     reach,
     membersCanInvite: false,
+    canCreateDocuments: reach === 'direct',
+    canAddPeople: false,
   };
 };
 
@@ -709,6 +715,7 @@ export const listSpaceMembers = (
             email: person.email,
             isCurrentPerson: person.id === personId,
             role,
+            level: role === 'member' ? 'edit' : null,
           },
         ]
       : [];
