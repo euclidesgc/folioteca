@@ -13,6 +13,7 @@ import {
   listSpaceMembers,
   listSpacesOf,
   removeSpaceMember,
+  setSpaceMembersCanInvite,
   spaceDetailOf,
   spaceReachOf,
 } from '../db';
@@ -30,6 +31,15 @@ const unauthenticated = (): ReturnType<typeof HttpResponse.json> =>
 
 const spaceNotFound = (): ReturnType<typeof HttpResponse.json> =>
   HttpResponse.json({ message: 'Espaço não encontrado.' }, { status: 404 });
+
+const invalid = (
+  field: string,
+  message: string,
+): ReturnType<typeof HttpResponse.json> =>
+  HttpResponse.json(
+    { message: 'Dados inválidos.', errors: [{ field, message }] },
+    { status: 400 },
+  );
 
 export const spacesHandlers = [
   http.get(`${env.API_URL}/spaces`, async ({ cookies }) => {
@@ -164,6 +174,57 @@ export const spacesHandlers = [
     return HttpResponse.json(body);
   }),
 
+  // Same order of checks the API follows: 401, 404 (a space the person does
+  // not reach, or a unit one), 403 (a member), 400 (the body), 200. Marking
+  // the mode the space already has is still a 200.
+  http.patch(
+    `${env.API_URL}/spaces/:spaceId`,
+    async ({ cookies, params, request }) => {
+      await networkDelay();
+      const forced = await devOverride('spaces');
+      if (forced) return forced;
+
+      const { installation } = getDb();
+      const hasSession = Boolean(cookies[SESSION_COOKIE_NAME]);
+      const person = getSignedInPerson();
+
+      if (!installation || !hasSession || !person) return unauthenticated();
+
+      const spaceId = String(params.spaceId);
+      const space = spaceDetailOf(person.id, spaceId);
+      if (space?.type !== 'free') return spaceNotFound();
+
+      if (space.reach !== 'owner') {
+        return HttpResponse.json(
+          { message: 'Só o dono do espaço pode mudar quem adiciona pessoas.' },
+          { status: 403 },
+        );
+      }
+
+      const requestBody: unknown = await request.json().catch(() => null);
+      if (typeof requestBody !== 'object' || requestBody === null) {
+        return invalid('membersCanInvite', 'Escolha quem adiciona pessoas.');
+      }
+
+      if (Object.keys(requestBody).some((key) => key !== 'membersCanInvite')) {
+        return invalid('', 'Campo não permitido.');
+      }
+
+      const membersCanInvite: unknown =
+        'membersCanInvite' in requestBody
+          ? requestBody.membersCanInvite
+          : undefined;
+      if (typeof membersCanInvite !== 'boolean') {
+        return invalid('membersCanInvite', 'Escolha quem adiciona pessoas.');
+      }
+
+      setSpaceMembersCanInvite(spaceId, membersCanInvite);
+
+      const body: SpaceDetailResponse = { data: { ...space, membersCanInvite } };
+      return HttpResponse.json(body);
+    },
+  ),
+
   http.get(
     `${env.API_URL}/spaces/:spaceId/members`,
     async ({ cookies, params }) => {
@@ -203,11 +264,31 @@ export const spacesHandlers = [
 
       if (!installation || !hasSession || !person) return unauthenticated();
 
-      const result = addSpaceMember(
-        person.id,
-        String(params.spaceId),
-        String(params.personId),
-      );
+      const spaceId = String(params.spaceId);
+      const personId = String(params.personId);
+
+      // A member of an open space, after the 404 and the 403 and before the
+      // search of the person, like `SpacesService.addMember`: neither the
+      // owner nor the member themselves can be added by that member.
+      const space = spaceDetailOf(person.id, spaceId);
+      if (space?.reach === 'member' && space.membersCanInvite) {
+        const freeSpace = getDb().spaces.find((item) => item.id === spaceId);
+        if (freeSpace?.type === 'free' && personId === freeSpace.ownerId) {
+          return HttpResponse.json(
+            { message: 'Esta pessoa é a dona deste espaço.' },
+            { status: 400 },
+          );
+        }
+
+        if (personId === person.id) {
+          return HttpResponse.json(
+            { message: 'Você já é membro deste espaço.' },
+            { status: 400 },
+          );
+        }
+      }
+
+      const result = addSpaceMember(person.id, spaceId, personId);
 
       if (!result.ok) {
         if (result.status === 404) return spaceNotFound();

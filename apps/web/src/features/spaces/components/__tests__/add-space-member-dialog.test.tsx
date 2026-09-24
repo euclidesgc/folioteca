@@ -4,9 +4,11 @@ import { beforeEach, expect, test } from 'vitest';
 import { env } from '@/config/env';
 import {
   addFreeSpace,
+  addSpaceMember,
   getDb,
   seedInstalled,
   seedSamplePeople,
+  setSpaceMembersCanInvite,
 } from '@/testing/mocks/db';
 import { server } from '@/testing/mocks/server';
 import {
@@ -369,4 +371,70 @@ test('the people list shows the person after adding', async () => {
   );
   expect(within(updated).getAllByRole('listitem')).toHaveLength(2);
   expect(within(updated).getByText('Beatriz Nogueira')).toBeInTheDocument();
+});
+
+// A space of Eduardo Silva, open to its members, with the signed-in person as
+// a member: the dialog as a member sees it.
+const openOwnedByAnotherPerson = async () => {
+  const ownerId = 'person-sample-6';
+  const space = addFreeSpace(ownerId, 'Clube do Livro');
+  setSpaceMembersCanInvite(space.id, true);
+  addSpaceMember(ownerId, space.id, INSTALLED_PERSON_ID);
+
+  const user = userEvent.setup();
+  renderApp(
+    <AddSpaceMemberDialog
+      spaceId={space.id}
+      spaceName="Clube do Livro"
+      ownerId={ownerId}
+    />,
+  );
+  await user.click(
+    await screen.findByRole('button', { name: 'Adicionar pessoa' }),
+  );
+  const dialog = await screen.findByRole('dialog', {
+    name: 'Adicionar pessoa ao espaço',
+  });
+  const field = within(dialog).getByLabelText('Buscar pessoa');
+
+  return { user, dialog, field, spaceId: space.id };
+};
+
+test('hides the owner from the search results', async () => {
+  const { user, dialog, field } = await openOwnedByAnotherPerson();
+
+  await user.type(field, 'silva');
+
+  expect(
+    await within(dialog).findByText('1 resultado.', undefined, LAZY_TIMEOUT),
+  ).toBeInTheDocument();
+  const list = within(dialog).getByRole('list', {
+    name: 'Pessoas encontradas',
+  });
+  expect(
+    within(list).getByRole('button', { name: 'Selecionar João Pedro Silva' }),
+  ).toBeInTheDocument();
+  expect(within(list).queryByText('Eduardo Silva')).not.toBeInTheDocument();
+  expect(
+    within(list).queryByRole('button', { name: 'Selecionar Eduardo Silva' }),
+  ).not.toBeInTheDocument();
+});
+
+test('shows the server message when the space was closed', async () => {
+  const opened = await openOwnedByAnotherPerson();
+  await selectPerson(opened, 'Beatriz', 'Beatriz Nogueira');
+
+  // The owner closes the space while the member has the dialog open.
+  setSpaceMembersCanInvite(opened.spaceId, false);
+
+  await opened.user.click(
+    within(opened.dialog).getByRole('button', { name: 'Adicionar' }),
+  );
+
+  expect(
+    await within(opened.dialog).findByRole('alert', undefined, LAZY_TIMEOUT),
+  ).toHaveTextContent('Só o dono do espaço pode adicionar pessoas.');
+  expect(getDb().spaceMembers).toEqual([
+    { spaceId: opened.spaceId, personId: INSTALLED_PERSON_ID },
+  ]);
 });

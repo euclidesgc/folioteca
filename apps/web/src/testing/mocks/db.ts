@@ -89,10 +89,17 @@ export type MockAssignment = { orgUnitId: string; personId: string };
 // `space-${person.id}` already uses for the personal space.
 //
 // The `FREE` space is created by a person, who becomes its owner, and carries
-// its own name.
+// its own name. `membersCanInvite` is whether its members add people too
+// (closed, `false`, when it is born).
 export type MockSpace =
   | { id: string; type: 'unit'; orgUnitId: string }
-  | { id: string; type: 'free'; name: string; ownerId: string };
+  | {
+      id: string;
+      type: 'free';
+      name: string;
+      ownerId: string;
+      membersCanInvite: boolean;
+    };
 
 // A person added to a free space by its owner. Like `MockAssignment`, the pair
 // is the whole row: the real table's composite primary key keeps the same
@@ -454,9 +461,22 @@ export const addFreeSpace = (ownerId: string, name: string): MockSpace => {
     type: 'free',
     name,
     ownerId,
+    membersCanInvite: false,
   };
   state.spaces.push(space);
   return space;
+};
+
+// Sets who adds people to a free space, the way PATCH /spaces/:spaceId does.
+// Written on the space already in the database (same reason as
+// `touchDocumentUpdatedAt` above). An unknown id or a unit space does
+// nothing: a unit space is always closed.
+export const setSpaceMembersCanInvite = (
+  spaceId: string,
+  value: boolean,
+): void => {
+  const space = state.spaces.find((item) => item.id === spaceId);
+  if (space?.type === 'free') space.membersCanInvite = value;
 };
 
 // Whether a person was added to a free space by its owner.
@@ -562,7 +582,7 @@ export const spaceDetailOf = (
         type: 'free',
         name: space.name,
         reach: 'owner',
-        membersCanInvite: false,
+        membersCanInvite: space.membersCanInvite,
       };
     }
 
@@ -572,7 +592,7 @@ export const spaceDetailOf = (
           type: 'free',
           name: space.name,
           reach: 'member',
-          membersCanInvite: false,
+          membersCanInvite: space.membersCanInvite,
         }
       : null;
   }
@@ -599,8 +619,10 @@ export type AddSpaceMemberResult =
 // Adds a person to a free space, the way PUT /spaces/:spaceId/members/
 // :personId does, in the same order as `SpacesService.addMember`: a space the
 // requester does not reach (unknown, a unit, a free space of someone else) is
-// 404, a member is 403, then the owner and an unknown person are 400. Adding
-// the same pair again keeps a single row, the upsert of the real service.
+// 404, a member of a closed space is 403, then the owner and an unknown
+// person are 400 (a member of an open space adding the owner or themselves is
+// refused by the PUT handler first). Adding the same pair again keeps a single
+// row, the upsert of the real service.
 export const addSpaceMember = (
   requesterId: string,
   spaceId: string,
@@ -614,7 +636,9 @@ export const addSpaceMember = (
     return { ok: false, status: 404, message: 'Espaço não encontrado.' };
   }
 
-  if (space.ownerId !== requesterId) {
+  const isOwner = space.ownerId === requesterId;
+
+  if (!isOwner && !space.membersCanInvite) {
     return {
       ok: false,
       status: 403,
@@ -1328,5 +1352,43 @@ export const seedRemovedFromFreeSpace = (): void => {
     type: 'free',
     name: MEMBER_FREE_SPACE_NAME,
     ownerId: owner.id,
+    membersCanInvite: false,
   });
+};
+
+// A person who is in the organization but not in the free space
+// `seedOpenFreeSpaceMembership` creates, for its member to find and add.
+const OPEN_FREE_SPACE_NON_MEMBER: MockPerson = {
+  id: 'person-free-space-non-member',
+  name: 'Lívia Castro',
+  email: 'livia.castro@exemplo.com.br',
+  isAdmin: false,
+};
+
+// Adds "Clube de leitura", the free space of Otávio Mendes, open to its
+// members (`membersCanInvite: true`) with the signed-in person as a member,
+// and Lívia Castro, who is not a member, so the member can open the space,
+// see "Adicionar pessoa" and add someone in the browser. The fake database
+// lives in each tab, so an opening made by the owner in one browser never
+// reaches another; this seed reproduces the result. Needs an installation
+// already seeded; does nothing without it.
+export const seedOpenFreeSpaceMembership = (): void => {
+  const member = getSignedInPerson();
+  if (!member) return;
+
+  const owner: MockPerson = {
+    id: 'person-free-space-owner',
+    name: 'Otávio Mendes',
+    email: 'otavio.mendes@exemplo.com.br',
+    isAdmin: false,
+  };
+  [owner, OPEN_FREE_SPACE_NON_MEMBER].forEach((person) => {
+    if (!state.people.some((item) => item.id === person.id)) {
+      state.people.push(person);
+    }
+  });
+
+  const space = addFreeSpace(owner.id, MEMBER_FREE_SPACE_NAME);
+  setSpaceMembersCanInvite(space.id, true);
+  state.spaceMembers.push({ spaceId: space.id, personId: member.id });
 };

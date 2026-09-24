@@ -16,6 +16,7 @@ import {
   seedInstalled,
   seedSampleOrgUnits,
   seedSamplePeople,
+  setSpaceMembersCanInvite,
 } from '@/testing/mocks/db';
 import { server } from '@/testing/mocks/server';
 import { renderApp, screen, userEvent, within } from '@/testing/test-utils';
@@ -61,6 +62,7 @@ test('shows the loading status with the stable heading', async () => {
           type: 'unit',
           name: 'Catalogação',
           reach: 'direct',
+          membersCanInvite: false,
         },
       });
     }),
@@ -306,6 +308,7 @@ test('another error shows Tentar novamente and refetches', async () => {
               type: 'unit',
               name: 'Catalogação',
               reach: 'direct',
+              membersCanInvite: false,
             },
           });
     }),
@@ -395,7 +398,7 @@ test('a FREE space shows Adicionar pessoa to its owner', async () => {
   ).not.toBeInTheDocument();
 });
 
-test('a FREE space shows the member description without Adicionar pessoa', async () => {
+test('a FREE space shows the member description without Adicionar pessoa when closed', async () => {
   seedSamplePeople();
   const ownerId = 'person-sample-1';
   const space = addFreeSpace(ownerId, 'Clube do Livro');
@@ -481,4 +484,95 @@ test('a FREE space shows Pessoas neste espaço without Remover to a member', asy
   expect(
     screen.queryAllByRole('button', { name: /^Remover/ }),
   ).toHaveLength(0);
+});
+
+test('a FREE space shows the invite mode control to its owner', async () => {
+  const space = addFreeSpace(INSTALLED_PERSON_ID, 'Comissão de Leitura');
+
+  renderApp(<View spaceId={space.id} />);
+
+  const group = await screen.findByRole(
+    'group',
+    { name: 'Quem adiciona pessoas' },
+    LAZY_TIMEOUT,
+  );
+  expect(
+    within(group).getByRole('radio', { name: 'Só eu adiciono pessoas' }),
+  ).toBeChecked();
+  expect(
+    within(group).getByRole('radio', {
+      name: 'Qualquer membro adiciona pessoas',
+    }),
+  ).not.toBeChecked();
+  const addButton = screen.getByRole('button', { name: 'Adicionar pessoa' });
+  expect(
+    group.compareDocumentPosition(addButton) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+});
+
+test('a FREE space does not show the invite mode control to a member', async () => {
+  seedSamplePeople();
+  const ownerId = 'person-sample-1';
+  const space = addFreeSpace(ownerId, 'Clube do Livro');
+  setSpaceMembersCanInvite(space.id, true);
+  addSpaceMember(ownerId, space.id, INSTALLED_PERSON_ID);
+
+  renderApp(<View spaceId={space.id} />);
+
+  expect(
+    await screen.findByRole(
+      'heading',
+      { level: 1, name: 'Clube do Livro' },
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole('group', { name: 'Quem adiciona pessoas' }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('radio', { name: 'Só eu adiciono pessoas' }),
+  ).not.toBeInTheDocument();
+});
+
+test('a FREE space shows Adicionar pessoa to a member when open', async () => {
+  seedSamplePeople();
+  const ownerId = 'person-sample-1';
+  const space = addFreeSpace(ownerId, 'Clube do Livro');
+  setSpaceMembersCanInvite(space.id, true);
+  addSpaceMember(ownerId, space.id, INSTALLED_PERSON_ID);
+
+  renderApp(<View spaceId={space.id} />);
+
+  expect(
+    await screen.findByRole(
+      'button',
+      { name: 'Adicionar pessoa' },
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText('Um espaço livre de que você é membro.'),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole('group', { name: 'Quem adiciona pessoas' }),
+  ).not.toBeInTheDocument();
+});
+
+test('a unit space shows neither the invite mode control nor Adicionar pessoa', async () => {
+  renderApp(<View spaceId={CATALOGACAO_SPACE_ID} />);
+
+  expect(
+    await screen.findByRole(
+      'heading',
+      { level: 1, name: 'Catalogação' },
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole('group', { name: 'Quem adiciona pessoas' }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: 'Adicionar pessoa' }),
+  ).not.toBeInTheDocument();
 });

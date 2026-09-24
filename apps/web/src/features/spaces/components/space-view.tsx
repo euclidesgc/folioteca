@@ -6,8 +6,10 @@ import { ContentLayout } from '@/components/layouts/content-layout';
 import { Button } from '@/components/ui/button/button';
 import { paths } from '@/config/paths';
 import type { useSpace } from '@/features/spaces/api/get-space';
+import { useSpaceMembers } from '@/features/spaces/api/get-space-members';
 import type { Space } from '@/features/spaces/api/get-spaces';
 import { AddSpaceMemberDialog } from '@/features/spaces/components/add-space-member-dialog';
+import { SpaceInviteModeControl } from '@/features/spaces/components/space-invite-mode-control';
 import { SpaceMembers } from '@/features/spaces/components/space-members';
 import { NotFoundError } from '@/lib/errors';
 
@@ -24,7 +26,7 @@ const SPACE_TEXTS = {
   },
   free: {
     description: 'Um espaço livre, de que você é dona.',
-    // A member reads the space; only its owner adds people to it.
+    // A member reads the space; it adds people only when the owner opened it.
     memberDescription: 'Um espaço livre de que você é membro.',
   },
 } satisfies Record<
@@ -78,8 +80,21 @@ export function SpaceView({
   const isNotFound = query.error instanceof NotFoundError;
   const space = isNotFound ? undefined : query.data?.data;
   const isFound = space !== undefined;
-  // Only the owner of a free space adds people to it; a member reads it.
-  const isFreeSpaceOwner = space?.type === 'free' && space.reach === 'owner';
+  // The owner of a free space always adds people to it; a member only when
+  // the owner opened it. A unit space has nobody adding people.
+  const canAddPeople =
+    space?.type === 'free' &&
+    (space.reach === 'owner' ||
+      (space.reach === 'member' && space.membersCanInvite));
+  // The same key `SpaceMembers` reads, so the page asks only once. Its owner
+  // is hidden from the search of "Adicionar pessoa".
+  const membersQuery = useSpaceMembers({
+    spaceId,
+    queryConfig: { enabled: canAddPeople },
+  });
+  const ownerId = membersQuery.data?.data.find(
+    (member) => member.role === 'owner',
+  )?.id;
 
   // Right after creating a space the focus lands on the page of the new one,
   // once: a later read of the list does not steal it back.
@@ -179,11 +194,18 @@ export function SpaceView({
           </>
         ) : (
           <>
-            {isFreeSpaceOwner ? (
+            {reach === 'owner' ? (
+              <SpaceInviteModeControl
+                spaceId={spaceId}
+                membersCanInvite={space.membersCanInvite}
+              />
+            ) : null}
+            {canAddPeople ? (
               <div className="mt-6">
                 <AddSpaceMemberDialog
                   spaceId={spaceId}
                   spaceName={space.name}
+                  ownerId={ownerId}
                 />
               </div>
             ) : null}
