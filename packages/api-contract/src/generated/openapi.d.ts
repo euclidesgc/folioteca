@@ -491,7 +491,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Lista os documentos de um espaço de unidade
+         * Lista os documentos de um espaço de unidade ou de um espaço livre
          * @description Lista os documentos fora da lixeira do espaço de unidade ou do espaço livre informado, dos mais recentes para os mais antigos. No espaço de unidade, só quem está lotado diretamente na unidade vê a lista; no espaço livre, o dono ou membro do espaço recebe 200. O 403 continua só para quem alcança um espaço de unidade apenas por herança. Espaço sem alcance, inexistente, com id malformado ou pessoal recebe o mesmo 404 opaco.
          */
         get: operations["listSpaceDocuments"];

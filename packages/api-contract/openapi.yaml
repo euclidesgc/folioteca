@@ -1423,7 +1423,7 @@ paths:
       operationId: listSpaceDocuments
       tags:
         - spaces
-      summary: Lista os documentos de um espaço de unidade
+      summary: Lista os documentos de um espaço de unidade ou de um espaço livre
       description: >-
         Lista os documentos fora da lixeira do espaço de unidade ou do espaço
         livre informado, dos mais recentes para os mais antigos. No espaço de

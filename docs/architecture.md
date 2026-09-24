@@ -172,6 +172,18 @@ nenhuma leitura de `Document` filtra por `assignments`.
 A lista do espaço, `GET /spaces/{spaceId}/documents`, decide o alcance por
 `reachOf` (§6) e filtra os documentos por essa mesma porta.
 
+**Entrega `free-space-documents` (fatia 136).** A participação em espaço
+passou a valer também no espaço livre: lotação direta na unidade de um espaço
+`UNIT`, ou ser dono ou membro de um espaço `FREE`, dá `edit` sobre os
+documentos dele. `isSpaceMember` (antes `isUnitMember`) é lido na mesma
+consulta do documento, a cada pedido, por isso sair do espaço tira o acesso
+na hora. `resolveAccess` segue a ordem dono → lixeira → maior(compartilhamento,
+participação) → `none`. `readableDocumentsWhere` passou a incluir o documento
+do espaço livre de que a pessoa é dona ou membro. A regra 11 do teste
+estrutural `document-access-boundary.test.ts` garante que, fora de
+`access.service.ts`, nenhuma leitura de `Document` filtra por `members` nem
+pelo `ownerId` do espaço.
+
 ## 4. Árvore de unidades
 
 `parentId` + consulta recursiva (`WITH RECURSIVE`). "Unidade e tudo abaixo"
@@ -681,9 +693,8 @@ maiúsculas. O "não encontrado" **continua um só e da tela**: a página do esp
 procura o id na lista da própria pessoa, então espaço livre alheio cai no mesmo
 "Espaço não encontrado." do espaço de unidade. Na API simulada, o espaço livre
 **nasce por um helper só** (`addFreeSpace`), usado pelo handler falso de
-`POST /spaces` e pelos testes. O espaço livre **não dá acesso a documento**: a
-decisão de acesso segue o caminho único da §3, e documento no espaço livre é a
-136.
+`POST /spaces` e pelos testes. O espaço livre **não dá acesso a documento** (até a fatia 136, que dá edição
+ao dono e aos membros): a decisão de acesso segue o caminho único da §3.
 
 **Entrega `unit-space-inherit-parent` (fatia 140)**: quem vê um espaço de
 unidade passa a ser quem tem **lotação direta** nela **mais** quem vê o espaço
@@ -705,15 +716,15 @@ caminho único da §3.
 /spaces/{spaceId}/documents` é a primeira rota por id sob `/spaces/`, com o
 `SessionGuard` da classe e o `organizationId` sempre da sessão. A ordem é **401
 → 404 → 403 → 200**: sem sessão, 401; id malformado, espaço inexistente, de
-outra organização, fora de alcance ou que não é de unidade, o mesmo 404
-"Espaço não encontrado."; alcance só por herança, 403 com a mensagem de lotação
+outra organização, fora de alcance ou que não é de unidade (até a 136, que
+abre a lista ao espaço livre), o mesmo 404 "Espaço não encontrado."; alcance só por herança, 403 com a mensagem de lotação
 direta; membro direto, 200 com os documentos do espaço filtrados pela porta da
 §3. O alcance vem de `SpacesService.reachOf`, que responde `direct`,
 `inherited` ou `none` reaproveitando a resolução da herança da 140.
 `POST /documents` ganhou `spaceId` **opcional** no corpo: sem ele, o documento
 nasce no espaço pessoal, como antes; com ele, nasce no espaço `UNIT` em que a
 pessoa está lotada diretamente, e qualquer outro espaço (inclusive o alcançado
-só por herança) é o mesmo 404 opaco. A regra 10 da fronteira (§3) garante que
+só por herança) é o mesmo 404 opaco (a 136 acrescenta o espaço livre). A regra 10 da fronteira (§3) garante que
 só `access.service.ts` filtra `Document` por `assignments`.
 
 **Entrega `unit-space-members` (fatia 128)**: `GET /spaces/{spaceId}` devolve
@@ -769,6 +780,16 @@ na próxima leitura de `GET /spaces`. Na tela, a lista de pessoas é **refeita
 depois de adicionar ou remover**, pela invalidação de
 `['space-members', spaceId]` (`add-space-member.ts` e
 `remove-space-member.ts`), sem atualização otimista.
+
+**Entrega `free-space-documents` (fatia 136)**: `SpacesService.reachOf` passou
+a cobrir o espaço `FREE`: dono ou membro responde `'direct'`, e quem não é
+nenhum dos dois, `'none'`. Com isso `GET /spaces/{spaceId}/documents` responde
+200 ao dono e aos membros do espaço livre, com os documentos filtrados pela
+porta da §3, e 404 "Espaço não encontrado." a quem está fora. `POST
+/documents` aceita `spaceId` de espaço livre de que a pessoa é dona ou membro;
+qualquer outro espaço livre segue o mesmo 404 opaco. A regra 11 da fronteira
+(§3) garante que só `access.service.ts` filtra `Document` por `members` ou pelo
+dono do espaço.
 
 ## 7. Testes
 

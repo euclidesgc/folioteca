@@ -125,13 +125,13 @@ A ordem importa: API simulada antes da tela. Ao fim da fase, no app com API simu
 
 ## Fase 3 — e2e da jornada e documentação: a fatia utilizável de ponta a ponta
 
-- [ ] T3.1 — Documentação da arquitetura
+- [x] T3.1 — Documentação da arquitetura
   - Arquivos: `docs/architecture.md` (alterar)
   - O que fazer, em pt_BR: §3 "access": parágrafo **"Entrega `free-space-documents` (fatia 136)"**: participação em espaço (`UNIT` com lotação direta; `FREE` dono ou membro) = `edit`, relida a cada pedido na mesma consulta; ordem dono → lixeira → maior(compartilhamento, participação) → `none`; `readableDocumentsWhere` inclui o espaço livre; regra 11 da fronteira (só `access.service.ts` filtra `Document` por `members` ou pelo dono do espaço). §spaces: `reachOf` cobre `FREE` (dono ou membro → `'direct'`); `POST /documents` aceita `spaceId` de espaço livre.
   - Skills: —
   - Complexidade: baixa
 
-- [ ] T3.2 — Testes da fase 3 (e2e: dono cria no espaço livre, membro abre o documento do dono, só pelo teclado)
+- [x] T3.2 — Testes da fase 3 (e2e: dono cria no espaço livre, membro abre o documento do dono, só pelo teclado)
   - Arquivos: `apps/web/e2e/tests/free-space-documents.spec.ts` (criar)
   - O que fazer (D6): API simulada, estado inicial por `page.addInitScript`, como os specs existentes. `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo; a primeira asserção após cada mudança de rota usa `ROUTE_TIMEOUT`; `toBeFocused()` antes de cada `Enter`/`Space`/`Escape`; nenhum `waitForTimeout`; nenhuma regra do axe desativada; outros specs e `apps/web/e2e/a11y.ts` intocados.
     - `the owner creates a document in a free space using only the keyboard`: cria um espaço livre pelo teclado, vê "Nenhum documento neste espaço ainda. Crie o primeiro em “Novo documento”.", `expectNoSeriousA11yViolations(page)`, alcança "Novo documento" por `Tab`, aciona, chega ao documento, volta ao espaço e vê o documento como primeiro item da lista.
@@ -141,11 +141,11 @@ A ordem importa: API simulada antes da tela. Ao fim da fase, no app com API simu
 
 ### Critérios de aceite da fase 3
 
-- [ ] CA3.1 — `pnpm test:e2e` na raiz sai com 0 (antigos e novos), e `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` continuam saindo com 0 e sem aviso, com o cache do `tsc` limpo.
-- [ ] CA3.2 — `apps/web/e2e/tests/free-space-documents.spec.ts` contém os casos `the owner creates a document in a free space using only the keyboard` e `a member opens the owner document of a free space`, e `pnpm --filter web exec playwright test --list` os lista. `rg -n "test\.skip|test\.only|waitForTimeout|disableRules" apps/web/e2e/tests/free-space-documents.spec.ts` é vazio.
-- [ ] CA3.3 — Lendo o spec: `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo e usado na primeira asserção após cada mudança de rota (asserção seguinte com timeout maior é aceita); `toBeFocused()` antes de cada tecla de ação; `expectNoSeriousA11yViolations(page)` nos dois casos; o primeiro assere o texto do vazio e o documento criado como primeiro item ao voltar; o segundo usa `mock-space-members` com `free-member` e assere o link `Ata da primeira reunião`.
-- [ ] CA3.4 — `docs/architecture.md` tem o parágrafo "Entrega `free-space-documents` (fatia 136)" citando `isSpaceMember` ou "participação", `readableDocumentsWhere`, a regra 11 e `reachOf` cobrindo `FREE`.
-- [ ] CA3.5 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `POST documents with a free spaceId answers 201 to a member in that space owned by the caller`, `the free space owner renames the member document with 200` e `GET space documents answers 200 to a member of a FREE space`; `pnpm exec vitest run --project web` (0) inclui `the free space page shows the owner document to a member`; `pnpm test:e2e` (0) inclui os dois casos de `free-space-documents.spec.ts`.
+- [x] CA3.1 — `pnpm test:e2e` na raiz sai com 0 (antigos e novos), e `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` continuam saindo com 0 e sem aviso, com o cache do `tsc` limpo.
+- [x] CA3.2 — `apps/web/e2e/tests/free-space-documents.spec.ts` contém os casos `the owner creates a document in a free space using only the keyboard` e `a member opens the owner document of a free space`, e `pnpm --filter web exec playwright test --list` os lista. `rg -n "test\.skip|test\.only|waitForTimeout|disableRules" apps/web/e2e/tests/free-space-documents.spec.ts` é vazio.
+- [x] CA3.3 — Lendo o spec: `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo e usado na primeira asserção após cada mudança de rota (asserção seguinte com timeout maior é aceita); `toBeFocused()` antes de cada tecla de ação; `expectNoSeriousA11yViolations(page)` nos dois casos; o primeiro assere o texto do vazio e o documento criado como primeiro item ao voltar; o segundo usa `mock-space-members` com `free-member` e assere o link `Ata da primeira reunião`.
+- [x] CA3.4 — `docs/architecture.md` tem o parágrafo "Entrega `free-space-documents` (fatia 136)" citando `isSpaceMember` ou "participação", `readableDocumentsWhere`, a regra 11 e `reachOf` cobrindo `FREE`.
+- [x] CA3.5 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `POST documents with a free spaceId answers 201 to a member in that space owned by the caller`, `the free space owner renames the member document with 200` e `GET space documents answers 200 to a member of a FREE space`; `pnpm exec vitest run --project web` (0) inclui `the free space page shows the owner document to a member`; `pnpm test:e2e` (0) inclui os dois casos de `free-space-documents.spec.ts`.
 
 ## Desvios previstos
 

@@ -147,8 +147,9 @@ export class SpacesController {
 
   /**
    * Documentos do espaço de unidade, só para quem está lotado diretamente
-   * nela. Id malformado, espaço inexistente, fora de alcance ou que não é de
-   * unidade: o mesmo 404. Alcance só por herança: 403.
+   * nela, ou do espaço livre, só para o dono ou um membro (200). Id
+   * malformado, espaço inexistente ou fora de alcance: o mesmo 404. Alcance
+   * só por herança: 403.
    */
   @Get(':spaceId/documents')
   async listSpaceDocuments(
