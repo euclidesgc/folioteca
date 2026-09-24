@@ -182,7 +182,8 @@ participação) → `none`. `readableDocumentsWhere` passou a incluir o document
 do espaço livre de que a pessoa é dona ou membro. A regra 11 do teste
 estrutural `document-access-boundary.test.ts` garante que, fora de
 `access.service.ts`, nenhuma leitura de `Document` filtra por `members` nem
-pelo `ownerId` do espaço.
+pelo `ownerId` do espaço. Desde a fatia 142, o membro vale o nível dele
+(`EDIT` ou `VIEW`), não mais sempre `edit`.
 
 **Entrega `free-space-restrict-invite` (fatia 141).** Quem adiciona pessoas ao
 espaço livre é o dono e, quando o espaço está aberto com `membersCanInvite`,
@@ -193,7 +194,22 @@ escrito à mão na migration 0018 porque o Prisma não o expressa. `PATCH
 /spaces/{spaceId}` (`SpacesService.updateSettings`) muda o flag e é **só do
 dono**: membro recebe 403, e quem não alcança o espaço, 404. `addMember` relê
 o flag a cada pedido, na mesma consulta do espaço, por isso fechar o espaço
-barra o membro na hora.
+barra o membro na hora. Desde a fatia 142, o membro leitor (`VIEW`) não
+adiciona pessoas nem com o espaço aberto.
+
+**Entrega `free-space-member-roles` (fatia 142).** O membro do espaço livre
+tem nível `EDIT` ou `VIEW` na coluna `SpaceMember.level` (migration 0019,
+padrão `EDIT`, por isso quem já era membro continua editor); o dono segue
+`edit` sem nível gravado. Só o dono muda o nível, por `PATCH
+/spaces/{spaceId}/members/{personId}` (`SpacesService.updateMemberLevel`):
+membro recebe 403, o dono como alvo, 400, e quem não é membro, 404. O
+`AccessService` dá `view` ao leitor e mantém o maior entre compartilhamento e
+espaço, então um share `edit` ainda libera a escrita. Quem cria documento
+(`DocumentsService.create` responde 403 ao leitor) e quem adiciona pessoa
+(`addMember`) é decidido no servidor, e a tela só obedece: `getDetail` devolve
+`canCreateDocuments` e `canAddPeople` no `SpaceDetail`. Rebaixar vale a partir
+da próxima conexão ao documento; a sessão de colaboração já aberta não é
+derrubada.
 
 ## 4. Árvore de unidades
 

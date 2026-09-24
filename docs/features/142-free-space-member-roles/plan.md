@@ -171,13 +171,13 @@ Caminhos relativos à raiz do repositório. A ordem importa: API simulada e muta
 
 ## Fase 3 — e2e da jornada e documentação: a fatia utilizável de ponta a ponta
 
-- [ ] T3.1 — Documentação de arquitetura
+- [x] T3.1 — Documentação de arquitetura
   - Arquivos: `docs/architecture.md` (alterar)
   - O que fazer, em pt_BR, só acrescentando linhas: em §3, parágrafo **"Entrega `free-space-member-roles` (fatia 142)"**: membro de espaço livre tem nível `EDIT` ou `VIEW` em `SpaceMember.level` (0019, padrão `EDIT`); o dono muda por `PATCH /spaces/{spaceId}/members/{personId}`; o `AccessService` dá `view` ao leitor e mantém o maior entre share e espaço; quem cria documento e quem adiciona pessoa é decidido no servidor e chega à tela por `canCreateDocuments` e `canAddPeople` do `SpaceDetail`; rebaixar vale a partir da próxima conexão.
   - Skills: —
   - Complexidade: baixa
 
-- [ ] T3.2 — Testes da fase 3 (e2e: o dono rebaixa pelo teclado e o leitor só lê)
+- [x] T3.2 — Testes da fase 3 (e2e: o dono rebaixa pelo teclado e o leitor só lê)
   - Arquivos: `apps/web/e2e/tests/free-space-member-roles.spec.ts` (criar)
   - O que fazer (D10): API simulada, estado inicial por `page.addInitScript` como os specs existentes. `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo; a primeira asserção após cada mudança de rota o usa (asserção seguinte com timeout maior é aceita); `toBeFocused()` antes de cada `Enter`/`Space`/`Escape`/seta; nenhum `waitForTimeout`; nenhuma regra do axe desativada; outros specs e `apps/web/e2e/a11y.ts` intocados.
     - `the owner makes a member a viewer using only the keyboard`: dono abre a página do espaço livre, alcança o seletor "Nível de {nome}" com `Tab`, escolhe "Pode ver" pelo teclado, vê "Salvando…", o seletor continua focado, vê "Nível de {nome} atualizado" e o selo "leitor" na linha; `expectNoSeriousA11yViolations(page)`.
@@ -187,11 +187,11 @@ Caminhos relativos à raiz do repositório. A ordem importa: API simulada e muta
 
 ### Critérios de aceite da fase 3
 
-- [ ] CA3.1 — `pnpm test:e2e` na raiz sai com 0 (antigos e novos), e `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` continuam saindo com 0 e sem aviso, com o cache do `tsc` limpo. Repetição única permitida só para teste antigo instável.
-- [ ] CA3.2 — `apps/web/e2e/tests/free-space-member-roles.spec.ts` contém `the owner makes a member a viewer using only the keyboard` e `a viewer sees the space without Novo documento nor Adicionar pessoa and opens a document read only`, e `pnpm --filter web exec playwright test --list` os lista. `rg -n "test\.skip|test\.only|waitForTimeout|disableRules" apps/web/e2e/tests/free-space-member-roles.spec.ts` é vazio.
-- [ ] CA3.3 — Lendo o spec: `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo, usado na primeira asserção após cada mudança de rota (asserção seguinte com timeout maior é aceita); `toBeFocused()` antes de cada tecla de ação; `expectNoSeriousA11yViolations(page)` no primeiro caso; o primeiro caso assere `Salvando…`, o seletor `Nível de …` focado, o texto `atualizado` e o selo `leitor`; o segundo usa `free-viewer`, assere a ausência de "Novo documento" e de "Adicionar pessoa" e o texto `Somente leitura`.
-- [ ] CA3.4 — `docs/architecture.md` tem o parágrafo "Entrega `free-space-member-roles` (fatia 142)" citando `SpaceMember.level`, `PATCH /spaces/{spaceId}/members/{personId}`, `canCreateDocuments` e `canAddPeople`.
-- [ ] CA3.5 — Utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `POST documents with a free spaceId answers 403 to a viewer member with Só quem pode editar cria documentos neste espaço.` e `PATCH space member answers 200 to the owner and GET space members reflects the level`; `pnpm exec vitest run --project web` (0) inclui `choosing Pode ver sends view and shows Salvando`; `pnpm test:e2e` (0) inclui os dois casos de `free-space-member-roles.spec.ts`.
+- [x] CA3.1 — `pnpm test:e2e` na raiz sai com 0 (antigos e novos), e `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` continuam saindo com 0 e sem aviso, com o cache do `tsc` limpo. Repetição única permitida só para teste antigo instável.
+- [x] CA3.2 — `apps/web/e2e/tests/free-space-member-roles.spec.ts` contém `the owner makes a member a viewer using only the keyboard` e `a viewer sees the space without Novo documento nor Adicionar pessoa and opens a document read only`, e `pnpm --filter web exec playwright test --list` os lista. `rg -n "test\.skip|test\.only|waitForTimeout|disableRules" apps/web/e2e/tests/free-space-member-roles.spec.ts` é vazio.
+- [x] CA3.3 — Lendo o spec: `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo, usado na primeira asserção após cada mudança de rota (asserção seguinte com timeout maior é aceita); `toBeFocused()` antes de cada tecla de ação; `expectNoSeriousA11yViolations(page)` no primeiro caso; o primeiro caso assere `Salvando…`, o seletor `Nível de …` focado, o texto `atualizado` e o selo `leitor`; o segundo usa `free-viewer`, assere a ausência de "Novo documento" e de "Adicionar pessoa" e o texto `Somente leitura`.
+- [x] CA3.4 — `docs/architecture.md` tem o parágrafo "Entrega `free-space-member-roles` (fatia 142)" citando `SpaceMember.level`, `PATCH /spaces/{spaceId}/members/{personId}`, `canCreateDocuments` e `canAddPeople`.
+- [x] CA3.5 — Utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `POST documents with a free spaceId answers 403 to a viewer member with Só quem pode editar cria documentos neste espaço.` e `PATCH space member answers 200 to the owner and GET space members reflects the level`; `pnpm exec vitest run --project web` (0) inclui `choosing Pode ver sends view and shows Salvando`; `pnpm test:e2e` (0) inclui os dois casos de `free-space-member-roles.spec.ts`.
 
 ## DoD da entrega
 
