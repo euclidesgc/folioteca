@@ -25,6 +25,8 @@ import { SharesService } from './shares.service';
 type DocumentResponse = components['schemas']['DocumentResponse'];
 type DocumentsResponse = components['schemas']['DocumentsResponse'];
 type DocumentShareResponse = components['schemas']['DocumentShareResponse'];
+type DocumentAccessListResponse =
+  components['schemas']['DocumentAccessListResponse'];
 
 /**
  * O id do documento chega cru, sem validação de formato: id malformado vira
@@ -141,6 +143,14 @@ export class DocumentsController {
     @Param('documentId') documentId: string,
   ): Promise<void> {
     await this.favorites.remove(person.id, documentId);
+  }
+
+  @Get(':documentId/shares')
+  async listDocumentShares(
+    @CurrentPerson() person: PersonWithOrganization,
+    @Param('documentId') documentId: string,
+  ): Promise<DocumentAccessListResponse> {
+    return this.shares.list(person, documentId);
   }
 
   @Put(':documentId/shares/:personId')

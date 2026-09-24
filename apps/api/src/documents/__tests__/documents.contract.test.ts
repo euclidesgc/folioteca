@@ -570,6 +570,66 @@ test('PUT documents shares answers the documented 409', async () => {
   await expectShareContract(await putShare(documentId, person.id, cookie), 409);
 });
 
+const SHARES_LIST_CONTRACT_PATH = '/documents/{documentId}/shares';
+
+function getShares(documentId: string, listCookie?: string): Promise<Response> {
+  const request = httpRequest(app)
+    .get(`/api/documents/${documentId}/shares`)
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return listCookie === undefined
+    ? request
+    : request.set('Cookie', listCookie);
+}
+
+async function expectSharesListContract(
+  response: Response,
+  status: number,
+): Promise<void> {
+  expect(response.status).toBe(status);
+  await expectMatchesContract({
+    path: SHARES_LIST_CONTRACT_PATH,
+    method: 'get',
+    status,
+    body: response.body,
+  });
+}
+
+test('GET documents shares answers the documented 200', async () => {
+  const documentId = await createDocumentId();
+  const { person } = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+  await putShare(documentId, person.id, cookie);
+
+  await expectSharesListContract(await getShares(documentId, cookie), 200);
+});
+
+test('GET documents shares answers the documented 401', async () => {
+  const documentId = await createDocumentId();
+
+  await expectSharesListContract(await getShares(documentId), 401);
+});
+
+test('GET documents shares answers the documented 403', async () => {
+  const documentId = await createDocumentId();
+  const viewer = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+  await putShare(documentId, viewer.person.id, cookie);
+
+  await expectSharesListContract(
+    await getShares(documentId, viewer.cookie),
+    403,
+  );
+});
+
+test('GET documents shares answers the documented 404', async () => {
+  await expectSharesListContract(await getShares(randomUUID(), cookie), 404);
+});
+
 /** `POST /api/documents` com o corpo informado, na sessão da instalação. */
 function postDocumentWith(body: object): Promise<Response> {
   return httpRequest(app)

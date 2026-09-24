@@ -457,6 +457,50 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /documents/{documentId}/shares:
+    get:
+      operationId: listDocumentShares
+      tags:
+        - documents
+      summary: Lista quem tem acesso ao documento
+      description: >-
+        Lista quem tem acesso ao documento. Só o proprietário consulta. O
+        proprietário vem primeiro, depois as pessoas com acesso direto em ordem
+        alfabética. Documento na lixeira continua legível para o proprietário.
+        As checagens acontecem nesta ordem: 401, 404 (documento inexistente ou
+        sem acesso), 403 (quem chama não é o proprietário).
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: O proprietário e as pessoas com acesso ao documento.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentAccessListResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Só o proprietário pode ver quem tem acesso a este documento.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: O documento não existe ou não está acessível.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /documents/{documentId}/shares/{personId}:
     put:
       operationId: shareDocument
@@ -2573,6 +2617,35 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/DocumentShare"
+      required: [data]
+    DocumentAccessEntry:
+      type: object
+      properties:
+        personId:
+          type: string
+          format: uuid
+          description: Identificador da pessoa com acesso.
+        name:
+          type: string
+          description: Nome da pessoa.
+        email:
+          type: string
+          description: E-mail da pessoa.
+        level:
+          type: string
+          enum: [owner, view, edit]
+          description: Nível de acesso da pessoa; owner é o proprietário.
+        isCurrentPerson:
+          type: boolean
+          description: Indica se a linha é de quem fez a consulta.
+      required: [personId, name, email, level, isCurrentPerson]
+    DocumentAccessListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentAccessEntry"
       required: [data]
     UpdateDocumentBody:
       type: object

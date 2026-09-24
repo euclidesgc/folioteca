@@ -31,29 +31,48 @@ const storedPerson = {
   email: 'joao@exemplo.org',
 };
 
+/** Linha de `documentShare.findMany` como `list` a seleciona. */
+type StoredShareRow = {
+  level: 'VIEW' | 'EDIT';
+  person: { id: string; name: string; email: string };
+};
+
 /** Serviço com o Prisma e o acesso substituídos por dublês. */
 function createService(
   level: AccessLevel,
-  { canWrite = true }: { canWrite?: boolean } = {},
+  {
+    canWrite = true,
+    shareRows = [],
+  }: { canWrite?: boolean; shareRows?: StoredShareRow[] } = {},
 ): {
   service: SharesService;
   findFirst: ReturnType<typeof vi.fn>;
   upsert: ReturnType<typeof vi.fn>;
+  findMany: ReturnType<typeof vi.fn>;
+  canWriteMock: ReturnType<typeof vi.fn>;
 } {
   const findFirst = vi.fn().mockResolvedValue(storedPerson);
   const upsert = vi.fn().mockResolvedValue({});
+  const findMany = vi.fn().mockResolvedValue(shareRows);
+  const canWriteMock = vi.fn().mockResolvedValue(canWrite);
 
   const prisma = {
     person: { findFirst },
-    documentShare: { upsert },
+    documentShare: { upsert, findMany },
   } as unknown as PrismaService;
 
   const access = {
     resolveAccess: vi.fn().mockResolvedValue(level),
-    canWrite: vi.fn().mockResolvedValue(canWrite),
+    canWrite: canWriteMock,
   } as unknown as AccessService;
 
-  return { service: new SharesService(prisma, access), findFirst, upsert };
+  return {
+    service: new SharesService(prisma, access),
+    findFirst,
+    upsert,
+    findMany,
+    canWriteMock,
+  };
 }
 
 /** Erro lançado pela chamada, ou `undefined` quando ela termina bem. */
@@ -186,4 +205,115 @@ test('share upserts VIEW and returns the person from the database', async () => 
       level: 'view',
     },
   });
+});
+
+const OTHER_PERSON_ID = '55555555-5555-4555-8555-555555555555';
+
+const owner = {
+  id: REQUESTER_ID,
+  organizationId: ORGANIZATION_ID,
+  name: 'Maria Souza',
+  email: 'maria@exemplo.org',
+} as unknown as PersonWithOrganization;
+
+test('list answers 404 when the requester has no access', async () => {
+  const { service } = createService('none');
+
+  const error = await errorOf(service.list(owner, DOCUMENT_ID));
+
+  expect(error).toBeInstanceOf(NotFoundException);
+  expect((error as NotFoundException).getStatus()).toBe(404);
+});
+
+test('list answers 403 to a view person', async () => {
+  const { service } = createService('view');
+
+  const error = await errorOf(service.list(owner, DOCUMENT_ID));
+
+  expect(error).toBeInstanceOf(ForbiddenException);
+  expect((error as ForbiddenException).message).toBe(
+    'Só o proprietário pode ver quem tem acesso a este documento.',
+  );
+});
+
+test('list checks access before reading shares', async () => {
+  const hidden = createService('none');
+  const viewer = createService('view');
+
+  await errorOf(hidden.service.list(owner, DOCUMENT_ID));
+  await errorOf(viewer.service.list(owner, DOCUMENT_ID));
+
+  expect(hidden.findMany).not.toHaveBeenCalled();
+  expect(viewer.findMany).not.toHaveBeenCalled();
+});
+
+test('list does not check canWrite', async () => {
+  const { service, canWriteMock } = createService('owner', {
+    canWrite: false,
+  });
+
+  const result = await service.list(owner, DOCUMENT_ID);
+
+  expect(canWriteMock).not.toHaveBeenCalled();
+  expect(result.data).toHaveLength(1);
+});
+
+test('list maps VIEW to view and EDIT to edit', async () => {
+  const { service } = createService('owner', {
+    shareRows: [
+      { level: 'VIEW', person: storedPerson },
+      {
+        level: 'EDIT',
+        person: {
+          id: OTHER_PERSON_ID,
+          name: 'Pedro Alves',
+          email: 'pedro@exemplo.org',
+        },
+      },
+    ],
+  });
+
+  const result = await service.list(owner, DOCUMENT_ID);
+
+  expect(
+    result.data.map((entry) => [entry.personId, entry.level]),
+  ).toEqual([
+    [REQUESTER_ID, 'owner'],
+    [PERSON_ID, 'view'],
+    [OTHER_PERSON_ID, 'edit'],
+  ]);
+});
+
+test('list puts the owner first with isCurrentPerson true', async () => {
+  const { service } = createService('owner', {
+    shareRows: [
+      {
+        level: 'VIEW',
+        person: {
+          id: OTHER_PERSON_ID,
+          name: 'Abel Costa',
+          email: 'abel@exemplo.org',
+        },
+      },
+    ],
+  });
+
+  const result = await service.list(owner, DOCUMENT_ID);
+
+  expect(result.data).toEqual([
+    {
+      personId: REQUESTER_ID,
+      name: 'Maria Souza',
+      email: 'maria@exemplo.org',
+      level: 'owner',
+      isCurrentPerson: true,
+    },
+    {
+      personId: OTHER_PERSON_ID,
+      name: 'Abel Costa',
+      email: 'abel@exemplo.org',
+      level: 'view',
+      isCurrentPerson: false,
+    },
+  ]);
 });

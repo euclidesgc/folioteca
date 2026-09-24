@@ -179,6 +179,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/documents/{documentId}/shares": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista quem tem acesso ao documento
+         * @description Lista quem tem acesso ao documento. Só o proprietário consulta. O proprietário vem primeiro, depois as pessoas com acesso direto em ordem alfabética. Documento na lixeira continua legível para o proprietário. As checagens acontecem nesta ordem: 401, 404 (documento inexistente ou sem acesso), 403 (quem chama não é o proprietário).
+         */
+        get: operations["listDocumentShares"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/documents/{documentId}/shares/{personId}": {
         parameters: {
             query?: never;
@@ -949,6 +969,27 @@ export interface components {
         DocumentShareResponse: {
             data: components["schemas"]["DocumentShare"];
         };
+        DocumentAccessEntry: {
+            /**
+             * Format: uuid
+             * @description Identificador da pessoa com acesso.
+             */
+            personId: string;
+            /** @description Nome da pessoa. */
+            name: string;
+            /** @description E-mail da pessoa. */
+            email: string;
+            /**
+             * @description Nível de acesso da pessoa; owner é o proprietário.
+             * @enum {string}
+             */
+            level: "owner" | "view" | "edit";
+            /** @description Indica se a linha é de quem fez a consulta. */
+            isCurrentPerson: boolean;
+        };
+        DocumentAccessListResponse: {
+            data: components["schemas"]["DocumentAccessEntry"][];
+        };
         UpdateDocumentBody: {
             title: string;
         };
@@ -1622,6 +1663,55 @@ export interface operations {
                 };
             };
             /** @description A requisição foi recusada. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O documento não existe ou não está acessível. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listDocumentShares: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O proprietário e as pessoas com acesso ao documento. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentAccessListResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Só o proprietário pode ver quem tem acesso a este documento. */
             403: {
                 headers: {
                     [name: string]: unknown;
