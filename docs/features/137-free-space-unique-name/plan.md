@@ -75,7 +75,7 @@ Ao fim da fase, pela API, a mesma pessoa que cria "Projeto Alfa" e depois "proje
 
 A ordem importa: API simulada antes do formulário. Ao fim da fase, no app com API simulada, criar "Projeto X" e depois "PROJETO X" mantém o diálogo aberto com `Você já tem um espaço com esse nome.` no campo "Nome", com foco nele; trocar para "Projeto Y" cria o espaço.
 
-- [ ] T2.1 — API simulada recusa nome repetido do mesmo dono
+- [x] T2.1 — API simulada recusa nome repetido do mesmo dono
   - Arquivos: `apps/web/src/testing/mocks/handlers/spaces.ts` (alterar); `apps/web/src/testing/mocks/db.ts` (alterar)
   - O que fazer (D5):
     - `handlers/spaces.ts`: no `POST ${env.API_URL}/spaces`, depois do `parse` e antes de `addFreeSpace`, se `state.spaces` já tem espaço com `type: 'free'`, o mesmo `ownerId` da pessoa e `name.toLowerCase()` igual ao `parsed.data.toLowerCase()`, responde `409` com `{ message: 'Você já tem um espaço com esse nome.' }` e não grava.
@@ -83,19 +83,19 @@ A ordem importa: API simulada antes do formulário. Ao fim da fase, no app com A
   - Skills: api-mocking
   - Complexidade: baixa
 
-- [ ] T2.2 — Formulário trata o 409 como erro do campo "Nome"
+- [x] T2.2 — Formulário trata o 409 como erro do campo "Nome"
   - Arquivos: `apps/web/src/features/spaces/components/create-space-form.tsx` (alterar)
   - O que fazer (D4, R4, R5, R9, R10): `getNameErrorMessage` passa a aceitar `status` `400` **ou** `409`, lendo `errors[0].message` ou `message` como hoje. Com isso o `onError` existente faz `setError('name', { message }, { shouldFocus: true })` (confirmar que é assim; se faltar `shouldFocus: true`, acrescentar) e `hasServerFailure` fica falso. Estado de recusa, usando o erro de campo já existente do `Input` (sem receita nova no `docs/design.md`): o campo "Nome" mantém o texto digitado e mostra abaixo "Você já tem um espaço com esse nome."; o foco vai para "Nome"; o botão volta a "Criar espaço"; o diálogo não fecha; a seção "Espaços" da barra lateral não muda (a lista não é invalidada); o aviso "Não foi possível criar o espaço. Tente de novo em instantes." **não** aparece.
   - Skills: forms, error-handling, interface-design
   - Complexidade: baixa
 
-- [ ] T2.3 — Documentação da arquitetura
+- [x] T2.3 — Documentação da arquitetura
   - Arquivos: `docs/architecture.md` (alterar)
   - O que fazer, em pt_BR: junto da nota da migration `0007`, parágrafo **"Entrega `free-space-unique-name` (fatia 137)"**: índice `Space_free_owner_name_key` em `("ownerId", lower("name")) WHERE "type" = 'FREE'` escrito à mão na `0017`, invisível ao `schema.prisma` (não rodar `migrate diff` nessa tabela); `SpacesService.create` checa antes e converte `P2002` no mesmo `409`; `isUniqueViolation` em `apps/api/src/common/`.
   - Skills: —
   - Complexidade: baixa
 
-- [ ] T2.4 — Testes da fase 2
+- [x] T2.4 — Testes da fase 2
   - Arquivos: `apps/web/src/features/spaces/components/__tests__/create-space-form.test.tsx` (alterar); `apps/web/e2e/tests/free-spaces.spec.ts` (alterar)
   - O que fazer: banco falso pelos ajudantes; `userEvent`; papel e nome acessível em pt_BR; sem `console.error`/`console.warn`/aviso de `act(...)`.
     - `create-space-form.test.tsx`: `a 409 from the server shows its message on the Nome field` (texto "Você já tem um espaço com esse nome." visível, campo "Nome" com o foco e o valor digitado, diálogo aberto, botão "Criar espaço" habilitado); `a 409 does not show the form alert` (sem "Não foi possível criar o espaço. Tente de novo em instantes."); `after a 409 a different name creates the space` (nome corrigido → sucesso pelo caminho já existente). Os casos existentes `a 400 from the server shows its message on the Nome field`, `a 500 shows the form alert and keeps the dialog open` e `a double Enter sends a single request` continuam sem edição.
@@ -106,15 +106,15 @@ A ordem importa: API simulada antes do formulário. Ao fim da fase, no app com A
 
 ### Critérios de aceite da fase 2
 
-- [ ] CA2.1 — Com `docker compose up -d`, na raiz e com o cache do `tsc` limpo: `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` saem com 0 e sem aviso; a saída de `pnpm test` não tem `console.error`, `console.warn` nem aviso de `act(...)`. `pnpm test:e2e` (todos os e2e) sai com 0.
-- [ ] CA2.2 — `apps/web/src/features/spaces/components/create-space-form.tsx`, lido: `getNameErrorMessage` aceita `status` `400` e `409`; o `onError` chama `setError('name', …, { shouldFocus: true })` com a mensagem do servidor; `hasServerFailure` depende de `getNameErrorMessage(...) === null`. `rg -n "style=\{\{|!important|forwardRef|: JSX\.|<button" apps/web/src/features/spaces/components/create-space-form.tsx` é vazio; os textos "Criar espaço" e "Não foi possível criar o espaço. Tente de novo em instantes." continuam no arquivo; nenhuma receita nova em `docs/design.md`.
-- [ ] CA2.3 — `apps/web/src/testing/mocks/handlers/spaces.ts`, lido: o `POST` de `${env.API_URL}/spaces` responde `409` com `message` `Você já tem um espaço com esse nome.` quando há espaço `type: 'free'` do mesmo `ownerId` com `toLowerCase()` igual, antes de `addFreeSpace`. `rg -n "as the real API accepts" apps/web/src/testing/mocks/db.ts` é vazio.
-- [ ] CA2.4 — `pnpm exec vitest run --project web` sai com 0 e `rg -n "^\s*(it|test)(\.each)?\(" apps/web/src/features/spaces/components/__tests__/create-space-form.test.tsx` lista `a 409 from the server shows its message on the Nome field`, `a 409 does not show the form alert`, `after a 409 a different name creates the space` e os três casos antigos com os mesmos nomes.
-- [ ] CA2.5 — `apps/web/e2e/tests/free-spaces.spec.ts` contém `a repeated name is refused on the Nome field and a new name creates the space using only the keyboard`, e `pnpm --filter web exec playwright test --list` o lista. Lendo o caso: usa "Projeto X", "PROJETO X" e "Projeto Y"; assere "Você já tem um espaço com esse nome."; `toBeFocused()` antes de cada `Enter`; `expectNoSeriousA11yViolations(page)` no estado de recusa; a primeira asserção após a mudança de rota usa `ROUTE_TIMEOUT` (asserção seguinte com timeout maior é aceita). `rg -n "test\.skip|test\.only|waitForTimeout|disableRules" apps/web/e2e/tests/free-spaces.spec.ts` é vazio.
-- [ ] CA2.6 — `docs/architecture.md` tem o parágrafo "Entrega `free-space-unique-name` (fatia 137)" citando `Space_free_owner_name_key`, `0017`, `P2002` e `isUniqueViolation`.
-- [ ] CA2.7 — `rg -n "sleep\(|setTimeout\(" apps/web/src/features/spaces/components/__tests__/create-space-form.test.tsx apps/web/e2e/tests/free-spaces.spec.ts` é vazio; `rg -n "eslint-disable" apps/web/src apps/web/e2e | rg -v -- "--"` é vazio.
-- [ ] CA2.8 — Cobertura ≥ 80% de linhas para `apps/web/src/features/spaces/components/create-space-form.tsx`, lida em `coverage/coverage-summary.json` gerado na raiz com `pnpm exec vitest run --coverage --coverage.reporter=json-summary`.
-- [ ] CA2.9 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `POST spaces answers 409 to a second space with the same name from the same owner` e `POST spaces accepts the same name from a different owner`; `pnpm exec vitest run --project web` (0) inclui `a 409 from the server shows its message on the Nome field`; `pnpm test:e2e` (0) inclui o novo caso de `free-spaces.spec.ts`.
+- [x] CA2.1 — Com `docker compose up -d`, na raiz e com o cache do `tsc` limpo: `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` saem com 0 e sem aviso; a saída de `pnpm test` não tem `console.error`, `console.warn` nem aviso de `act(...)`. `pnpm test:e2e` (todos os e2e) sai com 0.
+- [x] CA2.2 — `apps/web/src/features/spaces/components/create-space-form.tsx`, lido: `getNameErrorMessage` aceita `status` `400` e `409`; o `onError` chama `setError('name', …, { shouldFocus: true })` com a mensagem do servidor; `hasServerFailure` depende de `getNameErrorMessage(...) === null`. `rg -n "style=\{\{|!important|forwardRef|: JSX\.|<button" apps/web/src/features/spaces/components/create-space-form.tsx` é vazio; os textos "Criar espaço" e "Não foi possível criar o espaço. Tente de novo em instantes." continuam no arquivo; nenhuma receita nova em `docs/design.md`.
+- [x] CA2.3 — `apps/web/src/testing/mocks/handlers/spaces.ts`, lido: o `POST` de `${env.API_URL}/spaces` responde `409` com `message` `Você já tem um espaço com esse nome.` quando há espaço `type: 'free'` do mesmo `ownerId` com `toLowerCase()` igual, antes de `addFreeSpace`. `rg -n "as the real API accepts" apps/web/src/testing/mocks/db.ts` é vazio.
+- [x] CA2.4 — `pnpm exec vitest run --project web` sai com 0 e `rg -n "^\s*(it|test)(\.each)?\(" apps/web/src/features/spaces/components/__tests__/create-space-form.test.tsx` lista `a 409 from the server shows its message on the Nome field`, `a 409 does not show the form alert`, `after a 409 a different name creates the space` e os três casos antigos com os mesmos nomes.
+- [x] CA2.5 — `apps/web/e2e/tests/free-spaces.spec.ts` contém `a repeated name is refused on the Nome field and a new name creates the space using only the keyboard`, e `pnpm --filter web exec playwright test --list` o lista. Lendo o caso: usa "Projeto X", "PROJETO X" e "Projeto Y"; assere "Você já tem um espaço com esse nome."; `toBeFocused()` antes de cada `Enter`; `expectNoSeriousA11yViolations(page)` no estado de recusa; a primeira asserção após a mudança de rota usa `ROUTE_TIMEOUT` (asserção seguinte com timeout maior é aceita). `rg -n "test\.skip|test\.only|waitForTimeout|disableRules" apps/web/e2e/tests/free-spaces.spec.ts` é vazio.
+- [x] CA2.6 — `docs/architecture.md` tem o parágrafo "Entrega `free-space-unique-name` (fatia 137)" citando `Space_free_owner_name_key`, `0017`, `P2002` e `isUniqueViolation`.
+- [x] CA2.7 — `rg -n "sleep\(|setTimeout\(" apps/web/src/features/spaces/components/__tests__/create-space-form.test.tsx apps/web/e2e/tests/free-spaces.spec.ts` é vazio; `rg -n "eslint-disable" apps/web/src apps/web/e2e | rg -v -- "--"` é vazio.
+- [x] CA2.8 — Cobertura ≥ 80% de linhas para `apps/web/src/features/spaces/components/create-space-form.tsx`, lida em `coverage/coverage-summary.json` gerado na raiz com `pnpm exec vitest run --coverage --coverage.reporter=json-summary`.
+- [x] CA2.9 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `POST spaces answers 409 to a second space with the same name from the same owner` e `POST spaces accepts the same name from a different owner`; `pnpm exec vitest run --project web` (0) inclui `a 409 from the server shows its message on the Nome field`; `pnpm test:e2e` (0) inclui o novo caso de `free-spaces.spec.ts`.
 
 ## Desvios previstos
 

@@ -91,7 +91,15 @@ api.interceptors.response.use(
     }
 
     if (error.response?.status === 409) {
-      return Promise.reject(new ConflictError());
+      const data: unknown = error.response.data;
+      const serverMessage =
+        data &&
+        typeof data === 'object' &&
+        'message' in data &&
+        typeof data.message === 'string'
+          ? data.message
+          : undefined;
+      return Promise.reject(new ConflictError(serverMessage));
     }
 
     // Always reject: the caller (React Query) must know the request failed.

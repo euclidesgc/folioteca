@@ -442,8 +442,9 @@ export const addUnitSpace = (orgUnitId: string): MockSpace => {
 // Creates a `FREE` space owned by `ownerId` (see `MockSpace` above). The only
 // place a free space is born, used by the POST /spaces handler and by the
 // tests. Pushed into the array already in the database, never into a copy of
-// it (same reason as `touchDocumentUpdatedAt` above). The counter keeps two
-// spaces with the same name apart, as the real API accepts them.
+// it (same reason as `touchDocumentUpdatedAt` above). It does not check the
+// name: the POST /spaces handler refuses a repeated name of the same owner,
+// and the tests seed whatever they need. The counter keeps every id unique.
 let freeSpaceCounter = 0;
 
 export const addFreeSpace = (ownerId: string, name: string): MockSpace => {

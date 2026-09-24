@@ -228,6 +228,18 @@ entrada da árvore; do item ativo, `Tab` leva às ações desse nó; as teclas d
 navegação da árvore só respondem com o foco no item; `focusNode` move o foco
 para um nó de forma imperativa (usado depois de criar, ver abaixo).
 
+**Entrega `free-space-unique-name` (fatia 137)**: a mesma pessoa não é dona de
+dois espaços livres com o mesmo nome, sem diferenciar maiúsculas. O índice
+único parcial `Space_free_owner_name_key` em
+`("ownerId", lower("name")) WHERE "type" = 'FREE'` foi **escrito à mão** na
+migration `0017_free_space_owner_name_uniqueness` e é **invisível ao
+`schema.prisma`** — como na `0007`, `migrate diff` nunca é rodado nessa tabela.
+Espaços `PERSONAL` e `UNIT` ficam fora da regra. `SpacesService.create` **checa
+antes** (`findFirst` com `mode: 'insensitive'`) para a resposta amigável e
+converte o `P2002` da corrida no **mesmo** `409` "Você já tem um espaço com esse
+nome."; o reconhecimento do `P2002` é `isUniqueViolation`, em
+`apps/api/src/common/is-unique-violation.ts`.
+
 **Entrega `org-units-delete` (fatia 066)**: as FKs `OrgUnit.parentId` e
 `Space.orgUnitId` passaram a `ON DELETE RESTRICT` na migration `0008`,
 escrita à mão, e com `Document.spaceId` (já `RESTRICT`) a ordem obrigatória

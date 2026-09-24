@@ -73,6 +73,22 @@ export const spacesHandlers = [
       );
     }
 
+    // Like the real API: one free space name per owner, ignoring case.
+    const lowerName = parsed.data.toLowerCase();
+    const isRepeated = getDb().spaces.some(
+      (item) =>
+        item.type === 'free' &&
+        item.ownerId === person.id &&
+        item.name.toLowerCase() === lowerName,
+    );
+
+    if (isRepeated) {
+      return HttpResponse.json(
+        { message: 'Você já tem um espaço com esse nome.' },
+        { status: 409 },
+      );
+    }
+
     const space = addFreeSpace(person.id, parsed.data);
     const body: SpaceResponse = {
       data: { id: space.id, type: 'free', name: parsed.data },
