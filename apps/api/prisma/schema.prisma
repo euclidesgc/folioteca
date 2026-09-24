@@ -111,6 +111,10 @@ model Space {
   /// `true` faz quem vê o espaço da unidade-pai ver também este. A restrição
   /// "só espaço UNIT herda" vive só na migration 0014 (o Prisma não a expressa).
   inheritsParent Boolean   @default(false)
+  /// `true` deixa qualquer membro do espaço livre adicionar pessoas; `false`
+  /// deixa só o dono. A restrição "só espaço FREE abre" vive só na migration
+  /// 0018 (o Prisma não a expressa).
+  membersCanInvite Boolean @default(false)
   createdAt      DateTime  @default(now())
 
   person       Person?       @relation("PersonalSpace", fields: [personId], references: [id])

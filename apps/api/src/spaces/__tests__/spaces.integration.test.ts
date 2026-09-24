@@ -2,7 +2,7 @@ import 'reflect-metadata';
 
 import { randomUUID } from 'node:crypto';
 
-import type { INestApplication } from '@nestjs/common';
+import { NotFoundException, type INestApplication } from '@nestjs/common';
 import { Prisma, type Person } from '@prisma/client';
 import type { Response } from 'supertest';
 
@@ -1031,7 +1031,13 @@ test('GET space answers 200 with reach direct and the unit name to a direct memb
 
   expect(response.status).toBe(200);
   expect(response.body).toEqual({
-    data: { id: unit.spaceId, type: 'unit', name: 'Protocolo', reach: 'direct' },
+    data: {
+      id: unit.spaceId,
+      type: 'unit',
+      name: 'Protocolo',
+      reach: 'direct',
+      membersCanInvite: false,
+    },
   });
 });
 
@@ -1049,6 +1055,7 @@ test('GET space answers reach inherited to an inherited member', async () => {
       type: 'unit',
       name: 'Protocolo',
       reach: 'inherited',
+      membersCanInvite: false,
     },
   });
 });
@@ -1063,7 +1070,13 @@ test('GET space answers reach owner with the space name to the owner of a FREE s
   expect(created.status).toBe(201);
   expect(response.status).toBe(200);
   expect(response.body).toEqual({
-    data: { id: freeSpaceId, type: 'free', name: 'Projeto Alfa', reach: 'owner' },
+    data: {
+      id: freeSpaceId,
+      type: 'free',
+      name: 'Projeto Alfa',
+      reach: 'owner',
+      membersCanInvite: false,
+    },
   });
 });
 
@@ -1365,7 +1378,13 @@ test('getDetail with another organization id returns null', async () => {
   );
   const others = await service.getDetail(randomUUID(), person.id, unit.spaceId);
 
-  expect(mine).toEqual({ id: unit.spaceId, type: 'unit', name: 'Protocolo', reach: 'direct' });
+  expect(mine).toEqual({
+    id: unit.spaceId,
+    type: 'unit',
+    name: 'Protocolo',
+    reach: 'direct',
+    membersCanInvite: false,
+  });
   expect(others).toBeNull();
 });
 
@@ -1554,7 +1573,7 @@ test('PUT space member answers 404 for a UNIT space', async () => {
   expect(await countSpaceMembers()).toBe(0);
 });
 
-test('PUT space member answers 403 to a member', async () => {
+test('PUT space member answers 403 to a member of a closed space', async () => {
   const { owner, other, freeSpaceId } = await createOwnerAndOther();
   const added = await putSpaceMember(freeSpaceId, other.person.id, owner.cookie);
 
@@ -1643,7 +1662,13 @@ test('GET space answers reach member to a member of a FREE space', async () => {
   expect(added.status).toBe(200);
   expect(response.status).toBe(200);
   expect(response.body).toEqual({
-    data: { id: freeSpaceId, type: 'free', name: 'Projeto Alfa', reach: 'member' },
+    data: {
+      id: freeSpaceId,
+      type: 'free',
+      name: 'Projeto Alfa',
+      reach: 'member',
+      membersCanInvite: false,
+    },
   });
 });
 
@@ -2146,4 +2171,352 @@ test('reachOf a FREE space with another organization id returns none', async () 
 
   expect(mine).toBe('direct');
   expect(others).toBe('none');
+});
+
+/** `PATCH /api/spaces/:spaceId` com o cabeçalho de CSRF. */
+function patchSpace(
+  spaceId: string,
+  body: unknown,
+  cookie?: string,
+): Promise<Response> {
+  const request = httpRequest(app)
+    .patch(`/api/spaces/${spaceId}`)
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return cookie === undefined
+    ? request.send(body as object)
+    : request.set('Cookie', cookie).send(body as object);
+}
+
+/** Valor de `membersCanInvite` gravado no banco para o espaço. */
+async function membersCanInviteOf(spaceId: string): Promise<boolean> {
+  const space = await prisma.space.findUniqueOrThrow({ where: { id: spaceId } });
+
+  return space.membersCanInvite;
+}
+
+/** Zilda Rocha, pessoa da organização fora do espaço. */
+function createOutsider(): Promise<{ person: Person; cookie: string }> {
+  return createPersonWithSession(app, {
+    name: 'Zilda Rocha',
+    email: 'zilda@exemplo.org',
+  });
+}
+
+/** Espaço livre de João com Ana como membro, aberto pelo dono via `PATCH`. */
+async function createOpenSpaceWithMember(): Promise<{
+  owner: { person: Person; cookie: string };
+  other: { person: Person; cookie: string };
+  freeSpaceId: string;
+}> {
+  const created = await createOwnerWithMember();
+  const opened = await patchSpace(
+    created.freeSpaceId,
+    { membersCanInvite: true },
+    created.owner.cookie,
+  );
+
+  expect(opened.status).toBe(200);
+
+  return created;
+}
+
+test('PUT space member answers 200 to a member of an open space and the person sees the space in GET spaces', async () => {
+  const { other, freeSpaceId } = await createOpenSpaceWithMember();
+  const outsider = await createOutsider();
+
+  const response = await putSpaceMember(
+    freeSpaceId,
+    outsider.person.id,
+    other.cookie,
+  );
+  const listed = await getSpaces(outsider.cookie);
+
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual({
+    data: {
+      id: outsider.person.id,
+      name: 'Zilda Rocha',
+      email: 'zilda@exemplo.org',
+    },
+  });
+  expect(listed.status).toBe(200);
+  expect((listed.body as SpacesBody).data).toContainEqual({
+    id: freeSpaceId,
+    type: 'free',
+    name: 'Projeto Alfa',
+  });
+  expect(await countSpaceMembers()).toBe(2);
+});
+
+test('PUT space member answers 200 to the owner of an open space', async () => {
+  const { owner, freeSpaceId } = await createOpenSpaceWithMember();
+
+  const response = await putSpaceMember(freeSpaceId, adminPerson.id, owner.cookie);
+
+  expect(response.status).toBe(200);
+  expect((response.body as SpaceMemberBody).data.id).toBe(adminPerson.id);
+  expect(await countSpaceMembers()).toBe(2);
+});
+
+test('PUT space member answers 404 to a stranger of an open space', async () => {
+  const { freeSpaceId } = await createOpenSpaceWithMember();
+  const outsider = await createOutsider();
+
+  const response = await putSpaceMember(
+    freeSpaceId,
+    adminPerson.id,
+    outsider.cookie,
+  );
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({ message: 'Espaço não encontrado.' });
+  expect(await countSpaceMembers()).toBe(1);
+});
+
+test('PUT space member answers 400 when a member adds himself with Você já é membro deste espaço.', async () => {
+  const { other, freeSpaceId } = await createOpenSpaceWithMember();
+
+  const response = await putSpaceMember(freeSpaceId, other.person.id, other.cookie);
+
+  expect(response.status).toBe(400);
+  expect(response.body).toEqual({ message: 'Você já é membro deste espaço.' });
+  expect(await countSpaceMembers()).toBe(1);
+});
+
+test('PUT space member answers 400 when a member adds the owner with Esta pessoa é a dona deste espaço.', async () => {
+  const { owner, other, freeSpaceId } = await createOpenSpaceWithMember();
+
+  const response = await putSpaceMember(freeSpaceId, owner.person.id, other.cookie);
+
+  expect(response.status).toBe(400);
+  expect(response.body).toEqual({
+    message: 'Esta pessoa é a dona deste espaço.',
+  });
+  expect(await countSpaceMembers()).toBe(1);
+});
+
+test('PATCH space answers 200 to the owner and GET space reflects membersCanInvite', async () => {
+  const { owner, freeSpaceId } = await createOwnerAndOther();
+
+  const response = await patchSpace(
+    freeSpaceId,
+    { membersCanInvite: true },
+    owner.cookie,
+  );
+  const detail = await getSpace(freeSpaceId, owner.cookie);
+
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual({
+    data: {
+      id: freeSpaceId,
+      type: 'free',
+      name: 'Projeto Alfa',
+      reach: 'owner',
+      membersCanInvite: true,
+    },
+  });
+  expect(detail.status).toBe(200);
+  expect(detail.body).toEqual(response.body);
+  expect(await membersCanInviteOf(freeSpaceId)).toBe(true);
+});
+
+test('PATCH space is idempotent', async () => {
+  const { owner, freeSpaceId } = await createOwnerAndOther();
+
+  const first = await patchSpace(freeSpaceId, { membersCanInvite: true }, owner.cookie);
+  const second = await patchSpace(freeSpaceId, { membersCanInvite: true }, owner.cookie);
+
+  expect(first.status).toBe(200);
+  expect(second.status).toBe(200);
+  expect(second.body).toEqual(first.body);
+  expect(await membersCanInviteOf(freeSpaceId)).toBe(true);
+});
+
+test('PATCH space answers 403 to a member with Só o dono do espaço pode mudar quem adiciona pessoas.', async () => {
+  const { other, freeSpaceId } = await createOwnerWithMember();
+
+  const response = await patchSpace(
+    freeSpaceId,
+    { membersCanInvite: true },
+    other.cookie,
+  );
+
+  expect(response.status).toBe(403);
+  expect(response.body).toEqual({
+    message: 'Só o dono do espaço pode mudar quem adiciona pessoas.',
+  });
+  expect(await membersCanInviteOf(freeSpaceId)).toBe(false);
+});
+
+test('PATCH space answers 404 to a stranger', async () => {
+  const { freeSpaceId } = await createOwnerWithMember();
+  const outsider = await createOutsider();
+
+  const response = await patchSpace(
+    freeSpaceId,
+    { membersCanInvite: true },
+    outsider.cookie,
+  );
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({ message: 'Espaço não encontrado.' });
+  expect(await membersCanInviteOf(freeSpaceId)).toBe(false);
+});
+
+test('PATCH space answers 404 for a malformed id', async () => {
+  const { owner } = await createOwnerAndOther();
+
+  const response = await patchSpace(
+    'nao-e-uuid',
+    { membersCanInvite: true },
+    owner.cookie,
+  );
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({ message: 'Espaço não encontrado.' });
+});
+
+test('PATCH space answers 404 for a UNIT space', async () => {
+  const unit = await createUnit('Protocolo');
+  const { person, cookie } = await createMember();
+  await assign(unit.orgUnitId, person.id);
+  const detail = await getSpace(unit.spaceId, cookie);
+
+  const response = await patchSpace(
+    unit.spaceId,
+    { membersCanInvite: true },
+    cookie,
+  );
+
+  expect((detail.body as { data: { reach: string } }).data.reach).toBe('direct');
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({ message: 'Espaço não encontrado.' });
+  expect(await membersCanInviteOf(unit.spaceId)).toBe(false);
+});
+
+test('PATCH space rejects an empty body with 400', async () => {
+  const { owner, freeSpaceId } = await createOwnerAndOther();
+
+  const response = await patchSpace(freeSpaceId, {}, owner.cookie);
+
+  expect(response.status).toBe(400);
+  expect(response.body).toEqual({
+    message: 'Dados inválidos.',
+    errors: [
+      { field: 'membersCanInvite', message: 'Escolha quem adiciona pessoas.' },
+    ],
+  });
+  expect(await membersCanInviteOf(freeSpaceId)).toBe(false);
+});
+
+test('PATCH space rejects a non boolean value with 400', async () => {
+  const { owner, freeSpaceId } = await createOwnerAndOther();
+
+  const response = await patchSpace(
+    freeSpaceId,
+    { membersCanInvite: 'sim' },
+    owner.cookie,
+  );
+
+  expect(response.status).toBe(400);
+  expect(response.body).toEqual({
+    message: 'Dados inválidos.',
+    errors: [
+      { field: 'membersCanInvite', message: 'Escolha quem adiciona pessoas.' },
+    ],
+  });
+  expect(await membersCanInviteOf(freeSpaceId)).toBe(false);
+});
+
+test('PATCH space rejects extra fields with 400', async () => {
+  const { owner, freeSpaceId } = await createOwnerAndOther();
+
+  const response = await patchSpace(
+    freeSpaceId,
+    { membersCanInvite: true, ownerId: adminPerson.id },
+    owner.cookie,
+  );
+
+  expect(response.status).toBe(400);
+  expect(response.body).toEqual({
+    message: 'Dados inválidos.',
+    errors: [{ field: '', message: 'Campo não permitido.' }],
+  });
+  expect(await membersCanInviteOf(freeSpaceId)).toBe(false);
+  expect(
+    (await prisma.space.findUniqueOrThrow({ where: { id: freeSpaceId } })).ownerId,
+  ).toBe(
+    (await prisma.person.findFirstOrThrow({ where: { email: 'joao@exemplo.org' } })).id,
+  );
+});
+
+test('PATCH space answers 401 without session', async () => {
+  const { freeSpaceId } = await createOwnerAndOther();
+
+  const response = await patchSpace(freeSpaceId, { membersCanInvite: true });
+
+  expect(response.status).toBe(401);
+  expect(response.body).toEqual({ message: 'Sessão não encontrada.' });
+  expect(await membersCanInviteOf(freeSpaceId)).toBe(false);
+});
+
+/**
+ * Organização única por instância (`Organization_singleton_check`): o escopo
+ * de `updateSettings` é provado no serviço real, contra o mesmo Postgres, com
+ * um `organizationId` que não é o da instalação, sobre um espaço de que a
+ * pessoa é dona.
+ */
+test('updateSettings with another organization id answers 404', async () => {
+  const { owner, freeSpaceId } = await createOwnerAndOther();
+
+  const attempt = spaces.updateSettings(
+    { organizationId: randomUUID(), id: owner.person.id },
+    freeSpaceId,
+    { membersCanInvite: true },
+  );
+
+  await expect(attempt).rejects.toThrow(NotFoundException);
+  await expect(attempt).rejects.toThrow('Espaço não encontrado.');
+  expect(await membersCanInviteOf(freeSpaceId)).toBe(false);
+});
+
+test('closing the space keeps the members who joined', async () => {
+  const { owner, other, freeSpaceId } = await createOpenSpaceWithMember();
+  const outsider = await createOutsider();
+  const added = await putSpaceMember(
+    freeSpaceId,
+    outsider.person.id,
+    other.cookie,
+  );
+
+  const closed = await patchSpace(
+    freeSpaceId,
+    { membersCanInvite: false },
+    owner.cookie,
+  );
+  const refused = await putSpaceMember(freeSpaceId, adminPerson.id, other.cookie);
+
+  expect(added.status).toBe(200);
+  expect(closed.status).toBe(200);
+  expect((closed.body as { data: { membersCanInvite: boolean } }).data.membersCanInvite).toBe(
+    false,
+  );
+  expect(await prisma.spaceMember.count({ where: { spaceId: freeSpaceId } })).toBe(2);
+  expect(refused.status).toBe(403);
+  expect(refused.body).toEqual({
+    message: 'Só o dono do espaço pode adicionar pessoas.',
+  });
+});
+
+test('the database rejects membersCanInvite on a UNIT space', async () => {
+  const unit = await createUnit('Protocolo');
+
+  await expect(
+    prisma.space.update({
+      where: { id: unit.spaceId },
+      data: { membersCanInvite: true },
+    }),
+  ).rejects.toThrow(/Space_members_can_invite_free_check/);
+  expect(await membersCanInviteOf(unit.spaceId)).toBe(false);
 });

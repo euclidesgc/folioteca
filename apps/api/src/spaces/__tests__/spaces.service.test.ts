@@ -5,12 +5,14 @@ import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { compareMembers, SpacesService } from '../spaces.service';
+import { updateSpaceSchema } from '../spaces.schema';
 import { resetDatabase } from '../../../test/reset-database';
 
 const ORGANIZATION_ID = '11111111-1111-4111-8111-111111111111';
@@ -564,4 +566,210 @@ describe('free space members on the test database', () => {
       await prisma.spaceMember.count({ where: { spaceId, personId: memberId } }),
     ).toBe(1);
   });
+});
+
+test('updateSpaceSchema accepts true and false', () => {
+  expect(updateSpaceSchema.safeParse({ membersCanInvite: true })).toEqual({
+    success: true,
+    data: { membersCanInvite: true },
+  });
+  expect(updateSpaceSchema.safeParse({ membersCanInvite: false })).toEqual({
+    success: true,
+    data: { membersCanInvite: false },
+  });
+});
+
+test('updateSpaceSchema rejects a missing value with Escolha quem adiciona pessoas.', () => {
+  const result = updateSpaceSchema.safeParse({});
+
+  expect(result.success).toBe(false);
+  expect(result.error?.issues[0]?.message).toBe('Escolha quem adiciona pessoas.');
+});
+
+test('updateSpaceSchema rejects extra fields with Campo não permitido.', () => {
+  const result = updateSpaceSchema.safeParse({
+    membersCanInvite: true,
+    ownerId: PERSON_ID,
+  });
+
+  expect(result.success).toBe(false);
+  expect(result.error?.issues[0]?.message).toBe('Campo não permitido.');
+});
+
+const OWNER_ID = '33333333-3333-4333-8333-333333333333';
+
+const TARGET_ID = '44444444-4444-4444-8444-444444444444';
+
+const FREE_SPACE_ID = '55555555-5555-4555-8555-555555555555';
+
+/**
+ * Serviço com o Prisma falso para `updateSettings`, `getDetail` e
+ * `addMember`: cada `space.findFirst` devolve, em ordem, as linhas dadas.
+ */
+function createSettingsService(spaceRows: unknown[]): {
+  service: SpacesService;
+  findFirst: ReturnType<typeof vi.fn>;
+  update: ReturnType<typeof vi.fn>;
+  upsert: ReturnType<typeof vi.fn>;
+} {
+  const findFirst = vi.fn();
+  for (const row of spaceRows) {
+    findFirst.mockResolvedValueOnce(row);
+  }
+  const update = vi.fn().mockResolvedValue({});
+  const upsert = vi.fn().mockResolvedValue({});
+  const personFindFirst = vi.fn().mockResolvedValue({
+    id: TARGET_ID,
+    name: 'Ana Lima',
+    email: 'ana@exemplo.org',
+  });
+
+  const prisma = {
+    space: { findFirst, update },
+    person: { findFirst: personFindFirst },
+    spaceMember: { upsert },
+  } as unknown as PrismaService;
+
+  return { service: new SpacesService(prisma), findFirst, update, upsert };
+}
+
+test('updateSettings throws not found for a malformed id', async () => {
+  const { service, findFirst, update } = createSettingsService([]);
+
+  const attempt = service.updateSettings(
+    { organizationId: ORGANIZATION_ID, id: OWNER_ID },
+    'nao-e-uuid',
+    { membersCanInvite: true },
+  );
+
+  await expect(attempt).rejects.toThrow(NotFoundException);
+  expect(findFirst).not.toHaveBeenCalled();
+  expect(update).not.toHaveBeenCalled();
+});
+
+test('updateSettings throws forbidden to a member', async () => {
+  const { service, update } = createSettingsService([{ ownerId: OWNER_ID }]);
+
+  const attempt = service.updateSettings(
+    { organizationId: ORGANIZATION_ID, id: PERSON_ID },
+    FREE_SPACE_ID,
+    { membersCanInvite: true },
+  );
+
+  await expect(attempt).rejects.toThrow(ForbiddenException);
+  await expect(attempt).rejects.toThrow(
+    'Só o dono do espaço pode mudar quem adiciona pessoas.',
+  );
+  expect(update).not.toHaveBeenCalled();
+});
+
+test('updateSettings updates membersCanInvite by id', async () => {
+  const { service, findFirst, update } = createSettingsService([
+    { ownerId: OWNER_ID },
+    {
+      id: FREE_SPACE_ID,
+      type: 'FREE',
+      name: 'Projeto Alfa',
+      ownerId: OWNER_ID,
+      membersCanInvite: true,
+      orgUnit: null,
+    },
+  ]);
+
+  const result = await service.updateSettings(
+    { organizationId: ORGANIZATION_ID, id: OWNER_ID },
+    FREE_SPACE_ID,
+    { membersCanInvite: true },
+  );
+
+  expect(findFirst).toHaveBeenNthCalledWith(
+    1,
+    expect.objectContaining({
+      where: expect.objectContaining({
+        id: FREE_SPACE_ID,
+        type: 'FREE',
+        organizationId: ORGANIZATION_ID,
+      }) as unknown,
+    }),
+  );
+  expect(update).toHaveBeenCalledWith({
+    where: { id: FREE_SPACE_ID },
+    data: { membersCanInvite: true },
+  });
+  expect(result).toEqual({
+    data: {
+      id: FREE_SPACE_ID,
+      type: 'free',
+      name: 'Projeto Alfa',
+      reach: 'owner',
+      membersCanInvite: true,
+    },
+  });
+});
+
+test('getDetail returns membersCanInvite false for a unit space', async () => {
+  // A linha de unidade vem com `true` de propósito: o serviço devolve `false`
+  // para espaço de unidade independentemente da coluna.
+  const { service } = createSettingsService([
+    {
+      id: 'space-unit',
+      type: 'UNIT',
+      name: null,
+      ownerId: null,
+      membersCanInvite: true,
+      orgUnit: { id: 'unit-1', name: 'Protocolo' },
+    },
+    {
+      orgUnit: { id: 'unit-1', assignments: [{ personId: PERSON_ID }] },
+    },
+  ]);
+
+  const detail = await service.getDetail(ORGANIZATION_ID, PERSON_ID, 'space-unit');
+
+  expect(detail).toEqual({
+    id: 'space-unit',
+    type: 'unit',
+    name: 'Protocolo',
+    reach: 'direct',
+    membersCanInvite: false,
+  });
+});
+
+test('addMember accepts a member when membersCanInvite is true', async () => {
+  const { service, upsert } = createSettingsService([
+    { ownerId: OWNER_ID, membersCanInvite: true },
+  ]);
+
+  const result = await service.addMember(
+    { organizationId: ORGANIZATION_ID, id: PERSON_ID },
+    FREE_SPACE_ID,
+    TARGET_ID,
+  );
+
+  expect(result).toEqual({
+    data: { id: TARGET_ID, name: 'Ana Lima', email: 'ana@exemplo.org' },
+  });
+  expect(upsert).toHaveBeenCalledWith({
+    where: { spaceId_personId: { spaceId: FREE_SPACE_ID, personId: TARGET_ID } },
+    create: { spaceId: FREE_SPACE_ID, personId: TARGET_ID },
+    update: {},
+  });
+});
+
+test('addMember throws forbidden to a member when membersCanInvite is false', async () => {
+  const { service, upsert } = createSettingsService([
+    { ownerId: OWNER_ID, membersCanInvite: false },
+  ]);
+
+  const attempt = service.addMember(
+    { organizationId: ORGANIZATION_ID, id: PERSON_ID },
+    FREE_SPACE_ID,
+    TARGET_ID,
+  );
+
+  await expect(attempt).rejects.toThrow(ForbiddenException);
+  await expect(attempt).rejects.toThrow(
+    'Só o dono do espaço pode adicionar pessoas.',
+  );
+  expect(upsert).not.toHaveBeenCalled();
 });

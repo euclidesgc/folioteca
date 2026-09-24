@@ -12,13 +12,14 @@ import { parseBody } from '../common/parse-body';
 import { ptBrCollator } from '../common/pt-br-collator';
 import { spaceNotFound } from '../common/space-not-found';
 import { PrismaService } from '../prisma/prisma.service';
-import { createSpaceSchema } from './spaces.schema';
+import { createSpaceSchema, updateSpaceSchema } from './spaces.schema';
 
 type Space = components['schemas']['Space'];
 type SpaceResponse = components['schemas']['SpaceResponse'];
 type SpacesResponse = components['schemas']['SpacesResponse'];
 
 type SpaceDetail = components['schemas']['SpaceDetail'];
+type SpaceDetailResponse = components['schemas']['SpaceDetailResponse'];
 type SpaceMember = components['schemas']['SpaceMember'];
 type SpaceMembersResponse = components['schemas']['SpaceMembersResponse'];
 type SpaceMemberResponse = components['schemas']['SpaceMemberResponse'];
@@ -28,6 +29,13 @@ const OWNER_ONLY_MESSAGE = 'Só o dono do espaço pode adicionar pessoas.';
 const REMOVE_OWNER_ONLY_MESSAGE = 'Só o dono do espaço pode remover pessoas.';
 
 const ADD_OWNER_MESSAGE = 'Você já é o dono deste espaço.';
+
+const MEMBER_ADDS_OWNER_MESSAGE = 'Esta pessoa é a dona deste espaço.';
+
+const MEMBER_ADDS_SELF_MESSAGE = 'Você já é membro deste espaço.';
+
+const SETTINGS_OWNER_ONLY_MESSAGE =
+  'Só o dono do espaço pode mudar quem adiciona pessoas.';
 
 const PERSON_NOT_FOUND_MESSAGE = 'Pessoa não encontrada nesta instância.';
 
@@ -281,6 +289,7 @@ export class SpacesService {
         type: true,
         name: true,
         ownerId: true,
+        membersCanInvite: true,
         orgUnit: { select: { id: true, name: true } },
       },
     });
@@ -297,6 +306,7 @@ export class SpacesService {
             type: 'free',
             name: space.name,
             reach: space.ownerId === personId ? 'owner' : 'member',
+            membersCanInvite: space.membersCanInvite,
           };
     }
 
@@ -310,7 +320,70 @@ export class SpacesService {
       return null;
     }
 
-    return { id: space.id, type: 'unit', name: space.orgUnit.name, reach };
+    return {
+      id: space.id,
+      type: 'unit',
+      name: space.orgUnit.name,
+      reach,
+      membersCanInvite: false,
+    };
+  }
+
+  /**
+   * Muda quem adiciona pessoas ao espaço livre; só o dono muda. O acesso é
+   * conferido antes do corpo, para quem não é dono não descobrir a forma do
+   * recurso: 404 (malformado, de unidade, pessoal, alheio ou de outra
+   * organização) → 403 (membro) → 400 (corpo). Repetir o mesmo valor é
+   * idempotente. Organização e quem pede chegam só da sessão.
+   */
+  async updateSettings(
+    requester: { organizationId: string; id: string },
+    spaceId: string,
+    body: unknown,
+  ): Promise<SpaceDetailResponse> {
+    if (!isUuid(spaceId)) {
+      throw spaceNotFound();
+    }
+
+    const space = await this.prisma.space.findFirst({
+      where: {
+        id: spaceId,
+        type: 'FREE',
+        organizationId: requester.organizationId,
+        OR: [
+          { ownerId: requester.id },
+          { members: { some: { personId: requester.id } } },
+        ],
+      },
+      select: { ownerId: true },
+    });
+
+    if (space === null) {
+      throw spaceNotFound();
+    }
+
+    if (space.ownerId !== requester.id) {
+      throw new ForbiddenException(SETTINGS_OWNER_ONLY_MESSAGE);
+    }
+
+    const { membersCanInvite } = parseBody(updateSpaceSchema, body);
+
+    await this.prisma.space.update({
+      where: { id: spaceId },
+      data: { membersCanInvite },
+    });
+
+    const detail = await this.getDetail(
+      requester.organizationId,
+      requester.id,
+      spaceId,
+    );
+
+    if (detail === null) {
+      throw spaceNotFound();
+    }
+
+    return { data: detail };
   }
 
   /**
@@ -398,8 +471,9 @@ export class SpacesService {
   }
 
   /**
-   * Adiciona a pessoa como membro do espaço livre; só o dono adiciona.
-   * O espaço é conferido antes da pessoa, para uma pessoa inválida não revelar
+   * Adiciona a pessoa como membro do espaço livre; o dono adiciona sempre e
+   * um membro só com o espaço aberto (`membersCanInvite`), relido a cada
+   * pedido. O espaço é conferido antes da pessoa, para uma pessoa inválida não revelar
    * que um espaço alheio existe. Repetir para a mesma pessoa não cria uma
    * segunda linha. Organização e quem pede chegam só da sessão.
    */
@@ -422,15 +496,25 @@ export class SpacesService {
           { members: { some: { personId: requester.id } } },
         ],
       },
-      select: { ownerId: true },
+      select: { ownerId: true, membersCanInvite: true },
     });
 
     if (space === null) {
       throw spaceNotFound();
     }
 
-    if (space.ownerId !== requester.id) {
+    const isOwner = space.ownerId === requester.id;
+
+    if (!isOwner && !space.membersCanInvite) {
       throw new ForbiddenException(OWNER_ONLY_MESSAGE);
+    }
+
+    if (!isOwner && personId === space.ownerId) {
+      throw new BadRequestException(MEMBER_ADDS_OWNER_MESSAGE);
+    }
+
+    if (!isOwner && personId === requester.id) {
+      throw new BadRequestException(MEMBER_ADDS_SELF_MESSAGE);
     }
 
     if (personId === space.ownerId) {

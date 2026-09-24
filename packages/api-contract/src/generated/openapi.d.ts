@@ -436,7 +436,11 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Muda quem adiciona pessoas a um espaço livre
+         * @description Só o dono do espaço livre muda quem adiciona pessoas: só ele ou qualquer membro. A operação é idempotente. Um membro que não é o dono recebe 403; espaço inexistente, com id malformado, de unidade ou que quem chama não alcança recebe o mesmo 404 "Espaço não encontrado."; corpo inválido recebe 400.
+         */
+        patch: operations["updateSpaceSettings"];
         trace?: never;
     };
     "/spaces/{spaceId}/members": {
@@ -469,7 +473,7 @@ export interface paths {
         get?: never;
         /**
          * Adiciona uma pessoa a um espaço livre
-         * @description Adiciona a pessoa informada, da mesma instância, como membro do espaço livre. Só o dono do espaço livre adiciona. A operação é idempotente: repetir para a mesma pessoa devolve o mesmo 200 sem duplicar. Adicionar o próprio dono ou uma pessoa que não existe nesta instância recebe 400; um membro que tenta adicionar recebe 403; espaço inexistente, com id malformado, de unidade ou que quem chama não alcança recebe o mesmo 404 opaco.
+         * @description Adiciona a pessoa informada, da mesma instância, como membro do espaço livre. O dono sempre adiciona; um membro adiciona quando o espaço está aberto (membersCanInvite). A operação é idempotente: repetir para a mesma pessoa devolve o mesmo 200 sem duplicar. Adicionar o próprio dono, um membro adicionando a si mesmo ou o dono, ou uma pessoa que não existe nesta instância recebe 400; um membro com o espaço fechado recebe 403; espaço inexistente, com id malformado, de unidade ou que quem chama não alcança recebe o mesmo 404 opaco.
          */
         put: operations["addSpaceMember"];
         post?: never;
@@ -795,6 +799,8 @@ export interface components {
              * @enum {string}
              */
             reach: "direct" | "inherited" | "owner" | "member";
+            /** @description Se qualquer membro pode adicionar pessoas ao espaço livre; sempre false em espaço de unidade. */
+            membersCanInvite: boolean;
         };
         SpaceDetailResponse: {
             data: components["schemas"]["SpaceDetail"];
@@ -821,6 +827,10 @@ export interface components {
         CreateSpaceInput: {
             /** @description Nome do espaço livre, contado depois de aparar os espaços. */
             name: string;
+        };
+        UpdateSpaceInput: {
+            /** @description Verdadeiro para qualquer membro adicionar pessoas; falso para só o dono. */
+            membersCanInvite: boolean;
         };
         CreateInvitationInput: {
             /**
@@ -2489,6 +2499,68 @@ export interface operations {
             };
         };
     };
+    updateSpaceSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                spaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSpaceInput"];
+            };
+        };
+        responses: {
+            /** @description A configuração do espaço livre foi salva. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpaceDetailResponse"];
+                };
+            };
+            /** @description "Dados inválidos." com "Escolha quem adiciona pessoas." para valor ausente ou não booleano, ou "Campo não permitido." para campo extra. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description "Só o dono do espaço pode mudar quem adiciona pessoas." para quem é membro do espaço sem ser o dono. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description "Espaço não encontrado." para espaço inexistente, com id malformado, de unidade ou que quem chama não alcança. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     listSpaceMembers: {
         parameters: {
             query?: never;
@@ -2550,7 +2622,7 @@ export interface operations {
                     "application/json": components["schemas"]["SpaceMemberResponse"];
                 };
             };
-            /** @description "Você já é o dono deste espaço." ao adicionar o dono, ou "Pessoa não encontrada nesta instância." para pessoa inexistente, com id malformado ou de outra instância. */
+            /** @description "Você já é o dono deste espaço." quando o dono adiciona a si mesmo, "Você já é membro deste espaço." quando um membro adiciona a si mesmo, "Esta pessoa é a dona deste espaço." quando um membro adiciona o dono, ou "Pessoa não encontrada nesta instância." para pessoa inexistente, com id malformado ou de outra instância. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -2568,7 +2640,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description "Só o dono do espaço pode adicionar pessoas." para quem é membro do espaço sem ser o dono. */
+            /** @description "Só o dono do espaço pode adicionar pessoas." para quem é membro do espaço sem ser o dono, com o espaço fechado (membersCanInvite false). */
             403: {
                 headers: {
                     [name: string]: unknown;

@@ -557,11 +557,23 @@ export const spaceDetailOf = (
 
   if (space.type === 'free') {
     if (space.ownerId === personId) {
-      return { id: space.id, type: 'free', name: space.name, reach: 'owner' };
+      return {
+        id: space.id,
+        type: 'free',
+        name: space.name,
+        reach: 'owner',
+        membersCanInvite: false,
+      };
     }
 
     return isSpaceMember(personId, space.id)
-      ? { id: space.id, type: 'free', name: space.name, reach: 'member' }
+      ? {
+          id: space.id,
+          type: 'free',
+          name: space.name,
+          reach: 'member',
+          membersCanInvite: false,
+        }
       : null;
   }
 
@@ -569,7 +581,13 @@ export const spaceDetailOf = (
   const unit = state.orgUnits.find((item) => item.id === space.orgUnitId);
   if (reach === 'none' || !unit) return null;
 
-  return { id: space.id, type: 'unit', name: unit.name, reach };
+  return {
+    id: space.id,
+    type: 'unit',
+    name: unit.name,
+    reach,
+    membersCanInvite: false,
+  };
 };
 
 // What adding a member answers: the refusal with its status and message, or

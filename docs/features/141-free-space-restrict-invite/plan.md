@@ -40,7 +40,7 @@ Pré-condição de todas as fases: `docker compose up -d` na raiz (Postgres loca
 
 Caminhos relativos à raiz do repositório.
 
-- [ ] T1.1 — Contrato primeiro: `SpaceDetail.membersCanInvite` e `updateSpaceSettings`
+- [x] T1.1 — Contrato primeiro: `SpaceDetail.membersCanInvite` e `updateSpaceSettings`
   - Arquivos: `packages/api-contract/openapi.yaml` (alterar); `packages/api-contract/src/generated/openapi.d.ts` (alterar, **só** pelo script)
   - O que fazer (D1, R1–R5):
     - `SpaceDetail` ganha `membersCanInvite: { type: boolean }` em `required`, com descrição pt_BR "Se qualquer membro pode adicionar pessoas ao espaço livre; sempre false em espaço de unidade".
@@ -50,7 +50,7 @@ Caminhos relativos à raiz do repositório.
   - Skills: security
   - Complexidade: baixa
 
-- [ ] T1.2 — Banco: coluna `membersCanInvite` com migration 0018 escrita à mão
+- [x] T1.2 — Banco: coluna `membersCanInvite` com migration 0018 escrita à mão
   - Arquivos: `apps/api/prisma/migrations/0018_space_members_can_invite/migration.sql` (criar); `apps/api/prisma/schema.prisma` (alterar)
   - O que fazer (D2, R1, R3):
     - `migration.sql`, à mão, comentários em pt_BR, exatamente este SQL:
@@ -63,7 +63,7 @@ Caminhos relativos à raiz do repositório.
   - Skills: security
   - Complexidade: média
 
-- [ ] T1.3 — Serviço e rota: `updateSettings`, `getDetail` com o flag e `addMember` aceitando membro no espaço aberto
+- [x] T1.3 — Serviço e rota: `updateSettings`, `getDetail` com o flag e `addMember` aceitando membro no espaço aberto
   - Arquivos: `apps/api/src/spaces/spaces.schema.ts` (alterar); `apps/api/src/spaces/spaces.service.ts` (alterar); `apps/api/src/spaces/spaces.controller.ts` (alterar)
   - O que fazer (D1, D3, D4, R3, R5–R10):
     - `spaces.schema.ts`: `updateSpaceSchema = z.strictObject({ membersCanInvite: z.boolean({ error: 'Escolha quem adiciona pessoas.' }) }, { error: 'Campo não permitido.' })`.
@@ -74,7 +74,7 @@ Caminhos relativos à raiz do repositório.
   - Skills: authorization, security
   - Complexidade: alta
 
-- [ ] T1.4 — Testes da fase 1
+- [x] T1.4 — Testes da fase 1
   - Arquivos: `apps/api/src/spaces/__tests__/spaces.service.test.ts` (alterar); `apps/api/src/spaces/__tests__/spaces.integration.test.ts` (alterar); `apps/api/src/spaces/__tests__/spaces.contract.test.ts` (alterar)
   - O que fazer (D8): `resetDatabase(prisma)` em `beforeEach` e os ajudantes existentes; `apps/api/test/**` não muda. Aplicar DV1 e DV2. Casos preexistentes não são renomeados (exceto DV2).
     - `spaces.service.test.ts`: `updateSpaceSchema accepts true and false`; `updateSpaceSchema rejects a missing value with Escolha quem adiciona pessoas.`; `updateSpaceSchema rejects extra fields with Campo não permitido.`; `updateSettings throws not found for a malformed id`; `updateSettings throws forbidden to a member`; `updateSettings updates membersCanInvite by id`; `getDetail returns membersCanInvite false for a unit space`; `addMember accepts a member when membersCanInvite is true`; `addMember throws forbidden to a member when membersCanInvite is false`.
@@ -85,14 +85,14 @@ Caminhos relativos à raiz do repositório.
 
 ### Critérios de aceite da fase 1
 
-- [ ] CA1.1 — Com `docker compose up -d`, na raiz e com o cache do `tsc` limpo (`pnpm exec tsc -b --clean`; nenhum `*.tsbuildinfo` fora de `node_modules`): `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` saem com 0 e sem aviso (repetição única permitida só para teste antigo instável).
-- [ ] CA1.2 — `packages/api-contract/openapi.yaml`: o item `/spaces/{spaceId}:` tem `patch` com `operationId: updateSpaceSettings`, parâmetro `spaceId`, `requestBody` com `$ref` para `UpdateSpaceInput` e respostas exatamente `200` (`SpaceDetailResponse`), `400`, `401`, `403`, `404`; `UpdateSpaceInput` tem `required: [membersCanInvite]`, `additionalProperties: false` e `membersCanInvite` `type: boolean`; `SpaceDetail` tem `membersCanInvite` em `required`. `rg -n "updateSpaceSettings|UpdateSpaceInput|membersCanInvite" packages/api-contract/src/generated/openapi.d.ts` encontra os três.
-- [ ] CA1.3 — Existe `apps/api/prisma/migrations/0018_space_members_can_invite/migration.sql` com `ADD COLUMN "membersCanInvite" BOOLEAN NOT NULL DEFAULT false` e `ADD CONSTRAINT "Space_members_can_invite_free_check" CHECK ("type" = 'FREE' OR "membersCanInvite" = false)`; `ls apps/api/prisma/migrations` lista só `0001…0018` e `migration_lock.toml`. `apps/api/prisma/schema.prisma` tem `membersCanInvite Boolean @default(false)` em `Space` com `///`. `pnpm --filter api exec prisma validate` sai com 0 e `DATABASE_URL=postgresql://folioteca@localhost:5433/folioteca_test pnpm --filter api exec prisma migrate status` reporta o banco em dia.
-- [ ] CA1.4 — `apps/api/src/spaces/spaces.schema.ts` exporta `updateSpaceSchema` (`z.strictObject`) com `Escolha quem adiciona pessoas.` e `Campo não permitido.`. `apps/api/src/spaces/spaces.service.ts` tem o método `updateSettings(` com `type: 'FREE'` e `organizationId` no `where`, o texto `Só o dono do espaço pode mudar quem adiciona pessoas.` numa `ForbiddenException`, `membersCanInvite` no `select` de `getDetail` e de `addMember`, e os textos `Esta pessoa é a dona deste espaço.` e `Você já é membro deste espaço.` em `BadRequestException`. `rg -n "^\s*[^/*].*\bisAdmin\b" apps/api/src/spaces/spaces.service.ts apps/api/src/spaces/spaces.controller.ts` é vazio.
-- [ ] CA1.5 — `apps/api/src/spaces/spaces.controller.ts` tem `@Patch(':spaceId')` com `@HttpCode(200)` e `@Param('spaceId')` chamando `updateSettings(`; `rg -n "@UseGuards" apps/api/src/spaces/spaces.controller.ts` devolve uma ocorrência, acima da classe, com `SessionGuard`.
-- [ ] CA1.6 — `pnpm exec vitest run --project api` sai com 0 e existem, conferidos com `rg -n "^\s*(it|test)(\.each)?\(" apps/api/src/spaces/__tests__`, todos os casos nomeados em T1.4 com os nomes literais (`spaces.service.test.ts`: 9; `spaces.integration.test.ts`: 19; `spaces.contract.test.ts`: 5). `rg -n "'PUT space member answers 403 to a member'" apps/api/src/spaces/__tests__/spaces.integration.test.ts` é vazio (DV2). `rg -n "vi\.mock\(.*prisma" apps/api/src/spaces/__tests__/spaces.integration.test.ts apps/api/src/spaces/__tests__/spaces.contract.test.ts` é vazio.
-- [ ] CA1.7 — Lendo os testes: `updateSettings with another organization id answers 404` chama o serviço real (ligado ao Prisma de teste) com `randomUUID()` como `organizationId` sobre um espaço existente; `the database rejects membersCanInvite on a UNIT space` escreve pelo Prisma direto e espera a rejeição; `PUT space member answers 200 to a member of an open space and the person sees the space in GET spaces` assere o item em `GET /spaces` da pessoa adicionada; `closing the space keeps the members who joined` assere a contagem de `SpaceMember` depois do `PATCH` com `false`. `rg -n "DROP CONSTRAINT|DISABLE TRIGGER|session_replication_role" apps/api/src apps/api/test` é vazio.
-- [ ] CA1.8 — Cobertura ≥ 80% de linhas para `apps/api/src/spaces/spaces.schema.ts`, `apps/api/src/spaces/spaces.service.ts` e `apps/api/src/spaces/spaces.controller.ts`, lida em `coverage/coverage-summary.json` gerado na raiz com `pnpm exec vitest run --coverage --coverage.reporter=json-summary`.
+- [x] CA1.1 — Com `docker compose up -d`, na raiz e com o cache do `tsc` limpo (`pnpm exec tsc -b --clean`; nenhum `*.tsbuildinfo` fora de `node_modules`): `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` saem com 0 e sem aviso (repetição única permitida só para teste antigo instável).
+- [x] CA1.2 — `packages/api-contract/openapi.yaml`: o item `/spaces/{spaceId}:` tem `patch` com `operationId: updateSpaceSettings`, parâmetro `spaceId`, `requestBody` com `$ref` para `UpdateSpaceInput` e respostas exatamente `200` (`SpaceDetailResponse`), `400`, `401`, `403`, `404`; `UpdateSpaceInput` tem `required: [membersCanInvite]`, `additionalProperties: false` e `membersCanInvite` `type: boolean`; `SpaceDetail` tem `membersCanInvite` em `required`. `rg -n "updateSpaceSettings|UpdateSpaceInput|membersCanInvite" packages/api-contract/src/generated/openapi.d.ts` encontra os três.
+- [x] CA1.3 — Existe `apps/api/prisma/migrations/0018_space_members_can_invite/migration.sql` com `ADD COLUMN "membersCanInvite" BOOLEAN NOT NULL DEFAULT false` e `ADD CONSTRAINT "Space_members_can_invite_free_check" CHECK ("type" = 'FREE' OR "membersCanInvite" = false)`; `ls apps/api/prisma/migrations` lista só `0001…0018` e `migration_lock.toml`. `apps/api/prisma/schema.prisma` tem `membersCanInvite Boolean @default(false)` em `Space` com `///`. `pnpm --filter api exec prisma validate` sai com 0 e `DATABASE_URL=postgresql://folioteca@localhost:5433/folioteca_test pnpm --filter api exec prisma migrate status` reporta o banco em dia.
+- [x] CA1.4 — `apps/api/src/spaces/spaces.schema.ts` exporta `updateSpaceSchema` (`z.strictObject`) com `Escolha quem adiciona pessoas.` e `Campo não permitido.`. `apps/api/src/spaces/spaces.service.ts` tem o método `updateSettings(` com `type: 'FREE'` e `organizationId` no `where`, o texto `Só o dono do espaço pode mudar quem adiciona pessoas.` numa `ForbiddenException`, `membersCanInvite` no `select` de `getDetail` e de `addMember`, e os textos `Esta pessoa é a dona deste espaço.` e `Você já é membro deste espaço.` em `BadRequestException`. `rg -n "^\s*[^/*].*\bisAdmin\b" apps/api/src/spaces/spaces.service.ts apps/api/src/spaces/spaces.controller.ts` é vazio.
+- [x] CA1.5 — `apps/api/src/spaces/spaces.controller.ts` tem `@Patch(':spaceId')` com `@HttpCode(200)` e `@Param('spaceId')` chamando `updateSettings(`; `rg -n "@UseGuards" apps/api/src/spaces/spaces.controller.ts` devolve uma ocorrência, acima da classe, com `SessionGuard`.
+- [x] CA1.6 — `pnpm exec vitest run --project api` sai com 0 e existem, conferidos com `rg -n "^\s*(it|test)(\.each)?\(" apps/api/src/spaces/__tests__`, todos os casos nomeados em T1.4 com os nomes literais (`spaces.service.test.ts`: 9; `spaces.integration.test.ts`: 19; `spaces.contract.test.ts`: 5). `rg -n "'PUT space member answers 403 to a member'" apps/api/src/spaces/__tests__/spaces.integration.test.ts` é vazio (DV2). `rg -n "vi\.mock\(.*prisma" apps/api/src/spaces/__tests__/spaces.integration.test.ts apps/api/src/spaces/__tests__/spaces.contract.test.ts` é vazio.
+- [x] CA1.7 — Lendo os testes: `updateSettings with another organization id answers 404` chama o serviço real (ligado ao Prisma de teste) com `randomUUID()` como `organizationId` sobre um espaço existente; `the database rejects membersCanInvite on a UNIT space` escreve pelo Prisma direto e espera a rejeição; `PUT space member answers 200 to a member of an open space and the person sees the space in GET spaces` assere o item em `GET /spaces` da pessoa adicionada; `closing the space keeps the members who joined` assere a contagem de `SpaceMember` depois do `PATCH` com `false`. `rg -n "DROP CONSTRAINT|DISABLE TRIGGER|session_replication_role" apps/api/src apps/api/test` é vazio.
+- [x] CA1.8 — Cobertura ≥ 80% de linhas para `apps/api/src/spaces/spaces.schema.ts`, `apps/api/src/spaces/spaces.service.ts` e `apps/api/src/spaces/spaces.controller.ts`, lida em `coverage/coverage-summary.json` gerado na raiz com `pnpm exec vitest run --coverage --coverage.reporter=json-summary`.
 
 ## Fase 2 — Web: controle "Quem adiciona pessoas" na página do espaço e "Adicionar pessoa" para o membro
 

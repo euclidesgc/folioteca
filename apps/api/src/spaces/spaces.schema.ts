@@ -26,3 +26,16 @@ export const createSpaceSchema = z.strictObject(
 );
 
 export type CreateSpaceInput = z.infer<typeof createSpaceSchema>;
+
+/**
+ * Configuração do espaço livre que o dono muda: quem adiciona pessoas. Só o
+ * campo `membersCanInvite`; qualquer outro é campo extra e recusado.
+ */
+export const updateSpaceSchema = z.strictObject(
+  {
+    membersCanInvite: z.boolean({ error: 'Escolha quem adiciona pessoas.' }),
+  },
+  { error: 'Campo não permitido.' },
+);
+
+export type UpdateSpaceInput = z.infer<typeof updateSpaceSchema>;

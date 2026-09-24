@@ -668,3 +668,114 @@ test('GET space members answers the documented 200 for a FREE space', async () =
     body: response.body,
   });
 });
+
+/** `PATCH /api/spaces/:spaceId` com o cabeçalho de CSRF. */
+function patchSpace(
+  spaceId: string,
+  body: object,
+  cookie?: string,
+): Promise<Response> {
+  const request = httpRequest(app)
+    .patch(`/api/spaces/${spaceId}`)
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return cookie === undefined
+    ? request.send(body)
+    : request.set('Cookie', cookie).send(body);
+}
+
+test('PATCH space answers the documented 200', async () => {
+  const { freeSpaceId } = await createFreeSpaceAndOther();
+
+  const response = await patchSpace(
+    freeSpaceId,
+    { membersCanInvite: true },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(200);
+  expect(
+    (response.body as { data: { membersCanInvite: boolean } }).data
+      .membersCanInvite,
+  ).toBe(true);
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}',
+    method: 'patch',
+    status: 200,
+    body: response.body,
+  });
+});
+
+test('PATCH space answers the documented 400', async () => {
+  const { freeSpaceId } = await createFreeSpaceAndOther();
+
+  const response = await patchSpace(freeSpaceId, {}, adminCookie);
+
+  expect(response.status).toBe(400);
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}',
+    method: 'patch',
+    status: 400,
+    body: response.body,
+  });
+});
+
+test('PATCH space answers the documented 403', async () => {
+  const { freeSpaceId, other } = await createFreeSpaceAndOther();
+  const added = await putSpaceMember(freeSpaceId, other.id, adminCookie);
+
+  const response = await patchSpace(
+    freeSpaceId,
+    { membersCanInvite: true },
+    other.cookie,
+  );
+
+  expect(added.status).toBe(200);
+  expect(response.status).toBe(403);
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}',
+    method: 'patch',
+    status: 403,
+    body: response.body,
+  });
+});
+
+test('PATCH space answers the documented 404', async () => {
+  const response = await patchSpace(
+    randomUUID(),
+    { membersCanInvite: true },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(404);
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}',
+    method: 'patch',
+    status: 404,
+    body: response.body,
+  });
+});
+
+test('GET space answers the documented 200 with membersCanInvite', async () => {
+  const { freeSpaceId } = await createFreeSpaceAndOther();
+  const opened = await patchSpace(
+    freeSpaceId,
+    { membersCanInvite: true },
+    adminCookie,
+  );
+
+  const response = await getSpace(freeSpaceId, adminCookie);
+
+  expect(opened.status).toBe(200);
+  expect(response.status).toBe(200);
+  expect(
+    (response.body as { data: { membersCanInvite: boolean } }).data
+      .membersCanInvite,
+  ).toBe(true);
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}',
+    method: 'get',
+    status: 200,
+    body: response.body,
+  });
+});
