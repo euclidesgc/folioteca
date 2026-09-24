@@ -410,7 +410,7 @@ export interface paths {
         put?: never;
         /**
          * Cria um espaço livre
-         * @description Cria um espaço livre na organização da pessoa da sessão, que passa a ser a dona dele. A organização e a dona vêm só da sessão, nunca do corpo. O nome é aparado antes de medir e não precisa ser único.
+         * @description Cria um espaço livre na organização da pessoa da sessão, que passa a ser a dona dele. A organização e a dona vêm só da sessão, nunca do corpo. O nome é aparado antes de medir e é único por dono entre os espaços livres, sem diferenciar maiúsculas de minúsculas.
          */
         post: operations["createSpace"];
         delete?: never;
@@ -2431,6 +2431,15 @@ export interface operations {
             };
             /** @description Não há sessão válida. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Você já tem um espaço livre com esse nome. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -2,7 +2,12 @@ import 'reflect-metadata';
 
 import { randomUUID } from 'node:crypto';
 
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { compareMembers, SpacesService } from '../spaces.service';
@@ -27,6 +32,7 @@ function createService(rows: SpaceRow[]): {
   service: SpacesService;
   findMany: ReturnType<typeof vi.fn>;
   findUnits: ReturnType<typeof vi.fn>;
+  findFirst: ReturnType<typeof vi.fn>;
   create: ReturnType<typeof vi.fn>;
 } {
   const findMany = vi.fn().mockResolvedValue(
@@ -49,16 +55,23 @@ function createService(rows: SpaceRow[]): {
           ],
     ),
   );
+  const findFirst = vi.fn().mockResolvedValue(null);
   const create = vi
     .fn()
     .mockResolvedValue({ id: 'space-free', name: 'Projeto Alfa' });
 
   const prisma = {
-    space: { findMany, create },
+    space: { findMany, findFirst, create },
     orgUnit: { findMany: findUnits },
   } as unknown as PrismaService;
 
-  return { service: new SpacesService(prisma), findMany, findUnits, create };
+  return {
+    service: new SpacesService(prisma),
+    findMany,
+    findUnits,
+    findFirst,
+    create,
+  };
 }
 
 test('list queries unit spaces scoped by the given organization and person', async () => {
@@ -217,6 +230,61 @@ test('create ignores organizationId and ownerId sent in the body', async () => {
     }),
   ).rejects.toThrow(BadRequestException);
   expect(create).not.toHaveBeenCalled();
+});
+
+test('create throws ConflictException when the owner already has a FREE space with the name', async () => {
+  const { service, findFirst, create } = createService([]);
+  findFirst.mockResolvedValue({ id: 'space-existing' });
+
+  const attempt = service.create(ORGANIZATION_ID, PERSON_ID, {
+    name: '  Projeto Alfa  ',
+  });
+
+  await expect(attempt).rejects.toThrow(ConflictException);
+  await expect(attempt).rejects.toThrow('Você já tem um espaço com esse nome.');
+  expect(findFirst).toHaveBeenCalledWith(
+    expect.objectContaining({
+      where: {
+        type: 'FREE',
+        ownerId: PERSON_ID,
+        name: { equals: 'Projeto Alfa', mode: 'insensitive' },
+      },
+    }),
+  );
+  expect(create).not.toHaveBeenCalled();
+});
+
+test('create turns a P2002 from the database into the same ConflictException', async () => {
+  const { service, create } = createService([]);
+  create.mockRejectedValue(
+    new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed on the fields: (`ownerId`,`name`)',
+      { code: 'P2002', clientVersion: 'test' },
+    ),
+  );
+
+  const attempt = service.create(ORGANIZATION_ID, PERSON_ID, {
+    name: 'Projeto Alfa',
+  });
+
+  await expect(attempt).rejects.toThrow(ConflictException);
+  await expect(attempt).rejects.toThrow('Você já tem um espaço com esse nome.');
+});
+
+test('create rethrows an error that is not a unique violation', async () => {
+  const { service, create } = createService([]);
+  const failure = new Prisma.PrismaClientKnownRequestError(
+    'Foreign key constraint failed',
+    { code: 'P2003', clientVersion: 'test' },
+  );
+  create.mockRejectedValue(failure);
+
+  const attempt = service.create(ORGANIZATION_ID, PERSON_ID, {
+    name: 'Projeto Alfa',
+  });
+
+  await expect(attempt).rejects.toBe(failure);
+  await expect(attempt).rejects.not.toThrow(ConflictException);
 });
 
 type UnitRow = {

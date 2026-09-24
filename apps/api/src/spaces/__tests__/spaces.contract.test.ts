@@ -145,6 +145,38 @@ test('POST spaces answers the documented 401', async () => {
   });
 });
 
+test('POST spaces documents a 409 response with the Error schema', async () => {
+  const raw = (await SwaggerParser.parse(openapiPath)) as {
+    paths?: Record<
+      string,
+      {
+        post?: {
+          responses?: Record<
+            string,
+            { content?: { 'application/json'?: { schema?: unknown } } }
+          >;
+        };
+      }
+    >;
+  };
+  await postSpace({ name: 'Projeto Alfa' }, adminCookie);
+
+  const response = await postSpace({ name: 'Projeto Alfa' }, adminCookie);
+
+  expect(
+    raw.paths?.[CONTRACT_PATH]?.post?.responses?.['409']?.content?.[
+      'application/json'
+    ]?.schema,
+  ).toEqual({ $ref: '#/components/schemas/Error' });
+  expect(response.status).toBe(409);
+  await expectMatchesContract({
+    path: CONTRACT_PATH,
+    method: 'post',
+    status: 409,
+    body: response.body,
+  });
+});
+
 test('GET spaces with an inherited unit space matches the documented 200', async () => {
   const admin = await prisma.person.findFirstOrThrow({ select: { id: true, organizationId: true } });
   const root = await prisma.orgUnit.findFirstOrThrow({ where: { parentId: null } });

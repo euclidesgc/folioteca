@@ -1,10 +1,12 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
 import type { components } from '@folioteca/api-contract';
 
+import { isUniqueViolation } from '../common/is-unique-violation';
 import { isUuid } from '../common/is-uuid';
 import { parseBody } from '../common/parse-body';
 import { ptBrCollator } from '../common/pt-br-collator';
@@ -30,6 +32,8 @@ const ADD_OWNER_MESSAGE = 'Você já é o dono deste espaço.';
 const PERSON_NOT_FOUND_MESSAGE = 'Pessoa não encontrada nesta instância.';
 
 const REMOVE_OWNER_MESSAGE = 'O dono não pode ser removido.';
+
+const DUPLICATE_NAME_MESSAGE = 'Você já tem um espaço com esse nome.';
 
 type UnitReach = {
   reach: 'direct' | 'inherited' | 'none';
@@ -511,10 +515,35 @@ export class SpacesService {
   ): Promise<SpaceResponse> {
     const { name } = parseBody(createSpaceSchema, body);
 
-    const space = await this.prisma.space.create({
-      data: { type: 'FREE', organizationId, ownerId: personId, name },
-      select: { id: true, name: true },
+    const duplicate = await this.prisma.space.findFirst({
+      where: {
+        type: 'FREE',
+        ownerId: personId,
+        name: { equals: name, mode: 'insensitive' },
+      },
+      select: { id: true },
     });
+
+    if (duplicate) {
+      throw new ConflictException(DUPLICATE_NAME_MESSAGE);
+    }
+
+    // The query above gives the friendly answer; the partial unique index
+    // `Space_free_owner_name_key` closes the race between it and the insert.
+    let space: { id: string; name: string | null };
+
+    try {
+      space = await this.prisma.space.create({
+        data: { type: 'FREE', organizationId, ownerId: personId, name },
+        select: { id: true, name: true },
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new ConflictException(DUPLICATE_NAME_MESSAGE);
+      }
+
+      throw error;
+    }
 
     return { data: { id: space.id, type: 'free', name: space.name ?? name } };
   }

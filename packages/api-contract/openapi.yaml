@@ -1192,7 +1192,8 @@ paths:
       description: >-
         Cria um espaço livre na organização da pessoa da sessão, que passa a
         ser a dona dele. A organização e a dona vêm só da sessão, nunca do
-        corpo. O nome é aparado antes de medir e não precisa ser único.
+        corpo. O nome é aparado antes de medir e é único por dono entre os
+        espaços livres, sem diferenciar maiúsculas de minúsculas.
       requestBody:
         required: true
         content:
@@ -1214,6 +1215,12 @@ paths:
                 $ref: "#/components/schemas/ValidationError"
         "401":
           description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Você já tem um espaço livre com esse nome.
           content:
             application/json:
               schema:

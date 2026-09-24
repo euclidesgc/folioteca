@@ -3,7 +3,7 @@ import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
 
 import type { INestApplication } from '@nestjs/common';
-import type { Person } from '@prisma/client';
+import { Prisma, type Person } from '@prisma/client';
 import type { Response } from 'supertest';
 
 import { createApp } from '../../create-app';
@@ -312,20 +312,143 @@ test('POST spaces rejects extra fields with 400', async () => {
   ).toBe(0);
 });
 
-test('POST spaces accepts two spaces with the same name from the same owner', async () => {
+test('POST spaces answers 409 to a second space with the same name from the same owner', async () => {
   const first = await postSpace({ name: 'Projeto Alfa' }, adminCookie);
   const second = await postSpace({ name: 'Projeto Alfa' }, adminCookie);
 
   expect(first.status).toBe(201);
-  expect(second.status).toBe(201);
-  expect((first.body as { data: SpaceItem }).data.id).not.toBe(
-    (second.body as { data: SpaceItem }).data.id,
-  );
+  expect(second.status).toBe(409);
+  expect(second.body).toEqual({
+    message: 'Você já tem um espaço com esse nome.',
+  });
   expect(
     await prisma.space.count({
       where: { type: 'FREE', ownerId: adminPerson.id, name: 'Projeto Alfa' },
     }),
-  ).toBe(2);
+  ).toBe(1);
+});
+
+test('POST spaces answers 409 when the name differs only in case and outer spaces', async () => {
+  const first = await postSpace({ name: 'Projeto Alfa' }, adminCookie);
+  const second = await postSpace({ name: ' PROJETO alfa ' }, adminCookie);
+
+  expect(first.status).toBe(201);
+  expect(second.status).toBe(409);
+  expect(second.body).toEqual({
+    message: 'Você já tem um espaço com esse nome.',
+  });
+  expect(await countFreeSpaces()).toBe(1);
+});
+
+test('POST spaces accepts a name that differs only by an accent', async () => {
+  const first = await postSpace({ name: 'Projeto Alfa' }, adminCookie);
+  const second = await postSpace({ name: 'Projeto Álfa' }, adminCookie);
+
+  expect(first.status).toBe(201);
+  expect(second.status).toBe(201);
+  expect(await countFreeSpaces()).toBe(2);
+});
+
+test('POST spaces accepts a name that differs only by inner spaces', async () => {
+  const first = await postSpace({ name: 'Projeto Alfa' }, adminCookie);
+  const second = await postSpace({ name: 'Projeto  Alfa' }, adminCookie);
+
+  expect(first.status).toBe(201);
+  expect(second.status).toBe(201);
+  expect(await countFreeSpaces()).toBe(2);
+});
+
+test('POST spaces accepts the same name from a different owner', async () => {
+  const { person, cookie } = await createMember();
+
+  const mine = await postSpace({ name: 'Projeto Alfa' }, adminCookie);
+  const theirs = await postSpace({ name: 'Projeto Alfa' }, cookie);
+
+  expect(mine.status).toBe(201);
+  expect(theirs.status).toBe(201);
+  expect(
+    await prisma.space.count({
+      where: { type: 'FREE', ownerId: adminPerson.id, name: 'Projeto Alfa' },
+    }),
+  ).toBe(1);
+  expect(
+    await prisma.space.count({
+      where: { type: 'FREE', ownerId: person.id, name: 'Projeto Alfa' },
+    }),
+  ).toBe(1);
+});
+
+test('POST spaces accepts a free space with the name of an existing unit space of the owner', async () => {
+  const unit = await createUnit('Projeto Alfa');
+  await assign(unit.orgUnitId, adminPerson.id);
+
+  const response = await postSpace({ name: 'Projeto Alfa' }, adminCookie);
+
+  expect(response.status).toBe(201);
+  expect(await countFreeSpaces()).toBe(1);
+  expect(
+    await prisma.space.count({ where: { id: unit.spaceId, type: 'UNIT' } }),
+  ).toBe(1);
+});
+
+test('two parallel POST spaces with the same name give one 201 and one 409', async () => {
+  const responses = await Promise.all([
+    postSpace({ name: 'Projeto Alfa' }, adminCookie),
+    postSpace({ name: 'Projeto Alfa' }, adminCookie),
+  ]);
+
+  expect(responses.map((response) => response.status).sort()).toEqual([
+    201, 409,
+  ]);
+  expect(
+    await prisma.space.count({
+      where: { type: 'FREE', ownerId: adminPerson.id, name: 'Projeto Alfa' },
+    }),
+  ).toBe(1);
+});
+
+/** Espaço livre gravado direto pelo Prisma, sem passar pelo serviço. */
+function insertFreeSpace(ownerId: string, name: string): Promise<unknown> {
+  return prisma.space.create({
+    data: {
+      type: 'FREE',
+      organizationId: adminPerson.organizationId,
+      ownerId,
+      name,
+    },
+  });
+}
+
+test('the database rejects a duplicate free space name through Space_free_owner_name_key', async () => {
+  await insertFreeSpace(adminPerson.id, 'Projeto Alfa');
+
+  const error: unknown = await insertFreeSpace(
+    adminPerson.id,
+    'PROJETO ALFA',
+  ).catch((reason: unknown) => reason);
+
+  expect(error).toBeInstanceOf(Prisma.PrismaClientKnownRequestError);
+  const known = error as Prisma.PrismaClientKnownRequestError;
+  expect(known.code).toBe('P2002');
+  // Prisma names the columns of the violated index, not the index itself;
+  // `(ownerId, lower(name))` is exactly the key of Space_free_owner_name_key.
+  expect(known.meta?.target).toEqual(['ownerId', 'lower(name)']);
+  const indexes = await prisma.$queryRaw<{ indexdef: string }[]>`
+    SELECT indexdef FROM pg_indexes
+    WHERE tablename = 'Space' AND indexname = 'Space_free_owner_name_key'
+  `;
+  expect(indexes).toHaveLength(1);
+  expect(indexes[0]?.indexdef).toContain('("ownerId", lower(name))');
+  expect(await countFreeSpaces()).toBe(1);
+});
+
+test('the database accepts the same name for another owner', async () => {
+  const { person } = await createMember();
+  await insertFreeSpace(adminPerson.id, 'Projeto Alfa');
+
+  await insertFreeSpace(person.id, 'Projeto Alfa');
+
+  expect(await countFreeSpaces()).toBe(2);
 });
 
 test('POST spaces answers 401 to an anonymous request', async () => {

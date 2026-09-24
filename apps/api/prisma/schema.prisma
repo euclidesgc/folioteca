@@ -96,6 +96,10 @@ enum SpaceType {
 /// The type/owner check constraint (`Space_type_owner_check`: which columns
 /// each type requires or forbids) cannot be expressed by Prisma, so it lives
 /// only in the handwritten migrations `0002` and `0013`.
+///
+/// The uniqueness of `(ownerId, lower(name))` among `FREE` spaces (index
+/// `Space_free_owner_name_key`) is a partial expression index Prisma cannot
+/// express, so it lives only in the handwritten migration `0017`.
 model Space {
   id             String    @id @default(uuid())
   type           SpaceType
