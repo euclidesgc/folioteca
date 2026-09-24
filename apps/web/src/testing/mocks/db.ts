@@ -103,8 +103,14 @@ export type MockSpace =
 
 // A person added to a free space by its owner. Like `MockAssignment`, the pair
 // is the whole row: the real table's composite primary key keeps the same
-// person from being added twice to the same space.
-export type MockSpaceMember = { spaceId: string; personId: string };
+// person from being added twice to the same space. `level` is what the member
+// does there: `edit` creates and edits, `view` only reads. A row without it is
+// `edit`, the default of the real column.
+export type MockSpaceMember = {
+  spaceId: string;
+  personId: string;
+  level?: 'view' | 'edit';
+};
 
 type DbState = {
   installation: MockInstallation | null;
@@ -485,6 +491,34 @@ const isSpaceMember = (personId: string, spaceId: string): boolean =>
     (item) => item.spaceId === spaceId && item.personId === personId,
   );
 
+// The level of a member of a free space, `edit` when the row has none (the
+// default of the real column). `null` for whoever is not a member, the owner
+// included: the owner has no row and no level.
+export const spaceMemberLevelOf = (
+  personId: string,
+  spaceId: string,
+): 'view' | 'edit' | null => {
+  const row = state.spaceMembers.find(
+    (item) => item.spaceId === spaceId && item.personId === personId,
+  );
+  return row ? (row.level ?? 'edit') : null;
+};
+
+// Sets the level of a member of a free space, the way PATCH
+// /spaces/:spaceId/members/:personId does. Written on the row already in the
+// database (same reason as `touchDocumentUpdatedAt` above). A person who is
+// not a member does nothing.
+export const setSpaceMemberLevel = (
+  spaceId: string,
+  personId: string,
+  level: 'view' | 'edit',
+): void => {
+  const row = state.spaceMembers.find(
+    (item) => item.spaceId === spaceId && item.personId === personId,
+  );
+  if (row) row.level = level;
+};
+
 // The spaces of a person, the way GET /spaces answers: the unit spaces the
 // person reaches and the free spaces the person owns or is a member of, mixed and sorted by the
 // pt-BR collator with the tie broken by `id`, the same pair of rules the
@@ -588,15 +622,18 @@ export const spaceDetailOf = (
       };
     }
 
-    return isSpaceMember(personId, space.id)
+    // An editor creates, and adds people when the space is open; a viewer
+    // does neither.
+    const level = spaceMemberLevelOf(personId, space.id);
+    return level
       ? {
           id: space.id,
           type: 'free',
           name: space.name,
           reach: 'member',
           membersCanInvite: space.membersCanInvite,
-          canCreateDocuments: true,
-          canAddPeople: space.membersCanInvite,
+          canCreateDocuments: level === 'edit',
+          canAddPeople: level === 'edit' && space.membersCanInvite,
         }
       : null;
   }
@@ -625,7 +662,8 @@ export type AddSpaceMemberResult =
 // Adds a person to a free space, the way PUT /spaces/:spaceId/members/
 // :personId does, in the same order as `SpacesService.addMember`: a space the
 // requester does not reach (unknown, a unit, a free space of someone else) is
-// 404, a member of a closed space is 403, then the owner and an unknown
+// 404, a member of a closed space is 403, a viewer of an open space is 403,
+// then the owner and an unknown
 // person are 400 (a member of an open space adding the owner or themselves is
 // refused by the PUT handler first). Adding the same pair again keeps a single
 // row, the upsert of the real service.
@@ -649,6 +687,14 @@ export const addSpaceMember = (
       ok: false,
       status: 403,
       message: 'Só o dono do espaço pode adicionar pessoas.',
+    };
+  }
+
+  if (!isOwner && spaceMemberLevelOf(requesterId, spaceId) === 'view') {
+    return {
+      ok: false,
+      status: 403,
+      message: 'Só quem pode editar adiciona pessoas a este espaço.',
     };
   }
 
@@ -715,7 +761,8 @@ export const listSpaceMembers = (
             email: person.email,
             isCurrentPerson: person.id === personId,
             role,
-            level: role === 'member' ? 'edit' : null,
+            level:
+              role === 'member' ? (spaceMemberLevelOf(id, spaceId) ?? 'edit') : null,
           },
         ]
       : [];
@@ -1398,4 +1445,50 @@ export const seedOpenFreeSpaceMembership = (): void => {
   const space = addFreeSpace(owner.id, MEMBER_FREE_SPACE_NAME);
   setSpaceMembersCanInvite(space.id, true);
   state.spaceMembers.push({ spaceId: space.id, personId: member.id });
+};
+
+// Adds "Clube de leitura", the free space of Otávio Mendes, open to its
+// members (`membersCanInvite: true`) with the signed-in person as a member
+// who only reads (`level: 'view'`), and "Ata da primeira reunião", a document
+// of Otávio in it, so the viewer can open the space without "Novo documento"
+// nor "Adicionar pessoa" and open the document read only. The fake database
+// lives in each tab, so a level changed by the owner in one browser never
+// reaches another; this seed reproduces the result. Needs an installation
+// already seeded; does nothing without it.
+export const seedFreeSpaceViewer = (): void => {
+  const viewer = getSignedInPerson();
+  if (!viewer) return;
+
+  const owner: MockPerson = {
+    id: 'person-free-space-owner',
+    name: 'Otávio Mendes',
+    email: 'otavio.mendes@exemplo.com.br',
+    isAdmin: false,
+  };
+  if (!state.people.some((person) => person.id === owner.id)) {
+    state.people.push(owner);
+  }
+
+  const space = addFreeSpace(owner.id, MEMBER_FREE_SPACE_NAME);
+  setSpaceMembersCanInvite(space.id, true);
+  state.spaceMembers.push({
+    spaceId: space.id,
+    personId: viewer.id,
+    level: 'view',
+  });
+
+  // GET /documents/:documentId answers `view` to the viewer, whatever the
+  // level kept here (see the documents handler).
+  const now = new Date().toISOString();
+  state.documents.push({
+    id: 'document-free-space-viewer',
+    title: 'Ata da primeira reunião',
+    spaceId: space.id,
+    authorId: owner.id,
+    ownerId: owner.id,
+    createdAt: now,
+    updatedAt: now,
+    trashedAt: null,
+    accessLevel: 'edit',
+  });
 };

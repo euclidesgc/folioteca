@@ -80,12 +80,9 @@ export function SpaceView({
   const isNotFound = query.error instanceof NotFoundError;
   const space = isNotFound ? undefined : query.data?.data;
   const isFound = space !== undefined;
-  // The owner of a free space always adds people to it; a member only when
-  // the owner opened it. A unit space has nobody adding people.
-  const canAddPeople =
-    space?.type === 'free' &&
-    (space.reach === 'owner' ||
-      (space.reach === 'member' && space.membersCanInvite));
+  // The server decides who adds people (the owner; an editor of an open
+  // space); a unit space has nobody adding people.
+  const canAddPeople = space?.type === 'free' && space.canAddPeople;
   // The same key `SpaceMembers` reads, so the page asks only once. Its owner
   // is hidden from the search of "Adicionar pessoa".
   const membersQuery = useSpaceMembers({

@@ -17,6 +17,7 @@ import {
   seedSampleOrgUnits,
   seedSamplePeople,
   setSpaceMembersCanInvite,
+  spaceDetailOf,
 } from '@/testing/mocks/db';
 import { server } from '@/testing/mocks/server';
 import { renderApp, screen, userEvent, within } from '@/testing/test-utils';
@@ -35,6 +36,22 @@ beforeEach(() => {
   seedSampleOrgUnits();
   addAssignment('org-unit-catalogacao', INSTALLED_PERSON_ID);
 });
+
+// The space of the fake database with `canAddPeople` forced: "Adicionar
+// pessoa" follows what the server answers, never a rule of the screen.
+const answerCanAddPeople = (canAddPeople: boolean): void => {
+  server.use(
+    http.get(`${env.API_URL}/spaces/:spaceId`, ({ params }) => {
+      const space = spaceDetailOf(INSTALLED_PERSON_ID, String(params.spaceId));
+      return space
+        ? HttpResponse.json({ data: { ...space, canAddPeople } })
+        : HttpResponse.json(
+            { message: 'Espaço não encontrado.' },
+            { status: 404 },
+          );
+    }),
+  );
+};
 
 // The view receives the query from whoever owns the page, as the route does.
 function View({ spaceId }: { spaceId: string }): React.JSX.Element {
@@ -63,6 +80,8 @@ test('shows the loading status with the stable heading', async () => {
           name: 'Catalogação',
           reach: 'direct',
           membersCanInvite: false,
+          canCreateDocuments: true,
+          canAddPeople: false,
         },
       });
     }),
@@ -309,6 +328,8 @@ test('another error shows Tentar novamente and refetches', async () => {
               name: 'Catalogação',
               reach: 'direct',
               membersCanInvite: false,
+              canCreateDocuments: true,
+              canAddPeople: false,
             },
           });
     }),
@@ -375,6 +396,7 @@ test('a free space does not show the members', async () => {
 
 test('a FREE space shows Adicionar pessoa to its owner', async () => {
   const space = addFreeSpace(INSTALLED_PERSON_ID, 'Comissão de Leitura');
+  answerCanAddPeople(true);
 
   renderApp(<View spaceId={space.id} />);
 
@@ -403,6 +425,7 @@ test('a FREE space shows the member description without Adicionar pessoa when cl
   const ownerId = 'person-sample-1';
   const space = addFreeSpace(ownerId, 'Clube do Livro');
   addSpaceMember(ownerId, space.id, INSTALLED_PERSON_ID);
+  answerCanAddPeople(false);
 
   renderApp(<View spaceId={space.id} />);
 
@@ -541,6 +564,7 @@ test('a FREE space shows Adicionar pessoa to a member when open', async () => {
   const space = addFreeSpace(ownerId, 'Clube do Livro');
   setSpaceMembersCanInvite(space.id, true);
   addSpaceMember(ownerId, space.id, INSTALLED_PERSON_ID);
+  answerCanAddPeople(true);
 
   renderApp(<View spaceId={space.id} />);
 
@@ -572,6 +596,31 @@ test('a unit space shows neither the invite mode control nor Adicionar pessoa', 
   expect(
     screen.queryByRole('group', { name: 'Quem adiciona pessoas' }),
   ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: 'Adicionar pessoa' }),
+  ).not.toBeInTheDocument();
+});
+
+test('a FREE space hides Adicionar pessoa when canAddPeople is false even if open', async () => {
+  seedSamplePeople();
+  const ownerId = 'person-sample-1';
+  const space = addFreeSpace(ownerId, 'Clube do Livro');
+  setSpaceMembersCanInvite(space.id, true);
+  addSpaceMember(ownerId, space.id, INSTALLED_PERSON_ID);
+  answerCanAddPeople(false);
+
+  renderApp(<View spaceId={space.id} />);
+
+  expect(
+    await screen.findByRole(
+      'heading',
+      { level: 1, name: 'Clube do Livro' },
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText('Um espaço livre de que você é membro.'),
+  ).toBeInTheDocument();
   expect(
     screen.queryByRole('button', { name: 'Adicionar pessoa' }),
   ).not.toBeInTheDocument();

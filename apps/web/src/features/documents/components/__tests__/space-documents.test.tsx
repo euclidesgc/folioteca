@@ -38,11 +38,17 @@ beforeEach(() => {
 
 // Creating a document navigates: the memory router needs a real destination
 // for the document address.
-const renderSpaceDocuments = (spaceId: string = CATALOGACAO_SPACE_ID) => {
+const renderSpaceDocuments = (
+  spaceId: string = CATALOGACAO_SPACE_ID,
+  canCreate = true,
+) => {
   const queryClient = new QueryClient({ defaultOptions: queryConfig });
   const router = createMemoryRouter(
     [
-      { path: '/', element: <SpaceDocuments spaceId={spaceId} /> },
+      {
+        path: '/',
+        element: <SpaceDocuments spaceId={spaceId} canCreate={canCreate} />,
+      },
       { path: paths.document.path, element: <p>Página do documento</p> },
     ],
     { initialEntries: ['/'] },
@@ -195,4 +201,45 @@ test('creating a document navigates to it', async () => {
   ).toBeInTheDocument();
   expect(postedBody).toEqual({ spaceId: CATALOGACAO_SPACE_ID });
   expect(router.state.location.pathname).toMatch(/^\/documents\/.+/);
+});
+
+test('hides Novo documento when canCreate is false', async () => {
+  const document = createDocumentIn(INSTALLED_PERSON_ID, CATALOGACAO_SPACE_ID);
+  document.title = 'Manual de catalogação';
+
+  renderSpaceDocuments(CATALOGACAO_SPACE_ID, false);
+
+  const list = await screen.findByRole('list', {}, LAZY_TIMEOUT);
+  expect(
+    within(list).getByRole('link', { name: 'Manual de catalogação' }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: 'Novo documento' }),
+  ).not.toBeInTheDocument();
+});
+
+test('shows Nenhum documento neste espaço ainda. when canCreate is false and the list is empty', async () => {
+  renderSpaceDocuments(CATALOGACAO_SPACE_ID, false);
+
+  expect(
+    await screen.findByText(
+      'Nenhum documento neste espaço ainda.',
+      {},
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
+  expect(screen.queryByText(EMPTY_MESSAGE)).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: 'Novo documento' }),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByRole('list')).not.toBeInTheDocument();
+});
+
+test('shows Novo documento when canCreate is true', async () => {
+  renderSpaceDocuments(CATALOGACAO_SPACE_ID, true);
+
+  expect(
+    await screen.findByRole('button', { name: 'Novo documento' }, LAZY_TIMEOUT),
+  ).toBeInTheDocument();
+  expect(screen.getByText(EMPTY_MESSAGE)).toBeInTheDocument();
 });
