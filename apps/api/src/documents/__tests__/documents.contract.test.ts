@@ -4,10 +4,18 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
 import SwaggerParser from '@apidevtools/swagger-parser';
-import type { INestApplication } from '@nestjs/common';
+import { RequestMethod, type INestApplication } from '@nestjs/common';
+import {
+  HTTP_CODE_METADATA,
+  METHOD_METADATA,
+  PATH_METADATA,
+  ROUTE_ARGS_METADATA,
+} from '@nestjs/common/constants';
+import { RouteParamtypes } from '@nestjs/common/enums/route-paramtypes.enum';
 import type { Response } from 'supertest';
 
 import { createApp } from '../../create-app';
+import { DocumentsController } from '../documents.controller';
 import { PrismaService } from '../../prisma/prisma.service';
 import { createPersonWithSession } from '../../../test/create-person';
 import { expectMatchesContract } from '../../../test/contract';
@@ -570,6 +578,66 @@ test('PUT documents shares answers the documented 409', async () => {
   await expectShareContract(await putShare(documentId, person.id, cookie), 409);
 });
 
+const SHARES_LIST_CONTRACT_PATH = '/documents/{documentId}/shares';
+
+function getShares(documentId: string, listCookie?: string): Promise<Response> {
+  const request = httpRequest(app)
+    .get(`/api/documents/${documentId}/shares`)
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return listCookie === undefined
+    ? request
+    : request.set('Cookie', listCookie);
+}
+
+async function expectSharesListContract(
+  response: Response,
+  status: number,
+): Promise<void> {
+  expect(response.status).toBe(status);
+  await expectMatchesContract({
+    path: SHARES_LIST_CONTRACT_PATH,
+    method: 'get',
+    status,
+    body: response.body,
+  });
+}
+
+test('GET documents shares answers the documented 200', async () => {
+  const documentId = await createDocumentId();
+  const { person } = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+  await putShare(documentId, person.id, cookie);
+
+  await expectSharesListContract(await getShares(documentId, cookie), 200);
+});
+
+test('GET documents shares answers the documented 401', async () => {
+  const documentId = await createDocumentId();
+
+  await expectSharesListContract(await getShares(documentId), 401);
+});
+
+test('GET documents shares answers the documented 403', async () => {
+  const documentId = await createDocumentId();
+  const viewer = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+  await putShare(documentId, viewer.person.id, cookie);
+
+  await expectSharesListContract(
+    await getShares(documentId, viewer.cookie),
+    403,
+  );
+});
+
+test('GET documents shares answers the documented 404', async () => {
+  await expectSharesListContract(await getShares(randomUUID(), cookie), 404);
+});
+
 /** `POST /api/documents` com o corpo informado, na sessão da instalação. */
 function postDocumentWith(body: object): Promise<Response> {
   return httpRequest(app)
@@ -621,6 +689,59 @@ test('POST documents with spaceId answers the documented 201', async () => {
   });
 });
 
+/**
+ * Mãe "Secretaria" com a pessoa da sessão lotada e a filha "Protocolo", cujo
+ * espaço herda dela: devolve o espaço da filha, alcançado só pela herança.
+ */
+async function createInheritedUnitSpaceId(): Promise<string> {
+  const person = await prisma.person.findFirstOrThrow({
+    where: { email: EMAIL },
+  });
+  const root = await prisma.orgUnit.findFirstOrThrow({
+    where: { parentId: null },
+  });
+  const parent = await prisma.orgUnit.create({
+    data: {
+      organizationId: person.organizationId,
+      parentId: root.id,
+      name: 'Secretaria',
+    },
+  });
+  await prisma.space.create({ data: { type: 'UNIT', orgUnitId: parent.id } });
+  const child = await prisma.orgUnit.create({
+    data: {
+      organizationId: person.organizationId,
+      parentId: parent.id,
+      name: 'Protocolo',
+    },
+  });
+  const childSpace = await prisma.space.create({
+    data: { type: 'UNIT', orgUnitId: child.id, inheritsParent: true },
+  });
+  await prisma.orgUnitAssignment.create({
+    data: { orgUnitId: parent.id, personId: person.id },
+  });
+
+  return childSpace.id;
+}
+
+test('POST /documents with an inherited unit space matches the 201 contract', async () => {
+  const spaceId = await createInheritedUnitSpaceId();
+
+  const response = await postDocumentWith({ spaceId });
+
+  expect(response.status).toBe(201);
+  expect(response.body).toEqual({
+    data: expect.objectContaining({ spaceId, accessLevel: 'owner' }) as unknown,
+  });
+  await expectMatchesContract({
+    path: '/documents',
+    method: 'post',
+    status: 201,
+    body: response.body,
+  });
+});
+
 test('POST documents with spaceId answers the documented 400', async () => {
   const spaceId = await createAssignedUnitSpaceId();
 
@@ -645,4 +766,237 @@ test('POST documents with spaceId answers the documented 404', async () => {
     status: 404,
     body: response.body,
   });
+});
+
+/** Esquema do contrato sem resolver `$ref`, para conferir a declaração. */
+type RawSchema = {
+  type?: string;
+  enum?: string[];
+  required?: string[];
+  properties?: Record<string, RawSchema>;
+};
+
+type RawParameter = { name?: string; in?: string };
+
+type RawContract = {
+  paths?: Record<
+    string,
+    Partial<
+      Record<
+        'get' | 'post' | 'put' | 'patch' | 'delete',
+        {
+          operationId?: string;
+          parameters?: RawParameter[];
+          requestBody?: unknown;
+          responses?: Record<string, { description?: string }>;
+        }
+      >
+    >
+  >;
+  components?: { schemas?: Record<string, RawSchema> };
+};
+
+function rawContract(): Promise<RawContract> {
+  return SwaggerParser.parse(openapiPath) as Promise<RawContract>;
+}
+
+test('ShareDocumentInput level is an enum of view and edit without nullable', async () => {
+  const schema = (await rawContract()).components?.schemas?.ShareDocumentInput;
+
+  expect(schema?.required).toContain('level');
+  expect(schema?.properties?.level?.type).toBe('string');
+  expect([...(schema?.properties?.level?.enum ?? [])].sort()).toEqual([
+    'edit',
+    'view',
+  ]);
+  expect(JSON.stringify(schema)).not.toContain('nullable');
+});
+
+test('DocumentShare level is an enum of view and edit without nullable', async () => {
+  const schema = (await rawContract()).components?.schemas?.DocumentShare;
+  const documentId = await createDocumentId();
+  const { person } = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+
+  const response = await httpRequest(app)
+    .put(`/api/documents/${documentId}/shares/${person.id}`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie)
+    .send({ level: 'edit' });
+
+  expect(schema?.required).toContain('level');
+  expect(schema?.properties?.level?.type).toBe('string');
+  expect([...(schema?.properties?.level?.enum ?? [])].sort()).toEqual([
+    'edit',
+    'view',
+  ]);
+  expect(JSON.stringify(schema)).not.toContain('nullable');
+  expect((response.body as { data: { level: string } }).data.level).toBe(
+    'edit',
+  );
+  await expectShareContract(response, 200);
+});
+
+test('shareDocument path method and personId param match the controller', async () => {
+  const pathItem = (await rawContract()).paths?.[SHARE_CONTRACT_PATH];
+  const controllerPath = Reflect.getMetadata(
+    PATH_METADATA,
+    DocumentsController,
+  ) as unknown;
+  const handler = Object.getOwnPropertyDescriptor(
+    DocumentsController.prototype,
+    'shareDocument',
+  )?.value as object;
+  const methodPath = Reflect.getMetadata(PATH_METADATA, handler) as unknown;
+  const requestMethod = Reflect.getMetadata(METHOD_METADATA, handler) as unknown;
+  const routeArgs = (Reflect.getMetadata(
+    ROUTE_ARGS_METADATA,
+    DocumentsController,
+    'shareDocument',
+  ) ?? {}) as Record<string, { data?: unknown }>;
+  const paramNames = Object.entries(routeArgs)
+    .filter(([key]) => key.startsWith(`${RouteParamtypes.PARAM}:`))
+    .map(([, arg]) => arg.data)
+    .sort();
+  const contractPath = `/${String(controllerPath)}/${String(methodPath)}`.replace(
+    /:(\w+)/g,
+    '{$1}',
+  );
+
+  // DV3: a fatia 179 acrescentou o `delete` ao mesmo path.
+  expect(Object.keys(pathItem ?? {}).sort()).toEqual(['delete', 'put']);
+  expect(pathItem?.put?.operationId).toBe('shareDocument');
+  expect(requestMethod).toBe(RequestMethod.PUT);
+  expect(contractPath).toBe(SHARE_CONTRACT_PATH);
+  expect(paramNames).toEqual(['documentId', 'personId']);
+  expect(
+    (pathItem?.put?.parameters ?? [])
+      .filter((parameter) => parameter.in === 'path')
+      .map((parameter) => parameter.name)
+      .sort(),
+  ).toEqual(['documentId', 'personId']);
+});
+
+/** Operação `delete` do path do compartilhamento, sem resolver `$ref`. */
+async function rawRemoveOperation() {
+  return (await rawContract()).paths?.[SHARE_CONTRACT_PATH]?.delete;
+}
+
+function deleteShare(
+  documentId: string,
+  personId: string,
+  shareCookie?: string,
+): Promise<Response> {
+  const request = httpRequest(app)
+    .delete(`/api/documents/${documentId}/shares/${personId}`)
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return (
+    shareCookie === undefined ? request : request.set('Cookie', shareCookie)
+  ).send();
+}
+
+async function expectRemoveShareContract(
+  response: Response,
+  status: number,
+): Promise<void> {
+  expect(response.status).toBe(status);
+  await expectMatchesContract({
+    path: SHARE_CONTRACT_PATH,
+    method: 'delete',
+    status,
+    body: response.body,
+  });
+}
+
+test('removeDocumentShare is a delete on the shares path with 204 401 403 404 409', async () => {
+  const operation = await rawRemoveOperation();
+  const documentId = await createDocumentId();
+  const trashedId = await createDocumentId();
+  const viewer = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+  await putShare(documentId, viewer.person.id, cookie);
+  await putShare(trashedId, viewer.person.id, cookie);
+  await trashDocument(trashedId);
+
+  const forbidden = await deleteShare(
+    documentId,
+    viewer.person.id,
+    viewer.cookie,
+  );
+  const unauthorized = await deleteShare(documentId, viewer.person.id);
+  const missing = await deleteShare(randomUUID(), viewer.person.id, cookie);
+  const trashed = await deleteShare(trashedId, viewer.person.id, cookie);
+  const removed = await deleteShare(documentId, viewer.person.id, cookie);
+
+  expect(operation?.operationId).toBe('removeDocumentShare');
+  expect(Object.keys(operation?.responses ?? {}).sort()).toEqual([
+    '204',
+    '401',
+    '403',
+    '404',
+    '409',
+  ]);
+  expect(operation?.responses?.['403']?.description).toContain(
+    'Só o proprietário pode remover o acesso a este documento.',
+  );
+  await expectRemoveShareContract(forbidden, 403);
+  await expectRemoveShareContract(unauthorized, 401);
+  await expectRemoveShareContract(missing, 404);
+  await expectRemoveShareContract(trashed, 409);
+  expect(removed.status).toBe(204);
+  await expectDocumentedEmptyResponse(SHARE_CONTRACT_PATH, 'delete', 204);
+});
+
+test('removeDocumentShare path method and params match the controller', async () => {
+  const operation = await rawRemoveOperation();
+  const controllerPath = Reflect.getMetadata(
+    PATH_METADATA,
+    DocumentsController,
+  ) as unknown;
+  const handler = Object.getOwnPropertyDescriptor(
+    DocumentsController.prototype,
+    'removeDocumentShare',
+  )?.value as object;
+  const methodPath = Reflect.getMetadata(PATH_METADATA, handler) as unknown;
+  const requestMethod = Reflect.getMetadata(METHOD_METADATA, handler) as unknown;
+  const httpCode = Reflect.getMetadata(HTTP_CODE_METADATA, handler) as unknown;
+  const routeArgs = (Reflect.getMetadata(
+    ROUTE_ARGS_METADATA,
+    DocumentsController,
+    'removeDocumentShare',
+  ) ?? {}) as Record<string, { data?: unknown }>;
+  const paramNames = Object.entries(routeArgs)
+    .filter(([key]) => key.startsWith(`${RouteParamtypes.PARAM}:`))
+    .map(([, arg]) => arg.data)
+    .sort();
+  const contractPath = `/${String(controllerPath)}/${String(methodPath)}`.replace(
+    /:(\w+)/g,
+    '{$1}',
+  );
+
+  expect(operation?.operationId).toBe('removeDocumentShare');
+  expect(requestMethod).toBe(RequestMethod.DELETE);
+  expect(httpCode).toBe(204);
+  expect(contractPath).toBe(SHARE_CONTRACT_PATH);
+  expect(paramNames).toEqual(['documentId', 'personId']);
+  expect(
+    (operation?.parameters ?? [])
+      .filter((parameter) => parameter.in === 'path')
+      .map((parameter) => parameter.name)
+      .sort(),
+  ).toEqual(['documentId', 'personId']);
+});
+
+test('removeDocumentShare has no request body and no nullable', async () => {
+  const operation = await rawRemoveOperation();
+  const pathItem = (await rawContract()).paths?.[SHARE_CONTRACT_PATH];
+
+  expect(operation).toBeDefined();
+  expect(operation?.requestBody).toBeUndefined();
+  expect(JSON.stringify(pathItem)).not.toContain('nullable');
 });

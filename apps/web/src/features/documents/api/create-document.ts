@@ -25,12 +25,12 @@ export const useCreateDocument = ({
   return useMutation({
     ...restConfig,
     mutationFn: createDocument,
-    onSuccess: (response, ...args) => {
+    onSuccess: async (response, ...args) => {
       queryClient.setQueryData(
         getDocumentQueryOptions(response.data.id).queryKey,
         response,
       );
-      invalidateDocumentLists(queryClient);
+      await invalidateDocumentLists(queryClient);
 
       onSuccess?.(response, ...args);
     },

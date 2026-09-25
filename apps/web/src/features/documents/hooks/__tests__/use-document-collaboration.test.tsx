@@ -479,3 +479,84 @@ test('reports the error and goes unreachable when the factory fails', async () =
     documentId: 'doc-1',
   });
 });
+
+test('access-changed invalidates the document and the document lists', async () => {
+  const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+
+  const { result } = renderHook(() => useDocumentCollaboration('doc-1'), {
+    wrapper,
+  });
+
+  await waitFor(() => expect(result.current.session).not.toBeNull(), {
+    timeout: TIMEOUT,
+  });
+  invalidate.mockClear();
+
+  await emit('stateless', {
+    payload: JSON.stringify({ type: 'access-changed' }),
+  });
+
+  await waitFor(() =>
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: ['documents', 'doc-1'],
+    }),
+  );
+  expect(invalidate).toHaveBeenCalledWith({
+    queryKey: ['documents', { scope: 'mine' }],
+  });
+  expect(invalidate).toHaveBeenCalledWith({
+    queryKey: ['documents', { scope: 'favorites' }],
+  });
+});
+
+test('an invalid stateless payload is ignored', async () => {
+  const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+
+  const { result } = renderHook(() => useDocumentCollaboration('doc-1'), {
+    wrapper,
+  });
+
+  await waitFor(() => expect(result.current.session).not.toBeNull(), {
+    timeout: TIMEOUT,
+  });
+  invalidate.mockClear();
+
+  await emit('stateless', { payload: '{"type":"access-changed"' });
+  await emit('stateless', { payload: JSON.stringify(null) });
+  await emit('stateless', { payload: JSON.stringify({ type: 42 }) });
+  await emit('stateless', {
+    payload: JSON.stringify({ type: 'access-revoked' }),
+  });
+  await emit('stateless', { payload: JSON.stringify('access-changed') });
+
+  expect(invalidate).not.toHaveBeenCalled();
+  expect(result.current.session).toBe(liveSession());
+  expect(vi.mocked(reportError)).not.toHaveBeenCalled();
+});
+
+test('stored still invalidates the document and the lists', async () => {
+  const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+
+  const { result } = renderHook(() => useDocumentCollaboration('doc-1'), {
+    wrapper,
+  });
+
+  await waitFor(() => expect(result.current.session).not.toBeNull(), {
+    timeout: TIMEOUT,
+  });
+  invalidate.mockClear();
+
+  await emit('stateless', { payload: JSON.stringify({ type: 'stored' }) });
+
+  await waitFor(() =>
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: ['documents', 'doc-1'],
+    }),
+  );
+  expect(invalidate).toHaveBeenCalledWith({
+    queryKey: ['documents', { scope: 'mine' }],
+  });
+  expect(invalidate).toHaveBeenCalledWith({
+    queryKey: ['documents', { scope: 'favorites' }],
+  });
+});

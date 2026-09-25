@@ -56,6 +56,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/me/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Grava as preferências da pessoa da sessão atual
+         * @description Grava a largura da página escolhida pela pessoa, que vale para todos os documentos dela, e devolve a pessoa da sessão atual já atualizada.
+         */
+        patch: operations["updateCurrentUserPreferences"];
+        trace?: never;
+    };
     "/auth/login": {
         parameters: {
             query?: never;
@@ -100,7 +120,10 @@ export interface paths {
         /** Lista os documentos do escopo informado */
         get: operations["getDocuments"];
         put?: never;
-        /** Cria um documento sem título no espaço pessoal de quem chama, no espaço de unidade informado ou no espaço livre de que a pessoa é dona ou membro */
+        /**
+         * Cria um documento com o nome padrão no espaço pessoal de quem chama, no espaço de unidade informado ou no espaço livre de que a pessoa é dona ou membro
+         * @description O documento nasce com o nome "documento-sem-titulo-N", em que N é o menor inteiro a partir de 1 ainda não usado nesse padrão entre os documentos do dono, inclusive os que estão na lixeira. Duas criações simultâneas do mesmo dono recebem números diferentes.
+         */
         post: operations["createDocument"];
         delete?: never;
         options?: never;
@@ -179,6 +202,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/documents/{documentId}/shares": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista quem tem acesso ao documento
+         * @description Lista quem tem acesso ao documento. Só o proprietário consulta. O proprietário vem primeiro, depois as pessoas com acesso direto em ordem alfabética. Documento na lixeira continua legível para o proprietário. As checagens acontecem nesta ordem: 401, 404 (documento inexistente ou sem acesso), 403 (quem chama não é o proprietário).
+         */
+        get: operations["listDocumentShares"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/documents/{documentId}/shares/{personId}": {
         parameters: {
             query?: never;
@@ -189,11 +232,15 @@ export interface paths {
         get?: never;
         /**
          * Compartilha o documento com uma pessoa da instância
-         * @description Dá a uma pessoa da instância acesso de leitura ao documento. Só o proprietário compartilha. Repetir a chamada para a mesma pessoa devolve o mesmo 200, sem criar um segundo compartilhamento. As checagens acontecem nesta ordem: 401, 404 (documento inexistente ou sem acesso), 403 (quem chama não é o proprietário), 409 (documento na lixeira), 400 (corpo inválido, compartilhar consigo mesmo ou pessoa fora da instância).
+         * @description Dá a uma pessoa da instância acesso de leitura ou de edição ao documento. Só o proprietário compartilha. Repetir a chamada para a mesma pessoa devolve o mesmo 200, sem criar um segundo compartilhamento. As checagens acontecem nesta ordem: 401, 404 (documento inexistente ou sem acesso), 403 (quem chama não é o proprietário), 409 (documento na lixeira), 400 (corpo inválido, compartilhar consigo mesmo ou pessoa fora da instância).
          */
         put: operations["shareDocument"];
         post?: never;
-        delete?: never;
+        /**
+         * Remove o acesso de uma pessoa ao documento
+         * @description Remove o compartilhamento direto do documento com uma pessoa. Só o proprietário remove. A operação é idempotente: responde 204 também quando a pessoa já não tinha compartilhamento. As checagens acontecem nesta ordem: 401, 404 (documento inexistente ou sem acesso), 403 (quem chama não é o proprietário), 409 (documento na lixeira).
+         */
+        delete: operations["removeDocumentShare"];
         options?: never;
         head?: never;
         patch?: never;
@@ -500,7 +547,7 @@ export interface paths {
         };
         /**
          * Lista os documentos de um espaço de unidade ou de um espaço livre
-         * @description Lista os documentos fora da lixeira do espaço de unidade ou do espaço livre informado, dos mais recentes para os mais antigos. No espaço de unidade, só quem está lotado diretamente na unidade vê a lista; no espaço livre, o dono ou membro do espaço recebe 200. O 403 continua só para quem alcança um espaço de unidade apenas por herança. Espaço sem alcance, inexistente, com id malformado ou pessoal recebe o mesmo 404 opaco.
+         * @description Lista os documentos fora da lixeira do espaço de unidade ou do espaço livre informado, dos mais recentes para os mais antigos. No espaço de unidade, a lista é de quem alcança o espaço de unidade (lotação direta ou herança); no espaço livre, o dono ou membro do espaço recebe 200. Espaço sem alcance, inexistente, com id malformado ou pessoal recebe o mesmo 404 opaco.
          */
         get: operations["listSpaceDocuments"];
         put?: never;
@@ -632,11 +679,20 @@ export interface components {
                 name: string;
                 email: string;
                 isAdmin: boolean;
+                documentPageWidth: components["schemas"]["DocumentPageWidth"];
             };
             organization: {
                 id: string;
                 name: string;
             };
+        };
+        /**
+         * @description Largura da folha do documento escolhida pela pessoa: Pequena, Média, Grande ou Completa.
+         * @enum {string}
+         */
+        DocumentPageWidth: "small" | "medium" | "large" | "full";
+        UpdatePreferencesBody: {
+            documentPageWidth: components["schemas"]["DocumentPageWidth"];
         };
         CurrentUserResponse: {
             data: components["schemas"]["CurrentUser"];
@@ -645,6 +701,7 @@ export interface components {
         AccessLevel: "owner" | "edit" | "view";
         Document: {
             id: string;
+            /** @description Nome do documento. Um documento novo nasce como "documento-sem-titulo-N", N o menor inteiro livre entre os documentos do dono. */
             title: string;
             spaceId: string;
             authorId: string;
@@ -805,7 +862,7 @@ export interface components {
             reach: "direct" | "inherited" | "owner" | "member";
             /** @description Se qualquer membro pode adicionar pessoas ao espaço livre; sempre false em espaço de unidade. */
             membersCanInvite: boolean;
-            /** @description Se quem pede pode criar documentos neste espaço. */
+            /** @description Se quem pede pode criar documentos neste espaço; verdadeiro para todo alcance de espaço de unidade (direto ou herdado). */
             canCreateDocuments: boolean;
             /** @description Se quem pede pode adicionar pessoas; permissão calculada, diferente da configuração membersCanInvite. */
             canAddPeople: boolean;
@@ -928,10 +985,10 @@ export interface components {
         };
         ShareDocumentInput: {
             /**
-             * @description Nível de acesso dado à pessoa.
+             * @description Nível de acesso dado à pessoa: "view" (Pode ver) ou "edit" (Pode editar).
              * @enum {string}
              */
-            level: "view";
+            level: "view" | "edit";
         };
         DocumentShare: {
             /** @description Identificador da pessoa com acesso. */
@@ -941,13 +998,34 @@ export interface components {
             /** @description E-mail da pessoa. */
             email: string;
             /**
-             * @description Nível de acesso da pessoa.
+             * @description Nível de acesso gravado para a pessoa: "view" (Pode ver) ou "edit" (Pode editar).
              * @enum {string}
              */
-            level: "view";
+            level: "view" | "edit";
         };
         DocumentShareResponse: {
             data: components["schemas"]["DocumentShare"];
+        };
+        DocumentAccessEntry: {
+            /**
+             * Format: uuid
+             * @description Identificador da pessoa com acesso.
+             */
+            personId: string;
+            /** @description Nome da pessoa. */
+            name: string;
+            /** @description E-mail da pessoa. */
+            email: string;
+            /**
+             * @description Nível de acesso da pessoa; owner é o proprietário.
+             * @enum {string}
+             */
+            level: "owner" | "view" | "edit";
+            /** @description Indica se a linha é de quem fez a consulta. */
+            isCurrentPerson: boolean;
+        };
+        DocumentAccessListResponse: {
+            data: components["schemas"]["DocumentAccessEntry"][];
         };
         UpdateDocumentBody: {
             title: string;
@@ -1089,6 +1167,53 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CurrentUserResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateCurrentUserPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePreferencesBody"];
+            };
+        };
+        responses: {
+            /** @description As preferências foram gravadas. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUserResponse"];
+                };
+            };
+            /** @description A largura da página está ausente ou é inválida. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "message": "Escolha uma largura de página válida."
+                     *     }
+                     */
+                    "application/json": components["schemas"]["Error"];
                 };
             };
             /** @description Não há sessão válida. */
@@ -1271,7 +1396,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description O espaço informado não existe, tem id malformado, não é de unidade ou quem chama não está lotado diretamente na unidade. */
+            /** @description O espaço informado não existe, tem id malformado, não é de unidade ou quem chama não alcança o espaço. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1349,7 +1474,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description A requisição foi recusada. */
+            /** @description A requisição foi recusada, ou quem chama tem acesso ao documento mas não é o proprietário (só ele exclui). */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1478,7 +1603,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description A requisição foi recusada. */
+            /** @description A requisição foi recusada, ou quem chama tem acesso ao documento mas não é o proprietário (só ele move para a lixeira). */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1527,7 +1652,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description A requisição foi recusada. */
+            /** @description A requisição foi recusada, ou quem chama tem acesso ao documento mas não é o proprietário (só ele restaura). */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1641,6 +1766,55 @@ export interface operations {
             };
         };
     };
+    listDocumentShares: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O proprietário e as pessoas com acesso ao documento. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentAccessListResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Só o proprietário pode ver quem tem acesso a este documento. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O documento não existe ou não está acessível. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     shareDocument: {
         parameters: {
             query?: never;
@@ -1657,7 +1831,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description A pessoa tem acesso de leitura ao documento. */
+            /** @description Compartilhamento criado ou nível de acesso atualizado. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1703,6 +1877,63 @@ export interface operations {
                 };
             };
             /** @description O documento está na lixeira. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    removeDocumentShare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: string;
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Acesso removido; também responde 204 se a pessoa já não tinha compartilhamento. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Só o proprietário pode remover o acesso a este documento. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O documento não existe ou não está acessível. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Este documento está na lixeira. Restaure-o para editar. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2825,15 +3056,6 @@ export interface operations {
             };
             /** @description Não há sessão válida. */
             401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Quem chama alcança o espaço só por herança, sem lotação direta na unidade. */
-            403: {
                 headers: {
                     [name: string]: unknown;
                 };

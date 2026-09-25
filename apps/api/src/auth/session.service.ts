@@ -2,13 +2,19 @@ import { randomBytes } from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
 import type { components } from '@folioteca/api-contract';
-import type { Organization, Person, Prisma } from '@prisma/client';
+import type {
+  DocumentPageWidth,
+  Organization,
+  Person,
+  Prisma,
+} from '@prisma/client';
 
 import { hashToken } from '../common/hash-token';
 import { PrismaService } from '../prisma/prisma.service';
 import { SESSION_TTL_MS } from './session-cookie';
 
 type CurrentUser = components['schemas']['CurrentUser'];
+type ContractPageWidth = components['schemas']['DocumentPageWidth'];
 
 export type PersonWithOrganization = Person & { organization: Organization };
 
@@ -16,6 +22,18 @@ export type CreatedSession = {
   token: string;
   expiresAt: Date;
 };
+
+/** Largura da página do banco (`SMALL`) no formato do contrato (`small`). */
+function toContractPageWidth(width: DocumentPageWidth): ContractPageWidth {
+  const widths: Record<DocumentPageWidth, ContractPageWidth> = {
+    SMALL: 'small',
+    MEDIUM: 'medium',
+    LARGE: 'large',
+    FULL: 'full',
+  };
+
+  return widths[width];
+}
 
 /** Corpo público da pessoa da sessão: nunca inclui o hash da senha. */
 export function toCurrentUser(person: PersonWithOrganization): CurrentUser {
@@ -25,6 +43,7 @@ export function toCurrentUser(person: PersonWithOrganization): CurrentUser {
       name: person.name,
       email: person.email,
       isAdmin: person.isAdmin,
+      documentPageWidth: toContractPageWidth(person.documentPageWidth),
     },
     organization: {
       id: person.organization.id,

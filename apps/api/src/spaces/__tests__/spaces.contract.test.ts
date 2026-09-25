@@ -283,16 +283,22 @@ test('GET space documents answers the documented 401', async () => {
   });
 });
 
-test('GET space documents answers the documented 403', async () => {
+test('GET /spaces/{id}/documents answers only 200 401 and 404', async () => {
   const { childSpaceId } = await createUnitsWithAssignedParent();
+  const raw = (await SwaggerParser.parse(openapiPath)) as {
+    paths?: Record<string, { get?: { responses?: Record<string, unknown> } }>;
+  };
 
   const response = await getSpaceDocuments(childSpaceId, adminCookie);
 
-  expect(response.status).toBe(403);
+  expect(
+    Object.keys(raw.paths?.[DOCUMENTS_CONTRACT_PATH]?.get?.responses ?? {}).sort(),
+  ).toEqual(['200', '401', '404']);
+  expect(response.status).toBe(200);
   await expectMatchesContract({
     path: DOCUMENTS_CONTRACT_PATH,
     method: 'get',
-    status: 403,
+    status: 200,
     body: response.body,
   });
 });

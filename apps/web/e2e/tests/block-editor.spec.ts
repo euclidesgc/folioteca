@@ -64,8 +64,10 @@ test('writes with the keyboard only, sees Salvo and finds the text again after l
   await page.getByRole('button', { name: 'Novo documento' }).click();
   await expect(page).toHaveURL(/\/documents\/.+/);
 
-  const titleField = page.getByRole('textbox', { name: 'Título' });
-  await expect(titleField).toHaveValue('Sem título');
+  const titleField = page.getByRole('textbox', {
+    name: 'Título do documento',
+  });
+  await expect(titleField).toHaveValue(/documento-sem-titulo-\d+/);
 
   const editorRegion = page.getByRole('region', {
     name: 'Conteúdo do documento',
@@ -98,9 +100,28 @@ test('writes with the keyboard only, sees Salvo and finds the text again after l
     });
   });
 
-  // Into the editor by keyboard only: Tab from the title field.
+  // Into the editor by keyboard only, from the title field: the actions row
+  // goes title, Largura da página, Compartilhar, Adicionar aos favoritos,
+  // Mover para a lixeira, then the editor.
   await titleField.focus();
   await page.keyboard.press('Tab');
+  await expect(
+    page.getByRole('button', { name: 'Largura da página' }),
+  ).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(
+    page.getByRole('button', { name: 'Compartilhar' }),
+  ).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(
+    page.getByRole('button', { name: 'Adicionar aos favoritos' }),
+  ).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(
+    page.getByRole('button', { name: 'Mover para a lixeira' }),
+  ).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(editorRegion.getByRole('textbox')).toBeFocused();
 
   await page.keyboard.type(phrase);
   await expect(editorRegion.getByText(phrase)).toBeVisible();
@@ -234,8 +255,29 @@ test('shows the Portuguese slash menu without table or media blocks', async ({
   await expect(editorRegion).toBeVisible({ timeout: EDITOR_TIMEOUT });
   await expect(page.getByText('Carregando editor…')).toHaveCount(0);
 
-  await page.getByRole('textbox', { name: 'Título' }).focus();
+  // From the title field, past Largura da página, Compartilhar, Adicionar aos
+  // favoritos and Mover para a lixeira, into the editor.
+  await page
+    .getByRole('textbox', { name: 'Título do documento' })
+    .focus();
   await page.keyboard.press('Tab');
+  await expect(
+    page.getByRole('button', { name: 'Largura da página' }),
+  ).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(
+    page.getByRole('button', { name: 'Compartilhar' }),
+  ).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(
+    page.getByRole('button', { name: 'Adicionar aos favoritos' }),
+  ).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(
+    page.getByRole('button', { name: 'Mover para a lixeira' }),
+  ).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(editorRegion.getByRole('textbox')).toBeFocused();
   await page.keyboard.type('/');
 
   const slashMenu = page.getByRole('listbox');

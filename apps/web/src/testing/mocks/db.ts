@@ -9,6 +9,9 @@ type Space = components['schemas']['Space'];
 type SpaceDetail = components['schemas']['SpaceDetail'];
 type SpaceMember = components['schemas']['SpaceMember'];
 type PersonSummary = components['schemas']['PersonSummary'];
+type DocumentAccessEntry = components['schemas']['DocumentAccessEntry'];
+type DocumentPageWidth = components['schemas']['DocumentPageWidth'];
+type UpdatePreferencesBody = components['schemas']['UpdatePreferencesBody'];
 
 export type MockOrganization = { id: string; name: string };
 export type MockPerson = {
@@ -16,6 +19,9 @@ export type MockPerson = {
   name: string;
   email: string;
   isAdmin: boolean;
+  // Absent means the default of the real column, `medium`: the people seeded
+  // before slice 170 never chose a page width.
+  documentPageWidth?: DocumentPageWidth;
 };
 
 export type MockInstallation = {
@@ -42,13 +48,12 @@ export type MockDocument = {
 // only needs the document it points at and when it was marked.
 export type MockFavorite = { documentId: string; createdAt: string };
 
-// A share: the person reads a document someone else owns. The pair is the
-// row, like the composite primary key of the real table, and `view` is the
-// only level this slice gives.
+// A share: the person reads or edits a document someone else owns. The pair
+// is the row, like the composite primary key of the real table.
 export type MockDocumentShare = {
   documentId: string;
   personId: string;
-  level: 'view';
+  level: 'view' | 'edit';
 };
 
 // An organization unit, in the same flat shape the API answers with:
@@ -202,6 +207,7 @@ export const seedInstalled = ({
         name: 'Ana Souza',
         email: 'ana.souza@exemplo.com.br',
         isAdmin,
+        documentPageWidth: 'medium',
       },
       password: MOCK_PASSWORD,
     },
@@ -648,7 +654,9 @@ export const spaceDetailOf = (
     name: unit.name,
     reach,
     membersCanInvite: false,
-    canCreateDocuments: reach === 'direct',
+    // Reached directly or by inheritance, the unit space is the person's to
+    // create in, like the API.
+    canCreateDocuments: true,
     canAddPeople: false,
   };
 };
@@ -850,8 +858,27 @@ export const listSpaceDocuments = (spaceId: string): MockDocument[] =>
     )
     .slice(0, SPACE_DOCUMENTS_LIMIT);
 
+// The name a new document gets, the same rule as the API: the smallest
+// integer from 1 not taken among the documents of the owner, trash included.
+// Only a title that matches exactly takes a number ("documento-sem-titulo-01"
+// and "Sem título" do not).
+const DEFAULT_TITLE_PREFIX = 'documento-sem-titulo-';
+const DEFAULT_TITLE_PATTERN = /^documento-sem-titulo-([1-9]\d*)$/;
+
+export const nextDefaultTitleOf = (ownerId: string): string => {
+  const taken = new Set<number>();
+  for (const item of state.documents) {
+    if (item.ownerId !== ownerId) continue;
+    const match = DEFAULT_TITLE_PATTERN.exec(item.title);
+    if (match?.[1]) taken.add(Number(match[1]));
+  }
+  let number = 1;
+  while (taken.has(number)) number += 1;
+  return `${DEFAULT_TITLE_PREFIX}${number}`;
+};
+
 // Creates a document owned by `personId` in `spaceId`, the way POST
-// /documents does. Pushed into the array already in the database, never into
+// /documents does, named by `nextDefaultTitleOf`. Pushed into the array already in the database, never into
 // a copy of it (same reason as `touchDocumentUpdatedAt` above).
 export const createDocumentIn = (
   personId: string,
@@ -860,7 +887,7 @@ export const createDocumentIn = (
   const now = new Date().toISOString();
   const document: MockDocument = {
     id: crypto.randomUUID(),
-    title: 'Sem título',
+    title: nextDefaultTitleOf(personId),
     spaceId,
     authorId: personId,
     ownerId: personId,
@@ -993,6 +1020,25 @@ export const getSignedInPerson = (): MockPerson | null => {
 // an accepted invitation stops being the signed-in one.
 export const clearSignedInPerson = (): void => {
   state.signedInPersonId = null;
+};
+
+// The page width a person reads the documents in, the way GET /auth/me
+// answers: the default of the real column when the person never chose one.
+export const pageWidthOf = (person: MockPerson): DocumentPageWidth =>
+  person.documentPageWidth ?? 'medium';
+
+// Stores the preferences of a person, the way PATCH /auth/me/preferences
+// does. Written into the person that is already in the database (same reason
+// as `touchDocumentUpdatedAt` above). Unknown id answers null.
+export const updatePersonPreferences = (
+  personId: string,
+  body: UpdatePreferencesBody,
+): MockPerson | null => {
+  const person = allPeople().find((item) => item.id === personId);
+  if (!person) return null;
+
+  person.documentPageWidth = body.documentPageWidth;
+  return person;
 };
 
 // Everybody of the organization: the installed person plus whoever was
@@ -1176,23 +1222,40 @@ export const seedSampleTrash = (): void => {
 
 // Shares a document with a person, the way PUT /documents/:documentId/shares/
 // :personId does: sharing the same pair again keeps a single row, the upsert
-// of the real service. Pushed into the array already in the database, never
-// into a copy of it (same reason as `touchDocumentUpdatedAt` above).
+// of the real service, with the level switched to the one asked. Pushed into
+// the array already in the database, never into a copy of it (same reason as
+// `touchDocumentUpdatedAt` above). `view` when no level is given, so the seeds
+// before slice 148 stay as they were.
 export const shareDocument = (
   documentId: string,
   personId: string,
+  level: MockDocumentShare['level'] = 'view',
 ): MockDocumentShare => {
   const existing = state.shares.find(
     (item) => item.documentId === documentId && item.personId === personId,
   );
   if (existing) {
-    existing.level = 'view';
+    existing.level = level;
     return existing;
   }
 
-  const share: MockDocumentShare = { documentId, personId, level: 'view' };
+  const share: MockDocumentShare = { documentId, personId, level };
   state.shares.push(share);
   return share;
+};
+
+// Removes the share of a person from a document, the way DELETE /documents/
+// :documentId/shares/:personId does: idempotent, so a pair without a row is
+// not an error. Spliced out of the array already in the database, never out
+// of a copy of it (same reason as `shareDocument` above).
+export const removeDocumentShare = (
+  documentId: string,
+  personId: string,
+): void => {
+  const index = state.shares.findIndex(
+    (item) => item.documentId === documentId && item.personId === personId,
+  );
+  if (index !== -1) state.shares.splice(index, 1);
 };
 
 // The same hard limit the real search has, with no parameter to raise it.
@@ -1239,14 +1302,68 @@ export const searchPeopleToShare = (
   };
 };
 
-// Id of the document `seedSharedReadOnlyDocument` creates.
+// Who has access to a document, the way GET /documents/:documentId/shares
+// answers its owner: the owner first (the handler only answers the owner, so
+// it is the signed-in person), then the shares sorted by name, e-mail and id
+// with the pt-BR order of the real service.
+export const listDocumentShares = (
+  documentId: string,
+): DocumentAccessEntry[] => {
+  const document = state.documents.find((item) => item.id === documentId);
+  const people = allPeople();
+  const owner =
+    people.find((person) => person.id === document?.ownerId) ??
+    getSignedInPerson();
+
+  const shared = state.shares
+    .filter((share) => share.documentId === documentId)
+    .flatMap((share) => {
+      const person = people.find((item) => item.id === share.personId);
+      if (!person) return [];
+      return [
+        {
+          personId: person.id,
+          name: person.name,
+          email: person.email,
+          level: share.level,
+          isCurrentPerson: false,
+        },
+      ];
+    })
+    .sort(
+      (a, b) =>
+        a.name.localeCompare(b.name, 'pt-BR') ||
+        a.email.localeCompare(b.email, 'pt-BR') ||
+        a.personId.localeCompare(b.personId, 'pt-BR'),
+    );
+
+  if (!owner) return shared;
+
+  return [
+    {
+      personId: owner.id,
+      name: owner.name,
+      email: owner.email,
+      level: 'owner',
+      isCurrentPerson: true,
+    },
+    ...shared,
+  ];
+};
+
+// Ids of the documents `seedSharedReadOnlyDocument` and
+// `seedSharedEditableDocument` create.
 const SHARED_READ_ONLY_DOCUMENT_ID = 'document-shared-view';
+const SHARED_EDITABLE_DOCUMENT_ID = 'document-shared-edit';
 
 // Adds a document owned by someone else and shared with the signed-in person
-// in `view`, so the read-only page can be opened in the browser. Kept separate
-// from the other seeds because the existing journeys expect only documents of
-// their own. Answers the id of the document, or null without an installation.
-export const seedSharedReadOnlyDocument = (): string | null => {
+// at the given level. Answers the id of the document, or null without an
+// installation.
+const seedSharedDocument = (
+  id: string,
+  title: string,
+  level: MockDocumentShare['level'],
+): string | null => {
   const reader = getSignedInPerson();
   if (!reader) return null;
 
@@ -1262,20 +1379,40 @@ export const seedSharedReadOnlyDocument = (): string | null => {
 
   const now = new Date().toISOString();
   state.documents.push({
-    id: SHARED_READ_ONLY_DOCUMENT_ID,
-    title: 'Normas de uso do acervo de obras raras',
+    id,
+    title,
     spaceId: `space-${owner.id}`,
     authorId: owner.id,
     ownerId: owner.id,
     createdAt: now,
     updatedAt: now,
     trashedAt: null,
-    accessLevel: 'view',
+    accessLevel: level,
   });
-  shareDocument(SHARED_READ_ONLY_DOCUMENT_ID, reader.id);
+  shareDocument(id, reader.id, level);
 
-  return SHARED_READ_ONLY_DOCUMENT_ID;
+  return id;
 };
+
+// Adds a document owned by someone else and shared with the signed-in person
+// in `view`, so the read-only page can be opened in the browser. Kept separate
+// from the other seeds because the existing journeys expect only documents of
+// their own. Answers the id of the document, or null without an installation.
+export const seedSharedReadOnlyDocument = (): string | null =>
+  seedSharedDocument(
+    SHARED_READ_ONLY_DOCUMENT_ID,
+    'Normas de uso do acervo de obras raras',
+    'view',
+  );
+
+// The same, shared in `edit`, so the page of a person who edits a document of
+// someone else can be opened in the browser.
+export const seedSharedEditableDocument = (): string | null =>
+  seedSharedDocument(
+    SHARED_EDITABLE_DOCUMENT_ID,
+    'Roteiro de visitas guiadas ao acervo',
+    'edit',
+  );
 
 // The unit the signed-in person is directly assigned to by
 // `seedUnitSpaceDocuments`, one of the units of `seedSampleOrgUnits`.

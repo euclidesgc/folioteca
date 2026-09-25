@@ -2,6 +2,18 @@ import { expect, test } from '@playwright/test';
 
 import { expectNoSeriousA11yViolations } from '../a11y';
 
+// Route transitions deserve an explicit timeout, so a slow navigation fails
+// with a clear wait message instead of the default assertion timeout.
+const ROUTE_TIMEOUT = { timeout: 10_000 };
+
+// The editor arrives in a lazy chunk, so the wait that crosses it carries its
+// own timeout.
+const EDITOR_TIMEOUT = { timeout: 20_000 };
+
+// New documents are numbered per owner and the e2e database keeps the
+// documents of earlier cases, so only the pattern is fixed.
+const DEFAULT_TITLE = /documento-sem-titulo-\d+/;
+
 // These journeys start past the installation gate: the instance is already
 // installed and the browser is signed in.
 test.beforeEach(async ({ page }) => {
@@ -31,8 +43,10 @@ test('creates a document from the keyboard, renames it and finds it in the sideb
 
   await expect(page).toHaveURL(/\/documents\/.+/);
 
-  const titleField = page.getByRole('textbox', { name: 'Título' });
-  await expect(titleField).toHaveValue('Sem título');
+  const titleField = page.getByRole('textbox', {
+    name: 'Título do documento',
+  });
+  await expect(titleField).toHaveValue(/documento-sem-titulo-\d+/);
   await expect(
     page.getByRole('region', { name: 'Conteúdo do documento' }),
   ).toBeVisible({ timeout: 20_000 });
@@ -81,9 +95,67 @@ test('creates a document from the keyboard, renames it and finds it in the sideb
   await documentLink.click();
 
   await expect(page).toHaveURL(/\/documents\/.+/);
-  await expect(page.getByRole('textbox', { name: 'Título' })).toHaveValue(
-    newTitle,
-  );
+  await expect(
+    page.getByRole('textbox', { name: 'Título do documento' }),
+  ).toHaveValue(newTitle);
+});
+
+test('the owner creates a document and renames it in the actions row', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const newDocumentButton = page.getByRole('button', {
+    name: 'Novo documento',
+  });
+  await expect(newDocumentButton).toBeVisible(ROUTE_TIMEOUT);
+  await newDocumentButton.click();
+
+  await expect(page).toHaveURL(/\/documents\/.+/, ROUTE_TIMEOUT);
+  const titleField = page.getByRole('textbox', {
+    name: 'Título do documento',
+  });
+  await expect(titleField).toHaveValue(DEFAULT_TITLE);
+  const defaultTitle = await titleField.inputValue();
+
+  const recentDocumentsNav = page.getByRole('navigation', {
+    name: 'Meus documentos recentes',
+  });
+  await expect(
+    recentDocumentsNav.getByText(defaultTitle, { exact: true }),
+  ).toBeVisible();
+
+  await expect(
+    page.getByRole('region', { name: 'Conteúdo do documento' }),
+  ).toBeVisible(EDITOR_TIMEOUT);
+
+  // Same exclusion as the first case, scoped to the editor container: the
+  // BlockNote contenteditable has `role="textbox"` and no accessible name
+  // (`aria-input-field-name`), tracked upstream (roadmap 053).
+  await expectNoSeriousA11yViolations(page, {
+    disableRulesWithin: {
+      selector: '.bn-container',
+      rules: ['aria-input-field-name'],
+    },
+  });
+
+  const newTitle = 'Plano de leitura do trimestre';
+  await titleField.fill(newTitle);
+  await expect(titleField).toBeFocused();
+  await page.keyboard.press('Enter');
+
+  await expect(titleField).toHaveValue(newTitle);
+  await expect(
+    recentDocumentsNav.getByText(newTitle, { exact: true }),
+  ).toBeVisible();
+
+  await titleField.fill('Texto que não deve ficar');
+  await expect(titleField).toBeFocused();
+  await page.keyboard.press('Escape');
+
+  await expect(titleField).toHaveValue(newTitle);
+  await expect(
+    recentDocumentsNav.getByText(newTitle, { exact: true }),
+  ).toBeVisible();
 });
 
 test('an unknown document address shows Documento não encontrado', async ({

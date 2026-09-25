@@ -158,7 +158,7 @@ test('readableDocumentsWhere lists only the documents of the person', async () =
   await createDocument(other, 'Documento do João');
 
   const readable = await prisma.document.findMany({
-    where: access.readableDocumentsWhere(owner.id),
+    where: await access.readableDocumentsWhere(owner.id),
     select: { id: true },
   });
 
@@ -210,7 +210,7 @@ test('readableDocumentsWhere excludes trashed documents and trashedDocumentsWher
   await createTrashedDocument(other, 'Documento do João na lixeira');
 
   const readable = await prisma.document.findMany({
-    where: access.readableDocumentsWhere(owner.id),
+    where: await access.readableDocumentsWhere(owner.id),
     select: { id: true },
   });
   const inTrash = await prisma.document.findMany({
@@ -246,7 +246,7 @@ test('the doors agree: resolveAccess is not none exactly when the document is in
   const pairs = await Promise.all(
     people.map(async (person) => {
       const readable = await prisma.document.findMany({
-        where: access.readableDocumentsWhere(person.id),
+        where: await access.readableDocumentsWhere(person.id),
         select: { id: true },
       });
       const trashed = await prisma.document.findMany({
@@ -354,7 +354,7 @@ test('readableDocumentsWhere includes the shared document and excludes it in the
   await shareView(documentId, viewer);
 
   const beforeTrash = await prisma.document.findMany({
-    where: access.readableDocumentsWhere(viewer.id),
+    where: await access.readableDocumentsWhere(viewer.id),
     select: { id: true },
   });
 
@@ -364,7 +364,7 @@ test('readableDocumentsWhere includes the shared document and excludes it in the
   });
 
   const afterTrash = await prisma.document.findMany({
-    where: access.readableDocumentsWhere(viewer.id),
+    where: await access.readableDocumentsWhere(viewer.id),
     select: { id: true },
   });
 
@@ -484,27 +484,171 @@ test('removing the assignment makes the next resolveAccess none', async () => {
   expect(await access.resolveAccess(member.id, documentId)).toBe('none');
 });
 
-test('a person assigned only to the parent unit gets none on an inheriting child space', async () => {
+type InheritedScenario = {
+  owner: Person;
+  heir: Person;
+  parent: UnitWithSpace;
+  child: UnitWithSpace;
+  documentId: string;
+};
+
+/**
+ * A dona lotada na unidade-filha, cujo espaço herda da mãe; a herdeira lotada
+ * só na mãe; um documento da dona no espaço da filha.
+ */
+async function createInheritedScenario(): Promise<InheritedScenario> {
   const owner = await install();
   const parent = await createUnitSpace(owner.organizationId, 'Secretaria');
   const child = await createUnitSpace(owner.organizationId, 'Protocolo', {
     parentId: parent.orgUnitId,
     inheritsParent: true,
   });
-  const parentMember = await createViewer();
-  await assign(parent.orgUnitId, parentMember);
+  const heir = await createViewer();
+  await assign(child.orgUnitId, owner);
+  await assign(parent.orgUnitId, heir);
   const documentId = await createDocumentIn(
     child.spaceId,
     owner,
     'Regulamento do protocolo',
   );
 
-  const childSpace = await prisma.space.findUniqueOrThrow({
-    where: { id: child.spaceId },
+  return { owner, heir, parent, child, documentId };
+}
+
+/** Liga ou desliga a herança do espaço, pelo Prisma. */
+async function setInherits(spaceId: string, inheritsParent: boolean): Promise<void> {
+  await prisma.space.update({ where: { id: spaceId }, data: { inheritsParent } });
+}
+
+test('a person assigned only to the parent edits a document of an inheriting child space', async () => {
+  const { heir, documentId } = await createInheritedScenario();
+
+  expect(await access.resolveAccess(heir.id, documentId)).toBe('edit');
+  expect(await access.canWrite(heir.id, documentId)).toBe(true);
+});
+
+test('readableDocumentsWhere includes documents of an inherited unit space', async () => {
+  const { owner, heir, documentId } = await createInheritedScenario();
+  await createDocument(owner, 'Documento pessoal da Maria');
+
+  const readable = await prisma.document.findMany({
+    where: await access.readableDocumentsWhere(heir.id),
+    select: { id: true },
   });
 
-  expect(childSpace.inheritsParent).toBe(true);
-  expect(await access.resolveAccess(parentMember.id, documentId)).toBe('none');
+  expect(readable).toEqual([{ id: documentId }]);
+});
+
+test('a space that stops inheriting gives none on the next read', async () => {
+  const { heir, child, documentId } = await createInheritedScenario();
+
+  const before = await access.resolveAccess(heir.id, documentId);
+  await setInherits(child.spaceId, false);
+
+  const readable = await prisma.document.findMany({
+    where: await access.readableDocumentsWhere(heir.id),
+    select: { id: true },
+  });
+
+  expect(before).toBe('edit');
+  expect(await access.resolveAccess(heir.id, documentId)).toBe('none');
+  expect(readable).toEqual([]);
+});
+
+test('removing the assignment from the parent gives none on the next read', async () => {
+  const { heir, parent, documentId } = await createInheritedScenario();
+
+  const before = await access.resolveAccess(heir.id, documentId);
+  await prisma.orgUnitAssignment.delete({
+    where: {
+      orgUnitId_personId: { orgUnitId: parent.orgUnitId, personId: heir.id },
+    },
+  });
+
+  const readable = await prisma.document.findMany({
+    where: await access.readableDocumentsWhere(heir.id),
+    select: { id: true },
+  });
+
+  expect(before).toBe('edit');
+  expect(await access.resolveAccess(heir.id, documentId)).toBe('none');
+  expect(readable).toEqual([]);
+});
+
+test('a grandparent assignment does not cross a child with its own permissions', async () => {
+  const owner = await install();
+  const grandparent = await createUnitSpace(owner.organizationId, 'Gabinete');
+  const parent = await createUnitSpace(owner.organizationId, 'Secretaria', {
+    parentId: grandparent.orgUnitId,
+    inheritsParent: true,
+  });
+  const child = await createUnitSpace(owner.organizationId, 'Protocolo', {
+    parentId: parent.orgUnitId,
+    inheritsParent: false,
+  });
+  const heir = await createViewer();
+  await assign(grandparent.orgUnitId, heir);
+  const parentDocumentId = await createDocumentIn(
+    parent.spaceId,
+    owner,
+    'Plano da secretaria',
+  );
+  const childDocumentId = await createDocumentIn(
+    child.spaceId,
+    owner,
+    'Regulamento do protocolo',
+  );
+
+  const reached = await access.unitSpacesReachedBy(owner.organizationId, heir.id);
+
+  expect(await access.resolveAccess(heir.id, parentDocumentId)).toBe('edit');
+  expect(await access.resolveAccess(heir.id, childDocumentId)).toBe('none');
+  expect(reached.map((unitSpace) => unitSpace.spaceId).sort()).toEqual(
+    [grandparent.spaceId, parent.spaceId].sort(),
+  );
+});
+
+test('an inherited document in the trash gives none to the heir and owner to the owner', async () => {
+  const { owner, heir, documentId } = await createInheritedScenario();
+
+  await prisma.document.update({
+    where: { id: documentId },
+    data: { trashedAt: new Date('2026-03-01T10:00:00.000Z') },
+  });
+
+  expect(await access.resolveAccess(heir.id, documentId)).toBe('none');
+  expect(await access.resolveAccess(owner.id, documentId)).toBe('owner');
+});
+
+test('a document created by inheritance stays owned after losing inheritance', async () => {
+  const { heir, child } = await createInheritedScenario();
+  const heirDocumentId = await createDocumentIn(
+    child.spaceId,
+    heir,
+    'Rascunho do João',
+  );
+
+  await setInherits(child.spaceId, false);
+
+  expect(await access.resolveAccess(heir.id, heirDocumentId)).toBe('owner');
+});
+
+test('a view share plus inheritance gives edit', async () => {
+  const { heir, documentId } = await createInheritedScenario();
+  await shareView(documentId, heir);
+
+  expect(await access.resolveAccess(heir.id, documentId)).toBe('edit');
+  expect(await access.canWrite(heir.id, documentId)).toBe(true);
+});
+
+test('unitSpacesReachedBy of another organization returns nothing', async () => {
+  const { owner, heir } = await createInheritedScenario();
+
+  const own = await access.unitSpacesReachedBy(owner.organizationId, heir.id);
+  const other = await access.unitSpacesReachedBy(randomUUID(), heir.id);
+
+  expect(own).toHaveLength(2);
+  expect(other).toEqual([]);
 });
 
 test('a trashed unit space document is none for the member and owner for the owner, edit again after restore', async () => {
@@ -553,7 +697,7 @@ test('readableDocumentsWhere includes the unit space document and excludes it in
   await createDocument(owner, 'Documento pessoal da Maria');
 
   const beforeTrash = await prisma.document.findMany({
-    where: access.readableDocumentsWhere(member.id),
+    where: await access.readableDocumentsWhere(member.id),
     select: { id: true },
   });
 
@@ -563,7 +707,7 @@ test('readableDocumentsWhere includes the unit space document and excludes it in
   });
 
   const afterTrash = await prisma.document.findMany({
-    where: access.readableDocumentsWhere(member.id),
+    where: await access.readableDocumentsWhere(member.id),
     select: { id: true },
   });
 
@@ -707,9 +851,9 @@ test('readableDocumentsWhere includes the free space document for owner and memb
     email: 'ana@exemplo.org',
   });
 
-  const readableBy = (person: Person): Promise<{ id: string }[]> =>
+  const readableBy = async (person: Person): Promise<{ id: string }[]> =>
     prisma.document.findMany({
-      where: access.readableDocumentsWhere(person.id),
+      where: await access.readableDocumentsWhere(person.id),
       select: { id: true },
     });
 

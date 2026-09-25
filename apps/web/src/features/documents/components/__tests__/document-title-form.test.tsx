@@ -62,7 +62,7 @@ test('renders the Título field with maxLength 200 and autocomplete off', () => 
 
   renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
 
-  const field = screen.getByLabelText('Título');
+  const field = screen.getByRole('textbox', { name: 'Título do documento' });
   expect(field).toHaveValue(seeded.title);
   expect(field).toHaveAttribute('maxLength', '200');
   expect(field).toHaveAttribute('autocomplete', 'off');
@@ -74,7 +74,7 @@ test('Enter saves the title', async () => {
 
   renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
 
-  const field = screen.getByLabelText('Título');
+  const field = screen.getByRole('textbox', { name: 'Título do documento' });
   await user.clear(field);
   await user.type(field, 'Ata revisada{Enter}');
 
@@ -88,7 +88,7 @@ test('leaving the field saves the title', async () => {
 
   renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
 
-  const field = screen.getByLabelText('Título');
+  const field = screen.getByRole('textbox', { name: 'Título do documento' });
   await user.clear(field);
   await user.type(field, 'Ata do dia');
   await user.tab();
@@ -109,7 +109,7 @@ test('Enter followed by blur saves only once', async () => {
 
   renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
 
-  const field = screen.getByLabelText('Título');
+  const field = screen.getByRole('textbox', { name: 'Título do documento' });
   await user.clear(field);
   await user.type(field, 'Ata final{Enter}');
   await user.tab();
@@ -125,7 +125,7 @@ test('an unchanged title sends nothing', async () => {
 
   renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
 
-  const field = screen.getByLabelText('Título');
+  const field = screen.getByRole('textbox', { name: 'Título do documento' });
   await user.click(field);
   await user.keyboard('{Enter}');
   await user.tab();
@@ -134,18 +134,20 @@ test('an unchanged title sends nothing', async () => {
   expect(storedTitle(seeded.id)).toBe(seeded.title);
 });
 
-test('an empty title comes back as Sem título', async () => {
+test('an empty title keeps the previous name after Enter', async () => {
+  // The plan (169) removed "Sem título" on an empty title: the field now goes
+  // back to the current name without asking the server anything.
   const user = userEvent.setup();
   const seeded = firstSeededDocument();
 
   renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
 
-  const field = screen.getByLabelText('Título');
+  const field = screen.getByRole('textbox', { name: 'Título do documento' });
   await user.clear(field);
   await user.keyboard('{Enter}');
 
-  await waitFor(() => expect(field).toHaveValue('Sem título'));
-  expect(storedTitle(seeded.id)).toBe('Sem título');
+  await waitFor(() => expect(field).toHaveValue(seeded.title));
+  expect(storedTitle(seeded.id)).toBe(seeded.title);
 });
 
 test('saves a 200 character title', async () => {
@@ -155,7 +157,7 @@ test('saves a 200 character title', async () => {
 
   renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
 
-  const field = screen.getByLabelText('Título');
+  const field = screen.getByRole('textbox', { name: 'Título do documento' });
   await user.clear(field);
   await user.click(field);
   await user.paste(longTitle);
@@ -167,7 +169,7 @@ test('saves a 200 character title', async () => {
   ).not.toBeInTheDocument();
 });
 
-test('a failed save keeps the typed text and shows the alert', async () => {
+test('a failed save keeps the typed text and marks the field invalid', async () => {
   const user = userEvent.setup();
   const seeded = firstSeededDocument();
   server.use(
@@ -178,31 +180,201 @@ test('a failed save keeps the typed text and shows the alert', async () => {
 
   renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
 
-  const field = screen.getByLabelText('Título');
+  const field = screen.getByRole('textbox', { name: 'Título do documento' });
   await user.clear(field);
   await user.type(field, 'Ata que falha{Enter}');
 
-  expect(await screen.findByRole('alert')).toHaveTextContent(
-    'Não foi possível salvar o título. Tente de novo.',
-  );
+  // The inline alert is gone (169): the field is marked invalid instead.
+  await waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'));
   expect(field).toHaveValue('Ata que falha');
 });
 
-test('the alert clears on the next save', async () => {
+test('aria-invalid clears on the next successful save', async () => {
   const user = userEvent.setup();
   const seeded = firstSeededDocument();
   failOncePatch();
 
   renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
 
-  const field = screen.getByLabelText('Título');
+  const field = screen.getByRole('textbox', { name: 'Título do documento' });
   await user.clear(field);
   await user.type(field, 'Primeira tentativa{Enter}');
 
-  await screen.findByRole('alert');
+  await waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'));
 
   await user.type(field, ' dois{Enter}');
 
-  await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  await waitFor(() => expect(field).not.toHaveAttribute('aria-invalid'));
   expect(storedTitle(seeded.id)).toBe('Primeira tentativa dois');
+});
+
+const titleField = (): HTMLElement =>
+  screen.getByRole('textbox', { name: 'Título do documento' });
+
+test('labels the field Título do documento', () => {
+  const seeded = firstSeededDocument();
+
+  renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
+
+  expect(titleField()).toHaveValue(seeded.title);
+  expect(screen.queryByLabelText('Título')).not.toBeInTheDocument();
+});
+
+test('Enter saves the new title once', async () => {
+  const user = userEvent.setup();
+  const seeded = firstSeededDocument();
+  const patchRequests = countPatchRequests();
+
+  renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
+
+  const field = titleField();
+  await user.clear(field);
+  await user.type(field, 'Ata com Enter{Enter}');
+
+  await waitFor(() => expect(storedTitle(seeded.id)).toBe('Ata com Enter'));
+  expect(field).toHaveValue('Ata com Enter');
+  expect(patchRequests()).toBe(1);
+});
+
+test('Tab out saves the new title', async () => {
+  const user = userEvent.setup();
+  const seeded = firstSeededDocument();
+
+  renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
+
+  const field = titleField();
+  await user.clear(field);
+  await user.type(field, 'Ata com Tab');
+  await user.tab();
+
+  await waitFor(() => expect(storedTitle(seeded.id)).toBe('Ata com Tab'));
+  expect(field).not.toHaveFocus();
+});
+
+test('Escape restores the previous title and keeps focus', async () => {
+  const user = userEvent.setup();
+  const seeded = firstSeededDocument();
+  const patchRequests = countPatchRequests();
+
+  renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
+
+  const field = titleField();
+  await user.clear(field);
+  await user.type(field, 'Rascunho descartado');
+  await user.keyboard('{Escape}');
+
+  expect(field).toHaveValue(seeded.title);
+  expect(field).toHaveFocus();
+  expect(patchRequests()).toBe(0);
+  expect(storedTitle(seeded.id)).toBe(seeded.title);
+});
+
+test('leaving without changes sends nothing', async () => {
+  const user = userEvent.setup();
+  const seeded = firstSeededDocument();
+  const originalTitle = seeded.title;
+  const patchRequests = countPatchRequests();
+
+  renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
+
+  const field = titleField();
+  await user.click(field);
+  await user.tab();
+
+  expect(field).not.toHaveFocus();
+  expect(patchRequests()).toBe(0);
+  expect(storedTitle(seeded.id)).toBe(originalTitle);
+
+  // A later real change is saved: the only PATCH seen is that one, so the
+  // first exit, without changes, sent nothing even if it had been late.
+  await user.click(field);
+  await user.type(field, ' depois');
+  await user.tab();
+
+  await waitFor(() =>
+    expect(storedTitle(seeded.id)).toBe(`${originalTitle} depois`),
+  );
+  expect(patchRequests()).toBe(1);
+});
+
+test('an empty title restores the previous one without a request', async () => {
+  const user = userEvent.setup();
+  const seeded = firstSeededDocument();
+  const patchRequests = countPatchRequests();
+
+  renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
+
+  const field = titleField();
+  await user.clear(field);
+  await user.type(field, '   {Enter}');
+
+  await waitFor(() => expect(field).toHaveValue(seeded.title));
+  expect(patchRequests()).toBe(0);
+  expect(storedTitle(seeded.id)).toBe(seeded.title);
+  expect(field).not.toHaveAttribute('aria-invalid');
+});
+
+test('a failed save keeps the typed text and sets aria-invalid', async () => {
+  const user = userEvent.setup();
+  const seeded = firstSeededDocument();
+  failOncePatch();
+
+  renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
+
+  const field = titleField();
+  await user.clear(field);
+  await user.type(field, 'Ata recusada{Enter}');
+
+  await waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'));
+  expect(field).toHaveValue('Ata recusada');
+  expect(storedTitle(seeded.id)).toBe(seeded.title);
+});
+
+test('while saving the field is aria-disabled and never disabled', async () => {
+  const user = userEvent.setup();
+  const seeded = firstSeededDocument();
+  let release = (): void => undefined;
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  server.use(
+    http.patch(`${env.API_URL}/documents/:documentId`, async () => {
+      await released;
+      return HttpResponse.json({ data: { ...seeded, title: 'Ata lenta' } });
+    }),
+  );
+
+  renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
+
+  const field = titleField();
+  await user.clear(field);
+  await user.type(field, 'Ata lenta{Enter}');
+
+  await waitFor(() => expect(field).toHaveAttribute('aria-disabled', 'true'));
+  expect(field).not.toBeDisabled();
+  expect(field).toHaveAttribute('readonly');
+  expect(field).toHaveFocus();
+
+  release();
+
+  await waitFor(() => expect(field).not.toHaveAttribute('aria-disabled'));
+  expect(field).toHaveValue('Ata lenta');
+});
+
+test('blocks titles longer than 200 characters', async () => {
+  const user = userEvent.setup();
+  const seeded = firstSeededDocument();
+  const typedTitle = 'c'.repeat(201);
+
+  renderApp(<DocumentTitleForm document={toDocument(seeded)} />);
+
+  const field = titleField();
+  await user.clear(field);
+  await user.paste(typedTitle);
+  await user.keyboard('{Enter}');
+
+  await waitFor(() =>
+    expect(storedTitle(seeded.id)).toBe('c'.repeat(200)),
+  );
+  expect(field).toHaveValue('c'.repeat(200));
 });

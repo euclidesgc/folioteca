@@ -72,6 +72,8 @@ model Person {
   isAdmin        Boolean  @default(false)
   createdAt      DateTime @default(now())
 
+  documentPageWidth DocumentPageWidth @default(MEDIUM)
+
   organization      Organization        @relation(fields: [organizationId], references: [id])
   space             Space?              @relation("PersonalSpace")
   ownedSpaces       Space[]             @relation("SpaceOwner")
@@ -83,6 +85,14 @@ model Person {
   assignments       OrgUnitAssignment[]
   documentShares    DocumentShare[]
   spaceMemberships  SpaceMember[]
+}
+
+/// Largura da folha do documento escolhida pela pessoa.
+enum DocumentPageWidth {
+  SMALL
+  MEDIUM
+  LARGE
+  FULL
 }
 
 enum SpaceType {

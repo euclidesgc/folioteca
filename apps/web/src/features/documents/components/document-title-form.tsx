@@ -1,13 +1,20 @@
 import type React from 'react';
+import { useId } from 'react';
 import type { UseFormRegisterReturn } from 'react-hook-form';
+import { z } from 'zod';
 
 import { Form } from '@/components/ui/form/form';
-import { Input } from '@/components/ui/form/input';
-import {
-  updateDocumentInputSchema,
-  useUpdateDocument,
-} from '@/features/documents/api/update-document';
+import { useUpdateDocument } from '@/features/documents/api/update-document';
 import type { Document } from '@/types/api';
+
+// The same cap as the API. The field already stops at 200 characters, so the
+// message is a safety net, read out through `aria-describedby`.
+const titleFormSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .max(200, 'O título pode ter no máximo 200 caracteres.'),
+});
 
 type DocumentTitleFormProps = {
   document: Document;
@@ -15,19 +22,31 @@ type DocumentTitleFormProps = {
 
 // There is a single save path: the form submit. Enter submits it natively and
 // leaving the field asks the same form to submit, so Enter followed by Tab
-// never saves twice.
+// never saves twice. Escape and an empty title put the current name back
+// without asking the server anything. A failed save keeps the typed text and
+// marks the field invalid; the message is the notification the API client
+// already shows.
 export function DocumentTitleForm({
   document,
 }: DocumentTitleFormProps): React.JSX.Element {
   const updateDocumentMutation = useUpdateDocument();
+  const inputId = useId();
+  const errorId = useId();
+  const isSaving = updateDocumentMutation.isPending;
 
   return (
     <Form
-      schema={updateDocumentInputSchema}
+      schema={titleFormSchema}
       options={{ defaultValues: { title: document.title } }}
-      className="mt-6"
+      className="w-full min-w-0"
       onSubmit={(values, form) => {
         if (updateDocumentMutation.isPending) return;
+        // An empty title is never sent: the field goes back to the current
+        // name, with no message.
+        if (values.title === '') {
+          form.reset({ title: document.title });
+          return;
+        }
         // The schema already trimmed the title: nothing changed, nothing to save.
         if (values.title === document.title) return;
 
@@ -35,16 +54,14 @@ export function DocumentTitleForm({
           { documentId: document.id, data: values },
           {
             onSuccess: (response) => {
-              // The API decides the stored title: an empty one comes back as
-              // "Sem título".
               form.reset({ title: response.data.title });
             },
           },
         );
       }}
     >
-      {({ register, formState }) => {
-        const titleRegistration = register('title');
+      {(form) => {
+        const titleRegistration = form.register('title');
         const registration: UseFormRegisterReturn<'title'> = {
           ...titleRegistration,
           onBlur: async (event) => {
@@ -53,27 +70,43 @@ export function DocumentTitleForm({
             field.form?.requestSubmit();
           },
         };
+        const validationMessage = form.formState.errors.title?.message;
+        const isInvalid =
+          updateDocumentMutation.isError || validationMessage !== undefined;
 
         return (
-          <>
-            <Input
-              label="Título"
+          // A single child: the form spaces its children apart, and the hidden
+          // label and message must not push the field out of the row.
+          <div>
+            <label htmlFor={inputId} className="sr-only">
+              Título do documento
+            </label>
+            <input
+              {...registration}
+              id={inputId}
+              type="text"
               maxLength={200}
               autoComplete="off"
-              className="h-12 text-2xl font-bold"
-              error={formState.errors.title}
-              registration={registration}
+              // Never the native attribute: it would drop the keyboard focus.
+              readOnly={isSaving}
+              aria-disabled={isSaving ? 'true' : undefined}
+              aria-invalid={isInvalid ? 'true' : undefined}
+              aria-describedby={
+                validationMessage === undefined ? undefined : errorId
+              }
+              className="h-10 w-full min-w-0 truncate rounded-md border border-transparent bg-transparent px-2 text-base font-semibold text-gray-900 hover:border-gray-300 focus-visible:border-gray-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 aria-disabled:cursor-wait aria-[invalid=true]:border-red-500"
+              onKeyDown={(event) => {
+                if (event.key !== 'Escape') return;
+                event.preventDefault();
+                form.reset({ title: document.title });
+              }}
             />
-
-            {updateDocumentMutation.isError ? (
-              <p
-                role="alert"
-                className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800"
-              >
-                Não foi possível salvar o título. Tente de novo.
+            {validationMessage === undefined ? null : (
+              <p id={errorId} className="sr-only">
+                {validationMessage}
               </p>
-            ) : null}
-          </>
+            )}
+          </div>
         );
       }}
     </Form>

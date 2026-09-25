@@ -129,8 +129,12 @@ test(
       ),
     );
 
-    const field = await screen.findByLabelText('Título', undefined, LAZY_TIMEOUT);
-    expect(field).toHaveValue('Sem título');
+    const field = await screen.findByRole(
+      'textbox',
+      { name: 'Título do documento' },
+      LAZY_TIMEOUT,
+    );
+    expect(field).toHaveValue('documento-sem-titulo-1');
 
     // Renaming with Enter saves and the sidebar section picks the name up.
     await user.clear(field);
@@ -165,7 +169,7 @@ test(
 
     await waitFor(
       () =>
-        expect(screen.getByLabelText('Título')).toHaveValue(
+        expect(screen.getByRole('textbox', { name: 'Título do documento' })).toHaveValue(
           'Ata da reunião de diretoria',
         ),
       LAZY_TIMEOUT,
@@ -222,3 +226,45 @@ test(
     ).toBeInTheDocument();
   },
 );
+
+test('a new document appears as documento-sem-titulo-1', { timeout: 20_000 }, async () => {
+  const user = userEvent.setup();
+  renderRoutes(paths.myDocuments.getHref());
+
+  await screen.findByText(
+    'Nenhum documento ainda. Os documentos que você criar aparecem aqui.',
+    undefined,
+    LAZY_TIMEOUT,
+  );
+  await user.click(
+    await screen.findByRole(
+      'button',
+      { name: 'Novo documento' },
+      LAZY_TIMEOUT,
+    ),
+  );
+
+  expect(
+    await screen.findByRole(
+      'textbox',
+      { name: 'Título do documento' },
+      LAZY_TIMEOUT,
+    ),
+  ).toHaveValue('documento-sem-titulo-1');
+
+  const mainNav = screen.getByRole('navigation', {
+    name: 'Navegação principal',
+  });
+  await user.click(
+    within(mainNav).getByRole('link', { name: 'Meus documentos' }),
+  );
+
+  expect(
+    await within(await findPageContent()).findByRole(
+      'link',
+      { name: 'documento-sem-titulo-1' },
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
+  expect(screen.queryByText('Sem título')).not.toBeInTheDocument();
+});

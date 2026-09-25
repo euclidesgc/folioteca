@@ -1,8 +1,10 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
   HttpCode,
+  Patch,
   Post,
   Req,
   Res,
@@ -20,6 +22,10 @@ import {
 } from './session-cookie';
 import { SessionGuard } from './session.guard';
 import { toCurrentUser, type PersonWithOrganization } from './session.service';
+import {
+  INVALID_PAGE_WIDTH_MESSAGE,
+  updatePreferencesSchema,
+} from './update-preferences.schema';
 
 type CurrentUserResponse = components['schemas']['CurrentUserResponse'];
 
@@ -40,6 +46,27 @@ export class AuthController {
     @CurrentPerson() person: PersonWithOrganization,
   ): CurrentUserResponse {
     return { data: toCurrentUser(person) };
+  }
+
+  /**
+   * Grava a largura da página da pessoa da sessão. Corpo inválido recebe 400
+   * com uma mensagem só, que o web mostra na notificação de erro.
+   */
+  @Patch('me/preferences')
+  @UseGuards(SessionGuard)
+  async updatePreferences(
+    @CurrentPerson() person: PersonWithOrganization,
+    @Body() body: unknown,
+  ): Promise<CurrentUserResponse> {
+    const result = updatePreferencesSchema.safeParse(body);
+
+    if (!result.success) {
+      throw new BadRequestException(INVALID_PAGE_WIDTH_MESSAGE);
+    }
+
+    return {
+      data: await this.auth.updatePreferences(person.id, result.data),
+    };
   }
 
   @Post('login')

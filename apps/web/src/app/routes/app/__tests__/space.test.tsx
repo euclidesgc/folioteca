@@ -2,15 +2,17 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { http } from 'msw';
-import { beforeEach, expect, test } from 'vitest';
+import { beforeEach, expect, onTestFinished, test, vi } from 'vitest';
 
 import { createRoutes } from '@/app/router';
 import { env } from '@/config/env';
 import { paths } from '@/config/paths';
+import { resetLocalCollaboration } from '@/features/documents/utils/local-collaboration-provider';
 import { queryConfig } from '@/lib/react-query';
 import {
   addAssignment,
   addFreeSpace,
+  createDocumentIn,
   getDb,
   seedFreeSpaceMembership,
   seedFreeSpaceViewer,
@@ -219,11 +221,17 @@ test('the unit space page shows the space documents list', async () => {
   ).toBeInTheDocument();
 });
 
-test('the inherited unit space page shows the direct assignment notice', async () => {
-  // Restauro inherits from Acervo, where the person is assigned: the page
-  // opens, its documents do not.
+// Restauro inherits from Acervo, where the person is assigned: the person
+// reaches the unit space only by inheritance.
+const reachRestauroByInheritance = (): void => {
   setOrgUnitSpaceAccess('org-unit-restauro', 'inherit');
   addAssignment('org-unit-acervo', INSTALLED_PERSON_ID);
+};
+
+test('an heir sees the documents of the inherited unit space', async () => {
+  reachRestauroByInheritance();
+  const document = createDocumentIn(INSTALLED_PERSON_ID, RESTAURO_SPACE_ID);
+  document.title = 'Plano de conservação preventiva';
 
   renderRoutes(paths.space.getHref(RESTAURO_SPACE_ID));
 
@@ -236,17 +244,82 @@ test('the inherited unit space page shows the direct assignment notice', async (
   expect(main).not.toBeNull();
   const content = within(main as HTMLElement);
 
+  const documentLink = await content.findByRole(
+    'link',
+    { name: 'Plano de conservação preventiva' },
+    LAZY_TIMEOUT,
+  );
+  expect(documentLink).toHaveAttribute(
+    'href',
+    paths.document.getHref(document.id),
+  );
   expect(
-    await content.findByText(
-      'Os documentos deste espaço estão disponíveis para quem está lotado diretamente na unidade.',
-      {},
-      LAZY_TIMEOUT,
-    ),
+    content.getByRole('button', { name: 'Novo documento' }),
   ).toBeInTheDocument();
   expect(
-    content.queryByRole('button', { name: 'Novo documento' }),
+    content.queryByText(
+      'Os documentos deste espaço estão disponíveis para quem está lotado diretamente na unidade.',
+    ),
   ).not.toBeInTheDocument();
-  expect(content.queryByRole('list')).not.toBeInTheDocument();
+});
+
+test('an heir creates a document from Novo documento and it opens', { timeout: 20_000 }, async () => {
+  const user = userEvent.setup();
+  reachRestauroByInheritance();
+  // The journey ends on the document page, which opens the collaboration
+  // session: the in-memory provider of the simulated API stands in for the
+  // WebSocket, only in this case.
+  const wasMocking = env.ENABLE_API_MOCKING;
+  env.ENABLE_API_MOCKING = true;
+  onTestFinished(() => {
+    env.ENABLE_API_MOCKING = wasMocking;
+    resetLocalCollaboration();
+  });
+  const queryClient = new QueryClient({ defaultOptions: queryConfig });
+  const router = createMemoryRouter(createRoutes(), {
+    initialEntries: [paths.space.getHref(RESTAURO_SPACE_ID)],
+  });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
+
+  const heading = await screen.findByRole(
+    'heading',
+    { level: 1, name: 'Restauro e Conservação' },
+    LAZY_TIMEOUT,
+  );
+  const content = within(heading.closest('main') as HTMLElement);
+  await user.click(
+    await content.findByRole(
+      'button',
+      { name: 'Novo documento' },
+      LAZY_TIMEOUT,
+    ),
+  );
+
+  expect(
+    await screen.findByRole(
+      'textbox',
+      { name: 'Título do documento' },
+      LAZY_TIMEOUT,
+    ),
+  ).toHaveValue('documento-sem-titulo-1');
+  const created = getDb().documents.find(
+    (document) => document.spaceId === RESTAURO_SPACE_ID,
+  );
+  expect(created).toBeDefined();
+  await waitFor(() => {
+    expect(router.state.location.pathname).toBe(
+      paths.document.getHref(created?.id ?? ''),
+    );
+  }, LAZY_TIMEOUT);
+
+  // The document page loads its collaboration session through `import()`:
+  // waiting for it keeps the session inside this case, on the in-memory
+  // provider, instead of a WebSocket opened after the flag is restored.
+  await vi.dynamicImportSettled();
 });
 
 test('the space page does not request GET spaces', async () => {
@@ -432,6 +505,15 @@ test(
     const user = userEvent.setup();
     const space = addFreeSpace(INSTALLED_PERSON_ID, 'Comissão de Leitura');
     let postedBody: unknown = null;
+    // The journey ends on the document page, which opens the collaboration
+    // session: the in-memory provider of the simulated API stands in for the
+    // WebSocket, only in this case.
+    const wasMocking = env.ENABLE_API_MOCKING;
+    env.ENABLE_API_MOCKING = true;
+    onTestFinished(() => {
+      env.ENABLE_API_MOCKING = wasMocking;
+      resetLocalCollaboration();
+    });
     // Reads the body and returns nothing: the request falls through to the
     // handler of the fake database, which creates the document.
     server.use(
@@ -464,8 +546,12 @@ test(
     );
 
     expect(
-      await screen.findByLabelText('Título', undefined, LAZY_TIMEOUT),
-    ).toHaveValue('Sem título');
+      await screen.findByRole(
+        'textbox',
+        { name: 'Título do documento' },
+        LAZY_TIMEOUT,
+      ),
+    ).toHaveValue('documento-sem-titulo-1');
     expect(postedBody).toEqual({ spaceId: space.id });
     const created = getDb().documents.find(
       (document) => document.spaceId === space.id,
@@ -478,3 +564,59 @@ test(
     }, LAZY_TIMEOUT);
   },
 );
+
+test('a new document in the space appears as documento-sem-titulo-1', { timeout: 20_000 }, async () => {
+  const user = userEvent.setup();
+  const space = addFreeSpace(INSTALLED_PERSON_ID, 'Comissão de Leitura');
+  // The journey stays on the document page long enough to open the
+  // collaboration session: the in-memory provider of the simulated API
+  // stands in for the WebSocket, only in this case.
+  const wasMocking = env.ENABLE_API_MOCKING;
+  env.ENABLE_API_MOCKING = true;
+  onTestFinished(() => {
+    env.ENABLE_API_MOCKING = wasMocking;
+    resetLocalCollaboration();
+  });
+
+  renderRoutes(paths.space.getHref(space.id));
+
+  const heading = await screen.findByRole(
+    'heading',
+    { level: 1, name: 'Comissão de Leitura' },
+    LAZY_TIMEOUT,
+  );
+  const content = within(heading.closest('main') as HTMLElement);
+  await user.click(
+    await content.findByRole(
+      'button',
+      { name: 'Novo documento' },
+      LAZY_TIMEOUT,
+    ),
+  );
+
+  expect(
+    await screen.findByRole(
+      'textbox',
+      { name: 'Título do documento' },
+      LAZY_TIMEOUT,
+    ),
+  ).toHaveValue('documento-sem-titulo-1');
+
+  const nav = screen.getByRole('navigation', { name: 'Espaços' });
+  await user.click(
+    within(nav).getByRole('link', { name: 'Comissão de Leitura' }),
+  );
+
+  const spaceHeading = await screen.findByRole(
+    'heading',
+    { level: 1, name: 'Comissão de Leitura' },
+    LAZY_TIMEOUT,
+  );
+  expect(
+    await within(spaceHeading.closest('main') as HTMLElement).findByRole(
+      'link',
+      { name: 'documento-sem-titulo-1' },
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
+});

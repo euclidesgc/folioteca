@@ -6,6 +6,7 @@ import { NotFoundException, type INestApplication } from '@nestjs/common';
 import { Prisma, type Person } from '@prisma/client';
 import type { Response } from 'supertest';
 
+import { AccessService } from '../../access/access.service';
 import { createApp } from '../../create-app';
 import { PrismaService } from '../../prisma/prisma.service';
 import { compareMembers, SpacesService } from '../spaces.service';
@@ -867,28 +868,146 @@ test('GET space documents omits trashed documents', async () => {
   ).toEqual([kept]);
 });
 
-test('GET space documents answers 403 with the direct assignment message to an inherited member', async () => {
+/**
+ * Mãe "Secretaria de Educação" com a filha "Protocolo" herdando dela, a
+ * herdeira lotada só na mãe e uma ata da administração no espaço da filha.
+ */
+async function createInheritedReach(): Promise<{
+  parent: CreatedUnit;
+  child: CreatedUnit;
+  person: Person;
+  cookie: string;
+  documentId: string;
+}> {
   const parent = await createUnit('Secretaria de Educação');
   const child = await createUnit('Protocolo', { parentId: parent.orgUnitId });
   const { person, cookie } = await createMember();
   await assign(parent.orgUnitId, person.id);
-  await setSpaceAccess(child.orgUnitId, 'inherit');
-  await createSpaceDocument(
+  const inherited = await setSpaceAccess(child.orgUnitId, 'inherit');
+  const documentId = await createSpaceDocument(
     child.spaceId,
     adminPerson,
     'Ata do protocolo',
     new Date('2026-01-01T10:00:00.000Z'),
   );
 
-  const listed = await spaceIdsOf(cookie);
+  expect(inherited.status).toBe(200);
+
+  return { parent, child, person, cookie, documentId };
+}
+
+test('GET /spaces/{id}/documents returns 200 to an inherited reach', async () => {
+  const { child, cookie, documentId } = await createInheritedReach();
+
   const response = await getSpaceDocuments(child.spaceId, cookie);
 
-  expect(listed).toContain(child.spaceId);
-  expect(response.status).toBe(403);
+  expect(response.status).toBe(200);
   expect(response.body).toEqual({
-    message:
-      'Os documentos deste espaço estão disponíveis para quem está lotado diretamente na unidade.',
+    data: [
+      {
+        id: documentId,
+        title: 'Ata do protocolo',
+        updatedAt: '2026-01-01T10:00:00.000Z',
+        trashedAt: null,
+      },
+    ],
   });
+});
+
+test('GET /spaces/{id} returns canCreateDocuments true to an inherited reach', async () => {
+  const { child, cookie } = await createInheritedReach();
+
+  const response = await getSpace(child.spaceId, cookie);
+
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual({
+    data: {
+      id: child.spaceId,
+      type: 'unit',
+      name: 'Protocolo',
+      reach: 'inherited',
+      membersCanInvite: false,
+      canCreateDocuments: true,
+      canAddPeople: false,
+    },
+  });
+});
+
+test('a space that stops inheriting returns 404 on the next GET /spaces/{id}/documents', async () => {
+  const { child, cookie } = await createInheritedReach();
+
+  const before = await getSpaceDocuments(child.spaceId, cookie);
+  const switched = await setSpaceAccess(child.orgUnitId, 'own');
+  const after = await getSpaceDocuments(child.spaceId, cookie);
+
+  expect(before.status).toBe(200);
+  expect(switched.status).toBe(200);
+  expect(after.status).toBe(404);
+  expect(after.body).toEqual({ message: 'Espaço não encontrado.' });
+});
+
+test('a person removed from the parent unit gets 404 on the next GET /spaces/{id}/documents', async () => {
+  const { parent, child, person, cookie } = await createInheritedReach();
+
+  const before = await getSpaceDocuments(child.spaceId, cookie);
+  await prisma.orgUnitAssignment.delete({
+    where: {
+      orgUnitId_personId: { orgUnitId: parent.orgUnitId, personId: person.id },
+    },
+  });
+  const after = await getSpaceDocuments(child.spaceId, cookie);
+
+  expect(before.status).toBe(200);
+  expect(after.status).toBe(404);
+  expect(after.body).toEqual({ message: 'Espaço não encontrado.' });
+});
+
+/**
+ * Organização única por instância (`Organization_singleton_check`): o escopo
+ * é provado no serviço real, contra o mesmo Postgres, com um
+ * `organizationId` gerado por `randomUUID()`; a rota responde 404 a todo
+ * alcance `'none'`, e a um espaço que não é da organização da sessão.
+ */
+test('a space of another organization returns 404', async () => {
+  const { child, person, cookie } = await createInheritedReach();
+
+  const mine = await spaces.reachOf(
+    adminPerson.organizationId,
+    person.id,
+    child.spaceId,
+  );
+  const others = await spaces.reachOf(randomUUID(), person.id, child.spaceId);
+  const detail = await spaces.getDetail(randomUUID(), person.id, child.spaceId);
+  const response = await getSpaceDocuments(randomUUID(), cookie);
+
+  expect(mine).toBe('inherited');
+  expect(others).toBe('none');
+  expect(detail).toBeNull();
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({ message: 'Espaço não encontrado.' });
+});
+
+test('GET /spaces keeps listing inherited unit spaces', async () => {
+  const { parent, child, cookie } = await createInheritedReach();
+
+  // Ordem pt-BR pelo nome: "Protocolo" antes de "Secretaria de Educação".
+  expect(await spaceIdsOf(cookie)).toEqual([child.spaceId, parent.spaceId]);
+});
+
+test('listMembers keeps only direct assignments', async () => {
+  const { child, person, cookie } = await createInheritedReach();
+  const direct = await createPersonWithSession(app, {
+    name: 'Ana Lima',
+    email: 'ana@exemplo.org',
+  });
+  await assign(child.orgUnitId, direct.person.id);
+
+  const response = await getSpaceMembers(child.spaceId, cookie);
+  const body = response.body as SpaceMembersBody;
+
+  expect(response.status).toBe(200);
+  expect(body.data.map((item) => item.id)).toEqual([direct.person.id]);
+  expect(body.data.some((item) => item.id === person.id)).toBe(false);
 });
 
 test('GET space documents answers 404 without assignment', async () => {
@@ -1059,7 +1178,7 @@ test('GET space answers reach inherited to an inherited member', async () => {
       name: 'Protocolo',
       reach: 'inherited',
       membersCanInvite: false,
-      canCreateDocuments: false,
+      canCreateDocuments: true,
       canAddPeople: false,
     },
   });
@@ -1382,7 +1501,7 @@ test('getDetail with another organization id returns null', async () => {
   const unit = await createUnit('Protocolo');
   const { person } = await createMember();
   await assign(unit.orgUnitId, person.id);
-  const service = new SpacesService(prisma);
+  const service = new SpacesService(prisma, new AccessService(prisma));
 
   const mine = await service.getDetail(
     adminPerson.organizationId,
@@ -1407,7 +1526,7 @@ test('listMembers with another organization id returns null', async () => {
   const unit = await createUnit('Protocolo');
   const { person } = await createMember();
   await assign(unit.orgUnitId, person.id);
-  const service = new SpacesService(prisma);
+  const service = new SpacesService(prisma, new AccessService(prisma));
 
   const mine = await service.listMembers(
     adminPerson.organizationId,
@@ -2942,23 +3061,6 @@ test('GET space answers canCreateDocuments true and canAddPeople false to a dire
   expect(response.status).toBe(200);
   expect(permissionsOf(response)).toEqual({
     canCreateDocuments: true,
-    canAddPeople: false,
-  });
-});
-
-test('GET space answers canCreateDocuments false to an inherited unit member', async () => {
-  const { parent, child } = await createInheritingChild();
-  const { person, cookie } = await createMember();
-  await assign(parent.orgUnitId, person.id);
-
-  const response = await getSpace(child.spaceId, cookie);
-
-  expect(response.status).toBe(200);
-  expect((response.body as { data: { reach: string } }).data.reach).toBe(
-    'inherited',
-  );
-  expect(permissionsOf(response)).toEqual({
-    canCreateDocuments: false,
     canAddPeople: false,
   });
 });

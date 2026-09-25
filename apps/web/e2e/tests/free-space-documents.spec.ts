@@ -101,8 +101,13 @@ test('the owner creates a document in a free space using only the keyboard', asy
   await page.keyboard.press('Enter');
 
   await expect(page).toHaveURL(DOCUMENT_URL, ROUTE_TIMEOUT);
-  const titleField = page.getByRole('textbox', { name: 'Título' });
-  await expect(titleField).toHaveValue('Sem título', ROUTE_TIMEOUT);
+  const titleField = page.getByRole('textbox', {
+    name: 'Título do documento',
+  });
+  await expect(titleField).toHaveValue(
+    /documento-sem-titulo-\d+/,
+    ROUTE_TIMEOUT,
+  );
   await expect(
     page.getByRole('region', { name: 'Conteúdo do documento' }),
   ).toBeVisible(EDITOR_TIMEOUT);
@@ -174,7 +179,9 @@ test('a member opens the owner document of a free space', async ({
   await page.keyboard.press('Enter');
 
   await expect(page).toHaveURL(DOCUMENT_URL, ROUTE_TIMEOUT);
-  await expect(page.getByRole('textbox', { name: 'Título' })).toHaveValue(
+  await expect(
+    page.getByRole('textbox', { name: 'Título do documento' }),
+  ).toHaveValue(
     OWNER_DOCUMENT_TITLE,
     ROUTE_TIMEOUT,
   );

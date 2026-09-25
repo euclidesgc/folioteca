@@ -31,8 +31,6 @@ const DOCUMENT_URL = /\/documents\/[^/]+$/;
 
 const EMPTY_SPACE_NOTICE =
   'Nenhum documento neste espaço ainda. Crie o primeiro em “Novo documento”.';
-const DIRECT_ASSIGNMENT_NOTICE =
-  'Os documentos deste espaço estão disponíveis para quem está lotado diretamente na unidade.';
 
 const NEW_DOCUMENT_TITLE = 'Roteiro de catalogação de obras raras';
 
@@ -254,8 +252,13 @@ test('a direct member creates a document in the unit space using only the keyboa
   await page.keyboard.press('Enter');
 
   await expect(page).toHaveURL(DOCUMENT_URL, ROUTE_TIMEOUT);
-  const titleField = page.getByRole('textbox', { name: 'Título' });
-  await expect(titleField).toHaveValue('Sem título', ROUTE_TIMEOUT);
+  const titleField = page.getByRole('textbox', {
+    name: 'Título do documento',
+  });
+  await expect(titleField).toHaveValue(
+    /documento-sem-titulo-\d+/,
+    ROUTE_TIMEOUT,
+  );
   await expect(
     page.getByRole('region', { name: 'Conteúdo do documento' }),
   ).toBeVisible(EDITOR_TIMEOUT);
@@ -288,7 +291,7 @@ test('a direct member creates a document in the unit space using only the keyboa
   await expect(page.getByText(EMPTY_SPACE_NOTICE)).toHaveCount(0);
 });
 
-test('an inherited member sees the direct assignment notice', async ({
+test('an heir sees the list of the inherited unit space and creates a document', async ({
   page,
 }) => {
   await openHome(page);
@@ -299,12 +302,41 @@ test('an inherited member sees the direct assignment notice', async ({
 
   // Assigned to the mother only: the child's space is reached by inheritance.
   await openSpaceFromSidebar(page, CHILD_NAME);
+  const spaceUrl = page.url();
 
-  await expect(page.getByText(DIRECT_ASSIGNMENT_NOTICE)).toBeVisible(
+  await expect(page.getByText(EMPTY_SPACE_NOTICE)).toBeVisible(ROUTE_TIMEOUT);
+  const newDocumentButton = mainNewDocumentButton(page);
+  await expect(newDocumentButton).toBeVisible();
+
+  // The inherited space with its list and its button, which is the state
+  // under test.
+  await expectNoSeriousA11yViolations(page);
+
+  await tabUntilFocused(page, newDocumentButton);
+  await page.keyboard.press('Enter');
+
+  await expect(page).toHaveURL(DOCUMENT_URL, ROUTE_TIMEOUT);
+  const titleField = page.getByRole('textbox', {
+    name: 'Título do documento',
+  });
+  await expect(titleField).toHaveValue(
+    /documento-sem-titulo-\d+/,
     ROUTE_TIMEOUT,
   );
-  await expect(mainNewDocumentButton(page)).toHaveCount(0);
+  const createdTitle = await titleField.inputValue();
+  await expect(
+    page.getByRole('region', { name: 'Conteúdo do documento' }),
+  ).toBeVisible(EDITOR_TIMEOUT);
 
-  // The notice on screen, which is the state under test.
-  await expectNoSeriousA11yViolations(page);
+  // Back to the space through the history, which keeps the in-memory database
+  // of the simulated API: the new document is in the list of the heir.
+  await page.goBack();
+  await expect(page).toHaveURL(spaceUrl, ROUTE_TIMEOUT);
+  await expect(
+    page.getByRole('heading', { name: CHILD_NAME, level: 1 }),
+  ).toBeVisible(ROUTE_TIMEOUT);
+
+  const items = page.getByRole('main').getByRole('listitem');
+  await expect(items.first()).toContainText(createdTitle, ROUTE_TIMEOUT);
+  await expect(page.getByText(EMPTY_SPACE_NOTICE)).toHaveCount(0);
 });

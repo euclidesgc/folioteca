@@ -25,6 +25,8 @@ import { SharesService } from './shares.service';
 type DocumentResponse = components['schemas']['DocumentResponse'];
 type DocumentsResponse = components['schemas']['DocumentsResponse'];
 type DocumentShareResponse = components['schemas']['DocumentShareResponse'];
+type DocumentAccessListResponse =
+  components['schemas']['DocumentAccessListResponse'];
 
 /**
  * O id do documento chega cru, sem validação de formato: id malformado vira
@@ -143,6 +145,14 @@ export class DocumentsController {
     await this.favorites.remove(person.id, documentId);
   }
 
+  @Get(':documentId/shares')
+  async listDocumentShares(
+    @CurrentPerson() person: PersonWithOrganization,
+    @Param('documentId') documentId: string,
+  ): Promise<DocumentAccessListResponse> {
+    return this.shares.list(person, documentId);
+  }
+
   @Put(':documentId/shares/:personId')
   async shareDocument(
     @CurrentPerson() person: PersonWithOrganization,
@@ -151,5 +161,15 @@ export class DocumentsController {
     @Body() body: unknown,
   ): Promise<DocumentShareResponse> {
     return this.shares.share(person, documentId, personId, body);
+  }
+
+  @Delete(':documentId/shares/:personId')
+  @HttpCode(204)
+  async removeDocumentShare(
+    @CurrentPerson() person: PersonWithOrganization,
+    @Param('documentId') documentId: string,
+    @Param('personId') personId: string,
+  ): Promise<void> {
+    await this.shares.remove(person, documentId, personId);
   }
 }

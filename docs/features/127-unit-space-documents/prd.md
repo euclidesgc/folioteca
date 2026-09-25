@@ -17,6 +17,8 @@ acesso na hora.
   colaboração.
 - **Quem alcança o espaço só pela herança da unidade-pai** (fatia **140**):
   vê a página do espaço, mas não os documentos. Isso fica para a fatia **152**.
+  _Atualizado pela fatia **152**: essa pessoa passa a ter nos documentos o
+  mesmo acesso dos lotados diretos._
 - **Quem não alcança o espaço**, inclusive a administração não lotada: continua
   sem saber que o espaço e os documentos dele existem.
 
@@ -57,6 +59,9 @@ acesso na hora.
   estão disponíveis para quem está lotado diretamente na unidade.". Essa
   pessoa não vê o botão "Novo documento" e, ao abrir um documento do espaço,
   recebe a resposta de inexistente.
+  _Substituído pela fatia **152** `unit-space-documents-inherit`: quem alcança
+  pela herança vê a lista, o botão "Novo documento" e abre e edita os
+  documentos como os lotados diretos; o aviso deixa de existir._
 - **R11** — Quem não alcança o espaço, inclusive a administração não lotada,
   recebe "não encontrado" para a lista, para a criação e para cada documento
   do espaço, sem distinção entre espaço inexistente e espaço sem acesso.
@@ -86,7 +91,7 @@ acesso na hora.
 ## Decisões tomadas
 
 - **Só a lotação direta dá acesso aos documentos** (R10). A herança fica na
-  fatia **152**.
+  fatia **152**. _Desde a fatia **152**, a herança também dá acesso._
 - **Todos os membros diretos podem editar**, e o compartilhamento direto
   continua valendo para quem não é da unidade (R4, R12).
 - **Administração não tem acesso especial** (R11), igual à página do espaço
@@ -128,6 +133,8 @@ nenhum
   "não encontrado". Restaurado, volta para a lista e o membro volta a abri-lo.
 - Quem alcança o espaço pela herança vê o aviso de lotação direta, sem lista
   e sem botão. A administração não lotada recebe "não encontrado" para a
-  página, a lista, a criação e o documento.
+  página, a lista, a criação e o documento. _Desde a fatia **152**, quem
+  alcança pela herança vê a lista e o botão; a administração não lotada
+  continua recebendo "não encontrado"._
 - Um espaço sem documentos mostra o estado vazio com o convite para criar, e
   uma falha ao carregar mostra o erro com "Tentar de novo".

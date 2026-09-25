@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import type { components } from '@folioteca/api-contract';
+import type { DocumentPageWidth } from '@prisma/client';
 
 import { parseBody } from '../common/parse-body';
 import { PrismaService } from '../prisma/prisma.service';
@@ -10,11 +11,23 @@ import {
   toCurrentUser,
   type CreatedSession,
 } from './session.service';
+import type { UpdatePreferencesBody } from './update-preferences.schema';
 
 type CurrentUser = components['schemas']['CurrentUser'];
 
 /** A mesma resposta para e-mail inexistente e para senha errada. */
 const INVALID_CREDENTIALS_MESSAGE = 'E-mail ou senha incorretos.';
+
+/** Largura da página do contrato (`small`) no enum do banco (`SMALL`). */
+const PAGE_WIDTHS: Record<
+  UpdatePreferencesBody['documentPageWidth'],
+  DocumentPageWidth
+> = {
+  small: 'SMALL',
+  medium: 'MEDIUM',
+  large: 'LARGE',
+  full: 'FULL',
+};
 
 export type LoginResult = {
   user: CurrentUser;
@@ -67,5 +80,19 @@ export class AuthService {
     }
 
     await this.sessions.revoke(token);
+  }
+
+  /** Grava as preferências da pessoa e devolve a pessoa da sessão atualizada. */
+  async updatePreferences(
+    personId: string,
+    body: UpdatePreferencesBody,
+  ): Promise<CurrentUser> {
+    const person = await this.prisma.person.update({
+      where: { id: personId },
+      data: { documentPageWidth: PAGE_WIDTHS[body.documentPageWidth] },
+      include: { organization: true },
+    });
+
+    return toCurrentUser(person);
   }
 }

@@ -80,7 +80,9 @@ está trabalhando, sem precisar pedir à administração.
 
 - **Quem alcança pela herança vê os membros** (R5): é informação da estrutura
   que a pessoa já alcança. É diferente dos documentos (fatia **127**), que
-  exigem lotação direta.
+  exigem lotação direta. _Desde a fatia **152**
+  `unit-space-documents-inherit`, quem alcança pela herança também trabalha
+  nos documentos; a lista de pessoas continua só com a lotação direta._
 - **O e-mail aparece para todos que alcançam o espaço** (R1): a lista é um
   diretório interno da organização.
 - **Sem paginação** nesta fatia: unidades têm dezenas de pessoas. Fica como

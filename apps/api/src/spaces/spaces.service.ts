@@ -7,6 +7,7 @@ import {
 import type { components } from '@folioteca/api-contract';
 import type { ShareLevel } from '@prisma/client';
 
+import { AccessService } from '../access/access.service';
 import { DomainNotFoundException } from '../common/domain-not-found.exception';
 import { isUniqueViolation } from '../common/is-unique-violation';
 import { isUuid } from '../common/is-uuid';
@@ -92,86 +93,12 @@ export function compareMembers(a: SpaceMember, b: SpaceMember): number {
   );
 }
 
-type ReachUnit = {
-  id: string;
-  parentId: string | null;
-  space: { inheritsParent: boolean } | null;
-  assignments: unknown[];
-};
-
-/**
- * Builds the memoized "does the person reach this unit's space" check. A unit
- * is reached when the person is assigned to it, or when its space inherits
- * and the parent is reached. Resolution is iterative: it climbs the parents
- * stacking the unresolved units and resolves them on the way back, so a deep
- * tree cannot overflow the call stack. A unit revisited within the same climb
- * (a parent cycle) counts as not reached.
- */
-function resolveReach(units: ReachUnit[]): (unitId: string) => boolean {
-  const byId = new Map(units.map((unit) => [unit.id, unit]));
-  const memo = new Map<string, boolean>();
-
-  return (unitId) => {
-    const pending: ReachUnit[] = [];
-    const visited = new Set<string>();
-    let current = byId.get(unitId);
-    let result = false;
-
-    while (current) {
-      const known = memo.get(current.id);
-      if (known !== undefined) {
-        result = known;
-        break;
-      }
-      if (visited.has(current.id)) {
-        result = false;
-        break;
-      }
-      visited.add(current.id);
-
-      if (current.assignments.length > 0) {
-        memo.set(current.id, true);
-        result = true;
-        break;
-      }
-      if (current.space?.inheritsParent !== true || current.parentId === null) {
-        memo.set(current.id, false);
-        result = false;
-        break;
-      }
-
-      pending.push(current);
-      current = byId.get(current.parentId);
-    }
-
-    for (const unit of pending) {
-      memo.set(unit.id, result);
-    }
-
-    return memo.get(unitId) ?? result;
-  };
-}
-
 @Injectable()
 export class SpacesService {
-  constructor(private readonly prisma: PrismaService) {}
-
-  /**
-   * As unidades da organização com o espaço de cada uma e a lotação direta da
-   * pessoa: a leitura de que `resolveReach` precisa.
-   */
-  private findReachUnits(organizationId: string, personId: string) {
-    return this.prisma.orgUnit.findMany({
-      where: { organizationId },
-      select: {
-        id: true,
-        parentId: true,
-        name: true,
-        space: { select: { id: true, inheritsParent: true } },
-        assignments: { where: { personId }, select: { personId: true } },
-      },
-    });
-  }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly access: AccessService,
+  ) {}
 
   /**
    * Os espaços das unidades que a pessoa alcança e os espaços livres de que
@@ -181,7 +108,7 @@ export class SpacesService {
    * administração não amplia a lista.
    */
   async list(organizationId: string, personId: string): Promise<SpacesResponse> {
-    const [freeRows, units] = await Promise.all([
+    const [freeRows, reachedUnits] = await Promise.all([
       this.prisma.space.findMany({
         where: {
           type: 'FREE',
@@ -190,15 +117,11 @@ export class SpacesService {
         },
         select: { id: true, name: true },
       }),
-      this.findReachUnits(organizationId, personId),
+      this.access.unitSpacesReachedBy(organizationId, personId),
     ]);
 
-    const reaches = resolveReach(units);
-
-    const unitSpaces = units.flatMap((unit): Space[] =>
-      unit.space && reaches(unit.id)
-        ? [{ id: unit.space.id, type: 'unit', name: unit.name }]
-        : [],
+    const unitSpaces = reachedUnits.map(
+      (unit): Space => ({ id: unit.spaceId, type: 'unit', name: unit.name }),
     );
 
     const freeSpaces = freeRows.flatMap((row): Space[] =>
@@ -275,10 +198,15 @@ export class SpacesService {
       return { reach: 'direct', orgUnitId };
     }
 
-    const units = await this.findReachUnits(organizationId, personId);
+    const reached = await this.access.unitSpacesReachedBy(
+      organizationId,
+      personId,
+    );
 
     return {
-      reach: resolveReach(units)(orgUnitId) ? 'inherited' : 'none',
+      reach: reached.some((unit) => unit.orgUnitId === orgUnitId)
+        ? 'inherited'
+        : 'none',
       orgUnitId,
     };
   }
@@ -357,7 +285,7 @@ export class SpacesService {
       name: space.orgUnit.name,
       reach,
       membersCanInvite: false,
-      canCreateDocuments: reach === 'direct',
+      canCreateDocuments: true,
       canAddPeople: false,
     };
   }

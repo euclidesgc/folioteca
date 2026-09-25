@@ -40,13 +40,17 @@ export const useDocuments = ({
 // `['documents']` prefix would also hit `['documents', <id>]`, and whoever
 // writes a document has just put the fresh one in that key with
 // `setQueryData`: the open document would be fetched again for nothing.
-export function invalidateDocumentLists(queryClient: QueryClient): void {
-  for (const scope of DOCUMENTS_SCOPES) {
-    void queryClient.invalidateQueries({
-      queryKey: getDocumentsQueryOptions(scope).queryKey,
-    });
-  }
-  // The lists of the spaces live under a prefix of their own, for the same
-  // reason: it never hits the open document.
-  void queryClient.invalidateQueries({ queryKey: ['space-documents'] });
+export async function invalidateDocumentLists(
+  queryClient: QueryClient,
+): Promise<void> {
+  await Promise.all([
+    ...DOCUMENTS_SCOPES.map((scope) =>
+      queryClient.invalidateQueries({
+        queryKey: getDocumentsQueryOptions(scope).queryKey,
+      }),
+    ),
+    // The lists of the spaces live under a prefix of their own, for the same
+    // reason: it never hits the open document.
+    queryClient.invalidateQueries({ queryKey: ['space-documents'] }),
+  ]);
 }
