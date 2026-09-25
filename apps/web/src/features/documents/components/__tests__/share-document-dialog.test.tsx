@@ -1,7 +1,8 @@
 import { delay, http, HttpResponse } from "msw";
-import { beforeEach, expect, test } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 import { env } from "@/config/env";
+import { paths } from "@/config/paths";
 import {
   seedInstalled,
   seedSampleDocuments,
@@ -22,7 +23,9 @@ import { ShareDocumentDialog } from "../share-document-dialog";
 // typing gets an explicit budget instead of the implicit default.
 const LAZY_TIMEOUT = { timeout: 5000 };
 
-const DOCUMENT_ID = "document-to-share";
+// A document of the sample seed owned by the signed-in person, so the list
+// of who has access loads instead of answering 404.
+const DOCUMENT_ID = "document-1";
 const DOCUMENT_TITLE = "Catálogo de periódicos";
 
 const SHARE_URL = `${env.API_URL}/documents/:documentId/shares/:personId`;
@@ -359,4 +362,271 @@ test("Escape closes the dialog and returns focus to the trigger", async () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
   );
   expect(screen.getByRole("button", { name: "Compartilhar" })).toHaveFocus();
+});
+
+const SHARES_URL = `${env.API_URL}/documents/:documentId/shares`;
+const DOCUMENT_URL = `${window.location.origin}${paths.document.getHref(DOCUMENT_ID)}`;
+
+// The clipboard of each case is put back at its end, whatever it was before
+// (user-event installs its own stub on `navigator`).
+let restoreClipboard: (() => void) | null = null;
+
+const replaceClipboard = (clipboard: Partial<Clipboard> | undefined): void => {
+  const previous = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+  Object.defineProperty(navigator, "clipboard", {
+    value: clipboard,
+    configurable: true,
+    writable: true,
+  });
+  restoreClipboard = () => {
+    if (previous) {
+      Object.defineProperty(navigator, "clipboard", previous);
+    } else {
+      Reflect.deleteProperty(navigator, "clipboard");
+    }
+  };
+};
+
+afterEach(() => {
+  restoreClipboard?.();
+  restoreClipboard = null;
+});
+
+const findAccessList = (dialog: HTMLElement) =>
+  within(dialog).findByRole("list", { name: "Quem tem acesso" });
+
+const OWNER_ENTRY = {
+  personId: "person-1",
+  name: "Ana Souza",
+  email: "ana.souza@exemplo.com.br",
+  level: "owner",
+  isCurrentPerson: true,
+};
+
+test("shows Quem tem acesso with the owner badges dono and você", async () => {
+  const { dialog } = await openDialog();
+
+  expect(
+    within(dialog).getByRole("heading", { level: 3, name: "Quem tem acesso" }),
+  ).toBeInTheDocument();
+  const list = await findAccessList(dialog);
+  const rows = within(list).getAllByRole("listitem");
+  expect(rows).toHaveLength(1);
+  expect(rows[0]).toHaveTextContent("Ana Souza");
+  expect(rows[0]).toHaveTextContent("ana.souza@exemplo.com.br");
+  expect(within(rows[0] as HTMLElement).getByText("dono")).toBeInTheDocument();
+  expect(within(rows[0] as HTMLElement).getByText("você")).toBeInTheDocument();
+});
+
+test("lists shared people with Pode ver and Pode editar in server order", async () => {
+  // Out of alphabetical order on purpose: the dialog keeps the server order.
+  server.use(
+    http.get(SHARES_URL, () =>
+      HttpResponse.json({
+        data: [
+          OWNER_ENTRY,
+          {
+            personId: "person-sample-12",
+            name: "Zilda Marques",
+            email: "zilda.marques@exemplo.com.br",
+            level: "edit",
+            isCurrentPerson: false,
+          },
+          {
+            personId: "person-sample-3",
+            name: "Beatriz Nogueira",
+            email: "beatriz.nogueira@exemplo.com.br",
+            level: "view",
+            isCurrentPerson: false,
+          },
+        ],
+      }),
+    ),
+  );
+  const { dialog } = await openDialog();
+
+  const list = await findAccessList(dialog);
+  const rows = within(list).getAllByRole("listitem");
+  expect(rows).toHaveLength(3);
+  expect(rows[0]).toHaveTextContent("Ana Souza");
+  expect(rows[1]).toHaveTextContent("Zilda Marques");
+  expect(rows[1]).toHaveTextContent("zilda.marques@exemplo.com.br");
+  expect(
+    within(rows[1] as HTMLElement).getByText("Pode editar"),
+  ).toBeInTheDocument();
+  expect(within(rows[1] as HTMLElement).queryByText("você")).toBeNull();
+  expect(rows[2]).toHaveTextContent("Beatriz Nogueira");
+  expect(
+    within(rows[2] as HTMLElement).getByText("Pode ver"),
+  ).toBeInTheDocument();
+  expect(within(rows[2] as HTMLElement).queryByText("você")).toBeNull();
+});
+
+test("shows Carregando quem tem acesso while the list loads", async () => {
+  server.use(
+    http.get(SHARES_URL, async () => {
+      await delay("infinite");
+      return HttpResponse.json({ data: [] });
+    }),
+  );
+  const { dialog } = await openDialog();
+
+  expect(
+    await within(dialog).findByText("Carregando quem tem acesso…"),
+  ).toHaveAttribute("role", "status");
+  expect(
+    within(dialog).queryByRole("list", { name: "Quem tem acesso" }),
+  ).not.toBeInTheDocument();
+});
+
+test("shows the list error with Tentar de novo and retries", async () => {
+  server.use(
+    http.get(
+      SHARES_URL,
+      () =>
+        HttpResponse.json(
+          { message: "Erro interno do servidor." },
+          { status: 500 },
+        ),
+      { once: true },
+    ),
+  );
+  const { user, dialog } = await openDialog();
+
+  const alert = await within(dialog).findByRole("alert");
+  expect(alert).toHaveTextContent("Não foi possível carregar quem tem acesso.");
+
+  await user.click(
+    within(alert).getByRole("button", { name: "Tentar de novo" }),
+  );
+
+  const list = await findAccessList(dialog);
+  expect(within(list).getByText("Ana Souza")).toBeInTheDocument();
+  expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
+});
+
+test("sharing still works when the list fails", async () => {
+  server.use(
+    http.get(SHARES_URL, () =>
+      HttpResponse.json(
+        { message: "Erro interno do servidor." },
+        { status: 500 },
+      ),
+    ),
+  );
+  const { user, dialog } = await selectBeatriz();
+  expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+    "Não foi possível carregar quem tem acesso.",
+  );
+
+  await user.click(
+    within(dialog).getByRole("button", { name: "Compartilhar" }),
+  );
+
+  expect(
+    await within(dialog).findByText(
+      "Documento compartilhado com Beatriz Nogueira.",
+    ),
+  ).toHaveAttribute("aria-live", "polite");
+});
+
+test("a shared person appears in the list once after sharing", async () => {
+  const { user, dialog } = await selectBeatriz();
+
+  await user.click(
+    within(dialog).getByRole("button", { name: "Compartilhar" }),
+  );
+  await within(dialog).findByText(
+    "Documento compartilhado com Beatriz Nogueira.",
+  );
+
+  const list = await findAccessList(dialog);
+  await waitFor(() =>
+    expect(within(list).getAllByRole("listitem")).toHaveLength(2),
+  );
+  const rows = within(list)
+    .getAllByRole("listitem")
+    .filter((row) => row.textContent?.includes("Beatriz Nogueira"));
+  expect(rows).toHaveLength(1);
+  expect(
+    within(rows[0] as HTMLElement).getByText("Pode ver"),
+  ).toBeInTheDocument();
+});
+
+test("Copiar link writes the document URL and announces Link copiado", async () => {
+  const { user, dialog } = await openDialog();
+  const writeText = vi.fn(() => Promise.resolve());
+  replaceClipboard({ writeText });
+
+  await user.click(within(dialog).getByRole("button", { name: "Copiar link" }));
+
+  expect(await within(dialog).findByText("Link copiado")).toHaveAttribute(
+    "aria-live",
+    "polite",
+  );
+  expect(writeText).toHaveBeenCalledTimes(1);
+  expect(writeText).toHaveBeenCalledWith(DOCUMENT_URL);
+  expect(
+    within(dialog).queryByLabelText("Endereço do documento"),
+  ).not.toBeInTheDocument();
+});
+
+test("without clipboard shows the selected Endereço do documento field", async () => {
+  const { user, dialog } = await openDialog();
+  replaceClipboard(undefined);
+
+  await user.click(within(dialog).getByRole("button", { name: "Copiar link" }));
+
+  const field = await within(dialog).findByLabelText<HTMLInputElement>(
+    "Endereço do documento",
+  );
+  expect(field.value.endsWith(paths.document.getHref(DOCUMENT_ID))).toBe(true);
+  expect(field).toHaveValue(DOCUMENT_URL);
+  expect(field).toHaveAttribute("readonly");
+  await waitFor(() => expect(field.selectionEnd).toBe(field.value.length));
+  expect(field.selectionStart).toBe(0);
+  expect(within(dialog).queryByText("Link copiado")).not.toBeInTheDocument();
+});
+
+test("a rejected clipboard write shows the selected Endereço do documento field", async () => {
+  const { user, dialog } = await openDialog();
+  const writeText = vi.fn(() =>
+    Promise.reject(new DOMException("Permissão negada.", "NotAllowedError")),
+  );
+  replaceClipboard({ writeText });
+
+  await user.click(within(dialog).getByRole("button", { name: "Copiar link" }));
+
+  const field = await within(dialog).findByLabelText<HTMLInputElement>(
+    "Endereço do documento",
+  );
+  expect(writeText).toHaveBeenCalledWith(DOCUMENT_URL);
+  expect(field.value.endsWith(paths.document.getHref(DOCUMENT_ID))).toBe(true);
+  await waitFor(() => expect(field.selectionEnd).toBe(field.value.length));
+  expect(field.selectionStart).toBe(0);
+  expect(within(dialog).queryByText("Link copiado")).not.toBeInTheDocument();
+});
+
+test("reopening the dialog clears the copy state", async () => {
+  const { user, dialog } = await openDialog();
+  replaceClipboard(undefined);
+  await user.click(within(dialog).getByRole("button", { name: "Copiar link" }));
+  await within(dialog).findByLabelText("Endereço do documento");
+
+  await user.click(within(dialog).getByRole("button", { name: "Fechar" }));
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
+  await user.click(screen.getByRole("button", { name: "Compartilhar" }));
+
+  const reopened = await screen.findByRole("dialog", {
+    name: "Compartilhar documento",
+  });
+  expect(
+    within(reopened).queryByLabelText("Endereço do documento"),
+  ).not.toBeInTheDocument();
+  expect(within(reopened).queryByText("Link copiado")).not.toBeInTheDocument();
+  expect(
+    within(reopened).getByRole("button", { name: "Copiar link" }),
+  ).toBeInTheDocument();
 });

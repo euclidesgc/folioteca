@@ -14,6 +14,7 @@ import {
   createDocumentIn,
   getDb,
   getSignedInPerson,
+  listDocumentShares,
   type MockDocument,
   shareDocument,
   spaceMemberLevelOf,
@@ -22,6 +23,8 @@ import {
 import { devOverride, networkDelay, SESSION_COOKIE_NAME } from '../utils';
 
 type DocumentShareResponse = components['schemas']['DocumentShareResponse'];
+type DocumentAccessListResponse =
+  components['schemas']['DocumentAccessListResponse'];
 
 const DEFAULT_TITLE = 'Sem título';
 const TITLE_MAX_LENGTH = 200;
@@ -418,6 +421,41 @@ export const documentsHandlers = [
       if (index !== -1) favorites.splice(index, 1);
 
       return new HttpResponse(null, { status: 204 });
+    },
+  ),
+
+  // The same order as the real service: 404 without access, 403 for whoever
+  // has access but does not own the document. The trash does not block it.
+  http.get(
+    `${env.API_URL}/documents/:documentId/shares`,
+    async ({ params, cookies }) => {
+      await networkDelay();
+      const forced = await devOverride('documents');
+      if (forced) return forced;
+
+      if (!cookies[SESSION_COOKIE_NAME]) return unauthenticated();
+
+      const requester = getSignedInPerson();
+      if (!requester) return unauthenticated();
+
+      const { documents } = getDb();
+      const document = documents.find((item) => item.id === params.documentId);
+      if (!document) return notFound();
+
+      if (document.accessLevel !== 'owner') {
+        return HttpResponse.json(
+          {
+            message:
+              'Só o proprietário pode ver quem tem acesso a este documento.',
+          },
+          { status: 403 },
+        );
+      }
+
+      const body: DocumentAccessListResponse = {
+        data: listDocumentShares(document.id),
+      };
+      return HttpResponse.json(body);
     },
   ),
 

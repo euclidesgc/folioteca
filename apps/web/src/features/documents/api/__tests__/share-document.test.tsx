@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import type React from "react";
-import { beforeEach, expect, test } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 
 import { env } from "@/config/env";
 import { queryConfig } from "@/lib/react-query";
@@ -98,4 +98,42 @@ test("useShareDocument returns the shared person from the response", async () =>
   expect(getDb().shares).toEqual([
     { documentId: seeded.id, personId: person.id, level: "view" },
   ]);
+});
+
+test("useShareDocument invalidates document shares before the caller onSuccess", async () => {
+  const seeded = firstSeededDocument();
+  const person = firstSamplePerson();
+  const queryClient = new QueryClient({ defaultOptions: queryConfig });
+  const events: string[] = [];
+  const originalInvalidate = queryClient.invalidateQueries.bind(queryClient);
+  const invalidateSpy = vi
+    .spyOn(queryClient, "invalidateQueries")
+    .mockImplementation(async (...args) => {
+      await originalInvalidate(...args);
+      events.push("invalidated");
+    });
+  const onSuccess = vi.fn(() => {
+    events.push("onSuccess");
+  });
+  const wrapper = ({
+    children,
+  }: {
+    children: React.ReactNode;
+  }): React.JSX.Element => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+
+  const { result } = renderHook(
+    () => useShareDocument({ mutationConfig: { onSuccess } }),
+    { wrapper },
+  );
+
+  result.current.mutate({ documentId: seeded.id, personId: person.id });
+
+  await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  expect(invalidateSpy).toHaveBeenCalledWith({
+    queryKey: ["document-shares", seeded.id],
+  });
+  expect(onSuccess).toHaveBeenCalledTimes(1);
+  expect(events).toEqual(["invalidated", "onSuccess"]);
 });

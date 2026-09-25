@@ -9,6 +9,7 @@ type Space = components['schemas']['Space'];
 type SpaceDetail = components['schemas']['SpaceDetail'];
 type SpaceMember = components['schemas']['SpaceMember'];
 type PersonSummary = components['schemas']['PersonSummary'];
+type DocumentAccessEntry = components['schemas']['DocumentAccessEntry'];
 
 export type MockOrganization = { id: string; name: string };
 export type MockPerson = {
@@ -1237,6 +1238,55 @@ export const searchPeopleToShare = (
     data: matches.slice(0, SHARE_SEARCH_LIMIT),
     hasMore: matches.length > SHARE_SEARCH_LIMIT,
   };
+};
+
+// Who has access to a document, the way GET /documents/:documentId/shares
+// answers its owner: the owner first (the handler only answers the owner, so
+// it is the signed-in person), then the shares sorted by name, e-mail and id
+// with the pt-BR order of the real service.
+export const listDocumentShares = (
+  documentId: string,
+): DocumentAccessEntry[] => {
+  const document = state.documents.find((item) => item.id === documentId);
+  const people = allPeople();
+  const owner =
+    people.find((person) => person.id === document?.ownerId) ??
+    getSignedInPerson();
+
+  const shared = state.shares
+    .filter((share) => share.documentId === documentId)
+    .flatMap((share) => {
+      const person = people.find((item) => item.id === share.personId);
+      if (!person) return [];
+      return [
+        {
+          personId: person.id,
+          name: person.name,
+          email: person.email,
+          level: share.level,
+          isCurrentPerson: false,
+        },
+      ];
+    })
+    .sort(
+      (a, b) =>
+        a.name.localeCompare(b.name, 'pt-BR') ||
+        a.email.localeCompare(b.email, 'pt-BR') ||
+        a.personId.localeCompare(b.personId, 'pt-BR'),
+    );
+
+  if (!owner) return shared;
+
+  return [
+    {
+      personId: owner.id,
+      name: owner.name,
+      email: owner.email,
+      level: 'owner',
+      isCurrentPerson: true,
+    },
+    ...shared,
+  ];
 };
 
 // Id of the document `seedSharedReadOnlyDocument` creates.
