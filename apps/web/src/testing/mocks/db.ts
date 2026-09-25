@@ -10,6 +10,8 @@ type SpaceDetail = components['schemas']['SpaceDetail'];
 type SpaceMember = components['schemas']['SpaceMember'];
 type PersonSummary = components['schemas']['PersonSummary'];
 type DocumentAccessEntry = components['schemas']['DocumentAccessEntry'];
+type DocumentPageWidth = components['schemas']['DocumentPageWidth'];
+type UpdatePreferencesBody = components['schemas']['UpdatePreferencesBody'];
 
 export type MockOrganization = { id: string; name: string };
 export type MockPerson = {
@@ -17,6 +19,9 @@ export type MockPerson = {
   name: string;
   email: string;
   isAdmin: boolean;
+  // Absent means the default of the real column, `medium`: the people seeded
+  // before slice 170 never chose a page width.
+  documentPageWidth?: DocumentPageWidth;
 };
 
 export type MockInstallation = {
@@ -203,6 +208,7 @@ export const seedInstalled = ({
         name: 'Ana Souza',
         email: 'ana.souza@exemplo.com.br',
         isAdmin,
+        documentPageWidth: 'medium',
       },
       password: MOCK_PASSWORD,
     },
@@ -1013,6 +1019,25 @@ export const getSignedInPerson = (): MockPerson | null => {
 // an accepted invitation stops being the signed-in one.
 export const clearSignedInPerson = (): void => {
   state.signedInPersonId = null;
+};
+
+// The page width a person reads the documents in, the way GET /auth/me
+// answers: the default of the real column when the person never chose one.
+export const pageWidthOf = (person: MockPerson): DocumentPageWidth =>
+  person.documentPageWidth ?? 'medium';
+
+// Stores the preferences of a person, the way PATCH /auth/me/preferences
+// does. Written into the person that is already in the database (same reason
+// as `touchDocumentUpdatedAt` above). Unknown id answers null.
+export const updatePersonPreferences = (
+  personId: string,
+  body: UpdatePreferencesBody,
+): MockPerson | null => {
+  const person = allPeople().find((item) => item.id === personId);
+  if (!person) return null;
+
+  person.documentPageWidth = body.documentPageWidth;
+  return person;
 };
 
 // Everybody of the organization: the installed person plus whoever was

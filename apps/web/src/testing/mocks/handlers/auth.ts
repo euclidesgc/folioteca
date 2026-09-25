@@ -1,9 +1,20 @@
 import { http, HttpResponse } from 'msw';
 
 import { env } from '@/config/env';
-import type { CurrentUserResponse, LoginBody } from '@/types/api';
+import type {
+  CurrentUserResponse,
+  DocumentPageWidth,
+  LoginBody,
+  UpdatePreferencesBody,
+} from '@/types/api';
 
-import { clearSignedInPerson, getDb, getSignedInPerson } from '../db';
+import {
+  clearSignedInPerson,
+  getDb,
+  getSignedInPerson,
+  pageWidthOf,
+  updatePersonPreferences,
+} from '../db';
 import { devOverride, networkDelay, SESSION_COOKIE_NAME } from '../utils';
 
 type FieldError = { field: string; message: string };
@@ -32,6 +43,16 @@ const validate = (body: Partial<LoginBody>): FieldError[] => {
   return errors;
 };
 
+const PAGE_WIDTHS: readonly DocumentPageWidth[] = [
+  'small',
+  'medium',
+  'large',
+  'full',
+];
+
+const isPageWidth = (value: unknown): value is DocumentPageWidth =>
+  PAGE_WIDTHS.some((width) => width === value);
+
 export const authHandlers = [
   http.get(`${env.API_URL}/auth/me`, async ({ cookies }) => {
     await networkDelay();
@@ -53,12 +74,55 @@ export const authHandlers = [
 
     const body: CurrentUserResponse = {
       data: {
-        person: { ...person, documentPageWidth: 'medium' },
+        person: { ...person, documentPageWidth: pageWidthOf(person) },
         organization: installation.organization,
       },
     };
     return HttpResponse.json(body);
   }),
+
+  http.patch(
+    `${env.API_URL}/auth/me/preferences`,
+    async ({ cookies, request }) => {
+      await networkDelay();
+      const forced = await devOverride('auth');
+      if (forced) return forced;
+
+      const { installation } = getDb();
+      const hasSession = Boolean(cookies[SESSION_COOKIE_NAME]);
+      const person = getSignedInPerson();
+
+      if (!installation || !hasSession || !person) {
+        return HttpResponse.json(
+          { message: 'Sessão não encontrada.' },
+          { status: 401 },
+        );
+      }
+
+      const requestBody = (await request
+        .json()
+        .catch(() => null)) as Partial<UpdatePreferencesBody> | null;
+      const documentPageWidth = requestBody?.documentPageWidth;
+
+      if (!isPageWidth(documentPageWidth)) {
+        return HttpResponse.json(
+          { message: 'Escolha uma largura de página válida.' },
+          { status: 400 },
+        );
+      }
+
+      const updated = updatePersonPreferences(person.id, { documentPageWidth });
+      const current = updated ?? person;
+
+      const body: CurrentUserResponse = {
+        data: {
+          person: { ...current, documentPageWidth: pageWidthOf(current) },
+          organization: installation.organization,
+        },
+      };
+      return HttpResponse.json(body);
+    },
+  ),
 
   http.post(`${env.API_URL}/auth/login`, async ({ request }) => {
     await networkDelay();
@@ -96,13 +160,11 @@ export const authHandlers = [
     // `server.resetHandlers()` and leaks a signed-in session between tests.
     document.cookie = `${SESSION_COOKIE_NAME}=mock-session-token; path=/`;
 
+    // Same source as GET /auth/me: who the session belongs to.
+    const signedIn = getSignedInPerson() ?? installation.person;
     const body: CurrentUserResponse = {
       data: {
-        // Same source as GET /auth/me: who the session belongs to.
-        person: {
-          ...(getSignedInPerson() ?? installation.person),
-          documentPageWidth: 'medium',
-        },
+        person: { ...signedIn, documentPageWidth: pageWidthOf(signedIn) },
         organization: installation.organization,
       },
     };

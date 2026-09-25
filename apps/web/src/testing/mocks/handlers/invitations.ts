@@ -8,6 +8,7 @@ import {
   addInvitation,
   getDb,
   type MockInvitation,
+  pageWidthOf,
   revokeInvitation,
 } from '../db';
 import { devOverride, networkDelay, SESSION_COOKIE_NAME } from '../utils';
@@ -267,7 +268,7 @@ export const invitationsHandlers = [
 
       const body: CurrentUserResponse = {
         data: {
-          person: { ...person, documentPageWidth: 'medium' },
+          person: { ...person, documentPageWidth: pageWidthOf(person) },
           organization: installation.organization,
         },
       };

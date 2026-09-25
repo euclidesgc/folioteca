@@ -121,6 +121,7 @@ export const installationHandlers = [
       name: requestBody.name!.trim(),
       email: requestBody.email!.trim().toLowerCase(),
       isAdmin: true,
+      documentPageWidth: 'medium' as const,
     };
 
     // The password is kept so POST /auth/login can check it later; it never
@@ -135,7 +136,7 @@ export const installationHandlers = [
     addUnitSpace(root.id);
 
     const responseBody: CurrentUserResponse = {
-      data: { person: { ...person, documentPageWidth: 'medium' }, organization },
+      data: { person, organization },
     };
 
     // Session is written the same way `seedInstalled` does, to `document.cookie`

@@ -7,6 +7,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { createRoutes } from '@/app/router';
 import { env } from '@/config/env';
 import { paths } from '@/config/paths';
+import { usePageWidthStore } from '@/features/documents/stores/page-width-store';
 import { queryConfig } from '@/lib/react-query';
 import type { MockDocument } from '@/testing/mocks/db';
 import {
@@ -116,6 +117,7 @@ vi.mock('@/features/documents/utils/create-collaboration-provider', () => ({
 }));
 
 beforeEach(() => {
+  usePageWidthStore.setState(usePageWidthStore.getInitialState());
   seedInstalled({ signedIn: true });
   editor.fails = false;
   factory.reset();
@@ -503,7 +505,7 @@ test('opens no collaboration session for a document that was not found', async (
   expect(screen.queryByTestId('document-editor')).not.toBeInTheDocument();
 });
 
-test('shows Mover para a lixeira before the favorite button for the owner', async () => {
+test('shows Mover para a lixeira after the favorite button for the owner', async () => {
   seedSampleDocuments();
   const seeded = firstSeededDocument();
 
@@ -517,7 +519,7 @@ test('shows Mover para a lixeira before the favorite button for the owner', asyn
 
   expect(trash.parentElement).toBe(favorite.parentElement);
   expect(
-    trash.compareDocumentPosition(favorite) & Node.DOCUMENT_POSITION_FOLLOWING,
+    favorite.compareDocumentPosition(trash) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeGreaterThan(0);
 });
 
@@ -898,4 +900,116 @@ test('no longer renders the title below the actions row', async () => {
   expect(texts[0]).toHaveClass('sr-only');
   expect(row).toContainElement(field);
   expect(row?.nextElementSibling).not.toHaveTextContent(seeded.title);
+});
+
+// The sheet the document is written on, carrying the width it is shown in.
+const documentSheet = (): HTMLElement => {
+  const sheet = document.querySelector<HTMLElement>('[data-page-width]');
+  if (!sheet) throw new Error('a folha do documento não foi renderizada');
+  return sheet;
+};
+
+const widthButton = (): HTMLElement =>
+  screen.getByRole('button', { name: 'Largura da página' });
+
+test('the sheet uses the medium width by default', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  const field = await titleField();
+
+  await waitFor(() =>
+    expect(documentSheet()).toHaveAttribute('data-page-width', 'medium'),
+  );
+  expect(documentSheet()).toHaveClass('max-w-4xl', 'bg-white');
+  expect(documentSheet()).toContainElement(field);
+  expect(screen.getByRole('main')).toHaveClass('bg-gray-100');
+});
+
+test('a viewer also sees Largura da página', async () => {
+  const shared = sharedReadOnlyDocument();
+
+  renderApp(<DocumentView documentId={shared.id} />);
+
+  await screen.findByText('Somente leitura');
+
+  expect(widthButton()).toBeInTheDocument();
+});
+
+test('a trashed document shows only Largura da página in the actions', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+  const trashedAt = trashInDb(seeded);
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  await screen.findByText(noticeText(trashedAt));
+
+  // The menu wraps its button; the actions block is the wrapper's parent.
+  const actions = widthButton().parentElement?.parentElement;
+  if (!actions) throw new Error('o bloco de ações não foi renderizado');
+
+  expect(
+    within(actions)
+      .getAllByRole('button')
+      .map((button) => button.textContent),
+  ).toEqual(['Largura da página']);
+  expect(
+    screen.queryByRole('button', { name: /favoritos/ }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: 'Compartilhar' }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: 'Mover para a lixeira' }),
+  ).not.toBeInTheDocument();
+});
+
+test('the actions are ordered width share favorite trash', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  await titleField();
+
+  const width = widthButton();
+  const share = screen.getByRole('button', { name: 'Compartilhar' });
+  const favorite = screen.getByRole('button', {
+    name: 'Adicionar aos favoritos',
+  });
+  const trash = screen.getByRole('button', { name: 'Mover para a lixeira' });
+
+  expect(isBefore(width, share)).toBe(true);
+  expect(isBefore(share, favorite)).toBe(true);
+  expect(isBefore(favorite, trash)).toBe(true);
+});
+
+test('choosing Grande widens the sheet without reloading', async () => {
+  const user = userEvent.setup();
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  const field = await titleField();
+  await waitFor(() =>
+    expect(documentSheet()).toHaveAttribute('data-page-width', 'medium'),
+  );
+
+  await user.click(widthButton());
+  await user.click(screen.getByRole('radio', { name: 'Grande' }));
+
+  await waitFor(() =>
+    expect(documentSheet()).toHaveAttribute('data-page-width', 'large'),
+  );
+  expect(documentSheet()).toHaveClass('max-w-6xl');
+  expect(documentSheet()).not.toHaveClass('max-w-4xl');
+  // Same field, same collaboration session: the page was not reloaded.
+  expect(
+    screen.getByRole('textbox', { name: 'Título do documento' }),
+  ).toBe(field);
+  expect(factory.createCollaborationProvider).toHaveBeenCalledTimes(1);
 });

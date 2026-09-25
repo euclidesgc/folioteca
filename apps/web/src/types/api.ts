@@ -10,6 +10,9 @@ export type CreateInstallationBody =
 export type CurrentUser = components['schemas']['CurrentUser'];
 export type CurrentUserResponse = components['schemas']['CurrentUserResponse'];
 export type LoginBody = components['schemas']['LoginBody'];
+export type DocumentPageWidth = components['schemas']['DocumentPageWidth'];
+export type UpdatePreferencesBody =
+  components['schemas']['UpdatePreferencesBody'];
 
 export type AccessLevel = components['schemas']['AccessLevel'];
 export type Document = components['schemas']['Document'];
