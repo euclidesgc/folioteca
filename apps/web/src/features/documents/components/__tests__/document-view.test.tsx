@@ -363,6 +363,30 @@ test('keeps the editor mounted and shows the offline sentence when the connectio
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 
+// Bug 174: in hml the collaboration socket never opened while the HTTP API
+// answered, and the page promised to send changes that did not exist while the
+// editor stayed on its loading line forever.
+test('says the editor could not connect, instead of the offline sentence and an endless loading, when the connection closes before the first sync', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  await screen.findByLabelText('Título');
+  await emit('status', { status: 'connecting' });
+  await emit('status', { status: 'disconnected' });
+
+  expect(
+    screen.getByText(/Não foi possível conectar ao editor/),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByText(
+      'Sem conexão — as alterações serão enviadas ao reconectar',
+    ),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByText('Carregando editor…')).not.toBeInTheDocument();
+});
+
 test('shows the editor error with Tentar novamente when the editor fails to render', async () => {
   // React prints the caught render error; this is the only case that silences
   // the console, and the spy is restored in afterEach.
