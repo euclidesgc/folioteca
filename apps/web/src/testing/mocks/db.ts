@@ -851,8 +851,27 @@ export const listSpaceDocuments = (spaceId: string): MockDocument[] =>
     )
     .slice(0, SPACE_DOCUMENTS_LIMIT);
 
+// The name a new document gets, the same rule as the API: the smallest
+// integer from 1 not taken among the documents of the owner, trash included.
+// Only a title that matches exactly takes a number ("documento-sem-titulo-01"
+// and "Sem título" do not).
+const DEFAULT_TITLE_PREFIX = 'documento-sem-titulo-';
+const DEFAULT_TITLE_PATTERN = /^documento-sem-titulo-([1-9]\d*)$/;
+
+export const nextDefaultTitleOf = (ownerId: string): string => {
+  const taken = new Set<number>();
+  for (const item of state.documents) {
+    if (item.ownerId !== ownerId) continue;
+    const match = DEFAULT_TITLE_PATTERN.exec(item.title);
+    if (match?.[1]) taken.add(Number(match[1]));
+  }
+  let number = 1;
+  while (taken.has(number)) number += 1;
+  return `${DEFAULT_TITLE_PREFIX}${number}`;
+};
+
 // Creates a document owned by `personId` in `spaceId`, the way POST
-// /documents does. Pushed into the array already in the database, never into
+// /documents does, named by `nextDefaultTitleOf`. Pushed into the array already in the database, never into
 // a copy of it (same reason as `touchDocumentUpdatedAt` above).
 export const createDocumentIn = (
   personId: string,
@@ -861,7 +880,7 @@ export const createDocumentIn = (
   const now = new Date().toISOString();
   const document: MockDocument = {
     id: crypto.randomUUID(),
-    title: 'Sem título',
+    title: nextDefaultTitleOf(personId),
     spaceId,
     authorId: personId,
     ownerId: personId,

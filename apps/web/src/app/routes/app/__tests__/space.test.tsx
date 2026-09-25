@@ -2,11 +2,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { http } from 'msw';
-import { beforeEach, expect, test } from 'vitest';
+import { beforeEach, expect, onTestFinished, test } from 'vitest';
 
 import { createRoutes } from '@/app/router';
 import { env } from '@/config/env';
 import { paths } from '@/config/paths';
+import { resetLocalCollaboration } from '@/features/documents/utils/local-collaboration-provider';
 import { queryConfig } from '@/lib/react-query';
 import {
   addAssignment,
@@ -464,8 +465,12 @@ test(
     );
 
     expect(
-      await screen.findByLabelText('Título', undefined, LAZY_TIMEOUT),
-    ).toHaveValue('Sem título');
+      await screen.findByRole(
+        'textbox',
+        { name: 'Título do documento' },
+        LAZY_TIMEOUT,
+      ),
+    ).toHaveValue('documento-sem-titulo-1');
     expect(postedBody).toEqual({ spaceId: space.id });
     const created = getDb().documents.find(
       (document) => document.spaceId === space.id,
@@ -478,3 +483,59 @@ test(
     }, LAZY_TIMEOUT);
   },
 );
+
+test('a new document in the space appears as documento-sem-titulo-1', { timeout: 20_000 }, async () => {
+  const user = userEvent.setup();
+  const space = addFreeSpace(INSTALLED_PERSON_ID, 'Comissão de Leitura');
+  // The journey stays on the document page long enough to open the
+  // collaboration session: the in-memory provider of the simulated API
+  // stands in for the WebSocket, only in this case.
+  const wasMocking = env.ENABLE_API_MOCKING;
+  env.ENABLE_API_MOCKING = true;
+  onTestFinished(() => {
+    env.ENABLE_API_MOCKING = wasMocking;
+    resetLocalCollaboration();
+  });
+
+  renderRoutes(paths.space.getHref(space.id));
+
+  const heading = await screen.findByRole(
+    'heading',
+    { level: 1, name: 'Comissão de Leitura' },
+    LAZY_TIMEOUT,
+  );
+  const content = within(heading.closest('main') as HTMLElement);
+  await user.click(
+    await content.findByRole(
+      'button',
+      { name: 'Novo documento' },
+      LAZY_TIMEOUT,
+    ),
+  );
+
+  expect(
+    await screen.findByRole(
+      'textbox',
+      { name: 'Título do documento' },
+      LAZY_TIMEOUT,
+    ),
+  ).toHaveValue('documento-sem-titulo-1');
+
+  const nav = screen.getByRole('navigation', { name: 'Espaços' });
+  await user.click(
+    within(nav).getByRole('link', { name: 'Comissão de Leitura' }),
+  );
+
+  const spaceHeading = await screen.findByRole(
+    'heading',
+    { level: 1, name: 'Comissão de Leitura' },
+    LAZY_TIMEOUT,
+  );
+  expect(
+    await within(spaceHeading.closest('main') as HTMLElement).findByRole(
+      'link',
+      { name: 'documento-sem-titulo-1' },
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
+});

@@ -24,11 +24,11 @@ export const useDeleteDocument = ({
   return useMutation({
     ...restConfig,
     mutationFn: deleteDocument,
-    onSuccess: (data, variables, ...args) => {
+    onSuccess: async (data, variables, ...args) => {
       queryClient.removeQueries({
         queryKey: getDocumentQueryOptions(variables.documentId).queryKey,
       });
-      invalidateDocumentLists(queryClient);
+      await invalidateDocumentLists(queryClient);
 
       onSuccess?.(data, variables, ...args);
     },

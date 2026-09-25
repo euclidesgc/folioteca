@@ -2,10 +2,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import { delay, http, HttpResponse } from 'msw';
 import type React from 'react';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter, RouterProvider, useParams } from 'react-router';
 import { beforeEach, expect, test } from 'vitest';
 
 import { env } from '@/config/env';
+import { useDocument } from '@/features/documents/api/get-document';
 import { queryConfig } from '@/lib/react-query';
 import {
   addAssignment,
@@ -153,4 +154,43 @@ test('sends the spaceId when given', async () => {
   expect(
     getDb().documents.find((document) => document.id === documentId),
   ).toMatchObject({ spaceId: 'space-org-unit-catalogacao' });
+});
+
+// Stands in for the document page: shows the name the document was opened
+// with, read through the same query the real page uses.
+function OpenedDocumentTitle(): React.JSX.Element {
+  const { documentId = '' } = useParams();
+  const documentQuery = useDocument({ documentId });
+
+  return <h1>{documentQuery.data?.data.title ?? 'Carregando documento…'}</h1>;
+}
+
+test('creating a document opens it named documento-sem-titulo-1', async () => {
+  const user = userEvent.setup();
+  const queryClient = new QueryClient({ defaultOptions: queryConfig });
+  const router = createMemoryRouter(
+    [
+      { path: '/', element: <NewDocumentButton /> },
+      { path: '/documents/:documentId', element: <OpenedDocumentTitle /> },
+    ],
+    { initialEntries: ['/'] },
+  );
+  render(
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
+
+  await user.click(screen.getByRole('button', { name: 'Novo documento' }));
+
+  expect(
+    await screen.findByRole('heading', {
+      level: 1,
+      name: 'documento-sem-titulo-1',
+    }),
+  ).toBeInTheDocument();
+  const documentId = router.state.location.pathname.replace('/documents/', '');
+  expect(
+    getDb().documents.find((document) => document.id === documentId)?.title,
+  ).toBe('documento-sem-titulo-1');
 });

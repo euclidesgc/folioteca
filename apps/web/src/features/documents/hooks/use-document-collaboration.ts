@@ -100,7 +100,7 @@ export const useDocumentCollaboration = (
       }: CollaborationEvents['stateless']): void => {
         if (!isStoredMessage(payload)) return;
 
-        invalidateDocumentLists(queryClient);
+        void invalidateDocumentLists(queryClient);
         void queryClient.invalidateQueries({
           queryKey: getDocumentQueryOptions(documentId).queryKey,
         });

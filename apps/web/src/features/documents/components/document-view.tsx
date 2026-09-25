@@ -17,6 +17,7 @@ import { useUser } from '@/lib/auth';
 import { isNotFoundError } from '@/lib/errors';
 import { reportError } from '@/lib/report-error';
 import type { Document } from '@/types/api';
+import { cn } from '@/utils/cn';
 import { formatDateTime } from '@/utils/format-date-time';
 
 // The editor is heavy and only this screen uses it: it arrives in its own
@@ -115,6 +116,8 @@ function LoadedDocument({
   // Whoever only reads sees the title and the content, with nothing to edit.
   // The server is the real barrier: it refuses the writes of this person.
   const isReadOnly = document.accessLevel === 'view';
+  // The server refuses to rename in the trash (409): no field is offered there.
+  const canEditTitle = !isTrashed && !isReadOnly;
   const noticeRef = useRef<HTMLDivElement>(null);
   const wasTrashedRef = useRef(isTrashed);
 
@@ -130,43 +133,58 @@ function LoadedDocument({
   return (
     <main id="main-content" className="mx-auto max-w-2xl p-8">
       {trashedAt !== null ? (
-        <>
-          <div
-            ref={noticeRef}
-            tabIndex={-1}
-            className="mt-6 rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-800"
-          >
-            <p>
-              Este documento está na lixeira desde{' '}
-              {formatDateTime(trashedAt)}. Restaure-o para voltar
-              a editar.
-            </p>
-            <div className="mt-4">
-              <TrashedDocumentActions
-                document={document}
-                onDeleted={() => void navigate(paths.trash.getHref())}
-              />
-            </div>
+        <div
+          ref={noticeRef}
+          tabIndex={-1}
+          className="mt-6 rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-800"
+        >
+          <p>
+            Este documento está na lixeira desde{' '}
+            {formatDateTime(trashedAt)}. Restaure-o para voltar
+            a editar.
+          </p>
+          <div className="mt-4">
+            <TrashedDocumentActions
+              document={document}
+              onDeleted={() => void navigate(paths.trash.getHref())}
+            />
           </div>
+        </div>
+      ) : null}
 
-          {/* With no editable title field, the heading becomes the visible
-              title of the page. */}
-          <h1 className="mt-6 text-2xl font-bold break-words">
-            {document.title}
-          </h1>
-        </>
-      ) : (
-        <>
-          {/* The visible title is the editable field below; the heading keeps
-              the page named for screen readers. */}
-          {isReadOnly ? null : <h1 className="sr-only">{document.title}</h1>}
+      {/* The visible title of whoever edits is the field in the actions row;
+          this heading keeps the page named for screen readers. Whoever cannot
+          edit gets the title as the heading itself, so there is a single h1. */}
+      {canEditTitle ? <h1 className="sr-only">{document.title}</h1> : null}
 
-          <div className="mb-4 flex flex-wrap justify-end gap-2">
-            {isReadOnly ? (
-              <span className="mr-auto self-center rounded-full bg-gray-100 px-2 py-0.5 text-sm text-gray-800">
-                Somente leitura
-              </span>
-            ) : null}
+      <div
+        className={cn(
+          'mb-4 flex flex-wrap items-center gap-2',
+          isTrashed && 'mt-6',
+        )}
+      >
+        <div className="flex min-w-0 grow basis-48 items-center gap-2">
+          {canEditTitle ? (
+            <DocumentTitleForm document={document} />
+          ) : (
+            <>
+              <h1
+                title={document.title}
+                className="min-w-0 truncate px-2 text-base font-semibold text-gray-900"
+              >
+                {document.title}
+              </h1>
+              {isReadOnly && !isTrashed ? (
+                <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-sm text-gray-800">
+                  Somente leitura
+                </span>
+              ) : null}
+            </>
+          )}
+        </div>
+
+        {isTrashed ? null : (
+          <div className="ml-auto flex flex-wrap gap-2">
             {/* The server applies the same rule: only the owner may share a
                 document or move it to the trash. */}
             {document.accessLevel === 'owner' ? (
@@ -180,21 +198,10 @@ function LoadedDocument({
             ) : null}
             <FavoriteButton document={document} />
           </div>
+        )}
+      </div>
 
-          {isReadOnly ? (
-            // With no title field to edit, the heading is the visible title.
-            <h1 className="text-2xl font-bold break-words">
-              {document.title}
-            </h1>
-          ) : (
-            <>
-              <DocumentTitleForm document={document} />
-
-              <SaveIndicator status={saveStatus} />
-            </>
-          )}
-        </>
-      )}
+      {canEditTitle ? <SaveIndicator status={saveStatus} /> : null}
 
       <ErrorBoundary
         FallbackComponent={EditorErrorFallback}

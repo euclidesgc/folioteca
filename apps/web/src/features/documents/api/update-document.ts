@@ -7,8 +7,8 @@ import { api } from '@/lib/api-client';
 import type { MutationConfig } from '@/lib/react-query';
 import type { DocumentResponse } from '@/types/api';
 
-// Trimmed and capped, like the API schema. Unlike the API, an empty title is
-// kept empty here: turning it into "Sem título" is a server decision.
+// Trimmed and capped, like the API schema. An empty title never reaches the
+// API: the title form puts the current name back instead of sending it.
 export const updateDocumentInputSchema = z.object({
   title: z
     .string()
@@ -39,12 +39,12 @@ export const useUpdateDocument = ({
   return useMutation({
     ...restConfig,
     mutationFn: updateDocument,
-    onSuccess: (response, variables, ...args) => {
+    onSuccess: async (response, variables, ...args) => {
       queryClient.setQueryData(
         getDocumentQueryOptions(response.data.id).queryKey,
         response,
       );
-      invalidateDocumentLists(queryClient);
+      await invalidateDocumentLists(queryClient);
 
       onSuccess?.(response, variables, ...args);
     },

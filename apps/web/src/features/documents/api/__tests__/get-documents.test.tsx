@@ -92,11 +92,11 @@ test('uses its own key for the trash scope', () => {
   );
 });
 
-test('invalidateDocumentLists invalidates the three lists and leaves the open document alone', () => {
+test('invalidateDocumentLists invalidates the three lists and leaves the open document alone', async () => {
   const queryClient = new QueryClient({ defaultOptions: queryConfig });
   const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
 
-  invalidateDocumentLists(queryClient);
+  await invalidateDocumentLists(queryClient);
 
   expect(invalidateQueries).toHaveBeenCalledWith({
     queryKey: ['documents', { scope: 'mine' }],
@@ -146,4 +146,44 @@ test('useDocuments exposes the error on 500', async () => {
   await waitFor(() => expect(result.current.isError).toBe(true));
 
   expect(result.current.error).toBeDefined();
+});
+
+test('invalidateDocumentLists resolves after the list queries are invalidated', async () => {
+  const queryClient = new QueryClient({ defaultOptions: queryConfig });
+  const listKeys = [
+    getDocumentsQueryOptions('mine').queryKey,
+    getDocumentsQueryOptions('favorites').queryKey,
+    getDocumentsQueryOptions('trash').queryKey,
+    ['space-documents', 'space-1'],
+  ];
+  for (const queryKey of listKeys) {
+    queryClient.setQueryData(queryKey, { data: [] });
+  }
+  const original = queryClient.invalidateQueries.bind(queryClient);
+  let release = (): void => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const invalidateQueries = vi
+    .spyOn(queryClient, 'invalidateQueries')
+    .mockImplementation(async (filters) => {
+      await gate;
+      await original(filters);
+    });
+  let settled = false;
+
+  const pending = invalidateDocumentLists(queryClient).then(() => {
+    settled = true;
+  });
+
+  await waitFor(() => expect(invalidateQueries).toHaveBeenCalledTimes(4));
+  expect(settled).toBe(false);
+
+  release();
+  await pending;
+
+  expect(settled).toBe(true);
+  expect(
+    listKeys.map((queryKey) => queryClient.getQueryState(queryKey)?.isInvalidated),
+  ).toEqual([true, true, true, true]);
 });
