@@ -51,17 +51,17 @@ test('moves a document to the trash from the keyboard, restores it from Lixeira,
     name: 'Meus documentos recentes',
   });
 
-  // The actions row goes: the title field, Compartilhar, Mover para a
-  // lixeira, then Adicionar aos favoritos. From the title field, three Tabs
-  // reach the favorite button.
+  // The actions row goes: the title field, Largura da página, Compartilhar,
+  // Adicionar aos favoritos, then Mover para a lixeira. From the title field,
+  // three Tabs reach the favorite button.
   await expect(titleField).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(
-    page.getByRole('button', { name: 'Compartilhar' }),
+    page.getByRole('button', { name: 'Largura da página' }),
   ).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(
-    page.getByRole('button', { name: 'Mover para a lixeira' }),
+    page.getByRole('button', { name: 'Compartilhar' }),
   ).toBeFocused();
   await page.keyboard.press('Tab');
   const addFavoriteButton = page.getByRole('button', {
@@ -78,7 +78,10 @@ test('moves a document to the trash from the keyboard, restores it from Lixeira,
   const trashButton = page.getByRole('button', {
     name: 'Mover para a lixeira',
   });
-  await page.keyboard.press('Shift+Tab');
+  await expect(
+    page.getByRole('button', { name: 'Remover dos favoritos' }),
+  ).toBeFocused();
+  await page.keyboard.press('Tab');
   await expect(trashButton).toBeFocused();
   await page.keyboard.press('Enter');
 
@@ -181,7 +184,15 @@ test('moves a document to the trash from the keyboard, restores it from Lixeira,
   await reopenedTitleField.focus();
   await page.keyboard.press('Tab');
   await expect(
+    page.getByRole('button', { name: 'Largura da página' }),
+  ).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(
     page.getByRole('button', { name: 'Compartilhar' }),
+  ).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(
+    page.getByRole('button', { name: 'Remover dos favoritos' }),
   ).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(trashButton).toBeFocused();

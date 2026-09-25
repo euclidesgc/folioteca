@@ -48,17 +48,17 @@ test('marks a document as favorite from the keyboard, finds it in the sidebar an
   });
 
   // Focus the favorite button by keyboard only, from the title field: the
-  // actions row goes title, Compartilhar, Mover para a lixeira, then the
+  // actions row goes title, Largura da página, Compartilhar, then the
   // favorite button.
-  const shareButton = page.getByRole('button', { name: 'Compartilhar' });
-  const trashButton = page.getByRole('button', {
-    name: 'Mover para a lixeira',
+  const pageWidthButton = page.getByRole('button', {
+    name: 'Largura da página',
   });
+  const shareButton = page.getByRole('button', { name: 'Compartilhar' });
   await expect(titleField).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(shareButton).toBeFocused();
+  await expect(pageWidthButton).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(trashButton).toBeFocused();
+  await expect(shareButton).toBeFocused();
   await page.keyboard.press('Tab');
   const addFavoriteButton = page.getByRole('button', {
     name: 'Adicionar aos favoritos',
@@ -116,9 +116,9 @@ test('marks a document as favorite from the keyboard, finds it in the sidebar an
   // Focus the favorite button by keyboard only, again from the title field.
   await expect(reopenedTitleField).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(shareButton).toBeFocused();
+  await expect(pageWidthButton).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(trashButton).toBeFocused();
+  await expect(shareButton).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(removeFavoriteButton).toBeFocused();
   await page.keyboard.press('Space');
