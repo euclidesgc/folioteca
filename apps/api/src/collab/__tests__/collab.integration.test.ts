@@ -879,3 +879,85 @@ test('after demoting the free space member to view the next connection is read o
   expect(await storedText(documentId)).toBe('Plano do projeto');
   expect(next.statelessPayloads).not.toContain(STORED_MESSAGE);
 });
+
+/** João com um compartilhamento no nível informado num documento da dona. */
+async function shareWithJoao(
+  documentId: string,
+  level: 'view' | 'edit',
+): Promise<string> {
+  const { person, cookie } = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+  const share = await httpRequest(app)
+    .put(`/api/documents/${documentId}/shares/${person.id}`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send({ level });
+
+  expect(share.status).toBe(200);
+
+  return cookie;
+}
+
+test('a person with an edit share connects and their change reaches another client', async () => {
+  const created = await createDocument(cookieA);
+  const editorCookie = await shareWithJoao(created.id, 'edit');
+  const owner = open({ documentId: created.id, cookie: cookieA });
+  const editor = open({ documentId: created.id, cookie: editorCookie });
+
+  await owner.synced;
+  await editor.synced;
+
+  expect(editor.provider.authorizedScope).not.toBe('readonly');
+
+  writeText(editor.ydoc, 'Texto de quem edita');
+
+  await waitFor(() => readText(owner.ydoc) === 'Texto de quem edita', {
+    message: 'A alteração de quem edita não chegou ao outro cliente',
+  });
+  await waitFor(
+    async () => (await storedText(created.id)) === 'Texto de quem edita',
+    { message: 'A alteração de quem edita não foi gravada' },
+  );
+
+  expect(readText(owner.ydoc)).toBe('Texto de quem edita');
+});
+
+test('a person with a view share connects read only', async () => {
+  const created = await createDocument(cookieA);
+  const viewerCookie = await shareWithJoao(created.id, 'view');
+  const owner = open({ documentId: created.id, cookie: cookieA });
+  const viewer = open({ documentId: created.id, cookie: viewerCookie });
+
+  await owner.synced;
+  await viewer.synced;
+
+  expect(viewer.provider.authorizedScope).toBe('readonly');
+
+  writeText(viewer.ydoc, 'Rascunho de quem só vê');
+
+  // O cliente da dona escreve depois: quando a escrita dela chega e é
+  // gravada, a janela em que a de quem só vê teria chegado já passou.
+  writeText(owner.ydoc, 'Texto da dona');
+  await waitFor(() => owner.statelessPayloads.includes(STORED_MESSAGE), {
+    message: 'A gravação da dona não foi confirmada',
+  });
+
+  expect(readText(owner.ydoc)).toBe('Texto da dona');
+  expect(await storedText(created.id)).toBe('Texto da dona');
+});
+
+test('a trashed document refuses a person with an edit share', async () => {
+  const created = await createDocument(cookieA);
+  const editorCookie = await shareWithJoao(created.id, 'edit');
+
+  expect(await trashDocument(created.id)).toBe(200);
+
+  const editor = open({ documentId: created.id, cookie: editorCookie });
+  const reason = await editor.refused;
+
+  expect(reason).toBeTruthy();
+  expect(editor.provider.isSynced).toBe(false);
+  expect(readText(editor.ydoc)).toBe('');
+});

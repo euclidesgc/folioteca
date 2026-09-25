@@ -127,7 +127,7 @@ test('share checks access before the body', async () => {
   const { service } = createService('none');
 
   const error = await errorOf(
-    service.share(requester, DOCUMENT_ID, PERSON_ID, { level: 'edit' }),
+    service.share(requester, DOCUMENT_ID, PERSON_ID, { level: 'owner' }),
   );
 
   expect(error).toBeInstanceOf(NotFoundException);
@@ -137,7 +137,7 @@ test('share answers 400 for an invalid body', async () => {
   const { service, findFirst, upsert } = createService('owner');
 
   const error = await errorOf(
-    service.share(requester, DOCUMENT_ID, PERSON_ID, { level: 'edit' }),
+    service.share(requester, DOCUMENT_ID, PERSON_ID, { level: 'owner' }),
   );
 
   expect(error).toBeInstanceOf(BadRequestException);
@@ -205,6 +205,55 @@ test('share upserts VIEW and returns the person from the database', async () => 
       level: 'view',
     },
   });
+});
+
+test('share maps edit to EDIT in create and update of the upsert', async () => {
+  const { service, upsert } = createService('owner');
+
+  await service.share(requester, DOCUMENT_ID, PERSON_ID, { level: 'edit' });
+
+  expect(upsert).toHaveBeenCalledWith({
+    where: {
+      documentId_personId: { documentId: DOCUMENT_ID, personId: PERSON_ID },
+    },
+    create: { documentId: DOCUMENT_ID, personId: PERSON_ID, level: 'EDIT' },
+    update: { level: 'EDIT' },
+  });
+});
+
+test('share maps view to VIEW in create and update of the upsert', async () => {
+  const { service, upsert } = createService('owner');
+
+  await service.share(requester, DOCUMENT_ID, PERSON_ID, { level: 'view' });
+
+  expect(upsert).toHaveBeenCalledWith({
+    where: {
+      documentId_personId: { documentId: DOCUMENT_ID, personId: PERSON_ID },
+    },
+    create: { documentId: DOCUMENT_ID, personId: PERSON_ID, level: 'VIEW' },
+    update: { level: 'VIEW' },
+  });
+});
+
+test('share returns the requested level in lowercase', async () => {
+  const editor = createService('owner');
+  const viewer = createService('owner');
+
+  const edited = await editor.service.share(
+    requester,
+    DOCUMENT_ID,
+    PERSON_ID,
+    { level: 'edit' },
+  );
+  const viewed = await viewer.service.share(
+    requester,
+    DOCUMENT_ID,
+    PERSON_ID,
+    { level: 'view' },
+  );
+
+  expect(edited.data.level).toBe('edit');
+  expect(viewed.data.level).toBe('view');
 });
 
 const OTHER_PERSON_ID = '55555555-5555-4555-8555-555555555555';

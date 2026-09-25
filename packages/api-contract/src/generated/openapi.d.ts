@@ -232,7 +232,7 @@ export interface paths {
         get?: never;
         /**
          * Compartilha o documento com uma pessoa da instância
-         * @description Dá a uma pessoa da instância acesso de leitura ao documento. Só o proprietário compartilha. Repetir a chamada para a mesma pessoa devolve o mesmo 200, sem criar um segundo compartilhamento. As checagens acontecem nesta ordem: 401, 404 (documento inexistente ou sem acesso), 403 (quem chama não é o proprietário), 409 (documento na lixeira), 400 (corpo inválido, compartilhar consigo mesmo ou pessoa fora da instância).
+         * @description Dá a uma pessoa da instância acesso de leitura ou de edição ao documento. Só o proprietário compartilha. Repetir a chamada para a mesma pessoa devolve o mesmo 200, sem criar um segundo compartilhamento. As checagens acontecem nesta ordem: 401, 404 (documento inexistente ou sem acesso), 403 (quem chama não é o proprietário), 409 (documento na lixeira), 400 (corpo inválido, compartilhar consigo mesmo ou pessoa fora da instância).
          */
         put: operations["shareDocument"];
         post?: never;
@@ -981,10 +981,10 @@ export interface components {
         };
         ShareDocumentInput: {
             /**
-             * @description Nível de acesso dado à pessoa.
+             * @description Nível de acesso dado à pessoa: "view" (Pode ver) ou "edit" (Pode editar).
              * @enum {string}
              */
-            level: "view";
+            level: "view" | "edit";
         };
         DocumentShare: {
             /** @description Identificador da pessoa com acesso. */
@@ -994,10 +994,10 @@ export interface components {
             /** @description E-mail da pessoa. */
             email: string;
             /**
-             * @description Nível de acesso da pessoa.
+             * @description Nível de acesso gravado para a pessoa: "view" (Pode ver) ou "edit" (Pode editar).
              * @enum {string}
              */
-            level: "view";
+            level: "view" | "edit";
         };
         DocumentShareResponse: {
             data: components["schemas"]["DocumentShare"];
@@ -1470,7 +1470,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description A requisição foi recusada. */
+            /** @description A requisição foi recusada, ou quem chama tem acesso ao documento mas não é o proprietário (só ele exclui). */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1599,7 +1599,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description A requisição foi recusada. */
+            /** @description A requisição foi recusada, ou quem chama tem acesso ao documento mas não é o proprietário (só ele move para a lixeira). */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1648,7 +1648,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description A requisição foi recusada. */
+            /** @description A requisição foi recusada, ou quem chama tem acesso ao documento mas não é o proprietário (só ele restaura). */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1827,7 +1827,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description A pessoa tem acesso de leitura ao documento. */
+            /** @description Compartilhamento criado ou nível de acesso atualizado. */
             200: {
                 headers: {
                     [name: string]: unknown;

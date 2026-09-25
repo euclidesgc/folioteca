@@ -33,6 +33,15 @@ const CANNOT_EDIT_MESSAGE =
 export const TRASHED_DOCUMENT_MESSAGE =
   'Este documento está na lixeira. Restaure-o para editar.';
 
+const OWNER_ONLY_TRASH_MESSAGE =
+  'Só o proprietário pode mover este documento para a lixeira.';
+
+const OWNER_ONLY_RESTORE_MESSAGE =
+  'Só o proprietário pode restaurar este documento.';
+
+const OWNER_ONLY_DELETE_MESSAGE =
+  'Só o proprietário pode excluir este documento.';
+
 const DELETE_OUTSIDE_TRASH_MESSAGE =
   'Mova o documento para a lixeira antes de apagá-lo definitivamente.';
 
@@ -357,18 +366,23 @@ export class DocumentsService {
   }
 
   /**
-   * Só o dono move, restaura e apaga. Qualquer outro nível — inclusive os de
-   * compartilhamento que virão — sai daqui como 404, igual a documento
-   * inexistente e a id malformado.
+   * Only the owner trashes, restores and deletes. Whoever cannot reach the
+   * document gets the opaque 404, like a missing document or a malformed id;
+   * whoever reaches it without owning it gets a 403 with `forbiddenMessage`.
    */
   private async requireOwner(
     personId: string,
     documentId: string,
+    forbiddenMessage: string,
   ): Promise<void> {
     const accessLevel = await this.access.resolveAccess(personId, documentId);
 
-    if (accessLevel !== 'owner') {
+    if (accessLevel === 'none') {
       throw documentNotFound();
+    }
+
+    if (accessLevel !== 'owner') {
+      throw new ForbiddenException(forbiddenMessage);
     }
   }
 
@@ -392,7 +406,7 @@ export class DocumentsService {
    * gravação só alcança o que ainda está fora dela.
    */
   async trash(personId: string, documentId: string): Promise<Document> {
-    await this.requireOwner(personId, documentId);
+    await this.requireOwner(personId, documentId, OWNER_ONLY_TRASH_MESSAGE);
 
     await this.prisma.document.updateMany({
       where: { id: documentId, trashedAt: null },
@@ -409,7 +423,7 @@ export class DocumentsService {
    * voltam exatamente como estavam.
    */
   async restore(personId: string, documentId: string): Promise<Document> {
-    await this.requireOwner(personId, documentId);
+    await this.requireOwner(personId, documentId, OWNER_ONLY_RESTORE_MESSAGE);
 
     await this.prisma.document.updateMany({
       where: { id: documentId, trashedAt: { not: null } },
@@ -425,7 +439,7 @@ export class DocumentsService {
    * `onDelete: Cascade` do schema.
    */
   async delete(personId: string, documentId: string): Promise<void> {
-    await this.requireOwner(personId, documentId);
+    await this.requireOwner(personId, documentId, OWNER_ONLY_DELETE_MESSAGE);
 
     const { count } = await this.prisma.document.deleteMany({
       where: { id: documentId, trashedAt: { not: null } },

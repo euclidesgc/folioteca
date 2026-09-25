@@ -261,7 +261,6 @@ const TRASHED_DOCUMENT_MESSAGE =
   'Este documento está na lixeira. Restaure-o para editar.';
 const DELETE_OUTSIDE_TRASH_MESSAGE =
   'Mova o documento para a lixeira antes de apagá-lo definitivamente.';
-const NOT_FOUND_MESSAGE = 'Documento não encontrado.';
 
 type TrashDoubles = {
   service: DocumentsService;
@@ -414,7 +413,7 @@ test('rename throws 409 before parsing the body when canWrite is false and write
   expect(update).not.toHaveBeenCalled();
 });
 
-test('trash, restore and delete throw document not found when access is not owner and write nothing', async () => {
+test('trash, restore and delete throw 403 with the owner-only message when access is not owner and write nothing', async () => {
   const { service, updateMany, deleteMany } = createTrashService({
     level: 'view',
   });
@@ -426,11 +425,15 @@ test('trash, restore and delete throw document not found when access is not owne
   ]);
 
   expect(
-    errors.every((error) => error instanceof NotFoundException),
+    errors.every((error) => error instanceof ForbiddenException),
   ).toBe(true);
   expect(
-    errors.map((error) => (error as NotFoundException).message),
-  ).toEqual([NOT_FOUND_MESSAGE, NOT_FOUND_MESSAGE, NOT_FOUND_MESSAGE]);
+    errors.map((error) => (error as ForbiddenException).message),
+  ).toEqual([
+    'Só o proprietário pode mover este documento para a lixeira.',
+    'Só o proprietário pode restaurar este documento.',
+    'Só o proprietário pode excluir este documento.',
+  ]);
   expect(updateMany).not.toHaveBeenCalled();
   expect(deleteMany).not.toHaveBeenCalled();
 });

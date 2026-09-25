@@ -348,7 +348,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         "403":
-          description: A requisição foi recusada.
+          description: >-
+            A requisição foi recusada, ou quem chama tem acesso ao documento
+            mas não é o proprietário (só ele exclui).
           content:
             application/json:
               schema:
@@ -389,7 +391,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         "403":
-          description: A requisição foi recusada.
+          description: >-
+            A requisição foi recusada, ou quem chama tem acesso ao documento
+            mas não é o proprietário (só ele move para a lixeira).
           content:
             application/json:
               schema:
@@ -424,7 +428,9 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         "403":
-          description: A requisição foi recusada.
+          description: >-
+            A requisição foi recusada, ou quem chama tem acesso ao documento
+            mas não é o proprietário (só ele restaura).
           content:
             application/json:
               schema:
@@ -547,7 +553,7 @@ paths:
         - documents
       summary: Compartilha o documento com uma pessoa da instância
       description: >-
-        Dá a uma pessoa da instância acesso de leitura ao documento. Só o
+        Dá a uma pessoa da instância acesso de leitura ou de edição ao documento. Só o
         proprietário compartilha. Repetir a chamada para a mesma pessoa devolve
         o mesmo 200, sem criar um segundo compartilhamento. As checagens
         acontecem nesta ordem: 401, 404 (documento inexistente ou sem acesso),
@@ -573,7 +579,7 @@ paths:
               $ref: "#/components/schemas/ShareDocumentInput"
       responses:
         "200":
-          description: A pessoa tem acesso de leitura ao documento.
+          description: Compartilhamento criado ou nível de acesso atualizado.
           content:
             application/json:
               schema:
@@ -2650,8 +2656,10 @@ components:
       properties:
         level:
           type: string
-          enum: [view]
-          description: Nível de acesso dado à pessoa.
+          enum: [view, edit]
+          description: >-
+            Nível de acesso dado à pessoa: "view" (Pode ver) ou "edit" (Pode
+            editar).
       required: [level]
       additionalProperties: false
     DocumentShare:
@@ -2668,8 +2676,10 @@ components:
           description: E-mail da pessoa.
         level:
           type: string
-          enum: [view]
-          description: Nível de acesso da pessoa.
+          enum: [view, edit]
+          description: >-
+            Nível de acesso gravado para a pessoa: "view" (Pode ver) ou "edit"
+            (Pode editar).
       required: [personId, name, email, level]
     DocumentShareResponse:
       type: object

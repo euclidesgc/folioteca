@@ -4,10 +4,17 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
 import SwaggerParser from '@apidevtools/swagger-parser';
-import type { INestApplication } from '@nestjs/common';
+import { RequestMethod, type INestApplication } from '@nestjs/common';
+import {
+  METHOD_METADATA,
+  PATH_METADATA,
+  ROUTE_ARGS_METADATA,
+} from '@nestjs/common/constants';
+import { RouteParamtypes } from '@nestjs/common/enums/route-paramtypes.enum';
 import type { Response } from 'supertest';
 
 import { createApp } from '../../create-app';
+import { DocumentsController } from '../documents.controller';
 import { PrismaService } from '../../prisma/prisma.service';
 import { createPersonWithSession } from '../../../test/create-person';
 import { expectMatchesContract } from '../../../test/contract';
@@ -705,4 +712,109 @@ test('POST documents with spaceId answers the documented 404', async () => {
     status: 404,
     body: response.body,
   });
+});
+
+/** Esquema do contrato sem resolver `$ref`, para conferir a declaração. */
+type RawSchema = {
+  type?: string;
+  enum?: string[];
+  required?: string[];
+  properties?: Record<string, RawSchema>;
+};
+
+type RawParameter = { name?: string; in?: string };
+
+type RawContract = {
+  paths?: Record<
+    string,
+    Partial<
+      Record<
+        'get' | 'post' | 'put' | 'patch' | 'delete',
+        { operationId?: string; parameters?: RawParameter[] }
+      >
+    >
+  >;
+  components?: { schemas?: Record<string, RawSchema> };
+};
+
+function rawContract(): Promise<RawContract> {
+  return SwaggerParser.parse(openapiPath) as Promise<RawContract>;
+}
+
+test('ShareDocumentInput level is an enum of view and edit without nullable', async () => {
+  const schema = (await rawContract()).components?.schemas?.ShareDocumentInput;
+
+  expect(schema?.required).toContain('level');
+  expect(schema?.properties?.level?.type).toBe('string');
+  expect([...(schema?.properties?.level?.enum ?? [])].sort()).toEqual([
+    'edit',
+    'view',
+  ]);
+  expect(JSON.stringify(schema)).not.toContain('nullable');
+});
+
+test('DocumentShare level is an enum of view and edit without nullable', async () => {
+  const schema = (await rawContract()).components?.schemas?.DocumentShare;
+  const documentId = await createDocumentId();
+  const { person } = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+
+  const response = await httpRequest(app)
+    .put(`/api/documents/${documentId}/shares/${person.id}`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie)
+    .send({ level: 'edit' });
+
+  expect(schema?.required).toContain('level');
+  expect(schema?.properties?.level?.type).toBe('string');
+  expect([...(schema?.properties?.level?.enum ?? [])].sort()).toEqual([
+    'edit',
+    'view',
+  ]);
+  expect(JSON.stringify(schema)).not.toContain('nullable');
+  expect((response.body as { data: { level: string } }).data.level).toBe(
+    'edit',
+  );
+  await expectShareContract(response, 200);
+});
+
+test('shareDocument path method and personId param match the controller', async () => {
+  const pathItem = (await rawContract()).paths?.[SHARE_CONTRACT_PATH];
+  const controllerPath = Reflect.getMetadata(
+    PATH_METADATA,
+    DocumentsController,
+  ) as unknown;
+  const handler = Object.getOwnPropertyDescriptor(
+    DocumentsController.prototype,
+    'shareDocument',
+  )?.value as object;
+  const methodPath = Reflect.getMetadata(PATH_METADATA, handler) as unknown;
+  const requestMethod = Reflect.getMetadata(METHOD_METADATA, handler) as unknown;
+  const routeArgs = (Reflect.getMetadata(
+    ROUTE_ARGS_METADATA,
+    DocumentsController,
+    'shareDocument',
+  ) ?? {}) as Record<string, { data?: unknown }>;
+  const paramNames = Object.entries(routeArgs)
+    .filter(([key]) => key.startsWith(`${RouteParamtypes.PARAM}:`))
+    .map(([, arg]) => arg.data)
+    .sort();
+  const contractPath = `/${String(controllerPath)}/${String(methodPath)}`.replace(
+    /:(\w+)/g,
+    '{$1}',
+  );
+
+  expect(Object.keys(pathItem ?? {})).toEqual(['put']);
+  expect(pathItem?.put?.operationId).toBe('shareDocument');
+  expect(requestMethod).toBe(RequestMethod.PUT);
+  expect(contractPath).toBe(SHARE_CONTRACT_PATH);
+  expect(paramNames).toEqual(['documentId', 'personId']);
+  expect(
+    (pathItem?.put?.parameters ?? [])
+      .filter((parameter) => parameter.in === 'path')
+      .map((parameter) => parameter.name)
+      .sort(),
+  ).toEqual(['documentId', 'personId']);
 });

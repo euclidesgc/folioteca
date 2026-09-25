@@ -40,9 +40,10 @@ export class SharesService {
   ) {}
 
   /**
-   * Dá à pessoa acesso de leitura ao documento. O acesso é conferido antes do
-   * corpo, para um corpo inválido não revelar que um documento alheio existe.
-   * Repetir para a mesma pessoa não cria uma segunda linha.
+   * Gives the person the requested access level ("view" or "edit") to the
+   * document. Access is checked before the body, so an invalid body does not
+   * reveal that someone else's document exists. Sharing again with the same
+   * person keeps a single row and switches its level in either direction.
    */
   async share(
     requester: PersonWithOrganization,
@@ -67,7 +68,8 @@ export class SharesService {
       throw new ConflictException(TRASHED_DOCUMENT_MESSAGE);
     }
 
-    parseBody(shareDocumentSchema, body);
+    const { level } = parseBody(shareDocumentSchema, body);
+    const storedLevel = level === 'edit' ? 'EDIT' : 'VIEW';
 
     if (personId === requester.id) {
       throw new BadRequestException(SHARE_WITH_SELF_MESSAGE);
@@ -86,8 +88,8 @@ export class SharesService {
 
     await this.prisma.documentShare.upsert({
       where: { documentId_personId: { documentId, personId } },
-      create: { documentId, personId, level: 'VIEW' },
-      update: { level: 'VIEW' },
+      create: { documentId, personId, level: storedLevel },
+      update: { level: storedLevel },
     });
 
     return {
@@ -95,7 +97,7 @@ export class SharesService {
         personId: person.id,
         name: person.name,
         email: person.email,
-        level: 'view',
+        level,
       },
     };
   }

@@ -661,7 +661,7 @@ test('PATCH a shared document by a view person answers 403', async () => {
   expect(stored.title).toBe('documento-sem-titulo-1');
 });
 
-test('POST trash on a shared document by a view person answers 404', async () => {
+test('POST trash on a shared document by a view person answers 403', async () => {
   const { document, viewerCookie } = await createSharedDocument();
 
   const response = await httpRequest(app)
@@ -673,8 +673,10 @@ test('POST trash on a shared document by a view person answers 404', async () =>
     where: { id: document.id },
   });
 
-  expect(response.status).toBe(404);
-  expect(response.body).toEqual({ message: NOT_FOUND_MESSAGE });
+  expect(response.status).toBe(403);
+  expect(response.body).toEqual({
+    message: 'Só o proprietário pode mover este documento para a lixeira.',
+  });
   expect(stored.trashedAt).toBeNull();
 });
 
@@ -928,7 +930,7 @@ test('a colleague renames the unit space document with 200', async () => {
   expect(stored.ownerId).toBe(personA.id);
 });
 
-test('a colleague gets 404 on trash, restore and delete of the unit space document', async () => {
+test('a colleague gets 403 on trash, restore and delete of the unit space document', async () => {
   const { document, colleagueCookie } = await createUnitDocument();
 
   const trash = await httpRequest(app)
@@ -950,12 +952,18 @@ test('a colleague gets 404 on trash, restore and delete of the unit space docume
     where: { id: document.id },
   });
 
-  expect(trash.status).toBe(404);
-  expect(trash.body).toEqual({ message: NOT_FOUND_MESSAGE });
-  expect(restore.status).toBe(404);
-  expect(restore.body).toEqual({ message: NOT_FOUND_MESSAGE });
-  expect(remove.status).toBe(404);
-  expect(remove.body).toEqual({ message: NOT_FOUND_MESSAGE });
+  expect(trash.status).toBe(403);
+  expect(trash.body).toEqual({
+    message: 'Só o proprietário pode mover este documento para a lixeira.',
+  });
+  expect(restore.status).toBe(403);
+  expect(restore.body).toEqual({
+    message: 'Só o proprietário pode restaurar este documento.',
+  });
+  expect(remove.status).toBe(403);
+  expect(remove.body).toEqual({
+    message: 'Só o proprietário pode excluir este documento.',
+  });
   expect(stored.trashedAt).toBeNull();
 });
 
@@ -1105,7 +1113,7 @@ test('the free space owner renames the member document with 200', async () => {
   expect(stored.ownerId).toBe(member.id);
 });
 
-test('the free space owner gets 404 on trash, restore and delete of the member document', async () => {
+test('the free space owner gets 403 on trash, restore and delete of the member document', async () => {
   const { document } = await createFreeDocument();
 
   const trash = await httpRequest(app)
@@ -1127,12 +1135,18 @@ test('the free space owner gets 404 on trash, restore and delete of the member d
     where: { id: document.id },
   });
 
-  expect(trash.status).toBe(404);
-  expect(trash.body).toEqual({ message: NOT_FOUND_MESSAGE });
-  expect(restore.status).toBe(404);
-  expect(restore.body).toEqual({ message: NOT_FOUND_MESSAGE });
-  expect(remove.status).toBe(404);
-  expect(remove.body).toEqual({ message: NOT_FOUND_MESSAGE });
+  expect(trash.status).toBe(403);
+  expect(trash.body).toEqual({
+    message: 'Só o proprietário pode mover este documento para a lixeira.',
+  });
+  expect(restore.status).toBe(403);
+  expect(restore.body).toEqual({
+    message: 'Só o proprietário pode restaurar este documento.',
+  });
+  expect(remove.status).toBe(403);
+  expect(remove.body).toEqual({
+    message: 'Só o proprietário pode excluir este documento.',
+  });
   expect(stored.trashedAt).toBeNull();
 });
 
