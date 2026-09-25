@@ -119,8 +119,11 @@ test('the owner shares with Pode editar and sharing again with Pode ver switches
     .getByRole('list', { name: 'Quem tem acesso' })
     .getByRole('listitem');
   const personRow = rows.filter({ hasText: PERSON_NAME });
+  const personLevel = personRow.getByRole('combobox', {
+    name: `Nível de ${PERSON_NAME}`,
+  });
   await expect(personRow).toHaveCount(1);
-  await expect(personRow).toContainText('Pode editar');
+  await expect(personLevel).toHaveValue('edit');
 
   // The same person again, left in "Pode ver".
   await choosePerson(page, dialog);
@@ -132,8 +135,7 @@ test('the owner shares with Pode editar and sharing again with Pode ver switches
     dialog.getByText(`Documento compartilhado com ${PERSON_NAME}.`),
   ).toBeVisible();
   await expect(personRow).toHaveCount(1);
-  await expect(personRow).toContainText('Pode ver');
-  await expect(personRow).not.toContainText('Pode editar');
+  await expect(personLevel).toHaveValue('view');
 });
 
 test('the share dialog has no serious accessibility violations with the level group visible', async ({
