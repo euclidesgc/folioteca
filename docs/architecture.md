@@ -163,8 +163,9 @@ espaço e tem `edit` sobre os documentos dele. A lotação é lida na mesma
 consulta do documento, a cada pedido (`isUnitMember` em `findDecision`), por
 isso tirar a lotação tira o acesso na hora. `resolveAccess` segue a ordem dono
 → lixeira → maior(compartilhamento, membro direto) → `none`: o documento na
-lixeira continua sumindo para quem não é dono, mesmo membro. A herança entre
-unidades **não dá acesso** a documento (fica para a 152).
+lixeira continua sumindo para quem não é dono, mesmo membro. _Desde a fatia
+152, a herança entre unidades também dá `edit` sobre os documentos do espaço
+(ver a entrega `unit-space-documents-inherit` abaixo)._
 `readableDocumentsWhere` passou a incluir o documento do espaço `UNIT` em que a
 pessoa está lotada diretamente. A regra 10 do teste estrutural
 `document-access-boundary.test.ts` garante que, fora de `access.service.ts`,
@@ -210,6 +211,23 @@ espaço, então um share `edit` ainda libera a escrita. Quem cria documento
 `canCreateDocuments` e `canAddPeople` no `SpaceDetail`. Rebaixar vale a partir
 da próxima conexão ao documento; a sessão de colaboração já aberta não é
 derrubada.
+
+**Entrega `unit-space-documents-inherit` (fatia 152).** Quem alcança o espaço
+de uma unidade pela herança da unidade-pai trabalha nos documentos dele como
+quem está lotado diretamente: a herança dá `edit` pelo `spaceLevel`. A regra de
+alcance tem **uma só definição**, em `apps/api/src/access/unit-reach.ts`:
+`resolveReach` (a pessoa alcança a unidade se está lotada nela, ou se o espaço
+dela herda e a mãe é alcançada) e `reachedUnitSpaces` (um item por espaço
+alcançado, `direct` ou `inherited`). As duas são puras; quem lê as unidades da
+organização é `AccessService.unitSpacesReachedBy`, a cada pedido, sem nada
+materializado, por isso perder a herança tira o acesso na próxima leitura.
+`resolveAccess` segue a ordem dono → lixeira → maior(compartilhamento, espaço)
+→ `none`, e a herança entra só no cálculo do `spaceLevel` em `findDecision`.
+`readableDocumentsWhere` passou a **assíncrono** (lê as unidades alcançadas
+antes de montar o filtro): todo leitor usa `await`. A regra 12 do teste
+estrutural `document-access-boundary.test.ts` garante que `resolveReach` só é
+declarado em `access/unit-reach.ts` e que nenhum arquivo fora de `access/` o
+chama. "Pessoas nesta unidade" continua só com a lotação direta.
 
 ## 4. Árvore de unidades
 
@@ -845,6 +863,17 @@ porta da §3, e 404 "Espaço não encontrado." a quem está fora. `POST
 qualquer outro espaço livre segue o mesmo 404 opaco. A regra 11 da fronteira
 (§3) garante que só `access.service.ts` filtra `Document` por `members` ou pelo
 dono do espaço.
+
+**Entrega `unit-space-documents-inherit` (fatia 152)**: `SpacesService` não
+resolve mais a herança por conta própria: o alcance do espaço de unidade vem de
+`AccessService.unitSpacesReachedBy`, que aplica a regra única de
+`access/unit-reach.ts` (§3), e `GET /spaces`, `reachOf` e a lista de pessoas
+leem por ele. `GET /spaces/{spaceId}/documents` **não tem mais 403**: a ordem é
+**401 → 404 → 200**, com 200 para alcance direto ou herdado e 404 "Espaço não
+encontrado." sem alcance. `GET /spaces/{spaceId}` devolve `canCreateDocuments:
+true` também ao alcance herdado, e `POST /documents` aceita `spaceId` de espaço
+de unidade alcançado pela herança. Na tela, a lista do espaço herdado mostra os
+documentos e o botão "Novo documento", sem o aviso de lotação direta.
 
 ## 7. Testes
 

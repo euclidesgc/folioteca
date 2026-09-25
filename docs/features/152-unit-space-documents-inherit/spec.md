@@ -42,7 +42,7 @@ O que **já existe** e esta fatia só aproveita (conferido no código):
   banco simulado tem `spaceReachOf` e o handler do `GET …/documents` com o
   ramo 403; a API simulada de `POST /documents` recusa o herdado.
 - `CollabService.onConnect` decide por `resolveAccess`/`canWrite`; a
-  reavaliação de conexões abertas ao mudar compartilhamento (fatia 146) não
+  reavaliação de conexões abertas ao mudar compartilhamento (fatia 180 share-change-live) não
   cobre mudança de lotação ou de herança (dívida 049, fora de escopo — R9).
 - `SpacesModule` importa `DocumentsModule`; `DocumentsModule` importa
   `AccessModule`. `AccessModule` não importa ninguém.

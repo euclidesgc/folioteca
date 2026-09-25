@@ -167,7 +167,7 @@ Caminhos relativos à raiz do repositório. A ordem importa: API simulada, depoi
 
 Caminhos relativos à raiz do repositório. Ao fim da fase, a fatia está utilizável de ponta a ponta e documentada.
 
-- [ ] T3.1 — Documentação da regra única e da herança
+- [x] T3.1 — Documentação da regra única e da herança
   - Arquivos: `docs/architecture.md` (alterar); `docs/features/152-unit-space-documents-inherit/spec.md` (alterar); `docs/features/127-unit-space-documents/prd.md` (alterar, conferir); `docs/features/128-unit-space-members/prd.md` (alterar, conferir)
   - O que fazer:
     - `docs/architecture.md` §3 "access": a regra de alcance mora em `apps/api/src/access/unit-reach.ts` (`resolveReach`, `reachedUnitSpaces`) e é lida por `AccessService.unitSpacesReachedBy`; `readableDocumentsWhere` passa a assíncrono (todo leitor usa `await`); a herança da unidade-pai dá `edit` pelo `spaceLevel`; regra 12 do teste de fronteira; substituir o trecho "espaço não dá acesso a documento" pelo comportamento atual. §spaces: `SpacesService` usa `AccessService` para o alcance; `GET /spaces/{id}/documents` sem 403 (200 para alcance direto ou herdado, 404 sem alcance); retirar a descrição de `resolveReach` em `spaces`.
@@ -176,7 +176,7 @@ Caminhos relativos à raiz do repositório. Ao fim da fase, a fatia está utiliz
   - Skills: —
   - Complexidade: baixa
 
-- [ ] T3.2 — e2e: o herdado trabalha nos documentos (D8, R12)
+- [x] T3.2 — e2e: o herdado trabalha nos documentos (D8, R12)
   - Arquivos: `apps/web/e2e/tests/unit-space-documents.spec.ts` (alterar)
   - O que fazer: o cenário "espaço herdado → aviso sem botão" vira `an heir sees the list of the inherited unit space and creates a document`: com a API simulada, abre o espaço herdado da amostra, vê a lista, clica em "Novo documento", o documento abre. Sem `page.reload()`; `localStorage` só para montar o estado inicial, antes da navegação; esperas por `expect(...)` com `ROUTE_TIMEOUT`; foco conferido com `toBeFocused()` onde o cenário move o foco; `expectNoSeriousA11yViolations` na página do espaço herdado. Sem `waitForTimeout`, `.skip(` nem `.only(`.
   - Skills: e2e-testing
@@ -184,11 +184,11 @@ Caminhos relativos à raiz do repositório. Ao fim da fase, a fatia está utiliz
 
 ### Critérios de aceite da fase 3
 
-- [ ] CA3.1 — Com `docker compose up -d`, na raiz e com o cache do `tsc` limpo: `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` e `pnpm test:e2e` (a suíte inteira) saem com 0 e sem aviso.
-- [ ] CA3.2 — `apps/web/e2e/tests/unit-space-documents.spec.ts` tem o teste `an heir sees the list of the inherited unit space and creates a document`, que usa `ROUTE_TIMEOUT`, `toBeFocused(` e `expectNoSeriousA11yViolations(`; `rg -n "lotado diretamente" apps/web/e2e/tests/unit-space-documents.spec.ts` é vazio; `rg -n "waitForTimeout|\.skip\(|\.only\(|reload\(" apps/web/e2e/tests/unit-space-documents.spec.ts` é vazio; toda ocorrência de `localStorage` no arquivo está antes do primeiro `goto` do teste (estado inicial).
-- [ ] CA3.3 — `docs/architecture.md` cita `access/unit-reach.ts`, `unitSpacesReachedBy`, `readableDocumentsWhere` assíncrono, a regra 12 e que `GET /spaces/{id}/documents` não tem 403; `rg -n "espaço não dá acesso a documento" docs/architecture.md` é vazio.
-- [ ] CA3.4 — `rg -n "fatia 146" docs/features/152-unit-space-documents-inherit/spec.md` é vazio e `rg -n "fatia 180 share-change-live" docs/features/152-unit-space-documents-inherit/spec.md` casa. `docs/features/127-unit-space-documents/prd.md` e `docs/features/128-unit-space-members/prd.md` citam a 152 como substituta da regra de lotação direta.
-- [ ] CA3.5 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `a person assigned only to the parent edits a document of an inheriting child space` e `POST /documents in an inherited unit space returns 201 owned by the caller`; `pnpm exec vitest run --project web` (0) inclui `an heir creates a document from Novo documento and it opens`; `pnpm test:e2e` (0) inclui `an heir sees the list of the inherited unit space and creates a document`.
+- [x] CA3.1 — Com `docker compose up -d`, na raiz e com o cache do `tsc` limpo: `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` e `pnpm test:e2e` (a suíte inteira) saem com 0 e sem aviso.
+- [x] CA3.2 — `apps/web/e2e/tests/unit-space-documents.spec.ts` tem o teste `an heir sees the list of the inherited unit space and creates a document`, que usa `ROUTE_TIMEOUT`, `toBeFocused(` e `expectNoSeriousA11yViolations(`; `rg -n "lotado diretamente" apps/web/e2e/tests/unit-space-documents.spec.ts` é vazio; `rg -n "waitForTimeout|\.skip\(|\.only\(|reload\(" apps/web/e2e/tests/unit-space-documents.spec.ts` é vazio; toda ocorrência de `localStorage` no arquivo está antes do primeiro `goto` do teste (estado inicial).
+- [x] CA3.3 — `docs/architecture.md` cita `access/unit-reach.ts`, `unitSpacesReachedBy`, `readableDocumentsWhere` assíncrono, a regra 12 e que `GET /spaces/{id}/documents` não tem 403; `rg -n "espaço não dá acesso a documento" docs/architecture.md` é vazio.
+- [x] CA3.4 — `rg -n "fatia 146" docs/features/152-unit-space-documents-inherit/spec.md` é vazio e `rg -n "fatia 180 share-change-live" docs/features/152-unit-space-documents-inherit/spec.md` casa. `docs/features/127-unit-space-documents/prd.md` e `docs/features/128-unit-space-members/prd.md` citam a 152 como substituta da regra de lotação direta.
+- [x] CA3.5 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `a person assigned only to the parent edits a document of an inheriting child space` e `POST /documents in an inherited unit space returns 201 owned by the caller`; `pnpm exec vitest run --project web` (0) inclui `an heir creates a document from Novo documento and it opens`; `pnpm test:e2e` (0) inclui `an heir sees the list of the inherited unit space and creates a document`.
 
 ## Desvios
 
