@@ -4,6 +4,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  type HttpException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 
@@ -433,4 +435,130 @@ test('remove calls deleteMany with documentId and personId', async () => {
   expect(deleteMany).toHaveBeenCalledWith({
     where: { documentId: DOCUMENT_ID, personId: PERSON_ID },
   });
+});
+
+
+test('share notifies the listeners with documentId and personId after the upsert', async () => {
+  const { service, upsert } = createService('owner');
+  const first = vi.fn();
+  const second = vi.fn();
+  service.onShareChanged(first);
+  service.onShareChanged(second);
+
+  await service.share(requester, DOCUMENT_ID, PERSON_ID, { level: 'edit' });
+
+  expect(first).toHaveBeenCalledTimes(1);
+  expect(first).toHaveBeenCalledWith(DOCUMENT_ID, PERSON_ID);
+  expect(second).toHaveBeenCalledWith(DOCUMENT_ID, PERSON_ID);
+  expect(upsert.mock.invocationCallOrder[0]).toBeLessThan(
+    first.mock.invocationCallOrder[0] ?? 0,
+  );
+});
+
+test('share notifies again on a reshare', async () => {
+  const { service, upsert } = createService('owner');
+  const listener = vi.fn();
+  service.onShareChanged(listener);
+
+  await service.share(requester, DOCUMENT_ID, PERSON_ID, { level: 'edit' });
+  await service.share(requester, DOCUMENT_ID, PERSON_ID, { level: 'view' });
+
+  expect(upsert).toHaveBeenCalledTimes(2);
+  expect(listener).toHaveBeenCalledTimes(2);
+  expect(listener).toHaveBeenNthCalledWith(2, DOCUMENT_ID, PERSON_ID);
+});
+
+test('remove notifies the listeners when a row was deleted', async () => {
+  const { service, deleteMany } = createService('owner');
+  const listener = vi.fn();
+  service.onShareChanged(listener);
+
+  await service.remove(owner, DOCUMENT_ID, PERSON_ID);
+
+  expect(listener).toHaveBeenCalledTimes(1);
+  expect(listener).toHaveBeenCalledWith(DOCUMENT_ID, PERSON_ID);
+  expect(deleteMany.mock.invocationCallOrder[0]).toBeLessThan(
+    listener.mock.invocationCallOrder[0] ?? 0,
+  );
+});
+
+test('remove does not notify when no row was deleted', async () => {
+  const { service, deleteMany } = createService('owner');
+  deleteMany.mockResolvedValue({ count: 0 });
+  const listener = vi.fn();
+  service.onShareChanged(listener);
+
+  await service.remove(owner, DOCUMENT_ID, PERSON_ID);
+
+  expect(deleteMany).toHaveBeenCalledTimes(1);
+  expect(listener).not.toHaveBeenCalled();
+});
+
+test('share and remove do not notify when access is refused', async () => {
+  const hidden = createService('none');
+  const viewer = createService('view');
+  const trashed = createService('owner', { canWrite: false });
+  const invalid = createService('owner');
+  const listener = vi.fn();
+  hidden.service.onShareChanged(listener);
+  viewer.service.onShareChanged(listener);
+  trashed.service.onShareChanged(listener);
+  invalid.service.onShareChanged(listener);
+
+  const errors = await Promise.all([
+    errorOf(
+      hidden.service.share(requester, DOCUMENT_ID, PERSON_ID, VALID_BODY),
+    ),
+    errorOf(
+      viewer.service.share(requester, DOCUMENT_ID, PERSON_ID, VALID_BODY),
+    ),
+    errorOf(
+      trashed.service.share(requester, DOCUMENT_ID, PERSON_ID, VALID_BODY),
+    ),
+    errorOf(
+      invalid.service.share(requester, DOCUMENT_ID, PERSON_ID, {
+        level: 'owner',
+      }),
+    ),
+    errorOf(hidden.service.remove(owner, DOCUMENT_ID, PERSON_ID)),
+    errorOf(viewer.service.remove(owner, DOCUMENT_ID, PERSON_ID)),
+    errorOf(trashed.service.remove(owner, DOCUMENT_ID, PERSON_ID)),
+  ]);
+
+  expect(errors.map((error) => (error as HttpException).getStatus())).toEqual(
+    [404, 403, 409, 400, 404, 403, 409],
+  );
+  expect(listener).not.toHaveBeenCalled();
+});
+
+test('a throwing listener does not break share', async () => {
+  // O ouvinte que lança é proposital: o erro vai para o log, que fica mudo
+  // aqui para o console dos testes continuar limpo.
+  const logError = vi
+    .spyOn(Logger.prototype, 'error')
+    .mockImplementation(() => undefined);
+
+  try {
+    const { service } = createService('owner');
+    const next = vi.fn();
+    service.onShareChanged(() => {
+      throw new Error('falha do ouvinte');
+    });
+    service.onShareChanged(next);
+
+    const result = await service.share(
+      requester,
+      DOCUMENT_ID,
+      PERSON_ID,
+      VALID_BODY,
+    );
+
+    expect(result.data.personId).toBe(PERSON_ID);
+    expect(next).toHaveBeenCalledWith(DOCUMENT_ID, PERSON_ID);
+    expect(logError).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(logError.mock.calls[0])).not.toContain(PERSON_ID);
+    expect(JSON.stringify(logError.mock.calls[0])).not.toContain(DOCUMENT_ID);
+  } finally {
+    logError.mockRestore();
+  }
 });

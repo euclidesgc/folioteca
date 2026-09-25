@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
 } from '@nestjs/common';
 import type { components } from '@folioteca/api-contract';
 
@@ -37,6 +38,18 @@ const PERSON_NOT_FOUND_MESSAGE = 'Pessoa não encontrada nesta instância.';
 /** Compartilhamento direto de documento com uma pessoa da instância. */
 @Injectable()
 export class SharesService {
+  private readonly logger = new Logger(SharesService.name);
+
+  /**
+   * Who wants to know that a person's share of a document changed. The
+   * `collab` module subscribes here; this service does not know it (the import
+   * would be circular).
+   */
+  private readonly changedListeners: ((
+    documentId: string,
+    personId: string,
+  ) => void)[] = [];
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
@@ -95,6 +108,8 @@ export class SharesService {
       update: { level: storedLevel },
     });
 
+    this.notifyShareChanged(documentId, personId);
+
     return {
       data: {
         personId: person.id,
@@ -138,9 +153,40 @@ export class SharesService {
       return;
     }
 
-    await this.prisma.documentShare.deleteMany({
+    const { count } = await this.prisma.documentShare.deleteMany({
       where: { documentId, personId },
     });
+
+    if (count > 0) {
+      this.notifyShareChanged(documentId, personId);
+    }
+  }
+
+  /**
+   * Subscribes a listener to share changes (level switched or share removed).
+   * Called at startup, once per listener.
+   */
+  onShareChanged(
+    listener: (documentId: string, personId: string) => void,
+  ): void {
+    this.changedListeners.push(listener);
+  }
+
+  /**
+   * Calls every listener. A throwing listener does not break the HTTP
+   * response: the error is logged without the ids of who was involved.
+   */
+  private notifyShareChanged(documentId: string, personId: string): void {
+    for (const listener of this.changedListeners) {
+      try {
+        listener(documentId, personId);
+      } catch (error) {
+        this.logger.error(
+          'A share change listener failed.',
+          error instanceof Error ? error.stack : undefined,
+        );
+      }
+    }
   }
 
   /**
