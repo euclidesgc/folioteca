@@ -56,6 +56,14 @@ export type MockDocumentShare = {
   level: 'view' | 'edit';
 };
 
+// A share with everyone in the organization: a single row per document, like
+// the real table, whose primary key is the document. A document without a row
+// is not shared with the organization (`none`).
+export type MockDocumentInstanceShare = {
+  documentId: string;
+  level: 'view' | 'edit';
+};
+
 // An organization unit, in the same flat shape the API answers with:
 // `parentId` is null on the root of the organization. `spaceAccess` is the
 // access mode of the unit space: only the people assigned to the unit
@@ -122,6 +130,7 @@ type DbState = {
   documents: MockDocument[];
   favorites: MockFavorite[];
   shares: MockDocumentShare[];
+  instanceShares: MockDocumentInstanceShare[];
   orgUnits: MockOrgUnit[];
   assignments: MockAssignment[];
   spaces: MockSpace[];
@@ -139,6 +148,7 @@ const initialState = (): DbState => ({
   documents: [],
   favorites: [],
   shares: [],
+  instanceShares: [],
   orgUnits: [],
   assignments: [],
   spaces: [],
@@ -1257,6 +1267,35 @@ export const removeDocumentShare = (
   );
   if (index !== -1) state.shares.splice(index, 1);
 };
+
+// Shares a document with everyone in the organization, the way PUT
+// /documents/:documentId/instance-share does: sharing again keeps a single row
+// with the level switched to the one asked. Pushed into the array already in
+// the database, never into a copy of it (same reason as `shareDocument`).
+export const shareDocumentWithInstance = (
+  documentId: string,
+  level: MockDocumentInstanceShare['level'],
+): MockDocumentInstanceShare => {
+  const existing = state.instanceShares.find(
+    (item) => item.documentId === documentId,
+  );
+  if (existing) {
+    existing.level = level;
+    return existing;
+  }
+
+  const share: MockDocumentInstanceShare = { documentId, level };
+  state.instanceShares.push(share);
+  return share;
+};
+
+// The level of everyone in the organization on a document, the way the
+// `instance` of GET /documents/:documentId/shares answers: `none` without a row.
+export const instanceShareLevelOf = (
+  documentId: string,
+): MockDocumentInstanceShare['level'] | 'none' =>
+  state.instanceShares.find((item) => item.documentId === documentId)?.level ??
+  'none';
 
 // The same hard limit the real search has, with no parameter to raise it.
 const SHARE_SEARCH_LIMIT = 10;

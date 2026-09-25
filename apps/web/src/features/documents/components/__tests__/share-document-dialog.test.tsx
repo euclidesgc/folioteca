@@ -6,8 +6,10 @@ import { env } from "@/config/env";
 import { paths } from "@/config/paths";
 import {
   getDb,
+  instanceShareLevelOf,
   removeDocumentShare,
   shareDocument,
+  shareDocumentWithInstance,
   seedInstalled,
   seedSampleDocuments,
   seedSamplePeople,
@@ -444,6 +446,7 @@ test("lists shared people with Pode ver and Pode editar in server order", async 
             isCurrentPerson: false,
           },
         ],
+        instance: { level: "none" },
       }),
     ),
   );
@@ -1285,4 +1288,209 @@ test("double clicking Remover sends a single request", async () => {
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
   );
   expect(calls).toBe(1);
+});
+
+const INSTANCE_SHARE_URL = `${env.API_URL}/documents/:documentId/instance-share`;
+const INSTANCE_SUCCESS = "Documento compartilhado com Todos da organização.";
+
+const getTargetGroup = (dialog: HTMLElement) =>
+  within(dialog).getByRole("group", { name: "Compartilhar com" });
+
+const getPersonTargetRadio = (dialog: HTMLElement) =>
+  within(getTargetGroup(dialog)).getByRole("radio", { name: /^Uma pessoa/ });
+
+const getInstanceTargetRadio = (dialog: HTMLElement) =>
+  within(getTargetGroup(dialog)).getByRole("radio", {
+    name: /^Todos da organização/,
+  });
+
+// The rows of "Quem tem acesso" that stand for everyone in the organization.
+const instanceRows = (list: HTMLElement) =>
+  within(list)
+    .getAllByRole("listitem")
+    .filter((row) => row.textContent?.includes("Todos da organização"));
+
+// Opens the dialog and chooses "Todos da organização" in "Compartilhar com".
+const chooseInstance = async () => {
+  const opened = await openDialog();
+  await opened.user.click(getInstanceTargetRadio(opened.dialog));
+  await within(opened.dialog).findByRole("group", { name: "Nível de acesso" });
+  return opened;
+};
+
+// Holds every PUT of the instance share until `release` is called, answering
+// with the level it received.
+const holdInstanceShares = () => {
+  let release: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  server.use(
+    http.put(INSTANCE_SHARE_URL, async ({ request }) => {
+      const body = (await request.json()) as { level: string };
+      await held;
+      return HttpResponse.json({ data: { level: body.level } });
+    }),
+  );
+  return { release: () => release() };
+};
+
+// Counts every PUT of the instance share and lets it reach the fake API.
+const countInstanceShares = () => {
+  const counter = { calls: 0 };
+  server.use(
+    http.put(INSTANCE_SHARE_URL, () => {
+      counter.calls += 1;
+    }),
+  );
+  return counter;
+};
+
+test("the Compartilhar com group starts with Uma pessoa checked", async () => {
+  const { dialog } = await openDialog();
+
+  expect(getPersonTargetRadio(dialog)).toBeChecked();
+  expect(getInstanceTargetRadio(dialog)).not.toBeChecked();
+  expect(getInstanceTargetRadio(dialog)).toHaveAccessibleName(
+    /Qualquer pessoa da organização, inclusive quem entrar depois\./,
+  );
+  expect(within(dialog).getByLabelText("Buscar pessoa")).toBeInTheDocument();
+});
+
+test("choosing Todos da organização hides the search and shows the level and the button", async () => {
+  const { dialog } = await chooseInstance();
+
+  expect(getInstanceTargetRadio(dialog)).toBeChecked();
+  expect(getPersonTargetRadio(dialog)).not.toBeChecked();
+  expect(within(dialog).queryByLabelText("Buscar pessoa")).toBeNull();
+  expect(getViewRadio(dialog)).toBeChecked();
+  expect(getEditRadio(dialog)).not.toBeChecked();
+  expect(
+    within(dialog).getByRole("button", { name: "Compartilhar" }),
+  ).toBeInTheDocument();
+});
+
+test("choosing Todos da organização keeps the focus on the radio", async () => {
+  const { dialog } = await chooseInstance();
+
+  expect(getInstanceTargetRadio(dialog)).toHaveFocus();
+});
+
+test("while sharing with the instance the radios are aria-disabled and not disabled", async () => {
+  const { release } = holdInstanceShares();
+  const { user, dialog } = await chooseInstance();
+
+  await user.click(
+    within(dialog).getByRole("button", { name: "Compartilhar" }),
+  );
+  await within(dialog).findByRole("button", { name: "Compartilhando…" });
+
+  expect(getPersonTargetRadio(dialog)).toHaveAttribute("aria-disabled", "true");
+  expect(getInstanceTargetRadio(dialog)).toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
+  expect(getPersonTargetRadio(dialog)).not.toBeDisabled();
+  expect(getInstanceTargetRadio(dialog)).not.toBeDisabled();
+
+  await user.click(getPersonTargetRadio(dialog));
+
+  expect(getInstanceTargetRadio(dialog)).toBeChecked();
+  expect(getPersonTargetRadio(dialog)).not.toBeChecked();
+
+  release();
+  await within(dialog).findByText(INSTANCE_SUCCESS);
+});
+
+test("a double click shares with the instance only once", async () => {
+  const counter = countInstanceShares();
+  const { user, dialog } = await chooseInstance();
+
+  await user.dblClick(
+    within(dialog).getByRole("button", { name: "Compartilhar" }),
+  );
+  await within(dialog).findByText(INSTANCE_SUCCESS);
+
+  expect(counter.calls).toBe(1);
+});
+
+test("sharing with the instance shows the success message and the row between the owner and the people", async () => {
+  shareDocument(DOCUMENT_ID, BEATRIZ_ID, "view");
+  const { user, dialog } = await chooseInstance();
+  const list = await findAccessList(dialog);
+  await within(list).findByText("Beatriz Nogueira");
+
+  await user.click(getEditRadio(dialog));
+  await user.click(
+    within(dialog).getByRole("button", { name: "Compartilhar" }),
+  );
+
+  expect(await within(dialog).findByText(INSTANCE_SUCCESS)).toHaveAttribute(
+    "aria-live",
+    "polite",
+  );
+  const rows = within(list).getAllByRole("listitem");
+  expect(rows).toHaveLength(3);
+  expect(rows[0]).toHaveTextContent("Ana Souza");
+  expect(rows[1]).toHaveTextContent("Todos da organização");
+  expect(rows[1]).toHaveTextContent("Qualquer pessoa da organização");
+  expect(
+    within(rows[1] as HTMLElement).getByText("Pode editar"),
+  ).toBeInTheDocument();
+  expect(within(rows[1] as HTMLElement).queryByRole("combobox")).toBeNull();
+  expect(rows[2]).toHaveTextContent("Beatriz Nogueira");
+  expect(
+    screen.getByRole("dialog", { name: "Compartilhar documento" }),
+  ).toBeInTheDocument();
+  expect(getInstanceTargetRadio(dialog)).toBeChecked();
+  expect(getViewRadio(dialog)).toBeChecked();
+  expect(instanceShareLevelOf(DOCUMENT_ID)).toBe("edit");
+});
+
+test("sharing with the instance again switches the badge without duplicating the row", async () => {
+  shareDocumentWithInstance(DOCUMENT_ID, "edit");
+  const { user, dialog } = await chooseInstance();
+  const list = await findAccessList(dialog);
+  expect(instanceRows(list)).toHaveLength(1);
+  expect(
+    within(instanceRows(list)[0] as HTMLElement).getByText("Pode editar"),
+  ).toBeInTheDocument();
+
+  expect(getViewRadio(dialog)).toBeChecked();
+  await user.click(
+    within(dialog).getByRole("button", { name: "Compartilhar" }),
+  );
+  await within(dialog).findByText(INSTANCE_SUCCESS);
+
+  await waitFor(() =>
+    expect(
+      within(instanceRows(list)[0] as HTMLElement).getByText("Pode ver"),
+    ).toBeInTheDocument(),
+  );
+  expect(instanceRows(list)).toHaveLength(1);
+});
+
+test("a trashed document shows the trash message when sharing with the instance", async () => {
+  const document = getDb().documents.find((item) => item.id === DOCUMENT_ID);
+  if (!document) throw new Error("o banco simulado está sem o documento");
+  document.trashedAt = "2026-09-01T12:00:00.000Z";
+  const { user, dialog } = await chooseInstance();
+
+  await user.click(
+    within(dialog).getByRole("button", { name: "Compartilhar" }),
+  );
+
+  expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+    "Este documento está na lixeira. Restaure-o para editar.",
+  );
+  expect(instanceShareLevelOf(DOCUMENT_ID)).toBe("none");
+});
+
+test("the Todos da organização row is absent when the instance level is none", async () => {
+  const { dialog } = await openDialog();
+
+  const list = await findAccessList(dialog);
+  expect(within(list).getAllByRole("listitem")).toHaveLength(1);
+  expect(instanceRows(list)).toHaveLength(0);
+  expect(within(list).queryByText("Todos da organização")).toBeNull();
 });

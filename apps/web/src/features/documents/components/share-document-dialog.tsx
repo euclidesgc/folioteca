@@ -1,6 +1,6 @@
 import { isAxiosError } from 'axios';
 import type React from 'react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useRef, useState } from 'react';
 
 import {
   PersonPicker,
@@ -23,6 +23,7 @@ import {
 } from '@/features/documents/api/get-document-shares';
 import { useRemoveDocumentShare } from '@/features/documents/api/remove-document-share';
 import { useShareDocument } from '@/features/documents/api/share-document';
+import { useShareDocumentWithInstance } from '@/features/documents/api/share-document-with-instance';
 import type { PersonSummary } from '@/hooks/use-person-lookup';
 import { isConflictError } from '@/lib/errors';
 import type { DocumentShareLevel } from '@/types/api';
@@ -58,6 +59,13 @@ const getShareErrorMessage = (error: unknown): string => {
 
   return GENERIC_SHARE_ERROR;
 };
+
+// Who the panel shares with: one person, found by the search, or everyone in
+// the organization at once.
+type ShareTarget = 'person' | 'instance';
+
+const INSTANCE_SUCCESS_MESSAGE =
+  'Documento compartilhado com Todos da organização.';
 
 type ShareDocumentDialogProps = {
   documentId: string;
@@ -112,6 +120,9 @@ function SharePanel({
 }): React.JSX.Element {
   const [selected, setSelected] = useState<PersonSummary | null>(null);
   const [level, setLevel] = useState<DocumentShareLevel>('view');
+  const [target, setTarget] = useState<ShareTarget>('person');
+  const [instanceLevel, setInstanceLevel] =
+    useState<DocumentShareLevel>('view');
   const [successMessage, setSuccessMessage] = useState('');
   const [shareError, setShareError] = useState<string | null>(null);
   // What the list announces (a level changed or not, a person removed). The
@@ -152,12 +163,38 @@ function SharePanel({
     },
   });
 
-  const isSharing = shareDocumentMutation.isPending;
-  // While the request is on its way the group shows the level that was sent,
-  // never a change made in the meantime.
-  const checkedLevel = isSharing
-    ? (shareDocumentMutation.variables?.level ?? level)
+  const shareInstanceMutation = useShareDocumentWithInstance({
+    mutationConfig: {
+      onSettled: () => {
+        isSharingRef.current = false;
+      },
+      // Runs after the list was read again: the row of the organization is
+      // already there. The choice of "Todos da organização" stays.
+      onSuccess: () => {
+        setSuccessMessage(INSTANCE_SUCCESS_MESSAGE);
+        setInstanceLevel('view');
+      },
+      onError: (error) => {
+        setShareError(getShareErrorMessage(error));
+      },
+    },
+  });
+
+  const isSharing =
+    shareDocumentMutation.isPending || shareInstanceMutation.isPending;
+  // While the request is on its way the groups show what was sent, never a
+  // change made in the meantime.
+  const checkedLevel = shareDocumentMutation.isPending
+    ? shareDocumentMutation.variables.level
     : level;
+  const checkedInstanceLevel = shareInstanceMutation.isPending
+    ? shareInstanceMutation.variables.level
+    : instanceLevel;
+  const checkedTarget: ShareTarget = shareInstanceMutation.isPending
+    ? 'instance'
+    : shareDocumentMutation.isPending
+      ? 'person'
+      : target;
 
   const handleShare = (): void => {
     if (isSharingRef.current || !selected) return;
@@ -166,6 +203,29 @@ function SharePanel({
     setShareError(null);
     setSuccessMessage('');
     shareDocumentMutation.mutate({ documentId, personId: selected.id, level });
+  };
+
+  const handleShareWithInstance = (): void => {
+    if (isSharingRef.current) return;
+    isSharingRef.current = true;
+
+    setShareError(null);
+    setSuccessMessage('');
+    shareInstanceMutation.mutate({ documentId, level: instanceLevel });
+  };
+
+  // Ignored while sharing, like the levels. The message of the other target
+  // no longer applies.
+  const handleTargetChange = (value: ShareTarget): void => {
+    if (isSharing) return;
+    setShareError(null);
+    setSuccessMessage('');
+    setTarget(value);
+  };
+
+  const handleInstanceLevelChange = (value: DocumentShareLevel): void => {
+    if (isSharing) return;
+    setInstanceLevel(value);
   };
 
   const handleSelect = (person: PersonSummary): void => {
@@ -191,31 +251,62 @@ function SharePanel({
 
   return (
     <div className="mt-4">
-      <PersonPicker
-        ref={pickerRef}
-        selected={selected}
-        onSelect={handleSelect}
-        onClear={handleClear}
-        selectedActions={
-          // Never the native `disabled`: the button keeps the focus while the
-          // request is on its way.
-          <Button
-            ref={shareButtonRef}
-            variant="primary"
-            aria-disabled={isSharing ? 'true' : undefined}
-            className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
-            onClick={handleShare}
+      <ShareTargetGroup
+        checkedTarget={checkedTarget}
+        isSharing={isSharing}
+        onChange={handleTargetChange}
+      />
+
+      {checkedTarget === 'person' ? (
+        <div className="mt-4">
+          <PersonPicker
+            ref={pickerRef}
+            selected={selected}
+            onSelect={handleSelect}
+            onClear={handleClear}
+            selectedActions={
+              // Never the native `disabled`: the button keeps the focus while
+              // the request is on its way.
+              <Button
+                ref={shareButtonRef}
+                variant="primary"
+                aria-disabled={isSharing ? 'true' : undefined}
+                className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+                onClick={handleShare}
+              >
+                {isSharing ? 'Compartilhando…' : 'Compartilhar'}
+              </Button>
+            }
           >
-            {isSharing ? 'Compartilhando…' : 'Compartilhar'}
-          </Button>
-        }
-      >
-        <ShareLevelGroup
-          checkedLevel={checkedLevel}
-          isSharing={isSharing}
-          onChange={handleLevelChange}
-        />
-      </PersonPicker>
+            <ShareLevelGroup
+              checkedLevel={checkedLevel}
+              isSharing={isSharing}
+              onChange={handleLevelChange}
+            />
+          </PersonPicker>
+        </div>
+      ) : (
+        <>
+          <ShareLevelGroup
+            checkedLevel={checkedInstanceLevel}
+            isSharing={isSharing}
+            onChange={handleInstanceLevelChange}
+          />
+          <div className="mt-4 flex justify-end">
+            {/* Never the native `disabled`: the button keeps the focus while
+                the request is on its way. */}
+            <Button
+              type="button"
+              variant="primary"
+              aria-disabled={isSharing ? 'true' : undefined}
+              className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+              onClick={handleShareWithInstance}
+            >
+              {isSharing ? 'Compartilhando…' : 'Compartilhar'}
+            </Button>
+          </div>
+        </>
+      )}
 
       <AccessListSection
         documentId={documentId}
@@ -302,6 +393,81 @@ function ShareLevelGroup({
           <span className="flex min-w-0 flex-col break-words">
             {option.label}
             <span className="text-gray-600">{option.hint}</span>
+          </span>
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+
+const TARGET_OPTIONS: {
+  value: ShareTarget;
+  label: string;
+  hint?: string;
+}[] = [
+  { value: 'person', label: 'Uma pessoa' },
+  {
+    value: 'instance',
+    label: 'Todos da organização',
+    hint: 'Qualquer pessoa da organização, inclusive quem entrar depois.',
+  },
+];
+
+// Who the panel shares with, in the same recipe as the levels. Choosing an
+// option never moves the focus: it stays on the radio, so the arrows keep
+// working. While sharing the radios are only `aria-disabled`; an arrow still
+// moves the native focus, so it is put back on the checked radio.
+function ShareTargetGroup({
+  checkedTarget,
+  isSharing,
+  onChange,
+}: {
+  checkedTarget: ShareTarget;
+  isSharing: boolean;
+  onChange: (value: ShareTarget) => void;
+}): React.JSX.Element {
+  const name = useId();
+  const radiosRef = useRef(new Map<ShareTarget, HTMLInputElement>());
+
+  const handleChange = (value: ShareTarget): void => {
+    if (isSharing) {
+      radiosRef.current.get(checkedTarget)?.focus();
+      return;
+    }
+    onChange(value);
+  };
+
+  return (
+    <fieldset
+      aria-disabled={isSharing ? 'true' : undefined}
+      className="min-w-0 space-y-2"
+    >
+      <legend className="mb-2 text-sm font-medium text-gray-900">
+        Compartilhar com
+      </legend>
+      {TARGET_OPTIONS.map((option) => (
+        <label key={option.value} className={LEVEL_OPTION_CLASS_NAME}>
+          <input
+            ref={(node) => {
+              if (node) {
+                radiosRef.current.set(option.value, node);
+              } else {
+                radiosRef.current.delete(option.value);
+              }
+            }}
+            type="radio"
+            name={name}
+            value={option.value}
+            checked={checkedTarget === option.value}
+            aria-disabled={isSharing ? 'true' : undefined}
+            onChange={() => handleChange(option.value)}
+            className="mt-0.5 size-4 shrink-0 accent-gray-900 outline-none aria-disabled:cursor-not-allowed"
+          />
+          <span className="flex min-w-0 flex-col break-words">
+            {option.label}
+            {option.hint ? (
+              <span className="text-gray-600">{option.hint}</span>
+            ) : null}
           </span>
         </label>
       ))}
@@ -562,6 +728,8 @@ function AccessListStates({
   }
 
   const entries = sharesQuery.data.data;
+  // What the server says, as it says it: nothing is decided here.
+  const instanceLevel = sharesQuery.data.instance.level;
 
   // No empty state: the row of the owner is always there.
   return (
@@ -572,7 +740,12 @@ function AccessListStates({
       >
         {entries.map((entry, index) =>
           entry.level === 'owner' ? (
-            <AccessListRow key={entry.personId} entry={entry} ref={ownerRowRef} />
+            <Fragment key={entry.personId}>
+              <AccessListRow entry={entry} ref={ownerRowRef} />
+              {instanceLevel === 'none' ? null : (
+                <InstanceAccessRow level={instanceLevel} />
+              )}
+            </Fragment>
           ) : (
             <AccessListRow key={entry.personId} entry={entry}>
               <AccessLevelControl
@@ -641,6 +814,28 @@ function AccessListRow({
           <span className={BADGE_CLASS_NAME}>você</span>
         ) : null}
         {children}
+      </span>
+    </li>
+  );
+}
+
+// Everyone in the organization, right after the owner. Only the level the
+// server sent, with no control: changing and removing it come later.
+function InstanceAccessRow({
+  level,
+}: {
+  level: DocumentShareLevel;
+}): React.JSX.Element {
+  return (
+    <li className={ROW_CLASS_NAME}>
+      <span className="flex min-w-0 grow basis-48 flex-col">
+        <span className="truncate text-gray-900">Todos da organização</span>
+        <span className="break-words text-sm text-gray-600">
+          Qualquer pessoa da organização
+        </span>
+      </span>
+      <span className="ml-auto flex shrink-0 flex-wrap items-center gap-2">
+        <span className={BADGE_CLASS_NAME}>{LEVEL_LABELS[level]}</span>
       </span>
     </li>
   );
