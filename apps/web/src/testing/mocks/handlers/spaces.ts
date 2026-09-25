@@ -126,23 +126,12 @@ export const spacesHandlers = [
 
       const spaceId = String(params.spaceId);
       // The owner and the members of a free space reach it `direct`; a free
-      // space of someone else is `none`. The 403 below is only of a unit.
-      const reach = spaceReachOf(person.id, spaceId);
-
-      if (reach === 'none') {
+      // space of someone else is `none`. A unit space reached by inheritance
+      // lists its documents like one reached directly.
+      if (spaceReachOf(person.id, spaceId) === 'none') {
         return HttpResponse.json(
           { message: 'Espaço não encontrado.' },
           { status: 404 },
-        );
-      }
-
-      if (reach === 'inherited') {
-        return HttpResponse.json(
-          {
-            message:
-              'Os documentos deste espaço estão disponíveis para quem está lotado diretamente na unidade.',
-          },
-          { status: 403 },
         );
       }
 

@@ -1,4 +1,3 @@
-import { isAxiosError } from 'axios';
 import type React from 'react';
 
 import { Button } from '@/components/ui/button/button';
@@ -19,14 +18,6 @@ const READ_ONLY_SPACE_DOCUMENTS_TEXTS = {
   ...SPACE_DOCUMENTS_TEXTS,
   empty: 'Nenhum documento neste espaço ainda.',
 };
-
-const DIRECT_ASSIGNMENT_NOTICE =
-  'Os documentos deste espaço estão disponíveis para quem está lotado diretamente na unidade.';
-
-// The API answers 403 to whoever reaches the unit space only by inheritance:
-// the space is theirs to see, its documents are not.
-const isForbidden = (error: unknown): boolean =>
-  isAxiosError(error) && error.response?.status === 403;
 
 export function SpaceDocuments({
   spaceId,
@@ -53,14 +44,6 @@ export function SpaceDocuments({
   }
 
   if (documentsQuery.isError) {
-    if (isForbidden(documentsQuery.error)) {
-      return (
-        <p className="mt-6 rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-800">
-          {DIRECT_ASSIGNMENT_NOTICE}
-        </p>
-      );
-    }
-
     return (
       <div
         role="alert"
@@ -77,8 +60,8 @@ export function SpaceDocuments({
     );
   }
 
-  // Only a 200 reaches here: whoever would get a 403 never sees the button,
-  // and neither does whoever the server says cannot create.
+  // Only a 200 reaches here: whoever the server says cannot create never sees
+  // the button.
   return (
     <>
       {canCreate ? (

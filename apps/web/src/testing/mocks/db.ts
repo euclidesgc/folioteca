@@ -654,7 +654,9 @@ export const spaceDetailOf = (
     name: unit.name,
     reach,
     membersCanInvite: false,
-    canCreateDocuments: reach === 'direct',
+    // Reached directly or by inheritance, the unit space is the person's to
+    // create in, like the API.
+    canCreateDocuments: true,
     canAddPeople: false,
   };
 };

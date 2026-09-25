@@ -154,11 +154,11 @@ export const documentsHandlers = [
     if (spaceId === undefined) {
       document = createDocumentIn(person.id, `space-${person.id}`);
     } else {
-      // Only whoever is directly assigned to the unit, or the owner or a
-      // member of the free space, creates there; any other reach answers the
-      // same 404 as an unknown space.
+      // Whoever reaches the unit (directly or by inheritance), or the owner or
+      // a member of the free space, creates there; no reach answers the same
+      // 404 as an unknown space.
       const creator = getSignedInPerson() ?? person;
-      if (spaceReachOf(creator.id, spaceId) !== 'direct') {
+      if (spaceReachOf(creator.id, spaceId) === 'none') {
         return HttpResponse.json(
           { message: 'Espaço não encontrado.' },
           { status: 404 },
