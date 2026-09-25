@@ -120,13 +120,13 @@ Caminhos relativos à raiz do repositório. A ordem importa: API simulada e cham
 
 ## Fase 3 — e2e da jornada e documentação: a fatia utilizável de ponta a ponta
 
-- [ ] T3.1 — Documentação: receita "Copiar link"
+- [x] T3.1 — Documentação: receita "Copiar link"
   - Arquivos: `docs/design.md` (alterar)
   - O que fazer, em pt_BR, só acrescentando linhas em "Padrões acrescentados pelas entregas": receita **"Copiar link"** (fatia 147): `Button` secundário "Copiar link"; sucesso em `<p aria-live="polite">` com texto suave; fallback com `<label>` + `<input readOnly>` da receita "Campo de formulário", texto selecionado; com as classes usadas em `share-document-dialog.tsx`.
   - Skills: interface-design
   - Complexidade: baixa
 
-- [ ] T3.2 — Testes da fase 3 (e2e: o dono vê quem tem acesso e copia o link)
+- [x] T3.2 — Testes da fase 3 (e2e: o dono vê quem tem acesso e copia o link)
   - Arquivos: `apps/web/e2e/tests/share-access-list.spec.ts` (criar)
   - O que fazer (D7): API simulada, estado inicial por `page.addInitScript`, como os specs existentes; `test.use({ permissions: ['clipboard-write'] })` no topo, como `apps/web/e2e/tests/invitations-create.spec.ts`. `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo: a primeira asserção após cada mudança de rota o usa; `toBeFocused()` antes de cada `Enter`/`Space`; nenhum `waitForTimeout`; nenhuma regra do axe desativada; outros specs e `apps/web/e2e/a11y.ts` intocados.
     - `the owner sees who has access and the shared person joins the list`: abre o documento, aciona "Compartilhar", vê o diálogo "Compartilhar documento" e a seção "Quem tem acesso" com "dono" e "você", `expectNoSeriousA11yViolations(page)` com o diálogo aberto, busca e seleciona uma pessoa, aciona "Compartilhar", e a pessoa aparece na lista com "Pode ver".
@@ -136,11 +136,11 @@ Caminhos relativos à raiz do repositório. A ordem importa: API simulada e cham
 
 ### Critérios de aceite da fase 3
 
-- [ ] CA3.1 — `pnpm test:e2e` na raiz sai com 0 (a suíte inteira), e `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` continuam saindo com 0 e sem aviso, com o cache do `tsc` limpo.
-- [ ] CA3.2 — `apps/web/e2e/tests/share-access-list.spec.ts` contém os casos `the owner sees who has access and the shared person joins the list` e `the owner copies the document link`, e `pnpm --filter web exec playwright test --list` os lista. `rg -n "test\.skip|test\.only|waitForTimeout|disableRules" apps/web/e2e/tests/share-access-list.spec.ts` é vazio.
-- [ ] CA3.3 — Lendo o spec: `test.use({ permissions: ['clipboard-write'] })` e `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo; a primeira asserção após cada mudança de rota usa `ROUTE_TIMEOUT` (uma seguinte com timeout maior é aceita); `toBeFocused()` antes de cada tecla de ação; `expectNoSeriousA11yViolations(page)` com o diálogo aberto; o primeiro caso assere "Quem tem acesso", "dono", "você" e "Pode ver" na linha da pessoa compartilhada; o segundo assere "Link copiado" ou o campo "Endereço do documento".
-- [ ] CA3.4 — `docs/design.md` tem a receita "Copiar link" em "Padrões acrescentados pelas entregas", citando `aria-live="polite"` e `readOnly`.
-- [ ] CA3.5 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `GET shares lists the owner first and people in pt-BR order` e `GET shares by a view person answers 403 with Só o proprietário pode ver quem tem acesso a este documento.`; `pnpm exec vitest run --project web` (0) inclui `a shared person appears in the list once after sharing` e `Copiar link writes the document URL and announces Link copiado`; `pnpm test:e2e` (0) inclui os dois casos de `share-access-list.spec.ts`.
+- [x] CA3.1 — `pnpm test:e2e` na raiz sai com 0 (a suíte inteira), e `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` continuam saindo com 0 e sem aviso, com o cache do `tsc` limpo.
+- [x] CA3.2 — `apps/web/e2e/tests/share-access-list.spec.ts` contém os casos `the owner sees who has access and the shared person joins the list` e `the owner copies the document link`, e `pnpm --filter web exec playwright test --list` os lista. `rg -n "test\.skip|test\.only|waitForTimeout|disableRules" apps/web/e2e/tests/share-access-list.spec.ts` é vazio.
+- [x] CA3.3 — Lendo o spec: `test.use({ permissions: ['clipboard-write'] })` e `const ROUTE_TIMEOUT = { timeout: 10_000 }` no topo; a primeira asserção após cada mudança de rota usa `ROUTE_TIMEOUT` (uma seguinte com timeout maior é aceita); `toBeFocused()` antes de cada tecla de ação; `expectNoSeriousA11yViolations(page)` com o diálogo aberto; o primeiro caso assere "Quem tem acesso", "dono", "você" e "Pode ver" na linha da pessoa compartilhada; o segundo assere "Link copiado" ou o campo "Endereço do documento".
+- [x] CA3.4 — `docs/design.md` tem a receita "Copiar link" em "Padrões acrescentados pelas entregas", citando `aria-live="polite"` e `readOnly`.
+- [x] CA3.5 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `GET shares lists the owner first and people in pt-BR order` e `GET shares by a view person answers 403 with Só o proprietário pode ver quem tem acesso a este documento.`; `pnpm exec vitest run --project web` (0) inclui `a shared person appears in the list once after sharing` e `Copiar link writes the document URL and announces Link copiado`; `pnpm test:e2e` (0) inclui os dois casos de `share-access-list.spec.ts`.
 
 ## Desvios
 
