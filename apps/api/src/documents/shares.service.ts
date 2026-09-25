@@ -43,13 +43,14 @@ export class SharesService {
   private readonly logger = new Logger(SharesService.name);
 
   /**
-   * Who wants to know that a person's share of a document changed. The
-   * `collab` module subscribes here; this service does not know it (the import
-   * would be circular).
+   * Who wants to know that a share of a document changed. `personId` is the
+   * person whose direct share changed, or `null` for everyone with the
+   * document open (the organization share). The `collab` module subscribes
+   * here; this service does not know it (the import would be circular).
    */
   private readonly changedListeners: ((
     documentId: string,
-    personId: string,
+    personId: string | null,
   ) => void)[] = [];
 
   constructor(
@@ -161,6 +162,8 @@ export class SharesService {
       update: { level: storedLevel },
     });
 
+    this.notifyShareChanged(documentId, null);
+
     return { data: { level } };
   }
 
@@ -210,8 +213,8 @@ export class SharesService {
    * Removes the document's share with everyone in the organization. Idempotent:
    * removing a share that does not exist succeeds without changes. Checks run
    * in the order not found (opaque) → forbidden (not the owner) → conflict
-   * (document in the trash). Open collab connections are not re-evaluated
-   * here; every later access decision reads the instance share again.
+   * (document in the trash). When a row was removed, the listeners are told
+   * so every open collab connection of the document is re-evaluated.
    */
   async removeInstance(
     requester: PersonWithOrganization,
@@ -234,17 +237,22 @@ export class SharesService {
       throw new ConflictException(TRASHED_DOCUMENT_MESSAGE);
     }
 
-    await this.prisma.documentInstanceShare.deleteMany({
+    const { count } = await this.prisma.documentInstanceShare.deleteMany({
       where: { documentId },
     });
+
+    if (count > 0) {
+      this.notifyShareChanged(documentId, null);
+    }
   }
 
   /**
    * Subscribes a listener to share changes (level switched or share removed).
-   * Called at startup, once per listener.
+   * `personId` is `null` when the change reaches everyone with the document
+   * open. Called at startup, once per listener.
    */
   onShareChanged(
-    listener: (documentId: string, personId: string) => void,
+    listener: (documentId: string, personId: string | null) => void,
   ): void {
     this.changedListeners.push(listener);
   }
@@ -253,7 +261,10 @@ export class SharesService {
    * Calls every listener. A throwing listener does not break the HTTP
    * response: the error is logged without the ids of who was involved.
    */
-  private notifyShareChanged(documentId: string, personId: string): void {
+  private notifyShareChanged(
+    documentId: string,
+    personId: string | null,
+  ): void {
     for (const listener of this.changedListeners) {
       try {
         listener(documentId, personId);

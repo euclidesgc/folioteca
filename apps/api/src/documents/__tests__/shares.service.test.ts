@@ -676,5 +676,93 @@ test('removeInstance checks 404 then 403 then 409 before deleting', async () => 
     allowed.instanceDeleteMany.mock.invocationCallOrder[0] ?? 0,
   );
   expect(allowed.deleteMany).not.toHaveBeenCalled();
+  expect(listener).toHaveBeenCalledTimes(1);
+  expect(listener).toHaveBeenCalledWith(DOCUMENT_ID, null);
+});
+
+test('shareInstance notifies listeners with a null person after the upsert', async () => {
+  const { service, instanceUpsert } = createService('owner');
+  const first = vi.fn();
+  const second = vi.fn();
+  service.onShareChanged(first);
+  service.onShareChanged(second);
+
+  await service.shareInstance(requester, DOCUMENT_ID, { level: 'edit' });
+  await service.shareInstance(requester, DOCUMENT_ID, { level: 'edit' });
+
+  expect(instanceUpsert).toHaveBeenCalledTimes(2);
+  expect(first).toHaveBeenCalledTimes(2);
+  expect(first).toHaveBeenNthCalledWith(1, DOCUMENT_ID, null);
+  expect(first).toHaveBeenNthCalledWith(2, DOCUMENT_ID, null);
+  expect(second).toHaveBeenCalledWith(DOCUMENT_ID, null);
+  expect(instanceUpsert.mock.invocationCallOrder[0]).toBeLessThan(
+    first.mock.invocationCallOrder[0] ?? 0,
+  );
+});
+
+test('removeInstance notifies listeners with a null person when a row was deleted', async () => {
+  const { service, instanceDeleteMany } = createService('owner');
+  const listener = vi.fn();
+  service.onShareChanged(listener);
+
+  await service.removeInstance(owner, DOCUMENT_ID);
+
+  expect(listener).toHaveBeenCalledTimes(1);
+  expect(listener).toHaveBeenCalledWith(DOCUMENT_ID, null);
+  expect(instanceDeleteMany.mock.invocationCallOrder[0]).toBeLessThan(
+    listener.mock.invocationCallOrder[0] ?? 0,
+  );
+});
+
+test('removeInstance does not notify when there was no instance share', async () => {
+  const { service, instanceDeleteMany } = createService('owner');
+  instanceDeleteMany.mockResolvedValue({ count: 0 });
+  const listener = vi.fn();
+  service.onShareChanged(listener);
+
+  const result = await service.removeInstance(owner, DOCUMENT_ID);
+
+  expect(result).toBeUndefined();
+  expect(instanceDeleteMany).toHaveBeenCalledTimes(1);
+  expect(listener).not.toHaveBeenCalled();
+});
+
+test('shareInstance and removeInstance do not notify when refused', async () => {
+  const hidden = createService('none');
+  const viewer = createService('view');
+  const trashed = createService('owner', { canWrite: false });
+  const invalid = createService('owner');
+  const listener = vi.fn();
+  hidden.service.onShareChanged(listener);
+  viewer.service.onShareChanged(listener);
+  trashed.service.onShareChanged(listener);
+  invalid.service.onShareChanged(listener);
+
+  const errors = [
+    await errorOf(
+      hidden.service.shareInstance(requester, DOCUMENT_ID, VALID_BODY),
+    ),
+    await errorOf(
+      viewer.service.shareInstance(requester, DOCUMENT_ID, VALID_BODY),
+    ),
+    await errorOf(
+      trashed.service.shareInstance(requester, DOCUMENT_ID, VALID_BODY),
+    ),
+    await errorOf(
+      invalid.service.shareInstance(requester, DOCUMENT_ID, {
+        level: 'owner',
+      }),
+    ),
+    await errorOf(hidden.service.removeInstance(owner, DOCUMENT_ID)),
+    await errorOf(viewer.service.removeInstance(owner, DOCUMENT_ID)),
+    await errorOf(trashed.service.removeInstance(owner, DOCUMENT_ID)),
+  ];
+
+  expect(errors.map((error) => (error as HttpException).getStatus())).toEqual(
+    [404, 403, 409, 400, 404, 403, 409],
+  );
+  expect(hidden.instanceUpsert).not.toHaveBeenCalled();
+  expect(invalid.instanceUpsert).not.toHaveBeenCalled();
+  expect(trashed.instanceDeleteMany).not.toHaveBeenCalled();
   expect(listener).not.toHaveBeenCalled();
 });

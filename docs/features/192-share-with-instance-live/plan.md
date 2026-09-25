@@ -29,7 +29,7 @@ Pré-condição: `docker compose up -d` na raiz (Postgres local; banco de teste 
 
 Caminhos relativos à raiz. A ordem importa: o aviso do serviço de compartilhamento, depois a reavaliação no colaborativo, depois a documentação e os testes. Ao fim da fase, a fatia está utilizável de ponta a ponta: PUT/DELETE da instância muda na hora quem pode editar no documento aberto.
 
-- [ ] T1.1 — Aviso por documento inteiro e reavaliação de todas as conexões (D1, D2, R1, R2, R3)
+- [x] T1.1 — Aviso por documento inteiro e reavaliação de todas as conexões (D1, D2, R1, R2, R3)
   - Arquivos: `apps/api/src/documents/shares.service.ts` (alterar); `apps/api/src/collab/collab.service.ts` (alterar)
   - O que fazer:
     - `shares.service.ts` (D1): o ouvinte de `onShareChanged` passa a ter o tipo `(documentId: string, personId: string | null) => …`; `null` significa "todas as pessoas com o documento aberto". `share`/`remove` continuam passando a pessoa. `shareInstance` chama `notifyShareChanged(documentId, null)` depois do upsert, **sempre** (mesmo sem mudança de nível). `removeInstance` guarda o resultado de `deleteMany` e chama `notifyShareChanged(documentId, null)` só quando `count > 0`. Recusas (404/403/409/400) não avisam. Reescrever o comentário de `removeInstance` ("Open collab connections are not re-evaluated here") para dizer que as conexões abertas são reavaliadas pelo aviso.
@@ -37,13 +37,13 @@ Caminhos relativos à raiz. A ordem importa: o aviso do serviço de compartilham
   - Skills: security
   - Complexidade: alta
 
-- [ ] T1.2 — Documentação
+- [x] T1.2 — Documentação
   - Arquivos: `docs/architecture.md` (alterar)
   - O que fazer: novo bloco da 192 **logo depois** do bloco da 191 na seção de colaboração/compartilhamento: PUT e DELETE efetivo de `instance-share` avisam com alvo `null` e o `CollabService` reavalia **todas** as conexões `/collab` do documento, cada uma pelo próprio `personId`, via `resolveAccess` + `canWrite` (rebaixado → só leitura, promovido → volta a editar, sem acesso → conexão fechada); DELETE sem linha não avisa; limite conhecido: conexão ainda no `onConnect` durante o PUT/DELETE não é reavaliada (dívida 184).
   - Skills: —
   - Complexidade: baixa
 
-- [ ] T1.3 — Testes da fase 1
+- [x] T1.3 — Testes da fase 1
   - Arquivos: `apps/api/src/documents/__tests__/shares.service.test.ts` (alterar); `apps/api/src/collab/__tests__/collab.integration.test.ts` (alterar)
   - O que fazer: `resetDatabase(prisma)` em `beforeEach` e os ajudantes existentes de sessão, organização, pessoa, espaço, documento e conexão `/collab`; o compartilhamento com a instância é criado e removido pelo `PUT`/`DELETE …/instance-share` reais; "escrita não chega ao banco" é conferida lendo o estado persistido do documento depois de uma atualização enviada pela conexão. Casos novos com os nomes literais:
     - `shares.service.test.ts` (`unit-testing`):
@@ -64,19 +64,21 @@ Caminhos relativos à raiz. A ordem importa: o aviso do serviço de compartilham
 
 ### Critérios de aceite da fase 1
 
-- [ ] CA1.1 — Com `docker compose up -d`, na raiz e com o cache do `tsc` limpo (`pnpm exec tsc -b --clean`; nenhum `*.tsbuildinfo` fora de `node_modules`): `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` terminam com exit code 0 e sem aviso.
-- [ ] CA1.2 — Lendo `apps/api/src/documents/shares.service.ts`: o ouvinte de `onShareChanged` tem `personId: string | null`; `shareInstance` chama `notifyShareChanged(documentId, null)` depois do upsert; `removeInstance` chama `notifyShareChanged(documentId, null)` só dentro de uma condição sobre `count > 0` do `deleteMany`; nenhum aviso antes das verificações 404/403/409. O comentário "Open collab connections are not re-evaluated here" não existe mais: `rg -n "are not re-evaluated here" apps/api/src/documents/shares.service.ts` é vazio.
-- [ ] CA1.3 — Lendo `apps/api/src/collab/collab.service.ts`: `reevaluateAccess(documentId: string, personId: string | null)`; existe `personIdOf` e `belongsTo` o usa; com `null`, cada conexão usa o próprio `personId`; `none` envia a mensagem e fecha; senão `readOnly = !canWrite`. Sem paralelismo: `rg -n -P "^(?!\s*(//|\*)).*(?<![-\w.])Promise\.all" apps/api/src/collab/collab.service.ts` é vazio.
-- [ ] CA1.4 — Nada fora do escopo mudou: `git status --porcelain apps/api/prisma apps/api/src/access apps/api/src/documents/documents.controller.ts packages/api-contract apps/web docs/design.md` é vazio.
-- [ ] CA1.5 — `rg -n "migrate (diff|dev|reset)|DROP CONSTRAINT|DISABLE TRIGGER|session_replication_role|ALTER TABLE" apps/api/src/collab/__tests__ apps/api/src/documents/__tests__` é vazio; `rg -n "vi\.mock\(" apps/api/src/collab/__tests__/collab.integration.test.ts` não traz mock de Prisma, `AccessService`, `SharesService` nem `CollabService`; `rg -n "sleep\(|setTimeout|\.only\(|\.skip\(" apps/api/src/collab/__tests__/collab.integration.test.ts` não casa em caso novo.
-- [ ] CA1.6 — `pnpm exec vitest run --project api` sai com 0 e existem, conferidos com `rg -n "^\s*(it|test)(\.each)?\("` nos arquivos de T1.3, os 11 casos nomeados com os nomes literais (`shares.service.test.ts`: 4; `collab.integration.test.ts`: 7).
-- [ ] CA1.7 — Lendo os testes: `downgrading the instance share to view sends access-changed to every open connection and blocks writes` conecta duas pessoas da organização, faz o `PUT` real, espera a mensagem nas duas e confere que a escrita seguinte não ficou no banco; `removing the instance share sends access-changed and closes connections left without access` confere a mensagem e o fechamento; `removing a missing instance share sends no message` confere que nenhuma mensagem chegou depois do `DELETE`; `a person with a personal edit share keeps writing after the instance share is downgraded or removed` confere a escrita gravada depois do rebaixamento e da remoção.
-- [ ] CA1.8 — `docs/architecture.md` tem um bloco citando a fatia 192 depois do bloco da 191, mencionando `instance-share`, `reevaluateAccess` e que todas as conexões do documento são reavaliadas.
-- [ ] CA1.9 — Cobertura ≥ 80% de linhas para `apps/api/src/documents/shares.service.ts` e `apps/api/src/collab/collab.service.ts`, lida em `coverage/coverage-summary.json` gerado na raiz com `pnpm exec vitest run --coverage --coverage.reporter=json-summary`.
+- [x] CA1.1 — Com `docker compose up -d`, na raiz e com o cache do `tsc` limpo (`pnpm exec tsc -b --clean`; nenhum `*.tsbuildinfo` fora de `node_modules`): `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` terminam com exit code 0 e sem aviso.
+- [x] CA1.2 — Lendo `apps/api/src/documents/shares.service.ts`: o ouvinte de `onShareChanged` tem `personId: string | null`; `shareInstance` chama `notifyShareChanged(documentId, null)` depois do upsert; `removeInstance` chama `notifyShareChanged(documentId, null)` só dentro de uma condição sobre `count > 0` do `deleteMany`; nenhum aviso antes das verificações 404/403/409. O comentário "Open collab connections are not re-evaluated here" não existe mais: `rg -n "are not re-evaluated here" apps/api/src/documents/shares.service.ts` é vazio.
+- [x] CA1.3 — Lendo `apps/api/src/collab/collab.service.ts`: `reevaluateAccess(documentId: string, personId: string | null)`; existe `personIdOf` e `belongsTo` o usa; com `null`, cada conexão usa o próprio `personId`; `none` envia a mensagem e fecha; senão `readOnly = !canWrite`. Sem paralelismo: `rg -n -P "^(?!\s*(//|\*)).*(?<![-\w.])Promise\.all" apps/api/src/collab/collab.service.ts` é vazio.
+- [x] CA1.4 — Nada fora do escopo mudou: `git status --porcelain apps/api/prisma apps/api/src/access apps/api/src/documents/documents.controller.ts packages/api-contract apps/web docs/design.md` é vazio.
+- [x] CA1.5 — `rg -n "migrate (diff|dev|reset)|DROP CONSTRAINT|DISABLE TRIGGER|session_replication_role|ALTER TABLE" apps/api/src/collab/__tests__ apps/api/src/documents/__tests__` é vazio; `rg -n "vi\.mock\(" apps/api/src/collab/__tests__/collab.integration.test.ts` não traz mock de Prisma, `AccessService`, `SharesService` nem `CollabService`; `rg -n "sleep\(|setTimeout|\.only\(|\.skip\(" apps/api/src/collab/__tests__/collab.integration.test.ts` não casa em caso novo.
+- [x] CA1.6 — `pnpm exec vitest run --project api` sai com 0 e existem, conferidos com `rg -n "^\s*(it|test)(\.each)?\("` nos arquivos de T1.3, os 11 casos nomeados com os nomes literais (`shares.service.test.ts`: 4; `collab.integration.test.ts`: 7).
+- [x] CA1.7 — Lendo os testes: `downgrading the instance share to view sends access-changed to every open connection and blocks writes` conecta duas pessoas da organização, faz o `PUT` real, espera a mensagem nas duas e confere que a escrita seguinte não ficou no banco; `removing the instance share sends access-changed and closes connections left without access` confere a mensagem e o fechamento; `removing a missing instance share sends no message` confere que nenhuma mensagem chegou depois do `DELETE`; `a person with a personal edit share keeps writing after the instance share is downgraded or removed` confere a escrita gravada depois do rebaixamento e da remoção.
+- [x] CA1.8 — `docs/architecture.md` tem um bloco citando a fatia 192 depois do bloco da 191, mencionando `instance-share`, `reevaluateAccess` e que todas as conexões do documento são reavaliadas.
+- [x] CA1.9 — Cobertura ≥ 80% de linhas para `apps/api/src/documents/shares.service.ts` e `apps/api/src/collab/collab.service.ts`, lida em `coverage/coverage-summary.json` gerado na raiz com `pnpm exec vitest run --coverage --coverage.reporter=json-summary`.
 
 ## Desvios
 
 Preenchido pelos agentes de fase quando um teste existente precisar de ajuste ou um critério precisar de literal diferente com o mesmo comportamento.
+
+- DV1 — `apps/api/src/documents/__tests__/shares.service.test.ts`, caso existente `removeInstance checks 404 then 403 then 409 before deleting` (nome mantido): a última asserção era `expect(listener).not.toHaveBeenCalled()` sobre o `removeInstance` permitido (dublê com `count: 1`), o que contradiz D1. Passou a esperar uma chamada com `(DOCUMENT_ID, null)`; as recusas 404/403/409 do mesmo caso continuam sem aviso.
 
 ## DoD da entrega
 

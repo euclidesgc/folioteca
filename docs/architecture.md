@@ -275,6 +275,22 @@ releem a instância a cada pedido, quem só tinha acesso pela organização fica
 `none` (e recebe o 404 opaco) **no pedido seguinte**. A reavaliação das
 conexões `/collab` já abertas quando o acesso muda fica para a **fatia 192**.
 
+**Entrega `share-with-instance-live` (fatia 192).** Mudar o compartilhamento
+com a instância vale na hora para quem está com o documento aberto. O `PUT
+/documents/{documentId}/instance-share` (sempre, mesmo sem mudar o nível) e o
+`DELETE /documents/{documentId}/instance-share` que removeu uma linha avisam
+pelo mesmo canal da fatia 180, `SharesService.onShareChanged`, com a pessoa
+`null` (alvo "todos com o documento aberto"); o `DELETE` sem linha não avisa.
+O `CollabService.reevaluateAccess` reavalia então **todas** as conexões
+`/collab` do documento, em sequência, cada uma pelo `personId` do próprio
+contexto (o proprietário incluído), via `resolveAccess` + `canWrite`:
+rebaixado fica só leitura, promovido volta a editar, e quem ficou sem acesso
+recebe a mensagem e tem a conexão fechada. A mensagem continua sendo só
+`{"type":"access-changed"}`, e quem tem outro caminho (compartilhamento
+próprio ou espaço) mantém o nível que esse caminho garante. Limite conhecido:
+uma conexão ainda no `onConnect` durante o PUT/DELETE não é reavaliada
+(dívida 184).
+
 ## 4. Árvore de unidades
 
 `parentId` + consulta recursiva (`WITH RECURSIVE`). "Unidade e tudo abaixo"
