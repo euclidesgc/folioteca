@@ -185,13 +185,13 @@ Caminhos relativos à raiz do repositório. A ordem importa: chamada e API simul
 
 Caminhos relativos à raiz do repositório. Ao fim da fase, a fatia está utilizável de ponta a ponta e documentada.
 
-- [ ] T3.1 — Documentação da instância no caminho único
+- [x] T3.1 — Documentação da instância no caminho único
   - Arquivos: `docs/architecture.md` (alterar)
   - O que fazer: §3 "access": a decisão passa a dono → lixeira → maior(pessoa, instância, espaço) → `none`; a instância é a tabela `DocumentInstanceShare` (uma linha por documento) e só vale para quem pertence à organização do dono, relido a cada pedido em `findDecision` e em `readableDocumentsWhere`; regra 9 estendida a `DocumentInstanceShare` e regra 13 do teste de fronteira; rota `PUT /documents/{documentId}/instance-share` e o campo `instance` de `GET …/shares`.
   - Skills: —
   - Complexidade: baixa
 
-- [ ] T3.2 — e2e: o dono compartilha com todos da organização (D7, R1, R3, R8)
+- [x] T3.2 — e2e: o dono compartilha com todos da organização (D7, R1, R3, R8)
   - Arquivos: `apps/web/e2e/tests/share-with-instance.spec.ts` (criar)
   - O que fazer: com a API simulada, o dono abre um documento, abre "Compartilhar documento", escolhe "Todos da organização" (o foco fica no rádio), marca "Pode editar", clica em "Compartilhar", vê "Documento compartilhado com Todos da organização." e a linha "Todos da organização" com "Pode editar" logo depois do dono. Sem `page.reload()`; `localStorage` só para montar o estado inicial, antes da primeira navegação; esperas por `expect(...)` com `ROUTE_TIMEOUT`; foco conferido com `toBeFocused()`; `expectNoSeriousA11yViolations` com o diálogo aberto. Sem `waitForTimeout`, `.skip(` nem `.only(`. Teste: `the owner shares a document with Todos da organização and sees the row`.
   - Skills: e2e-testing
@@ -199,10 +199,10 @@ Caminhos relativos à raiz do repositório. Ao fim da fase, a fatia está utiliz
 
 ### Critérios de aceite da fase 3
 
-- [ ] CA3.1 — Com `docker compose up -d`, na raiz e com o cache do `tsc` limpo: `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` e `pnpm test:e2e` (a suíte inteira) saem com 0 e sem aviso.
-- [ ] CA3.2 — `apps/web/e2e/tests/share-with-instance.spec.ts` tem o teste `the owner shares a document with Todos da organização and sees the row`, que usa `ROUTE_TIMEOUT`, `toBeFocused(` e `expectNoSeriousA11yViolations(` (chamado depois de abrir o diálogo e antes de fechá-lo); `rg -n "waitForTimeout|\.skip\(|\.only\(|reload\(" apps/web/e2e/tests/share-with-instance.spec.ts` é vazio; toda ocorrência de `localStorage` no arquivo está antes do primeiro `goto` do teste.
-- [ ] CA3.3 — `docs/architecture.md` cita `DocumentInstanceShare`, `instance-share`, a organização do dono como condição da instância e a regra 13.
-- [ ] CA3.4 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `PUT instance-share answers 200 with the level and the list shows it` e `an instance edit share gives edit to a colleague`; `pnpm exec vitest run --project web` (0) inclui `sharing with the instance shows the success message and the row between the owner and the people`; `pnpm test:e2e` (0) inclui `the owner shares a document with Todos da organização and sees the row`.
+- [x] CA3.1 — Com `docker compose up -d`, na raiz e com o cache do `tsc` limpo: `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` e `pnpm test:e2e` (a suíte inteira) saem com 0 e sem aviso.
+- [x] CA3.2 — `apps/web/e2e/tests/share-with-instance.spec.ts` tem o teste `the owner shares a document with Todos da organização and sees the row`, que usa `ROUTE_TIMEOUT`, `toBeFocused(` e `expectNoSeriousA11yViolations(` (chamado depois de abrir o diálogo e antes de fechá-lo); `rg -n "waitForTimeout|\.skip\(|\.only\(|reload\(" apps/web/e2e/tests/share-with-instance.spec.ts` é vazio; toda ocorrência de `localStorage` no arquivo está antes do primeiro `goto` do teste.
+- [x] CA3.3 — `docs/architecture.md` cita `DocumentInstanceShare`, `instance-share`, a organização do dono como condição da instância e a regra 13.
+- [x] CA3.4 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `PUT instance-share answers 200 with the level and the list shows it` e `an instance edit share gives edit to a colleague`; `pnpm exec vitest run --project web` (0) inclui `sharing with the instance shows the success message and the row between the owner and the people`; `pnpm test:e2e` (0) inclui `the owner shares a document with Todos da organização and sees the row`.
 
 ## Desvios
 

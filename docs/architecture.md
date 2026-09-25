@@ -229,6 +229,35 @@ estrutural `document-access-boundary.test.ts` garante que `resolveReach` só é
 declarado em `access/unit-reach.ts` e que nenhum arquivo fora de `access/` o
 chama. "Pessoas nesta unidade" continua só com a lotação direta.
 
+**Entrega `share-with-instance` (fatia 190).** O dono pode compartilhar o
+documento com **todos da organização**, em `view` ou `edit`. O
+compartilhamento com a instância mora na tabela `DocumentInstanceShare`, **uma
+linha por documento** (chave `documentId`, cascade com o documento; migration
+`0021_document_instance_share` escrita à mão, reaproveitando o enum
+`ShareLevel`). Não há coluna de organização nem linha por pessoa: a instância
+**só vale para quem pertence à organização do dono** do documento, e isso é
+relido a cada pedido — em `findDecision` (o `select` do documento traz
+`instanceShare` e as pessoas da organização do dono filtradas pela pessoa que
+pede) e em `readableDocumentsWhere` (ramo `instanceShare: { isNot: null }` com
+`owner.organization.people` contendo a pessoa). Quem chega à organização depois
+ganha o acesso; pessoa apagada ou de outra organização fica em `none` e recebe
+o 404 opaco. `resolveAccess` segue a ordem dono → lixeira → maior(pessoa,
+instância, espaço) → `none`: a instância nunca dá `owner`, e na lixeira o
+documento some para quem não é dono (a linha fica guardada e volta com o nível
+ao restaurar). A regra 9 do teste estrutural `document-access-boundary.test.ts`
+passou a cobrir também a tabela `DocumentInstanceShare` (só `access.service.ts`
+e `documents/shares.service.ts` a tocam), e a regra 13 garante que, fora de
+`access.service.ts`, nenhuma leitura de `Document` filtra por `instanceShare`,
+e que `readableDocumentsWhere` só alcança a instância pela organização do dono.
+`PUT /documents/{documentId}/instance-share` (`SharesService.shareInstance`) é
+só do dono, com a mesma ordem da rota da pessoa: 404 único "Documento não
+encontrado." para quem não vê o documento, 403 para quem vê sem ser dono, 409
+com o documento na lixeira e só depois a validação do corpo; é idempotente
+(`upsert`, uma linha só). `GET /documents/{documentId}/shares` ganhou o campo
+obrigatório `instance: { level: 'none' | 'view' | 'edit' }` ao lado de `data`
+(dono e pessoas, inalterado); `none` quer dizer sem compartilhamento com a
+instância.
+
 ## 4. Árvore de unidades
 
 `parentId` + consulta recursiva (`WITH RECURSIVE`). "Unidade e tudo abaixo"
