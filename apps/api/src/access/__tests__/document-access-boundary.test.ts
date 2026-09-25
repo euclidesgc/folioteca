@@ -96,6 +96,27 @@ function checkOutsideGates({ file, source }: SourceFile): Violation[] {
   return violations;
 }
 
+/**
+ * Exceção única da regra 2: a leitura que numera o título padrão na criação
+ * (`documento-sem-titulo-N`). Ela não devolve documento a ninguém, só calcula
+ * o próximo número, é restrita ao `ownerId` de quem cria e inclui a lixeira de
+ * propósito, então nenhuma das duas portas serve. Vale só em
+ * `documents.service.ts` e só para uma chamada com essas três marcas.
+ */
+const DEFAULT_TITLE_READ_FILE = 'documents/documents.service.ts';
+const DEFAULT_TITLE_READ_MARKS = [
+  'ownerId: person.id',
+  'title: { startsWith: DEFAULT_TITLE_PREFIX }',
+  'select: { title: true }',
+];
+
+function isDefaultTitleRead(file: string, call: string): boolean {
+  return (
+    file === DEFAULT_TITLE_READ_FILE &&
+    DEFAULT_TITLE_READ_MARKS.every((mark) => call.includes(mark))
+  );
+}
+
 /** Regra 2: em `documents/`, nada de `findUnique` e leitura só com a porta. */
 function checkDocumentsReads({ file, source }: SourceFile): Violation[] {
   const violations: Violation[] = [];
@@ -116,7 +137,8 @@ function checkDocumentsReads({ file, source }: SourceFile): Violation[] {
     // legítima quanto a de sempre, e a regra 8 cuida de onde ela pode aparecer.
     if (
       !call.includes('readableDocumentsWhere(') &&
-      !call.includes('trashedDocumentsWhere(')
+      !call.includes('trashedDocumentsWhere(') &&
+      !isDefaultTitleRead(file, call)
     ) {
       violations.push({
         file,
@@ -248,7 +270,15 @@ test('rule 2 flags a sample offender and accepts a sample compliant snippet', ()
     source: [
       'await this.prisma.document.findMany({ where: this.access.readableDocumentsWhere(personId) });',
       'await this.prisma.document.findMany({ where: this.access.trashedDocumentsWhere(personId) });',
+      'await tx.document.findMany({ where: { ownerId: person.id, title: { startsWith: DEFAULT_TITLE_PREFIX } }, select: { title: true } });',
     ].join('\n'),
+  });
+
+  // A exceção do título padrão não vale fora de documents.service.ts.
+  const exceptionElsewhere = checkDocumentsReads({
+    file: 'documents/favorites.service.ts',
+    source:
+      'await tx.document.findMany({ where: { ownerId: person.id, title: { startsWith: DEFAULT_TITLE_PREFIX } }, select: { title: true } });',
   });
 
   expect(report(offender)).toEqual([
@@ -256,6 +286,9 @@ test('rule 2 flags a sample offender and accepts a sample compliant snippet', ()
     'documents/documents.service.ts:2 document.findMany sem readableDocumentsWhere nem trashedDocumentsWhere',
   ]);
   expect(report(compliant)).toEqual([]);
+  expect(report(exceptionElsewhere)).toEqual([
+    'documents/favorites.service.ts:1 document.findMany sem readableDocumentsWhere nem trashedDocumentsWhere',
+  ]);
 });
 
 test('rule 3 flags a sample offender and accepts a sample compliant snippet', () => {

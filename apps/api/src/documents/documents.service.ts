@@ -15,9 +15,9 @@ import { parseBody } from '../common/parse-body';
 import { spaceNotFound } from '../common/space-not-found';
 import { PrismaService } from '../prisma/prisma.service';
 import { documentNotFound } from './document-not-found';
+import { DEFAULT_TITLE_PREFIX, nextDefaultTitle } from './default-title';
 import {
   createDocumentSchema,
-  DEFAULT_DOCUMENT_TITLE,
   listDocumentsQuerySchema,
   updateDocumentSchema,
 } from './documents.schema';
@@ -93,12 +93,22 @@ export class DocumentsService {
   ) {}
 
   /**
-   * Cria um documento sem título. Sem `spaceId` no corpo, nasce no espaço
+   * Cria um documento com o nome padrão "documento-sem-titulo-N", N o menor
+   * inteiro livre entre os documentos do dono (a lixeira conta). Sem
+   * `spaceId` no corpo, nasce no espaço
    * pessoal de quem chamou, que nasce junto na mesma transação se ainda não
    * existir. Com `spaceId`, nasce no espaço da unidade em que a pessoa está
    * lotada diretamente ou no espaço livre de que ela é dona ou membro, na
    * organização dela; qualquer outro espaço (inclusive o alcançado só por
    * herança) é o mesmo 404 opaco.
+   *
+   * O N é calculado sob um lock consultivo por dono
+   * (`pg_advisory_xact_lock`), a primeira instrução da transação: a segunda
+   * criação do mesmo dono espera o commit da primeira e, em READ COMMITTED, a
+   * leitura seguinte já vê o título gravado, então as duas recebem números
+   * diferentes. O lock é liberado no fim da transação, inclusive em erro.
+   * Donos diferentes não se bloqueiam (uma colisão de hash só causaria espera,
+   * nunca nome errado).
    */
   async create(
     person: PersonWithOrganization,
@@ -110,6 +120,8 @@ export class DocumentsService {
     );
 
     const document = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('document-default-title:' || ${person.id}, 0))`;
+
       let targetSpaceId: string;
 
       if (spaceId === undefined) {
@@ -174,9 +186,18 @@ export class DocumentsService {
         targetSpaceId = space.id;
       }
 
+      // Sem filtro de `trashedAt`: documento na lixeira também ocupa número.
+      const titles = await tx.document.findMany({
+        where: {
+          ownerId: person.id,
+          title: { startsWith: DEFAULT_TITLE_PREFIX },
+        },
+        select: { title: true },
+      });
+
       return tx.document.create({
         data: {
-          title: DEFAULT_DOCUMENT_TITLE,
+          title: nextDefaultTitle(titles.map((d) => d.title)),
           spaceId: targetSpaceId,
           authorId: person.id,
           ownerId: person.id,

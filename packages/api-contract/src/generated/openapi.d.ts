@@ -100,7 +100,10 @@ export interface paths {
         /** Lista os documentos do escopo informado */
         get: operations["getDocuments"];
         put?: never;
-        /** Cria um documento sem título no espaço pessoal de quem chama, no espaço de unidade informado ou no espaço livre de que a pessoa é dona ou membro */
+        /**
+         * Cria um documento com o nome padrão no espaço pessoal de quem chama, no espaço de unidade informado ou no espaço livre de que a pessoa é dona ou membro
+         * @description O documento nasce com o nome "documento-sem-titulo-N", em que N é o menor inteiro a partir de 1 ainda não usado nesse padrão entre os documentos do dono, inclusive os que estão na lixeira. Duas criações simultâneas do mesmo dono recebem números diferentes.
+         */
         post: operations["createDocument"];
         delete?: never;
         options?: never;
@@ -665,6 +668,7 @@ export interface components {
         AccessLevel: "owner" | "edit" | "view";
         Document: {
             id: string;
+            /** @description Nome do documento. Um documento novo nasce como "documento-sem-titulo-N", N o menor inteiro livre entre os documentos do dono. */
             title: string;
             spaceId: string;
             authorId: string;

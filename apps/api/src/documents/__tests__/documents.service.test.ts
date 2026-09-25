@@ -172,8 +172,10 @@ type DocumentsServiceAccess = {
 /** Serviço cujo `create` roda dentro de uma transação simulada. */
 function createCreatingService(): DocumentsService {
   const tx = {
+    $executeRaw: vi.fn().mockResolvedValue(1),
     space: { upsert: vi.fn().mockResolvedValue({ id: 'espaco' }) },
     document: {
+      findMany: vi.fn().mockResolvedValue([]),
       create: vi.fn().mockResolvedValue(documentRecord([])),
     },
   };

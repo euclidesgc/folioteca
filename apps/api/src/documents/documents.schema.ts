@@ -1,6 +1,9 @@
 import { z } from 'zod';
 
-/** Título de um documento recém-criado e de um título apagado. */
+/**
+ * Título gravado quando o título é apagado ao renomear. Documento novo não usa
+ * este valor: nasce como "documento-sem-titulo-N" (ver `default-title.ts`).
+ */
 export const DEFAULT_DOCUMENT_TITLE = 'Sem título';
 
 /** Tamanho máximo do título, contado depois de aparar os espaços. */

@@ -150,7 +150,7 @@ test('POST /api/documents returns 201 with a Sem título document owned and auth
   expect(response.body).toEqual({
     data: {
       id: ANY_STRING,
-      title: 'Sem título',
+      title: 'documento-sem-titulo-1',
       spaceId: ANY_STRING,
       authorId: personA.id,
       ownerId: personA.id,
@@ -394,7 +394,7 @@ test('another person cannot read, list or rename the document', async () => {
   expect(read.status).toBe(404);
   expect(list.body).toEqual({ data: [] });
   expect(rename.status).toBe(404);
-  expect(stored.title).toBe('Sem título');
+  expect(stored.title).toBe('documento-sem-titulo-1');
 });
 
 test('an administrator who is not the owner cannot read, list or rename the document', async () => {
@@ -416,7 +416,7 @@ test('an administrator who is not the owner cannot read, list or rename the docu
   expect(read.status).toBe(404);
   expect(list.body).toEqual({ data: [] });
   expect(rename.status).toBe(404);
-  expect(stored.title).toBe('Sem título');
+  expect(stored.title).toBe('documento-sem-titulo-1');
 });
 
 test('GET returns the same 404 status and body for unknown, foreign and malformed ids', async () => {
@@ -658,7 +658,7 @@ test('PATCH a shared document by a view person answers 403', async () => {
   });
 
   expect(response.status).toBe(403);
-  expect(stored.title).toBe('Sem título');
+  expect(stored.title).toBe('documento-sem-titulo-1');
 });
 
 test('POST trash on a shared document by a view person answers 404', async () => {
@@ -808,7 +808,7 @@ test('POST documents with a direct unit spaceId answers 201 in that space owned 
   expect(response.status).toBe(201);
   expect(created).toEqual(
     expect.objectContaining({
-      title: 'Sem título',
+      title: 'documento-sem-titulo-1',
       spaceId: unit.spaceId,
       authorId: personA.id,
       ownerId: personA.id,
@@ -1045,7 +1045,7 @@ test('POST documents with a free spaceId answers 201 to a member in that space o
 
   expect(document).toEqual(
     expect.objectContaining({
-      title: 'Sem título',
+      title: 'documento-sem-titulo-1',
       spaceId,
       authorId: member.id,
       ownerId: member.id,
@@ -1307,7 +1307,7 @@ test('a viewer member PATCH on a colleague document of the free space is refused
   });
 
   expect(response.status).toBe(403);
-  expect(stored.title).toBe('Sem título');
+  expect(stored.title).toBe('documento-sem-titulo-1');
 });
 
 test('a viewer member renames and trashes their own document in the free space', async () => {
@@ -1331,4 +1331,140 @@ test('a viewer member renames and trashes their own document in the free space',
   expect(trashed.status).toBe(200);
   expect(stored.title).toBe('Rascunho do João');
   expect(stored.trashedAt).not.toBeNull();
+});
+
+/** Manda o documento para a lixeira pela API. */
+function trashDocument(cookie: string, documentId: string): Promise<Response> {
+  return httpRequest(app)
+    .post(`/api/documents/${documentId}/trash`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie)
+    .send();
+}
+
+test('POST documents names the first document documento-sem-titulo-1', async () => {
+  const response = await postDocument(cookieA);
+
+  expect(response.status).toBe(201);
+  expect((response.body as { data: DocumentBody }).data.title).toBe(
+    'documento-sem-titulo-1',
+  );
+});
+
+test('POST documents names the second document documento-sem-titulo-2', async () => {
+  await createDocument(cookieA);
+
+  const response = await postDocument(cookieA);
+
+  expect(response.status).toBe(201);
+  expect((response.body as { data: DocumentBody }).data.title).toBe(
+    'documento-sem-titulo-2',
+  );
+});
+
+test('POST documents counts trashed documents when picking the number', async () => {
+  const first = await createDocument(cookieA);
+  const trashed = await trashDocument(cookieA, first.id);
+
+  const response = await postDocument(cookieA);
+
+  expect(first.title).toBe('documento-sem-titulo-1');
+  expect(trashed.status).toBe(200);
+  expect((response.body as { data: DocumentBody }).data.title).toBe(
+    'documento-sem-titulo-2',
+  );
+});
+
+test('POST documents reuses the smallest free number after a rename', async () => {
+  await createDocument(cookieA);
+  const second = await createDocument(cookieA);
+  await createDocument(cookieA);
+  const renamed = await patchDocument(cookieA, second.id, {
+    title: 'Plano de obras',
+  });
+
+  const response = await postDocument(cookieA);
+
+  expect(second.title).toBe('documento-sem-titulo-2');
+  expect(renamed.status).toBe(200);
+  expect((response.body as { data: DocumentBody }).data.title).toBe(
+    'documento-sem-titulo-2',
+  );
+});
+
+test('POST documents numbering of another owner does not interfere', async () => {
+  await createDocument(cookieA);
+  await createDocument(cookieA);
+  const { cookie } = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+
+  const response = await postDocument(cookie);
+  const next = await postDocument(cookieA);
+
+  expect(response.status).toBe(201);
+  expect((response.body as { data: DocumentBody }).data.title).toBe(
+    'documento-sem-titulo-1',
+  );
+  expect((next.body as { data: DocumentBody }).data.title).toBe(
+    'documento-sem-titulo-3',
+  );
+});
+
+test('POST documents keeps existing Sem título documents untouched', async () => {
+  const personalSpace = await prisma.space.findFirstOrThrow({
+    where: { personId: personA.id, type: 'PERSONAL' },
+  });
+  const existing = await prisma.document.create({
+    data: {
+      title: 'Sem título',
+      spaceId: personalSpace.id,
+      authorId: personA.id,
+      ownerId: personA.id,
+    },
+  });
+
+  const response = await postDocument(cookieA);
+  const stored = await prisma.document.findFirstOrThrow({
+    where: { id: existing.id },
+  });
+
+  expect(response.status).toBe(201);
+  expect((response.body as { data: DocumentBody }).data.title).toBe(
+    'documento-sem-titulo-1',
+  );
+  expect(stored.title).toBe('Sem título');
+});
+
+test('create twice at the same time for the same owner gives distinct numbers', async () => {
+  const person = await prisma.person.findFirstOrThrow({
+    where: { id: personA.id },
+    include: { organization: true },
+  });
+
+  const created = await Promise.all([
+    documents().create(person, undefined),
+    documents().create(person, undefined),
+  ]);
+
+  expect(new Set(created.map((document) => document.title))).toEqual(
+    new Set(['documento-sem-titulo-1', 'documento-sem-titulo-2']),
+  );
+});
+
+test('POST documents twice in parallel answers 201 with distinct numbers', async () => {
+  const responses = await Promise.all([
+    postDocument(cookieA),
+    postDocument(cookieA),
+  ]);
+
+  expect(responses.map((response) => response.status)).toEqual([201, 201]);
+  expect(
+    new Set(
+      responses.map(
+        (response) => (response.body as { data: DocumentBody }).data.title,
+      ),
+    ),
+  ).toEqual(new Set(['documento-sem-titulo-1', 'documento-sem-titulo-2']));
 });

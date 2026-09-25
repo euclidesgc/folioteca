@@ -34,7 +34,7 @@ Pré-condição de todas as fases: `docker compose up -d` na raiz (Postgres loca
 
 Caminhos relativos à raiz do repositório. Ao fim da fase, `POST /documents` devolve `title: "documento-sem-titulo-1"` na primeira criação do dono, o menor número livre nas seguintes, e duas criações simultâneas do mesmo dono dão certo com números diferentes.
 
-- [ ] T1.1 — Função pura do nome padrão e o contrato
+- [x] T1.1 — Função pura do nome padrão e o contrato
   - Arquivos: `apps/api/src/documents/default-title.ts` (criar); `apps/api/src/documents/documents.schema.ts` (alterar); `packages/api-contract/openapi.yaml` (alterar); `packages/api-contract/src/generated/openapi.d.ts` (alterar, **só** pelo script)
   - O que fazer (D1, R3, R6, R9):
     - `default-title.ts`: exporta `DEFAULT_TITLE_PREFIX = 'documento-sem-titulo-'` e `nextDefaultTitle(titles: string[]): string`. Só ocupa número o título que casa exatamente `^documento-sem-titulo-([1-9]\d*)$` ("documento-sem-titulo-01", "-0", "documento-sem-titulo-2 cópia" e "Sem título" não ocupam). Devolve `DEFAULT_TITLE_PREFIX + n`, com `n` o menor inteiro ≥ 1 não ocupado.
@@ -43,7 +43,7 @@ Caminhos relativos à raiz do repositório. Ao fim da fase, `POST /documents` de
   - Skills: —
   - Complexidade: baixa
 
-- [ ] T1.2 — `DocumentsService.create` calcula o nome sob lock consultivo por dono
+- [x] T1.2 — `DocumentsService.create` calcula o nome sob lock consultivo por dono
   - Arquivos: `apps/api/src/documents/documents.service.ts` (alterar)
   - O que fazer (D1, D2, R3):
     - Dentro da transação já existente de `create`, a **primeira** instrução é `await tx.$executeRaw\`SELECT pg_advisory_xact_lock(hashtextextended('document-default-title:' || ${person.id}, 0))\`` (template tagged; `ownerId` como parâmetro).
@@ -52,7 +52,7 @@ Caminhos relativos à raiz do repositório. Ao fim da fase, `POST /documents` de
   - Skills: security
   - Complexidade: alta
 
-- [ ] T1.3 — Testes da fase 1
+- [x] T1.3 — Testes da fase 1
   - Arquivos: `apps/api/src/documents/__tests__/default-title.test.ts` (criar); `apps/api/src/documents/__tests__/documents.integration.test.ts` (alterar); `apps/api/src/documents/__tests__/documents.contract.test.ts` (alterar, só se algum exemplo citar o título da criação)
   - O que fazer: integração e contrato contra o Postgres real com `resetDatabase(prisma)` em `beforeEach` e os ajudantes existentes; casos preexistentes que esperavam "Sem título" na criação são ajustados sem renomear (DV1).
     - `default-title.test.ts` (`unit-testing`): `nextDefaultTitle returns documento-sem-titulo-1 for an empty list`; `nextDefaultTitle returns the next number after a sequence`; `nextDefaultTitle fills the smallest gap`; `nextDefaultTitle ignores titles with leading zeros`; `nextDefaultTitle ignores documento-sem-titulo-0`; `nextDefaultTitle ignores titles with a suffix`; `nextDefaultTitle ignores Sem título`.
@@ -62,14 +62,14 @@ Caminhos relativos à raiz do repositório. Ao fim da fase, `POST /documents` de
 
 ### Critérios de aceite da fase 1
 
-- [ ] CA1.1 — Com `docker compose up -d`, na raiz e com o cache do `tsc` limpo (`pnpm exec tsc -b --clean`; nenhum `*.tsbuildinfo` fora de `node_modules`): `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` terminam com exit code 0 e sem aviso.
-- [ ] CA1.2 — `apps/api/src/documents/default-title.ts` exporta `DEFAULT_TITLE_PREFIX` com valor `'documento-sem-titulo-'` e `nextDefaultTitle(titles: string[]): string`; contém a expressão `[1-9]\d*` ancorada com `^` e `$`.
-- [ ] CA1.3 — `apps/api/src/documents/documents.service.ts`, lido em `create`: dentro da mesma transação, a primeira chamada a `tx` é `tx.$executeRaw` com template tagged contendo `pg_advisory_xact_lock(hashtextextended('document-default-title:'`; depois há `tx.document.findMany` com `ownerId` e `startsWith: DEFAULT_TITLE_PREFIX`, sem `trashedAt` no `where`; o título criado vem de `nextDefaultTitle(`. `rg -n -P "^\s*[^/*].*\\\$(executeRawUnsafe|queryRawUnsafe)" apps/api/src/documents/documents.service.ts` é vazio.
-- [ ] CA1.4 — `packages/api-contract/openapi.yaml` cita `documento-sem-titulo-` na operação `createDocument` e `Document.title` tem `description`, continua `type: string` e sem `nullable`. `apps/api/src/documents/documents.schema.ts` mantém `DEFAULT_DOCUMENT_TITLE` com o mesmo valor de antes.
-- [ ] CA1.5 — Banco intocado: `ls apps/api/prisma/migrations` lista as mesmas pastas de antes da fase; `apps/api/prisma/schema.prisma` inalterado; `rg -n "DROP CONSTRAINT|DISABLE TRIGGER|session_replication_role|migrate (diff|dev|reset)" apps/api/src/documents/__tests__/default-title.test.ts apps/api/src/documents/__tests__/documents.integration.test.ts apps/api/src/documents/__tests__/documents.contract.test.ts` é vazio.
-- [ ] CA1.6 — `pnpm exec vitest run --project api` sai com 0 e existem, conferidos com `rg -n "^\s*(it|test)(\.each)?\(" apps/api/src/documents/__tests__/default-title.test.ts apps/api/src/documents/__tests__/documents.integration.test.ts`, os 15 casos nomeados em T1.3 com os nomes literais (`default-title.test.ts`: 7; `documents.integration.test.ts`: 8). `rg -n "vi\.mock\(.*prisma" apps/api/src/documents/__tests__/documents.integration.test.ts` é vazio.
-- [ ] CA1.7 — Lendo os testes: `create twice at the same time for the same owner gives distinct numbers` chama o método `create` do `DocumentsService` real (ligado ao Prisma de teste) duas vezes dentro de um `Promise.all` e assere o conjunto `documento-sem-titulo-1`/`documento-sem-titulo-2`; `POST documents counts trashed documents when picking the number` manda o `-1` para a lixeira antes de criar e espera `-2`; `POST documents keeps existing Sem título documents untouched` assere que o título "Sem título" preexistente continua igual depois da criação.
-- [ ] CA1.8 — Cobertura ≥ 80% de linhas para `apps/api/src/documents/default-title.ts` e `apps/api/src/documents/documents.service.ts`, lida em `coverage/coverage-summary.json` gerado na raiz com `pnpm exec vitest run --coverage --coverage.reporter=json-summary`.
+- [x] CA1.1 — Com `docker compose up -d`, na raiz e com o cache do `tsc` limpo (`pnpm exec tsc -b --clean`; nenhum `*.tsbuildinfo` fora de `node_modules`): `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` terminam com exit code 0 e sem aviso.
+- [x] CA1.2 — `apps/api/src/documents/default-title.ts` exporta `DEFAULT_TITLE_PREFIX` com valor `'documento-sem-titulo-'` e `nextDefaultTitle(titles: string[]): string`; contém a expressão `[1-9]\d*` ancorada com `^` e `$`.
+- [x] CA1.3 — `apps/api/src/documents/documents.service.ts`, lido em `create`: dentro da mesma transação, a primeira chamada a `tx` é `tx.$executeRaw` com template tagged contendo `pg_advisory_xact_lock(hashtextextended('document-default-title:'`; depois há `tx.document.findMany` com `ownerId` e `startsWith: DEFAULT_TITLE_PREFIX`, sem `trashedAt` no `where`; o título criado vem de `nextDefaultTitle(`. `rg -n -P "^\s*[^/*].*\\\$(executeRawUnsafe|queryRawUnsafe)" apps/api/src/documents/documents.service.ts` é vazio.
+- [x] CA1.4 — `packages/api-contract/openapi.yaml` cita `documento-sem-titulo-` na operação `createDocument` e `Document.title` tem `description`, continua `type: string` e sem `nullable`. `apps/api/src/documents/documents.schema.ts` mantém `DEFAULT_DOCUMENT_TITLE` com o mesmo valor de antes.
+- [x] CA1.5 — Banco intocado: `ls apps/api/prisma/migrations` lista as mesmas pastas de antes da fase; `apps/api/prisma/schema.prisma` inalterado; `rg -n "DROP CONSTRAINT|DISABLE TRIGGER|session_replication_role|migrate (diff|dev|reset)" apps/api/src/documents/__tests__/default-title.test.ts apps/api/src/documents/__tests__/documents.integration.test.ts apps/api/src/documents/__tests__/documents.contract.test.ts` é vazio.
+- [x] CA1.6 — `pnpm exec vitest run --project api` sai com 0 e existem, conferidos com `rg -n "^\s*(it|test)(\.each)?\(" apps/api/src/documents/__tests__/default-title.test.ts apps/api/src/documents/__tests__/documents.integration.test.ts`, os 15 casos nomeados em T1.3 com os nomes literais (`default-title.test.ts`: 7; `documents.integration.test.ts`: 8). `rg -n "vi\.mock\(.*prisma" apps/api/src/documents/__tests__/documents.integration.test.ts` é vazio.
+- [x] CA1.7 — Lendo os testes: `create twice at the same time for the same owner gives distinct numbers` chama o método `create` do `DocumentsService` real (ligado ao Prisma de teste) duas vezes dentro de um `Promise.all` e assere o conjunto `documento-sem-titulo-1`/`documento-sem-titulo-2`; `POST documents counts trashed documents when picking the number` manda o `-1` para a lixeira antes de criar e espera `-2`; `POST documents keeps existing Sem título documents untouched` assere que o título "Sem título" preexistente continua igual depois da criação.
+- [x] CA1.8 — Cobertura ≥ 80% de linhas para `apps/api/src/documents/default-title.ts` e `apps/api/src/documents/documents.service.ts`, lida em `coverage/coverage-summary.json` gerado na raiz com `pnpm exec vitest run --coverage --coverage.reporter=json-summary`.
 
 ## Fase 2 — Web: título compacto na barra do documento
 
@@ -151,6 +151,7 @@ Preenchido pelos agentes de fase quando um teste existente precisar de ajuste (s
 - DV1 — `apps/api/src/documents/__tests__/documents.integration.test.ts` e `documents.contract.test.ts`: casos que esperavam "Sem título" na criação passam a esperar `documento-sem-titulo-N`.
 - DV2 — testes web que procuravam o rótulo "Título", o alerta inline ou "Sem título" na criação (T2.4).
 - DV3 — `apps/web/e2e/tests/free-space-documents.spec.ts`, `favorites.spec.ts`, `unit-space-documents.spec.ts`, `trash.spec.ts`, `block-editor.spec.ts`: localizador "Título" → "Título do documento" e valor pela regex.
+- DV4 — `apps/api/src/access/__tests__/document-access-boundary.test.ts` (regra 2, caso `every document read in the documents module goes through readableDocumentsWhere`): exceção nomeada `isDefaultTitleRead` para a única leitura `tx.document.findMany` de `create` em `documents.service.ts` que numera `documento-sem-titulo-N`. Não se criou porta nova no módulo `access` porque uma porta "do dono, lixeira incluída" ficaria disponível a qualquer leitura de `documents/` e deixaria passar lista com lixeira sem mencionar `trashedAt` (enfraquece a regra 8). A exceção vale só nesse arquivo e só para a chamada com `ownerId: person.id`, `title: { startsWith: DEFAULT_TITLE_PREFIX }` e `select: { title: true }`: a leitura não devolve documento a ninguém, só calcula o próximo número, e é restrita ao `ownerId` de quem cria. O caso de amostra da regra 2 ganhou a chamada aceita e a mesma chamada fora do arquivo reprovada; nenhum caso renomeado.
 
 ## DoD da entrega
 
