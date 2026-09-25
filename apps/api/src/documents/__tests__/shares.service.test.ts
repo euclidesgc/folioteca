@@ -54,6 +54,7 @@ function createService(
   deleteMany: ReturnType<typeof vi.fn>;
   canWriteMock: ReturnType<typeof vi.fn>;
   instanceUpsert: ReturnType<typeof vi.fn>;
+  instanceDeleteMany: ReturnType<typeof vi.fn>;
 } {
   const findFirst = vi.fn().mockResolvedValue(storedPerson);
   const upsert = vi.fn().mockResolvedValue({});
@@ -61,6 +62,7 @@ function createService(
   const deleteMany = vi.fn().mockResolvedValue({ count: 1 });
   const canWriteMock = vi.fn().mockResolvedValue(canWrite);
   const instanceUpsert = vi.fn().mockResolvedValue({});
+  const instanceDeleteMany = vi.fn().mockResolvedValue({ count: 1 });
 
   const prisma = {
     person: { findFirst },
@@ -68,6 +70,7 @@ function createService(
     documentInstanceShare: {
       findFirst: vi.fn().mockResolvedValue(null),
       upsert: instanceUpsert,
+      deleteMany: instanceDeleteMany,
     },
   } as unknown as PrismaService;
 
@@ -84,6 +87,7 @@ function createService(
     deleteMany,
     canWriteMock,
     instanceUpsert,
+    instanceDeleteMany,
   };
 }
 
@@ -615,4 +619,62 @@ test('shareInstance checks 404 then 403 then 409 then 400', async () => {
   expect(owner.instanceUpsert).not.toHaveBeenCalled();
   expect(none.canWriteMock).not.toHaveBeenCalled();
   expect(view.canWriteMock).not.toHaveBeenCalled();
+});
+
+test('removeInstance checks 404 then 403 then 409 before deleting', async () => {
+  const none = createService('none', { canWrite: false });
+  const view = createService('view', { canWrite: false });
+  const edit = createService('edit', { canWrite: false });
+  const trashed = createService('owner', { canWrite: false });
+  const allowed = createService('owner');
+  const listener = vi.fn();
+  allowed.service.onShareChanged(listener);
+
+  const notFound = await errorOf(
+    none.service.removeInstance(owner, DOCUMENT_ID),
+  );
+  const forbiddenView = await errorOf(
+    view.service.removeInstance(owner, DOCUMENT_ID),
+  );
+  const forbiddenEdit = await errorOf(
+    edit.service.removeInstance(owner, DOCUMENT_ID),
+  );
+  const conflict = await errorOf(
+    trashed.service.removeInstance(owner, DOCUMENT_ID),
+  );
+  const result = await allowed.service.removeInstance(owner, DOCUMENT_ID);
+
+  expect(notFound).toBeInstanceOf(NotFoundException);
+  expect((notFound as NotFoundException).message).toBe(
+    'Documento não encontrado.',
+  );
+  expect(forbiddenView).toBeInstanceOf(ForbiddenException);
+  expect((forbiddenView as ForbiddenException).message).toBe(
+    'Só o proprietário pode remover o acesso a este documento.',
+  );
+  expect(forbiddenEdit).toBeInstanceOf(ForbiddenException);
+  expect((forbiddenEdit as ForbiddenException).message).toBe(
+    'Só o proprietário pode remover o acesso a este documento.',
+  );
+  expect(conflict).toBeInstanceOf(ConflictException);
+  expect((conflict as ConflictException).message).toBe(
+    'Este documento está na lixeira. Restaure-o para editar.',
+  );
+  expect(none.canWriteMock).not.toHaveBeenCalled();
+  expect(view.canWriteMock).not.toHaveBeenCalled();
+  expect(edit.canWriteMock).not.toHaveBeenCalled();
+  expect(none.instanceDeleteMany).not.toHaveBeenCalled();
+  expect(view.instanceDeleteMany).not.toHaveBeenCalled();
+  expect(edit.instanceDeleteMany).not.toHaveBeenCalled();
+  expect(trashed.instanceDeleteMany).not.toHaveBeenCalled();
+  expect(result).toBeUndefined();
+  expect(allowed.instanceDeleteMany).toHaveBeenCalledTimes(1);
+  expect(allowed.instanceDeleteMany).toHaveBeenCalledWith({
+    where: { documentId: DOCUMENT_ID },
+  });
+  expect(allowed.canWriteMock.mock.invocationCallOrder[0]).toBeLessThan(
+    allowed.instanceDeleteMany.mock.invocationCallOrder[0] ?? 0,
+  );
+  expect(allowed.deleteMany).not.toHaveBeenCalled();
+  expect(listener).not.toHaveBeenCalled();
 });

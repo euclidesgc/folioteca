@@ -174,6 +174,15 @@ export class DocumentsController {
     return this.shares.shareInstance(person, documentId, body);
   }
 
+  @Delete(':documentId/instance-share')
+  @HttpCode(204)
+  async removeDocumentInstanceShare(
+    @CurrentPerson() person: PersonWithOrganization,
+    @Param('documentId') documentId: string,
+  ): Promise<void> {
+    await this.shares.removeInstance(person, documentId);
+  }
+
   @Delete(':documentId/shares/:personId')
   @HttpCode(204)
   async removeDocumentShare(

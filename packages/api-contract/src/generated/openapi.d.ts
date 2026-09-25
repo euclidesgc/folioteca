@@ -260,7 +260,11 @@ export interface paths {
          */
         put: operations["shareDocumentWithInstance"];
         post?: never;
-        delete?: never;
+        /**
+         * Remove o compartilhamento do documento com todos da organização
+         * @description Remove o compartilhamento do documento com todos da organização. Quem só tinha acesso pela organização deixa de ter acesso no pedido seguinte. Só o proprietário remove. A operação é idempotente: responde 204 também quando o documento já não estava compartilhado com a organização. As checagens acontecem nesta ordem: 401, 404 (documento inexistente ou sem acesso), 403 (quem chama não é o proprietário), 409 (documento na lixeira).
+         */
+        delete: operations["removeDocumentInstanceShare"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2025,6 +2029,62 @@ export interface operations {
                 };
             };
             /** @description Só o proprietário pode compartilhar este documento. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O documento não existe ou não está acessível. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Este documento está na lixeira. Restaure-o para editar. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    removeDocumentInstanceShare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Compartilhamento com a organização removido; também responde 204 se o documento já não estava compartilhado com a organização. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Só o proprietário pode remover o acesso a este documento. */
             403: {
                 headers: {
                     [name: string]: unknown;

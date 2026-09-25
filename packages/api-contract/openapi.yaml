@@ -733,6 +733,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+    delete:
+      operationId: removeDocumentInstanceShare
+      tags:
+        - documents
+      summary: Remove o compartilhamento do documento com todos da organização
+      description: >-
+        Remove o compartilhamento do documento com todos da organização. Quem
+        só tinha acesso pela organização deixa de ter acesso no pedido
+        seguinte. Só o proprietário remove. A operação é idempotente: responde
+        204 também quando o documento já não estava compartilhado com a
+        organização. As checagens acontecem nesta ordem: 401, 404 (documento
+        inexistente ou sem acesso), 403 (quem chama não é o proprietário), 409
+        (documento na lixeira).
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: >-
+            Compartilhamento com a organização removido; também responde 204 se
+            o documento já não estava compartilhado com a organização.
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Só o proprietário pode remover o acesso a este documento.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: O documento não existe ou não está acessível.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: >-
+            Este documento está na lixeira. Restaure-o para editar.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /org-units:
     get:
       operationId: getOrgUnits

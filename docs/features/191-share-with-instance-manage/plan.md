@@ -33,7 +33,7 @@ Pré-condição de todas as fases: `docker compose up -d` na raiz (Postgres loca
 
 Caminhos relativos à raiz. A ordem importa: contrato, depois serviço e rota. Ao fim da fase, pela API, o dono remove o compartilhamento com a instância (204, idempotente) e quem só tinha acesso por ela perde-o no pedido seguinte.
 
-- [ ] T1.1 — Contrato, serviço e rota do `DELETE …/instance-share` (D1, D2, R3, R5)
+- [x] T1.1 — Contrato, serviço e rota do `DELETE …/instance-share` (D1, D2, R3, R5)
   - Arquivos: `packages/api-contract/openapi.yaml` (alterar); `packages/api-contract/src/generated/openapi.d.ts` (alterar, regenerado pelo script); `apps/api/src/documents/shares.service.ts` (alterar); `apps/api/src/documents/documents.controller.ts` (alterar)
   - O que fazer:
     - `openapi.yaml`: no caminho já existente `/documents/{documentId}/instance-share`, operação `delete` com `operationId: removeDocumentInstanceShare`, parâmetro `documentId`, **sem corpo**, respostas 204 (sem conteúdo), 401, 403, 404 e 409 com `Error`, descrições em pt_BR na ordem 401 → 404 → 403 → 409. Sem `nullable`. Regenerar os tipos pelo script do pacote.
@@ -42,7 +42,7 @@ Caminhos relativos à raiz. A ordem importa: contrato, depois serviço e rota. A
   - Skills: api-requests, authorization, security
   - Complexidade: média
 
-- [ ] T1.2 — Testes da fase 1
+- [x] T1.2 — Testes da fase 1
   - Arquivos: `apps/api/src/documents/__tests__/shares.service.test.ts` (alterar); `apps/api/src/documents/__tests__/documents.contract.test.ts` (alterar); `apps/api/src/documents/__tests__/shares.integration.test.ts` (alterar); `apps/api/src/access/__tests__/access.integration.test.ts` (alterar); `apps/api/src/documents/__tests__/documents.integration.test.ts` (alterar)
   - O que fazer (D6): `resetDatabase(prisma)` em `beforeEach` e os ajudantes existentes de sessão, organização, pessoa, espaço e documento; o compartilhamento com a instância é criado pelo `PUT …/instance-share` real. O dublê do Prisma em `shares.service.test.ts` ganha `documentInstanceShare.deleteMany` (registrar em Desvios se quebrar caso antigo). Casos novos com os nomes literais:
     - `shares.service.test.ts` (`unit-testing`):
@@ -73,15 +73,15 @@ Caminhos relativos à raiz. A ordem importa: contrato, depois serviço e rota. A
 
 ### Critérios de aceite da fase 1
 
-- [ ] CA1.1 — Com `docker compose up -d`, na raiz e com o cache do `tsc` limpo (`pnpm exec tsc -b --clean`; nenhum `*.tsbuildinfo` fora de `node_modules`): `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` terminam com exit code 0 e sem aviso.
-- [ ] CA1.2 — `packages/api-contract/openapi.yaml` tem, no caminho `/documents/{documentId}/instance-share`, a operação `delete` `removeDocumentInstanceShare` sem `requestBody` e com respostas 204, 401, 403, 404 e 409; o `put` `shareDocumentWithInstance` continua lá; `rg -n "nullable" packages/api-contract/openapi.yaml` é vazio.
-- [ ] CA1.3 — `apps/api/src/documents/documents.controller.ts` tem `@Delete(':documentId/instance-share')` com `@HttpCode(204)` e `@Param('documentId')`, chamando `removeInstance`; o caso `DELETE instance-share has the same path and parameter in the controller and the contract` prova a identidade lendo os dois.
-- [ ] CA1.4 — Lendo `apps/api/src/documents/shares.service.ts`: `removeInstance` faz, nesta ordem, `resolveAccess` com 404 opaco para `none`, 403 com `OWNER_ONLY_REMOVE_MESSAGE` para quem não é dono, 409 com `TRASHED_DOCUMENT_MESSAGE` quando `canWrite` é falso, e só depois `documentInstanceShare.deleteMany` por `documentId`; não usa `deleteUnique` nem chama `notifyShareChanged` dentro de `removeInstance`.
-- [ ] CA1.5 — Nada fora do escopo mudou: `git status --porcelain apps/api/prisma apps/api/src/access/access.service.ts apps/api/src/collab apps/api/src/access/__tests__/document-access-boundary.test.ts` é vazio; `rg -n -P "^(?!\s*(//|\*)).*documentInstanceShare" apps/api/src --glob '!**/__tests__/**'` só casa `apps/api/src/access/access.service.ts` e `apps/api/src/documents/shares.service.ts`.
-- [ ] CA1.6 — `rg -n "migrate (diff|dev|reset)|DROP CONSTRAINT|DISABLE TRIGGER|session_replication_role|ALTER TABLE" apps/api/src/access/__tests__ apps/api/src/documents/__tests__` é vazio; `rg -n "vi\.mock\(" apps/api/src/access/__tests__/access.integration.test.ts apps/api/src/documents/__tests__/shares.integration.test.ts apps/api/src/documents/__tests__/documents.integration.test.ts` não traz mock de Prisma nem de `AccessService`.
-- [ ] CA1.7 — `pnpm exec vitest run --project api` sai com 0 e existem, conferidos com `rg -n "^\s*(it|test)(\.each)?\("` nos arquivos de T1.2, os 18 casos nomeados em T1.2 com os nomes literais (`shares.service.test.ts`: 1; `documents.contract.test.ts`: 2; `shares.integration.test.ts`: 10; `access.integration.test.ts`: 4; `documents.integration.test.ts`: 1).
-- [ ] CA1.8 — Lendo os testes: `DELETE instance-share twice answers 204 both times` faz dois `DELETE` seguidos e confere 204 nos dois; `DELETE instance-share on a trashed document answers 409 and keeps the level` confere o nível guardado depois do 409; `removing an instance edit share keeps a personal view share at view` assere `view` (não `none`) depois da remoção; `DELETE instance-share by a view share answers 403` assere a mensagem "Só o proprietário pode remover o acesso a este documento.".
-- [ ] CA1.9 — Cobertura ≥ 80% de linhas para `apps/api/src/documents/shares.service.ts` e `apps/api/src/documents/documents.controller.ts`, lida em `coverage/coverage-summary.json` gerado na raiz com `pnpm exec vitest run --coverage --coverage.reporter=json-summary`.
+- [x] CA1.1 — Com `docker compose up -d`, na raiz e com o cache do `tsc` limpo (`pnpm exec tsc -b --clean`; nenhum `*.tsbuildinfo` fora de `node_modules`): `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` terminam com exit code 0 e sem aviso.
+- [x] CA1.2 — `packages/api-contract/openapi.yaml` tem, no caminho `/documents/{documentId}/instance-share`, a operação `delete` `removeDocumentInstanceShare` sem `requestBody` e com respostas 204, 401, 403, 404 e 409; o `put` `shareDocumentWithInstance` continua lá; `rg -n "nullable" packages/api-contract/openapi.yaml` é vazio.
+- [x] CA1.3 — `apps/api/src/documents/documents.controller.ts` tem `@Delete(':documentId/instance-share')` com `@HttpCode(204)` e `@Param('documentId')`, chamando `removeInstance`; o caso `DELETE instance-share has the same path and parameter in the controller and the contract` prova a identidade lendo os dois.
+- [x] CA1.4 — Lendo `apps/api/src/documents/shares.service.ts`: `removeInstance` faz, nesta ordem, `resolveAccess` com 404 opaco para `none`, 403 com `OWNER_ONLY_REMOVE_MESSAGE` para quem não é dono, 409 com `TRASHED_DOCUMENT_MESSAGE` quando `canWrite` é falso, e só depois `documentInstanceShare.deleteMany` por `documentId`; não usa `deleteUnique` nem chama `notifyShareChanged` dentro de `removeInstance`.
+- [x] CA1.5 — Nada fora do escopo mudou: `git status --porcelain apps/api/prisma apps/api/src/access/access.service.ts apps/api/src/collab apps/api/src/access/__tests__/document-access-boundary.test.ts` é vazio; `rg -n -P "^(?!\s*(//|\*)).*documentInstanceShare" apps/api/src --glob '!**/__tests__/**'` só casa `apps/api/src/access/access.service.ts` e `apps/api/src/documents/shares.service.ts`.
+- [x] CA1.6 — `rg -n "migrate (diff|dev|reset)|DROP CONSTRAINT|DISABLE TRIGGER|session_replication_role|ALTER TABLE" apps/api/src/access/__tests__ apps/api/src/documents/__tests__` é vazio; `rg -n "vi\.mock\(" apps/api/src/access/__tests__/access.integration.test.ts apps/api/src/documents/__tests__/shares.integration.test.ts apps/api/src/documents/__tests__/documents.integration.test.ts` não traz mock de Prisma nem de `AccessService`.
+- [x] CA1.7 — `pnpm exec vitest run --project api` sai com 0 e existem, conferidos com `rg -n "^\s*(it|test)(\.each)?\("` nos arquivos de T1.2, os 18 casos nomeados em T1.2 com os nomes literais (`shares.service.test.ts`: 1; `documents.contract.test.ts`: 2; `shares.integration.test.ts`: 10; `access.integration.test.ts`: 4; `documents.integration.test.ts`: 1).
+- [x] CA1.8 — Lendo os testes: `DELETE instance-share twice answers 204 both times` faz dois `DELETE` seguidos e confere 204 nos dois; `DELETE instance-share on a trashed document answers 409 and keeps the level` confere o nível guardado depois do 409; `removing an instance edit share keeps a personal view share at view` assere `view` (não `none`) depois da remoção; `DELETE instance-share by a view share answers 403` assere a mensagem "Só o proprietário pode remover o acesso a este documento.".
+- [x] CA1.9 — Cobertura ≥ 80% de linhas para `apps/api/src/documents/shares.service.ts` e `apps/api/src/documents/documents.controller.ts`, lida em `coverage/coverage-summary.json` gerado na raiz com `pnpm exec vitest run --coverage --coverage.reporter=json-summary`.
 
 ## Fase 2 — Web: seletor de nível e remoção na linha "Todos da organização"
 
@@ -167,6 +167,8 @@ Caminhos relativos à raiz. Ao fim da fase, a fatia está utilizável de ponta a
 ## Desvios
 
 Preenchido pelos agentes de fase quando um teste existente precisar de ajuste ou um critério precisar de literal diferente com o mesmo comportamento.
+
+- DV1 (fase 1, T1.2) — `apps/api/src/documents/__tests__/documents.contract.test.ts`, caso existente `PUT instance-share has the same path and parameter in the controller and the contract` (nome mantido): assertia que o caminho `/documents/{documentId}/instance-share` tinha só a operação `put` (`Object.keys(pathItem)` igual a `['put']`). Com o `delete` novo no mesmo caminho, passou a conferir `['delete', 'put']` (ordenado). O restante do caso não mudou.
 
 ## DoD da entrega
 

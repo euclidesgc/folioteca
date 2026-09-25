@@ -1740,3 +1740,28 @@ test('a colleague through the instance gets 403 on trash and delete', async () =
   });
   expect(stored.trashedAt).toBeNull();
 });
+
+test('a colleague reached only through the instance gets 404 after the instance share is removed', async () => {
+  const document = await createDocument(cookieA);
+  await shareWithInstance(document.id, 'edit');
+  const { cookie } = await createColleague();
+
+  const before = await getDocument(cookie, document.id);
+  const removed = await httpRequest(app)
+    .delete(`/api/documents/${document.id}/instance-share`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send();
+  const after = await getDocument(cookie, document.id);
+  const rename = await patchDocument(cookie, document.id, {
+    title: 'Título do colega',
+  });
+  const byOwner = await getDocument(cookieA, document.id);
+
+  expect(before.status).toBe(200);
+  expect(removed.status).toBe(204);
+  expect(after.status).toBe(404);
+  expect(after.body).toEqual({ message: 'Documento não encontrado.' });
+  expect(rename.status).toBe(404);
+  expect(byOwner.status).toBe(200);
+});

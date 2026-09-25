@@ -207,6 +207,39 @@ export class SharesService {
   }
 
   /**
+   * Removes the document's share with everyone in the organization. Idempotent:
+   * removing a share that does not exist succeeds without changes. Checks run
+   * in the order not found (opaque) → forbidden (not the owner) → conflict
+   * (document in the trash). Open collab connections are not re-evaluated
+   * here; every later access decision reads the instance share again.
+   */
+  async removeInstance(
+    requester: PersonWithOrganization,
+    documentId: string,
+  ): Promise<void> {
+    const accessLevel = await this.access.resolveAccess(
+      requester.id,
+      documentId,
+    );
+
+    if (accessLevel === 'none') {
+      throw documentNotFound();
+    }
+
+    if (accessLevel !== 'owner') {
+      throw new ForbiddenException(OWNER_ONLY_REMOVE_MESSAGE);
+    }
+
+    if (!(await this.access.canWrite(requester.id, documentId))) {
+      throw new ConflictException(TRASHED_DOCUMENT_MESSAGE);
+    }
+
+    await this.prisma.documentInstanceShare.deleteMany({
+      where: { documentId },
+    });
+  }
+
+  /**
    * Subscribes a listener to share changes (level switched or share removed).
    * Called at startup, once per listener.
    */

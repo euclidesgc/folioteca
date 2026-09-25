@@ -1056,7 +1056,7 @@ test('PUT instance-share has the same path and parameter in the controller and t
     '{$1}',
   );
 
-  expect(Object.keys(pathItem ?? {})).toEqual(['put']);
+  expect(Object.keys(pathItem ?? {}).sort()).toEqual(['delete', 'put']);
   expect(pathItem?.put?.operationId).toBe('shareDocumentWithInstance');
   expect(Object.keys(pathItem?.put?.responses ?? {}).sort()).toEqual([
     '200',
@@ -1105,6 +1105,115 @@ test('PUT instance-share matches the 200 contract', async () => {
   await expectInstanceShareContract(forbidden, 403);
   await expectInstanceShareContract(missing, 404);
   await expectInstanceShareContract(trashed, 409);
+});
+
+function deleteInstanceShare(
+  documentId: string,
+  shareCookie?: string,
+): Promise<Response> {
+  const request = httpRequest(app)
+    .delete(`/api/documents/${documentId}/instance-share`)
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return shareCookie === undefined ? request : request.set('Cookie', shareCookie);
+}
+
+async function expectRemoveInstanceShareContract(
+  response: Response,
+  status: number,
+): Promise<void> {
+  expect(response.status).toBe(status);
+  await expectMatchesContract({
+    path: INSTANCE_SHARE_CONTRACT_PATH,
+    method: 'delete',
+    status,
+    body: response.body,
+  });
+}
+
+test('DELETE instance-share has the same path and parameter in the controller and the contract', async () => {
+  const pathItem = (await rawContract()).paths?.[INSTANCE_SHARE_CONTRACT_PATH];
+  const controllerPath = Reflect.getMetadata(
+    PATH_METADATA,
+    DocumentsController,
+  ) as unknown;
+  const handler = Object.getOwnPropertyDescriptor(
+    DocumentsController.prototype,
+    'removeDocumentInstanceShare',
+  )?.value as object;
+  const methodPath = Reflect.getMetadata(PATH_METADATA, handler) as unknown;
+  const requestMethod = Reflect.getMetadata(METHOD_METADATA, handler) as unknown;
+  const httpCode = Reflect.getMetadata(HTTP_CODE_METADATA, handler) as unknown;
+  const routeArgs = (Reflect.getMetadata(
+    ROUTE_ARGS_METADATA,
+    DocumentsController,
+    'removeDocumentInstanceShare',
+  ) ?? {}) as Record<string, { data?: unknown }>;
+  const paramNames = Object.entries(routeArgs)
+    .filter(([key]) => key.startsWith(`${RouteParamtypes.PARAM}:`))
+    .map(([, arg]) => arg.data)
+    .sort();
+  const contractPath = `/${String(controllerPath)}/${String(methodPath)}`.replace(
+    /:(\w+)/g,
+    '{$1}',
+  );
+
+  expect(pathItem?.delete?.operationId).toBe('removeDocumentInstanceShare');
+  expect(pathItem?.put?.operationId).toBe('shareDocumentWithInstance');
+  expect(requestMethod).toBe(RequestMethod.DELETE);
+  expect(httpCode).toBe(204);
+  expect(contractPath).toBe(INSTANCE_SHARE_CONTRACT_PATH);
+  expect(paramNames).toEqual(['documentId']);
+  expect(
+    (pathItem?.delete?.parameters ?? [])
+      .filter((parameter) => parameter.in === 'path')
+      .map((parameter) => parameter.name),
+  ).toEqual(['documentId']);
+});
+
+test('DELETE instance-share declares 204, 401, 403, 404 and 409 without a request body', async () => {
+  const pathItem = (await rawContract()).paths?.[INSTANCE_SHARE_CONTRACT_PATH];
+  const operation = pathItem?.delete;
+  const documentId = await createDocumentId();
+  const trashedId = await createDocumentId();
+  const viewer = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+  await putShare(documentId, viewer.person.id, cookie);
+  await putInstanceShare(documentId, { level: 'view' }, cookie);
+  await putInstanceShare(trashedId, { level: 'view' }, cookie);
+  await trashDocument(trashedId);
+
+  const unauthorized = await deleteInstanceShare(documentId);
+  const forbidden = await deleteInstanceShare(documentId, viewer.cookie);
+  const missing = await deleteInstanceShare(randomUUID(), cookie);
+  const trashed = await deleteInstanceShare(trashedId, cookie);
+  const removed = await deleteInstanceShare(documentId, cookie);
+
+  expect(operation).toBeDefined();
+  expect(operation?.requestBody).toBeUndefined();
+  expect(Object.keys(operation?.responses ?? {}).sort()).toEqual([
+    '204',
+    '401',
+    '403',
+    '404',
+    '409',
+  ]);
+  expect(operation?.responses?.['403']?.description).toContain(
+    'Só o proprietário pode remover o acesso a este documento.',
+  );
+  expect(JSON.stringify(pathItem)).not.toContain('nullable');
+  await expectRemoveInstanceShareContract(unauthorized, 401);
+  await expectRemoveInstanceShareContract(forbidden, 403);
+  await expectRemoveInstanceShareContract(missing, 404);
+  await expectRemoveInstanceShareContract(trashed, 409);
+  expect(removed.status).toBe(204);
+  await expectDocumentedEmptyResponse(
+    INSTANCE_SHARE_CONTRACT_PATH,
+    'delete',
+    204,
+  );
 });
 
 test('GET shares matches the contract with instance', async () => {

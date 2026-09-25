@@ -1392,3 +1392,148 @@ test('GET shares answers instance level none without an instance share', async (
     instance: { level: 'none' },
   });
 });
+
+function deleteInstanceShare(
+  documentId: string,
+  cookie?: string,
+): Promise<Response> {
+  const request = httpRequest(app)
+    .delete(`/api/documents/${documentId}/instance-share`)
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return (cookie === undefined ? request : request.set('Cookie', cookie)).send();
+}
+
+test('DELETE instance-share answers 204 and the list shows instance level none', async () => {
+  const documentId = await createDocument(ownerCookie);
+  await putInstanceShare(documentId, EDIT_BODY, ownerCookie);
+  await putShare(documentId, other.id, VIEW_BODY, ownerCookie);
+
+  const response = await deleteInstanceShare(documentId, ownerCookie);
+  const list = await getShares(documentId, ownerCookie);
+
+  expect(response.status).toBe(204);
+  expect(response.body).toEqual({});
+  expect(instanceOf(list)).toEqual({ level: 'none' });
+  expect(entriesOf(list).map((entry) => entry.personId)).toEqual([
+    owner.id,
+    other.id,
+  ]);
+  expect(await instanceShareRows(documentId)).toBe(0);
+  expect(await shareRowsOf(documentId, other.id)).toBe(1);
+});
+
+test('DELETE instance-share twice answers 204 both times', async () => {
+  const documentId = await createDocument(ownerCookie);
+  await putInstanceShare(documentId, VIEW_BODY, ownerCookie);
+
+  const first = await deleteInstanceShare(documentId, ownerCookie);
+  const second = await deleteInstanceShare(documentId, ownerCookie);
+
+  expect(first.status).toBe(204);
+  expect(second.status).toBe(204);
+  expect(await instanceShareRows(documentId)).toBe(0);
+});
+
+test('DELETE instance-share by a view share answers 403', async () => {
+  const documentId = await createDocument(ownerCookie);
+  await putShare(documentId, other.id, VIEW_BODY, ownerCookie);
+  await putInstanceShare(documentId, VIEW_BODY, ownerCookie);
+
+  const response = await deleteInstanceShare(documentId, otherCookie);
+
+  expect(response.status).toBe(403);
+  expect(messageOf(response)).toBe(
+    'Só o proprietário pode remover o acesso a este documento.',
+  );
+  expect(await storedInstanceLevel(documentId)).toBe('VIEW');
+});
+
+test('DELETE instance-share by an edit share answers 403', async () => {
+  const documentId = await createDocument(ownerCookie);
+  await putShare(documentId, other.id, EDIT_BODY, ownerCookie);
+  await putInstanceShare(documentId, VIEW_BODY, ownerCookie);
+
+  const response = await deleteInstanceShare(documentId, otherCookie);
+
+  expect(response.status).toBe(403);
+  expect(messageOf(response)).toBe(OWNER_ONLY_REMOVE_MESSAGE);
+  expect(await storedInstanceLevel(documentId)).toBe('VIEW');
+});
+
+test('DELETE instance-share by a person reached only through the instance answers 403', async () => {
+  const documentId = await createDocument(ownerCookie);
+  await putInstanceShare(documentId, EDIT_BODY, ownerCookie);
+
+  const opened = await getDocument(documentId, otherCookie);
+  const response = await deleteInstanceShare(documentId, otherCookie);
+
+  expect(accessLevelOf(opened)).toBe('edit');
+  expect(response.status).toBe(403);
+  expect(messageOf(response)).toBe(OWNER_ONLY_REMOVE_MESSAGE);
+  expect(await storedInstanceLevel(documentId)).toBe('EDIT');
+});
+
+test('DELETE instance-share on a document without access answers 404', async () => {
+  const documentId = await createDocument(ownerCookie);
+  const foreignDocumentId = await createForeignDocument();
+  const requester = await prisma.person.findFirstOrThrow({
+    where: { id: owner.id },
+    include: { organization: true },
+  });
+
+  const response = await deleteInstanceShare(documentId, otherCookie);
+  const foreign = await deleteInstanceShare(foreignDocumentId, ownerCookie);
+  const error: unknown = await app
+    .get(SharesService)
+    .removeInstance(
+      { ...requester, organizationId: randomUUID() },
+      foreignDocumentId,
+    )
+    .catch((reason: unknown) => reason);
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({ message: 'Documento não encontrado.' });
+  expect(foreign.status).toBe(404);
+  expect(foreign.body).toEqual({ message: 'Documento não encontrado.' });
+  expect(error).toBeInstanceOf(NotFoundException);
+  expect(await instanceShareRows(documentId)).toBe(0);
+});
+
+test('DELETE instance-share on a missing document answers 404', async () => {
+  const response = await deleteInstanceShare(randomUUID(), ownerCookie);
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({ message: 'Documento não encontrado.' });
+});
+
+test('DELETE instance-share with a malformed document id answers 404', async () => {
+  const response = await deleteInstanceShare('nao-e-uuid', ownerCookie);
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({ message: 'Documento não encontrado.' });
+});
+
+test('DELETE instance-share on a trashed document answers 409 and keeps the level', async () => {
+  const documentId = await createDocument(ownerCookie);
+  await putInstanceShare(documentId, EDIT_BODY, ownerCookie);
+  await postAction(documentId, 'trash', ownerCookie);
+
+  const response = await deleteInstanceShare(documentId, ownerCookie);
+  const list = await getShares(documentId, ownerCookie);
+
+  expect(response.status).toBe(409);
+  expect(messageOf(response)).toBe(TRASHED_DOCUMENT_MESSAGE);
+  expect(await storedInstanceLevel(documentId)).toBe('EDIT');
+  expect(instanceOf(list)).toEqual({ level: 'edit' });
+});
+
+test('DELETE instance-share answers 401 without session', async () => {
+  const documentId = await createDocument(ownerCookie);
+  await putInstanceShare(documentId, VIEW_BODY, ownerCookie);
+
+  const response = await deleteInstanceShare(documentId);
+
+  expect(response.status).toBe(401);
+  expect(await storedInstanceLevel(documentId)).toBe('VIEW');
+});

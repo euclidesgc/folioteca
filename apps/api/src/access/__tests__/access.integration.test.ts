@@ -5,6 +5,8 @@ import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import type { Person } from '@prisma/client';
 
+import { SESSION_COOKIE_NAME } from '../../auth/session-cookie';
+import { SessionService } from '../../auth/session.service';
 import { createApp } from '../../create-app';
 import { PrismaService } from '../../prisma/prisma.service';
 import { createPersonWithSession } from '../../../test/create-person';
@@ -1056,4 +1058,102 @@ test('a trashed document with an instance share gives none to a colleague and ow
   expect(await access.canWrite(colleague.id, documentId)).toBe(false);
   expect(await readableIds(colleague.id)).toEqual([]);
   expect(await access.resolveAccess(owner.id, documentId)).toBe('owner');
+});
+
+/** Cookie de uma sessão nova da pessoa, aberta pelo `SessionService` real. */
+async function sessionCookieOf(person: Person): Promise<string> {
+  const session = await app.get(SessionService).create(person.id);
+
+  return `${SESSION_COOKIE_NAME}=${session.token}`;
+}
+
+/** `PUT …/instance-share` real, pela sessão do dono. */
+async function putInstanceShare(
+  documentId: string,
+  level: 'view' | 'edit',
+  cookie: string,
+): Promise<void> {
+  const response = await httpRequest(app)
+    .put(`/api/documents/${documentId}/instance-share`)
+    .set('Cookie', cookie)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .send({ level });
+
+  expect(response.status).toBe(200);
+}
+
+/** `DELETE …/instance-share` real, pela sessão do dono. */
+async function deleteInstanceShare(
+  documentId: string,
+  cookie: string,
+): Promise<void> {
+  const response = await httpRequest(app)
+    .delete(`/api/documents/${documentId}/instance-share`)
+    .set('Cookie', cookie)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .send();
+
+  expect(response.status).toBe(204);
+}
+
+test('removing the instance share gives none to a colleague reached only through it', async () => {
+  const owner = await install();
+  const cookie = await sessionCookieOf(owner);
+  const documentId = await createDocument(owner, 'Documento da Maria');
+  const colleague = await createViewer();
+  await putInstanceShare(documentId, 'edit', cookie);
+
+  expect(await access.resolveAccess(colleague.id, documentId)).toBe('edit');
+
+  await deleteInstanceShare(documentId, cookie);
+
+  expect(await access.resolveAccess(colleague.id, documentId)).toBe('none');
+  expect(await access.canWrite(colleague.id, documentId)).toBe(false);
+  expect(await readableIds(colleague.id)).toEqual([]);
+  expect(await access.resolveAccess(owner.id, documentId)).toBe('owner');
+});
+
+test('removing an instance edit share keeps a personal view share at view', async () => {
+  const owner = await install();
+  const cookie = await sessionCookieOf(owner);
+  const documentId = await createDocument(owner, 'Documento da Maria');
+  const colleague = await createViewer();
+  await shareView(documentId, colleague);
+  await putInstanceShare(documentId, 'edit', cookie);
+
+  expect(await access.resolveAccess(colleague.id, documentId)).toBe('edit');
+
+  await deleteInstanceShare(documentId, cookie);
+
+  expect(await access.resolveAccess(colleague.id, documentId)).toBe('view');
+  expect(await access.canWrite(colleague.id, documentId)).toBe(false);
+  expect(await readableIds(colleague.id)).toEqual([documentId]);
+});
+
+test('removing an instance view share keeps a space edit membership at edit', async () => {
+  const { spaceOwner, member, documentId } = await createFreeScenario();
+  const cookie = await sessionCookieOf(spaceOwner);
+  await putInstanceShare(documentId, 'view', cookie);
+
+  await deleteInstanceShare(documentId, cookie);
+
+  expect(await access.resolveAccess(member.id, documentId)).toBe('edit');
+  expect(await access.canWrite(member.id, documentId)).toBe(true);
+});
+
+test('switching the instance share from edit to view gives view and canWrite false', async () => {
+  const owner = await install();
+  const cookie = await sessionCookieOf(owner);
+  const documentId = await createDocument(owner, 'Documento da Maria');
+  const colleague = await createViewer();
+  await putInstanceShare(documentId, 'edit', cookie);
+
+  expect(await access.resolveAccess(colleague.id, documentId)).toBe('edit');
+  expect(await access.canWrite(colleague.id, documentId)).toBe(true);
+
+  await putInstanceShare(documentId, 'view', cookie);
+
+  expect(await access.resolveAccess(colleague.id, documentId)).toBe('view');
+  expect(await access.canWrite(colleague.id, documentId)).toBe(false);
+  expect(await readableIds(colleague.id)).toEqual([documentId]);
 });
