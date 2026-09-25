@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '@/lib/api-client';
 import type { MutationConfig } from '@/lib/react-query';
+import type { DocumentShareLevel } from '@/types/api';
 
 export type DocumentShareResponse =
   components['schemas']['DocumentShareResponse'];
@@ -13,13 +14,15 @@ export type DocumentShareResponse =
 export const shareDocument = ({
   documentId,
   personId,
+  level,
 }: {
   documentId: string;
   personId: string;
+  level: DocumentShareLevel;
 }): Promise<DocumentShareResponse> =>
   api.put<DocumentShareResponse, DocumentShareResponse>(
     `/documents/${documentId}/shares/${personId}`,
-    { level: 'view' },
+    { level },
     { silentError: true },
   );
 

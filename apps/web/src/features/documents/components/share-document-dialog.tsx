@@ -22,6 +22,7 @@ import {
 import { useShareDocument } from '@/features/documents/api/share-document';
 import type { PersonSummary } from '@/hooks/use-person-lookup';
 import { isConflictError } from '@/lib/errors';
+import type { DocumentShareLevel } from '@/types/api';
 
 const GENERIC_SHARE_ERROR =
   'Não foi possível compartilhar o documento. Tente de novo.';
@@ -82,7 +83,8 @@ export function ShareDocumentDialog({
         <DialogContent className="max-h-[calc(100vh-2rem)] w-[calc(100%-2rem)] overflow-y-auto">
           <DialogTitle>Compartilhar documento</DialogTitle>
           <DialogDescription>
-            Quem você escolher poderá ler “{documentTitle}”, sem alterar nada.
+            Escolha quem vai ter acesso a “{documentTitle}” e o que essa pessoa
+            poderá fazer.
           </DialogDescription>
 
           {/* Only mounted while the box is open: reopening starts clean. */}
@@ -106,6 +108,7 @@ function SharePanel({
   sharesQuery: SharesQuery;
 }): React.JSX.Element {
   const [selected, setSelected] = useState<PersonSummary | null>(null);
+  const [level, setLevel] = useState<DocumentShareLevel>('view');
   const [successMessage, setSuccessMessage] = useState('');
   const [shareError, setShareError] = useState<string | null>(null);
 
@@ -132,6 +135,7 @@ function SharePanel({
           `Documento compartilhado com ${response.data.name}.`,
         );
         setSelected(null);
+        setLevel('view');
         pickerRef.current?.reset();
       },
       // The chosen person stays, so trying again needs no new search.
@@ -142,6 +146,11 @@ function SharePanel({
   });
 
   const isSharing = shareDocumentMutation.isPending;
+  // While the request is on its way the group shows the level that was sent,
+  // never a change made in the meantime.
+  const checkedLevel = isSharing
+    ? (shareDocumentMutation.variables?.level ?? level)
+    : level;
 
   const handleShare = (): void => {
     if (isSharingRef.current || !selected) return;
@@ -149,19 +158,28 @@ function SharePanel({
 
     setShareError(null);
     setSuccessMessage('');
-    shareDocumentMutation.mutate({ documentId, personId: selected.id });
+    shareDocumentMutation.mutate({ documentId, personId: selected.id, level });
   };
 
   const handleSelect = (person: PersonSummary): void => {
     setShareError(null);
     setSuccessMessage('');
     setSelected(person);
+    setLevel('view');
+  };
+
+  // Ignored while sharing: the radios are only `aria-disabled`, so the focus
+  // stays on them and the arrows would still reach here.
+  const handleLevelChange = (value: DocumentShareLevel): void => {
+    if (isSharing) return;
+    setLevel(value);
   };
 
   // The picker puts the focus back on the field.
   const handleClear = (): void => {
     setShareError(null);
     setSelected(null);
+    setLevel('view');
   };
 
   return (
@@ -171,11 +189,6 @@ function SharePanel({
         selected={selected}
         onSelect={handleSelect}
         onClear={handleClear}
-        selectedAside={
-          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-sm text-gray-700">
-            Pode ver
-          </span>
-        }
         selectedActions={
           // Never the native `disabled`: the button keeps the focus while the
           // request is on its way.
@@ -190,9 +203,11 @@ function SharePanel({
           </Button>
         }
       >
-        <p className="mt-2 text-sm text-gray-600">
-          Esta pessoa poderá ler o documento.
-        </p>
+        <ShareLevelGroup
+          checkedLevel={checkedLevel}
+          isSharing={isSharing}
+          onChange={handleLevelChange}
+        />
       </PersonPicker>
 
       <AccessListSection sharesQuery={sharesQuery} />
@@ -210,6 +225,72 @@ function SharePanel({
         </p>
       ) : null}
     </div>
+  );
+}
+
+const LEVEL_OPTIONS: {
+  value: DocumentShareLevel;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    value: 'view',
+    label: 'Pode ver',
+    hint: 'Lê o documento, sem alterar nada.',
+  },
+  {
+    value: 'edit',
+    label: 'Pode editar',
+    hint: 'Edita o título e o conteúdo junto com você.',
+  },
+];
+
+// Recipe "Escolha entre opções (rádios)": the whole option is the label, so
+// the border, the highlight of the checked one, the visible focus and the
+// dimmed look while sending all follow the native radio inside it.
+const LEVEL_OPTION_CLASS_NAME =
+  'flex min-h-10 items-start gap-3 rounded-md border border-gray-200 p-3 text-sm text-gray-900 hover:bg-gray-50 has-[:checked]:border-gray-900 has-[:checked]:bg-gray-50 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-blue-600 has-[[aria-disabled=true]]:cursor-not-allowed has-[[aria-disabled=true]]:opacity-60';
+
+// The level the chosen person gets. Native radios: the arrows switch the
+// option and the Tab enters on the checked one. Never the native `disabled`
+// while sharing, so the focus of the keyboard is not lost.
+function ShareLevelGroup({
+  checkedLevel,
+  isSharing,
+  onChange,
+}: {
+  checkedLevel: DocumentShareLevel;
+  isSharing: boolean;
+  onChange: (value: DocumentShareLevel) => void;
+}): React.JSX.Element {
+  const name = useId();
+
+  return (
+    <fieldset
+      aria-disabled={isSharing ? 'true' : undefined}
+      className="mt-4 min-w-0 space-y-2"
+    >
+      <legend className="mb-2 text-sm font-medium text-gray-900">
+        Nível de acesso
+      </legend>
+      {LEVEL_OPTIONS.map((option) => (
+        <label key={option.value} className={LEVEL_OPTION_CLASS_NAME}>
+          <input
+            type="radio"
+            name={name}
+            value={option.value}
+            checked={checkedLevel === option.value}
+            aria-disabled={isSharing ? 'true' : undefined}
+            onChange={() => onChange(option.value)}
+            className="mt-0.5 size-4 shrink-0 accent-gray-900 outline-none aria-disabled:cursor-not-allowed"
+          />
+          <span className="flex min-w-0 flex-col break-words">
+            {option.label}
+            <span className="text-gray-600">{option.hint}</span>
+          </span>
+        </label>
+      ))}
+    </fieldset>
   );
 }
 

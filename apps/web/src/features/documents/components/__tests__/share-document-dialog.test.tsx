@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { env } from "@/config/env";
 import { paths } from "@/config/paths";
 import {
+  shareDocument,
   seedInstalled,
   seedSampleDocuments,
   seedSamplePeople,
@@ -85,11 +86,9 @@ const selectBeatriz = async () => {
 test("asks for at least 2 letters before searching", async () => {
   const { user, dialog, field } = await openDialog();
 
-  expect(
-    within(dialog).getByText(
-      "Quem você escolher poderá ler “Catálogo de periódicos”, sem alterar nada.",
-    ),
-  ).toBeInTheDocument();
+  expect(dialog).toHaveAccessibleDescription(
+    "Escolha quem vai ter acesso a “Catálogo de periódicos” e o que essa pessoa poderá fazer.",
+  );
   expect(field).toHaveAccessibleDescription(
     "Nome ou e-mail, com pelo menos 2 letras.",
   );
@@ -201,8 +200,10 @@ test("selecting a person shows Pode ver and the Compartilhar button", async () =
     within(dialog).getByText("beatriz.nogueira@exemplo.com.br"),
   ).toBeInTheDocument();
   expect(
-    within(dialog).getByText("Esta pessoa poderá ler o documento."),
-  ).toBeInTheDocument();
+    within(
+      within(dialog).getByRole("group", { name: "Nível de acesso" }),
+    ).getByRole("radio", { name: /Pode ver/ }),
+  ).toBeChecked();
   expect(
     within(dialog).getByRole("button", { name: "Compartilhar" }),
   ).toBeInTheDocument();
@@ -629,4 +630,254 @@ test("reopening the dialog clears the copy state", async () => {
   expect(
     within(reopened).getByRole("button", { name: "Copiar link" }),
   ).toBeInTheDocument();
+});
+
+const BEATRIZ_ID = "person-sample-3";
+
+const getLevelGroup = (dialog: HTMLElement) =>
+  within(dialog).getByRole("group", { name: "Nível de acesso" });
+
+const getViewRadio = (dialog: HTMLElement) =>
+  within(getLevelGroup(dialog)).getByRole("radio", { name: /Pode ver/ });
+
+const getEditRadio = (dialog: HTMLElement) =>
+  within(getLevelGroup(dialog)).getByRole("radio", { name: /Pode editar/ });
+
+// The rows of "Quem tem acesso" that belong to Beatriz.
+const beatrizRows = (list: HTMLElement) =>
+  within(list)
+    .getAllByRole("listitem")
+    .filter((row) => row.textContent?.includes("Beatriz Nogueira"));
+
+// Holds every PUT of a share until `release` is called, answering with the
+// level it received.
+const holdShares = () => {
+  let release: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  server.use(
+    http.put(SHARE_URL, async ({ params, request }) => {
+      const body = (await request.json()) as { level: string };
+      await held;
+      return HttpResponse.json({
+        data: {
+          personId: String(params.personId),
+          name: "Beatriz Nogueira",
+          email: "beatriz.nogueira@exemplo.com.br",
+          level: body.level,
+        },
+      });
+    }),
+  );
+  return { release: () => release() };
+};
+
+test("the dialog description mentions what the person will be able to do", async () => {
+  const { dialog } = await openDialog();
+
+  expect(dialog).toHaveAccessibleDescription(
+    "Escolha quem vai ter acesso a “Catálogo de periódicos” e o que essa pessoa poderá fazer.",
+  );
+});
+
+test("Pode ver is checked by default after choosing a person", async () => {
+  const { dialog } = await selectBeatriz();
+
+  expect(getViewRadio(dialog)).toBeChecked();
+  expect(getEditRadio(dialog)).not.toBeChecked();
+  expect(
+    within(getLevelGroup(dialog)).getByText("Lê o documento, sem alterar nada."),
+  ).toBeInTheDocument();
+  expect(
+    within(getLevelGroup(dialog)).getByText(
+      "Edita o título e o conteúdo junto com você.",
+    ),
+  ).toBeInTheDocument();
+});
+
+test("the arrow key switches the level to Pode editar", async () => {
+  const { user, dialog } = await selectBeatriz();
+
+  await user.click(getViewRadio(dialog));
+  expect(getViewRadio(dialog)).toHaveFocus();
+
+  await user.keyboard("{ArrowDown}");
+
+  expect(getEditRadio(dialog)).toBeChecked();
+  expect(getEditRadio(dialog)).toHaveFocus();
+  expect(getViewRadio(dialog)).not.toBeChecked();
+});
+
+test("tab reaches the checked radio before Compartilhar", async () => {
+  const { user, dialog } = await selectBeatriz();
+  const shareButton = within(dialog).getByRole("button", {
+    name: "Compartilhar",
+  });
+  expect(shareButton).toHaveFocus();
+
+  await user.tab({ shift: true });
+  expect(
+    within(dialog).getByRole("button", { name: "Trocar pessoa" }),
+  ).toHaveFocus();
+  await user.tab({ shift: true });
+  expect(getViewRadio(dialog)).toHaveFocus();
+
+  await user.tab();
+  await user.tab();
+  expect(shareButton).toHaveFocus();
+});
+
+test("sharing with Pode editar shows the Pode editar badge", async () => {
+  const { user, dialog } = await selectBeatriz();
+
+  await user.click(getEditRadio(dialog));
+  await user.click(
+    within(dialog).getByRole("button", { name: "Compartilhar" }),
+  );
+  await within(dialog).findByText(
+    "Documento compartilhado com Beatriz Nogueira.",
+  );
+
+  const list = await findAccessList(dialog);
+  await waitFor(() => expect(beatrizRows(list)).toHaveLength(1));
+  expect(
+    within(beatrizRows(list)[0] as HTMLElement).getByText("Pode editar"),
+  ).toBeInTheDocument();
+});
+
+test("sharing again with Pode ver switches the badge without duplicating the row", async () => {
+  shareDocument(DOCUMENT_ID, BEATRIZ_ID, "edit");
+  const { user, dialog } = await selectBeatriz();
+  const list = await findAccessList(dialog);
+  expect(beatrizRows(list)).toHaveLength(1);
+  expect(
+    within(beatrizRows(list)[0] as HTMLElement).getByText("Pode editar"),
+  ).toBeInTheDocument();
+
+  expect(getViewRadio(dialog)).toBeChecked();
+  await user.click(
+    within(dialog).getByRole("button", { name: "Compartilhar" }),
+  );
+  await within(dialog).findByText(
+    "Documento compartilhado com Beatriz Nogueira.",
+  );
+
+  await waitFor(() =>
+    expect(
+      within(beatrizRows(list)[0] as HTMLElement).getByText("Pode ver"),
+    ).toBeInTheDocument(),
+  );
+  expect(beatrizRows(list)).toHaveLength(1);
+  expect(
+    within(beatrizRows(list)[0] as HTMLElement).queryByText("Pode editar"),
+  ).not.toBeInTheDocument();
+});
+
+test("while sharing the radios are aria-disabled never disabled and show the sent level", async () => {
+  const { release } = holdShares();
+  const { user, dialog } = await selectBeatriz();
+
+  await user.click(getEditRadio(dialog));
+  await user.click(
+    within(dialog).getByRole("button", { name: "Compartilhar" }),
+  );
+  await within(dialog).findByRole("button", { name: "Compartilhando…" });
+
+  expect(getLevelGroup(dialog)).toHaveAttribute("aria-disabled", "true");
+  expect(getViewRadio(dialog)).toHaveAttribute("aria-disabled", "true");
+  expect(getEditRadio(dialog)).toHaveAttribute("aria-disabled", "true");
+  expect(getViewRadio(dialog)).not.toBeDisabled();
+  expect(getEditRadio(dialog)).not.toBeDisabled();
+  expect(getEditRadio(dialog)).toBeChecked();
+
+  await user.click(getViewRadio(dialog));
+
+  expect(getEditRadio(dialog)).toBeChecked();
+  expect(getViewRadio(dialog)).not.toBeChecked();
+
+  release();
+  await within(dialog).findByText(
+    "Documento compartilhado com Beatriz Nogueira.",
+  );
+});
+
+test("while sharing the focus stays on the radio", async () => {
+  const { release } = holdShares();
+  const { user, dialog } = await selectBeatriz();
+
+  await user.click(
+    within(dialog).getByRole("button", { name: "Compartilhar" }),
+  );
+  await within(dialog).findByRole("button", { name: "Compartilhando…" });
+  await user.tab({ shift: true });
+  await user.tab({ shift: true });
+  expect(getViewRadio(dialog)).toHaveFocus();
+
+  expect(getViewRadio(dialog)).toHaveAttribute("aria-disabled", "true");
+
+  // The arrow moves the focus to the next radio, as a native group does, but
+  // the change is ignored: the focus stays in the group and the sent level
+  // stays checked.
+  await user.keyboard("{ArrowDown}");
+
+  expect(getEditRadio(dialog)).toHaveFocus();
+  expect(getViewRadio(dialog)).toBeChecked();
+  expect(getEditRadio(dialog)).not.toBeChecked();
+
+  release();
+  await within(dialog).findByText(
+    "Documento compartilhado com Beatriz Nogueira.",
+  );
+});
+
+test("choosing another person resets the level to Pode ver", async () => {
+  const { user, dialog, field } = await selectBeatriz();
+
+  await user.click(getEditRadio(dialog));
+  expect(getEditRadio(dialog)).toBeChecked();
+
+  await user.click(
+    within(dialog).getByRole("button", { name: "Trocar pessoa" }),
+  );
+  await user.clear(field);
+  await user.type(field, "Eduardo Silva");
+  await user.click(
+    await within(dialog).findByRole(
+      "button",
+      { name: "Selecionar Eduardo Silva" },
+      LAZY_TIMEOUT,
+    ),
+  );
+
+  expect(await within(dialog).findByText("Eduardo Silva")).toBeInTheDocument();
+  expect(getViewRadio(dialog)).toBeChecked();
+  expect(getEditRadio(dialog)).not.toBeChecked();
+});
+
+test("the level goes back to Pode ver after a successful share", async () => {
+  const { user, dialog, field } = await selectBeatriz();
+
+  await user.click(getEditRadio(dialog));
+  await user.click(
+    within(dialog).getByRole("button", { name: "Compartilhar" }),
+  );
+  await within(dialog).findByText(
+    "Documento compartilhado com Beatriz Nogueira.",
+  );
+  expect(
+    within(dialog).queryByRole("group", { name: "Nível de acesso" }),
+  ).not.toBeInTheDocument();
+
+  await user.type(field, "Beatriz");
+  await user.click(
+    await within(dialog).findByRole(
+      "button",
+      { name: "Selecionar Beatriz Nogueira" },
+      LAZY_TIMEOUT,
+    ),
+  );
+
+  expect(getViewRadio(dialog)).toBeChecked();
+  expect(getEditRadio(dialog)).not.toBeChecked();
 });

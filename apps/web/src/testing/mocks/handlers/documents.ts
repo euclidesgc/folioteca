@@ -16,6 +16,7 @@ import {
   getSignedInPerson,
   listDocumentShares,
   type MockDocument,
+  type MockDocumentShare,
   shareDocument,
   spaceMemberLevelOf,
   spaceReachOf,
@@ -69,8 +70,8 @@ const invalidShareBody = (
     { status: 400 },
   );
 
-// The body the real schema accepts: exactly `{ level: 'view' }`. Answers the
-// refusal, or null when the body is right.
+// The body the real schema accepts: exactly `{ level: 'view' }` or
+// `{ level: 'edit' }`. Answers the refusal, or null when the body is right.
 const checkShareBody = (
   body: unknown,
 ): ReturnType<typeof HttpResponse.json> | null => {
@@ -81,11 +82,46 @@ const checkShareBody = (
   const extra = Object.keys(body).find((key) => key !== 'level');
   if (extra !== undefined) return invalidShareBody(extra, 'Campo não permitido.');
 
-  if (!('level' in body) || body.level !== 'view') {
+  if (!('level' in body) || !isShareLevel(body.level)) {
     return invalidShareBody('level', 'Escolha o nível de acesso.');
   }
 
   return null;
+};
+
+const isShareLevel = (value: unknown): value is MockDocumentShare['level'] =>
+  value === 'view' || value === 'edit';
+
+// What the space gives a person who does not own the document: the level of a
+// member of a free space, otherwise the level the fake database keeps for the
+// document when the person reaches the space. `null` when the space gives
+// nothing.
+const spaceLevelOf = (
+  personId: string,
+  document: MockDocument,
+): 'view' | 'edit' | null => {
+  const memberLevel = spaceMemberLevelOf(personId, document.spaceId);
+  if (memberLevel) return memberLevel;
+  if (spaceReachOf(personId, document.spaceId) === 'none') return null;
+
+  return document.accessLevel === 'view' ? 'view' : 'edit';
+};
+
+// The level of a person who does not own the document, the way the real
+// `resolveAccess` answers: the higher of the share and the space (`edit` wins
+// over `view`). `null` is no access at all, the 404 of the handler.
+const readerLevelOf = (
+  personId: string,
+  document: MockDocument,
+): 'view' | 'edit' | null => {
+  const shareLevel =
+    getDb().shares.find(
+      (item) => item.documentId === document.id && item.personId === personId,
+    )?.level ?? null;
+  const spaceLevel = spaceLevelOf(personId, document);
+
+  if (shareLevel === 'edit' || spaceLevel === 'edit') return 'edit';
+  return shareLevel ?? spaceLevel;
 };
 
 export const documentsHandlers = [
@@ -234,17 +270,21 @@ export const documentsHandlers = [
     const document = documents.find((item) => item.id === params.documentId);
     if (!document) return notFound();
 
-    // A member of the free space who only reads gets `view` on a document of
-    // someone else, whatever level the fake database keeps for it.
+    // The same order as the real service: the owner, then the trash (opaque
+    // to everyone else), then the higher of the share and the space.
     const reader = getSignedInPerson();
-    const isViewer =
-      reader !== null &&
-      reader.id !== document.ownerId &&
-      spaceMemberLevelOf(reader.id, document.spaceId) === 'view';
+    if (reader === null || reader.id === document.ownerId) {
+      const body: DocumentResponse = { data: toDocumentBody(document) };
+      return HttpResponse.json(body);
+    }
+
+    if (document.trashedAt !== null) return notFound();
+
+    const accessLevel = readerLevelOf(reader.id, document);
+    if (!accessLevel) return notFound();
+
     const body: DocumentResponse = {
-      data: toDocumentBody(
-        isViewer ? { ...document, accessLevel: 'view' } : document,
-      ),
+      data: toDocumentBody({ ...document, accessLevel }),
     };
     return HttpResponse.json(body);
   }),
@@ -505,14 +545,16 @@ export const documentsHandlers = [
         );
       }
 
-      shareDocument(document.id, person.id);
+      // Checked by `checkShareBody` above.
+      const { level } = requestBody as { level: MockDocumentShare['level'] };
+      const share = shareDocument(document.id, person.id, level);
 
       const body: DocumentShareResponse = {
         data: {
           personId: person.id,
           name: person.name,
           email: person.email,
-          level: 'view',
+          level: share.level,
         },
       };
       return HttpResponse.json(body);

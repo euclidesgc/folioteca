@@ -48,13 +48,12 @@ export type MockDocument = {
 // only needs the document it points at and when it was marked.
 export type MockFavorite = { documentId: string; createdAt: string };
 
-// A share: the person reads a document someone else owns. The pair is the
-// row, like the composite primary key of the real table, and `view` is the
-// only level this slice gives.
+// A share: the person reads or edits a document someone else owns. The pair
+// is the row, like the composite primary key of the real table.
 export type MockDocumentShare = {
   documentId: string;
   personId: string;
-  level: 'view';
+  level: 'view' | 'edit';
 };
 
 // An organization unit, in the same flat shape the API answers with:
@@ -1221,21 +1220,24 @@ export const seedSampleTrash = (): void => {
 
 // Shares a document with a person, the way PUT /documents/:documentId/shares/
 // :personId does: sharing the same pair again keeps a single row, the upsert
-// of the real service. Pushed into the array already in the database, never
-// into a copy of it (same reason as `touchDocumentUpdatedAt` above).
+// of the real service, with the level switched to the one asked. Pushed into
+// the array already in the database, never into a copy of it (same reason as
+// `touchDocumentUpdatedAt` above). `view` when no level is given, so the seeds
+// before slice 148 stay as they were.
 export const shareDocument = (
   documentId: string,
   personId: string,
+  level: MockDocumentShare['level'] = 'view',
 ): MockDocumentShare => {
   const existing = state.shares.find(
     (item) => item.documentId === documentId && item.personId === personId,
   );
   if (existing) {
-    existing.level = 'view';
+    existing.level = level;
     return existing;
   }
 
-  const share: MockDocumentShare = { documentId, personId, level: 'view' };
+  const share: MockDocumentShare = { documentId, personId, level };
   state.shares.push(share);
   return share;
 };
