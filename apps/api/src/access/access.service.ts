@@ -3,6 +3,17 @@ import type { Prisma, ShareLevel, SpaceType } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { canEdit, type AccessLevel } from './access-level';
+import { reachedUnitSpaces, type ReachedUnitSpace } from './unit-reach';
+
+/** What `reachedUnitSpaces` needs from each unit, read in a single query. */
+const REACH_UNIT_SELECT = (personId: string) =>
+  ({
+    id: true,
+    parentId: true,
+    name: true,
+    space: { select: { id: true, inheritsParent: true } },
+    assignments: { where: { personId }, select: { personId: true } },
+  }) satisfies Prisma.OrgUnitSelect;
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -14,7 +25,8 @@ type DocumentDecision = {
   shareLevel: 'view' | 'edit' | null;
   /**
    * Nível que a participação no espaço do documento dá: `'edit'` para quem é
-   * lotada diretamente na unidade dona do espaço (`UNIT`) ou dona do espaço
+   * lotada diretamente na unidade dona do espaço ou que a alcança pela
+   * herança da unidade-pai (`UNIT`), ou dona do espaço
    * livre (`FREE`); o nível do membro no espaço livre; `null` para quem não
    * participa.
    */
@@ -80,10 +92,10 @@ function levelOf(
     return 'none';
   }
 
-  // Participar do espaço (lotação direta na unidade, ou dono ou membro do
-  // espaço livre) vale o nível do espaço; a herança entre unidades não entra
-  // aqui. Vale o maior entre ele e o compartilhamento: `'edit'` vence
-  // `'view'`.
+  // Participar do espaço (lotação direta na unidade, herança da unidade-pai,
+  // ou dono ou membro do espaço livre) vale o nível do espaço; a herança entre
+  // unidades entra só pelo `spaceLevel`, já calculado em `findDecision`. Vale
+  // o maior entre ele e o compartilhamento: `'edit'` vence `'view'`.
   if (document.spaceLevel === 'edit' || document.shareLevel === 'edit') {
     return 'edit';
   }
@@ -102,6 +114,38 @@ function levelOf(
 @Injectable()
 export class AccessService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * The unit spaces the person reaches in the organization, directly or by
+   * inheritance from the parent unit. The unit tree is read on every call:
+   * nothing is stored per person.
+   */
+  async unitSpacesReachedBy(
+    organizationId: string,
+    personId: string,
+  ): Promise<ReachedUnitSpace[]> {
+    const units = await this.prisma.orgUnit.findMany({
+      where: { organizationId },
+      select: REACH_UNIT_SELECT(personId),
+    });
+
+    return reachedUnitSpaces(units);
+  }
+
+  /**
+   * Same as `unitSpacesReachedBy`, for callers without the organization at
+   * hand: the organization is the person's own, resolved in the same query.
+   */
+  private async unitSpacesReachedByPerson(
+    personId: string,
+  ): Promise<ReachedUnitSpace[]> {
+    const units = await this.prisma.orgUnit.findMany({
+      where: { organization: { people: { some: { id: personId } } } },
+      select: REACH_UNIT_SELECT(personId),
+    });
+
+    return reachedUnitSpaces(units);
+  }
 
   /**
    * Lê uma vez só o que decide o acesso ao documento, com o compartilhamento
@@ -125,10 +169,14 @@ export class AccessService {
         shares: { where: { personId }, select: { level: true } },
         space: {
           select: {
+            id: true,
             type: true,
             ownerId: true,
+            inheritsParent: true,
             orgUnit: {
               select: {
+                id: true,
+                organizationId: true,
                 assignments: {
                   where: { personId },
                   select: { personId: true },
@@ -147,13 +195,37 @@ export class AccessService {
 
     const share = document.shares[0];
     const { space } = document;
+    const shareLevel: DocumentDecision['shareLevel'] =
+      share === undefined ? null : share.level === 'EDIT' ? 'edit' : 'view';
+    let spaceLevel = spaceLevelOf(space, personId);
+
+    // Only an heir pays for the unit tree: not the owner, not a trashed
+    // document, not an `edit` share, not a direct assignment and only when the
+    // unit space inherits from the parent.
+    if (
+      document.ownerId !== personId &&
+      document.trashedAt === null &&
+      shareLevel !== 'edit' &&
+      space.type === 'UNIT' &&
+      space.orgUnit !== null &&
+      space.orgUnit.assignments.length === 0 &&
+      space.inheritsParent
+    ) {
+      const reached = await this.unitSpacesReachedBy(
+        space.orgUnit.organizationId,
+        personId,
+      );
+
+      if (reached.some((unitSpace) => unitSpace.spaceId === space.id)) {
+        spaceLevel = 'edit';
+      }
+    }
 
     return {
       ownerId: document.ownerId,
       trashedAt: document.trashedAt,
-      shareLevel:
-        share === undefined ? null : share.level === 'EDIT' ? 'edit' : 'view',
-      spaceLevel: spaceLevelOf(space, personId),
+      shareLevel,
+      spaceLevel,
     };
   }
 
@@ -186,18 +258,19 @@ export class AccessService {
    * Filtro dos documentos que a pessoa pode ler. Única fonte para listas: o
    * que está na lixeira fica de fora de todas elas.
    */
-  readableDocumentsWhere(personId: string): Prisma.DocumentWhereInput {
+  async readableDocumentsWhere(
+    personId: string,
+  ): Promise<Prisma.DocumentWhereInput> {
+    const reachedIds = (await this.unitSpacesReachedByPerson(personId)).map(
+      (unitSpace) => unitSpace.spaceId,
+    );
+
     return {
       trashedAt: null,
       OR: [
         { ownerId: personId },
         { shares: { some: { personId } } },
-        {
-          space: {
-            type: 'UNIT',
-            orgUnit: { assignments: { some: { personId } } },
-          },
-        },
+        { spaceId: { in: reachedIds } },
         {
           space: {
             type: 'FREE',

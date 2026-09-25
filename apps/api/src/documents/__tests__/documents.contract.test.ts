@@ -689,6 +689,59 @@ test('POST documents with spaceId answers the documented 201', async () => {
   });
 });
 
+/**
+ * Mãe "Secretaria" com a pessoa da sessão lotada e a filha "Protocolo", cujo
+ * espaço herda dela: devolve o espaço da filha, alcançado só pela herança.
+ */
+async function createInheritedUnitSpaceId(): Promise<string> {
+  const person = await prisma.person.findFirstOrThrow({
+    where: { email: EMAIL },
+  });
+  const root = await prisma.orgUnit.findFirstOrThrow({
+    where: { parentId: null },
+  });
+  const parent = await prisma.orgUnit.create({
+    data: {
+      organizationId: person.organizationId,
+      parentId: root.id,
+      name: 'Secretaria',
+    },
+  });
+  await prisma.space.create({ data: { type: 'UNIT', orgUnitId: parent.id } });
+  const child = await prisma.orgUnit.create({
+    data: {
+      organizationId: person.organizationId,
+      parentId: parent.id,
+      name: 'Protocolo',
+    },
+  });
+  const childSpace = await prisma.space.create({
+    data: { type: 'UNIT', orgUnitId: child.id, inheritsParent: true },
+  });
+  await prisma.orgUnitAssignment.create({
+    data: { orgUnitId: parent.id, personId: person.id },
+  });
+
+  return childSpace.id;
+}
+
+test('POST /documents with an inherited unit space matches the 201 contract', async () => {
+  const spaceId = await createInheritedUnitSpaceId();
+
+  const response = await postDocumentWith({ spaceId });
+
+  expect(response.status).toBe(201);
+  expect(response.body).toEqual({
+    data: expect.objectContaining({ spaceId, accessLevel: 'owner' }) as unknown,
+  });
+  await expectMatchesContract({
+    path: '/documents',
+    method: 'post',
+    status: 201,
+    body: response.body,
+  });
+});
+
 test('POST documents with spaceId answers the documented 400', async () => {
   const spaceId = await createAssignedUnitSpaceId();
 

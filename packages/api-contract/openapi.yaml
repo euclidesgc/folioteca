@@ -214,7 +214,7 @@ paths:
         "404":
           description: >-
             O espaço informado não existe, tem id malformado, não é de unidade
-            ou quem chama não está lotado diretamente na unidade.
+            ou quem chama não alcança o espaço.
           content:
             application/json:
               schema:
@@ -1707,11 +1707,10 @@ paths:
       description: >-
         Lista os documentos fora da lixeira do espaço de unidade ou do espaço
         livre informado, dos mais recentes para os mais antigos. No espaço de
-        unidade, só quem está lotado diretamente na unidade vê a lista; no
-        espaço livre, o dono ou membro do espaço recebe 200. O 403 continua só
-        para quem alcança um espaço de unidade apenas por herança. Espaço sem
-        alcance, inexistente, com id malformado ou pessoal recebe o mesmo 404
-        opaco.
+        unidade, a lista é de quem alcança o espaço de unidade (lotação direta
+        ou herança); no espaço livre, o dono ou membro do espaço recebe 200.
+        Espaço sem alcance, inexistente, com id malformado ou pessoal recebe o
+        mesmo 404 opaco.
       parameters:
         - name: spaceId
           in: path
@@ -1727,14 +1726,6 @@ paths:
                 $ref: "#/components/schemas/DocumentsResponse"
         "401":
           description: Não há sessão válida.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "403":
-          description: >-
-            Quem chama alcança o espaço só por herança, sem lotação direta na
-            unidade.
           content:
             application/json:
               schema:
@@ -2468,7 +2459,9 @@ components:
             false em espaço de unidade.
         canCreateDocuments:
           type: boolean
-          description: Se quem pede pode criar documentos neste espaço.
+          description: >-
+            Se quem pede pode criar documentos neste espaço; verdadeiro para
+            todo alcance de espaço de unidade (direto ou herdado).
         canAddPeople:
           type: boolean
           description: >-

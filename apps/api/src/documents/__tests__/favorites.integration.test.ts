@@ -429,3 +429,59 @@ test('answers 400 with the scope error for an unknown scope', async () => {
     errors: [{ field: 'scope', message: 'Informe um escopo válido.' }],
   });
 });
+
+test('a favorite reached only by inheritance is listed and disappears when inheritance ends', async () => {
+  const root = await prisma.orgUnit.findFirstOrThrow({
+    where: { organizationId: personA.organizationId, parentId: null },
+  });
+  const parent = await prisma.orgUnit.create({
+    data: {
+      organizationId: personA.organizationId,
+      parentId: root.id,
+      name: 'Secretaria',
+    },
+  });
+  await prisma.space.create({ data: { type: 'UNIT', orgUnitId: parent.id } });
+  const child = await prisma.orgUnit.create({
+    data: {
+      organizationId: personA.organizationId,
+      parentId: parent.id,
+      name: 'Protocolo',
+    },
+  });
+  const childSpace = await prisma.space.create({
+    data: { type: 'UNIT', orgUnitId: child.id, inheritsParent: true },
+  });
+  const { person: heir, cookie: heirCookie } = await createPersonB();
+  await prisma.orgUnitAssignment.create({
+    data: { orgUnitId: child.id, personId: personA.id },
+  });
+  await prisma.orgUnitAssignment.create({
+    data: { orgUnitId: parent.id, personId: heir.id },
+  });
+  const created = await httpRequest(app)
+    .post('/api/documents')
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send({ spaceId: childSpace.id });
+  const documentId = (created.body as { data: DocumentBody }).data.id;
+
+  const put = await putFavorite(heirCookie, documentId);
+  const listed = await getFavorites(heirCookie);
+  await prisma.space.update({
+    where: { id: childSpace.id },
+    data: { inheritsParent: false },
+  });
+  const afterInheritance = await getFavorites(heirCookie);
+
+  expect(created.status).toBe(201);
+  expect(put.status).toBe(204);
+  expect(summaryIds(listed)).toEqual([documentId]);
+  expect(afterInheritance.status).toBe(200);
+  expect(summaryIds(afterInheritance)).toEqual([]);
+  expect(
+    await prisma.favorite.count({
+      where: { documentId, personId: heir.id },
+    }),
+  ).toBe(1);
+});

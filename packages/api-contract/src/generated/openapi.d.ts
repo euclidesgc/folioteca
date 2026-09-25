@@ -547,7 +547,7 @@ export interface paths {
         };
         /**
          * Lista os documentos de um espaço de unidade ou de um espaço livre
-         * @description Lista os documentos fora da lixeira do espaço de unidade ou do espaço livre informado, dos mais recentes para os mais antigos. No espaço de unidade, só quem está lotado diretamente na unidade vê a lista; no espaço livre, o dono ou membro do espaço recebe 200. O 403 continua só para quem alcança um espaço de unidade apenas por herança. Espaço sem alcance, inexistente, com id malformado ou pessoal recebe o mesmo 404 opaco.
+         * @description Lista os documentos fora da lixeira do espaço de unidade ou do espaço livre informado, dos mais recentes para os mais antigos. No espaço de unidade, a lista é de quem alcança o espaço de unidade (lotação direta ou herança); no espaço livre, o dono ou membro do espaço recebe 200. Espaço sem alcance, inexistente, com id malformado ou pessoal recebe o mesmo 404 opaco.
          */
         get: operations["listSpaceDocuments"];
         put?: never;
@@ -862,7 +862,7 @@ export interface components {
             reach: "direct" | "inherited" | "owner" | "member";
             /** @description Se qualquer membro pode adicionar pessoas ao espaço livre; sempre false em espaço de unidade. */
             membersCanInvite: boolean;
-            /** @description Se quem pede pode criar documentos neste espaço. */
+            /** @description Se quem pede pode criar documentos neste espaço; verdadeiro para todo alcance de espaço de unidade (direto ou herdado). */
             canCreateDocuments: boolean;
             /** @description Se quem pede pode adicionar pessoas; permissão calculada, diferente da configuração membersCanInvite. */
             canAddPeople: boolean;
@@ -1396,7 +1396,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description O espaço informado não existe, tem id malformado, não é de unidade ou quem chama não está lotado diretamente na unidade. */
+            /** @description O espaço informado não existe, tem id malformado, não é de unidade ou quem chama não alcança o espaço. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -3056,15 +3056,6 @@ export interface operations {
             };
             /** @description Não há sessão válida. */
             401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Quem chama alcança o espaço só por herança, sem lotação direta na unidade. */
-            403: {
                 headers: {
                     [name: string]: unknown;
                 };

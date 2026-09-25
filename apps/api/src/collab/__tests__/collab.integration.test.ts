@@ -749,6 +749,106 @@ test('after removing the assignment the next connection is refused', async () =>
   expect(readText(next.ydoc)).toBe('');
 });
 
+type UnitHeir = {
+  documentId: string;
+  childSpaceId: string;
+  heirCookie: string;
+};
+
+/**
+ * A dona lotada na filha "Protocolo", cujo espaço herda da mãe "Secretaria";
+ * a herdeira lotada só na mãe; um documento da dona criado pela API no espaço
+ * da filha.
+ */
+async function createInheritedSpaceDocument(): Promise<UnitHeir> {
+  const owner = await prisma.person.findFirstOrThrow({
+    where: { email: EMAIL },
+  });
+  const root = await prisma.orgUnit.findFirstOrThrow({
+    where: { organizationId: owner.organizationId, parentId: null },
+  });
+  const parent = await prisma.orgUnit.create({
+    data: {
+      organizationId: owner.organizationId,
+      parentId: root.id,
+      name: 'Secretaria',
+    },
+  });
+  await prisma.space.create({ data: { type: 'UNIT', orgUnitId: parent.id } });
+  const child = await prisma.orgUnit.create({
+    data: {
+      organizationId: owner.organizationId,
+      parentId: parent.id,
+      name: 'Protocolo',
+    },
+  });
+  const childSpace = await prisma.space.create({
+    data: { type: 'UNIT', orgUnitId: child.id, inheritsParent: true },
+  });
+  const { person: heir, cookie: heirCookie } = await createPersonWithSession(
+    app,
+    { name: 'João Lima', email: 'joao@exemplo.org' },
+  );
+  await prisma.orgUnitAssignment.createMany({
+    data: [
+      { orgUnitId: child.id, personId: owner.id },
+      { orgUnitId: parent.id, personId: heir.id },
+    ],
+  });
+
+  const response = await httpRequest(app)
+    .post('/api/documents')
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send({ spaceId: childSpace.id });
+
+  expect(response.status).toBe(201);
+
+  return {
+    documentId: (response.body as { data: { id: string } }).data.id,
+    childSpaceId: childSpace.id,
+    heirCookie,
+  };
+}
+
+test('an heir connects and writes to an inherited unit space document', async () => {
+  const { documentId, heirCookie } = await createInheritedSpaceDocument();
+  const heir = open({ documentId, cookie: heirCookie });
+
+  await heir.synced;
+
+  expect(heir.provider.authorizedScope).not.toBe('readonly');
+
+  writeText(heir.ydoc, 'Ata herdada');
+
+  await waitFor(() => heir.statelessPayloads.includes(STORED_MESSAGE), {
+    message: 'A gravação da herdeira não foi confirmada',
+  });
+
+  expect(await storedText(documentId)).toBe('Ata herdada');
+});
+
+test('after losing inheritance a new connection is refused', async () => {
+  const { documentId, childSpaceId, heirCookie } =
+    await createInheritedSpaceDocument();
+  const first = open({ documentId, cookie: heirCookie });
+
+  await first.synced;
+  await first.close();
+
+  await prisma.space.update({
+    where: { id: childSpaceId },
+    data: { inheritsParent: false },
+  });
+
+  const next = open({ documentId, cookie: heirCookie });
+  const reason = await next.refused;
+
+  expect(reason).toBeTruthy();
+  expect(next.provider.isSynced).toBe(false);
+  expect(readText(next.ydoc)).toBe('');
+});
+
 type FreeSpaceMember = {
   documentId: string;
   spaceId: string;

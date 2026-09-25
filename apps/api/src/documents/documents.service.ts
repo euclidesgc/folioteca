@@ -106,10 +106,10 @@ export class DocumentsService {
    * inteiro livre entre os documentos do dono (a lixeira conta). Sem
    * `spaceId` no corpo, nasce no espaço
    * pessoal de quem chamou, que nasce junto na mesma transação se ainda não
-   * existir. Com `spaceId`, nasce no espaço da unidade em que a pessoa está
-   * lotada diretamente ou no espaço livre de que ela é dona ou membro, na
-   * organização dela; qualquer outro espaço (inclusive o alcançado só por
-   * herança) é o mesmo 404 opaco.
+   * existir. Com `spaceId`, nasce no espaço da unidade que a pessoa alcança
+   * (lotação direta ou herança da unidade-pai) ou no espaço livre de que ela
+   * é dona ou membro, na organização dela; qualquer outro espaço é o mesmo
+   * 404 opaco.
    *
    * O N é calculado sob um lock consultivo por dono
    * (`pg_advisory_xact_lock`), a primeira instrução da transação: a segunda
@@ -128,6 +128,19 @@ export class DocumentsService {
       body === undefined ? {} : body,
     );
 
+    if (spaceId !== undefined && !isUuid(spaceId)) {
+      throw spaceNotFound();
+    }
+
+    // Reaching a unit space is an access decision, read outside the title
+    // transaction; the result only holds unit spaces of the person's
+    // organization.
+    const reachesUnitSpace =
+      spaceId !== undefined &&
+      (
+        await this.access.unitSpacesReachedBy(person.organizationId, person.id)
+      ).some((unitSpace) => unitSpace.spaceId === spaceId);
+
     const document = await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('document-default-title:' || ${person.id}, 0))`;
 
@@ -140,30 +153,17 @@ export class DocumentsService {
           update: {},
         });
         targetSpaceId = space.id;
+      } else if (reachesUnitSpace) {
+        targetSpaceId = spaceId;
       } else {
-        if (!isUuid(spaceId)) {
-          throw spaceNotFound();
-        }
-
         const space = await tx.space.findFirst({
           where: {
             id: spaceId,
+            type: 'FREE',
+            organizationId: person.organizationId,
             OR: [
-              {
-                type: 'UNIT',
-                orgUnit: {
-                  organizationId: person.organizationId,
-                  assignments: { some: { personId: person.id } },
-                },
-              },
-              {
-                type: 'FREE',
-                organizationId: person.organizationId,
-                OR: [
-                  { ownerId: person.id },
-                  { members: { some: { personId: person.id } } },
-                ],
-              },
+              { ownerId: person.id },
+              { members: { some: { personId: person.id } } },
             ],
           },
           select: {
@@ -225,7 +225,7 @@ export class DocumentsService {
     const documents = await this.prisma.document.findMany({
       where: {
         AND: [
-          this.access.readableDocumentsWhere(personId),
+          await this.access.readableDocumentsWhere(personId),
           { ownerId: personId },
         ],
       },
@@ -255,7 +255,7 @@ export class DocumentsService {
   ): Promise<DocumentsResponse> {
     const documents = await this.prisma.document.findMany({
       where: {
-        AND: [this.access.readableDocumentsWhere(personId), { spaceId }],
+        AND: [await this.access.readableDocumentsWhere(personId), { spaceId }],
       },
       orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
       take: 100,
@@ -310,7 +310,7 @@ export class DocumentsService {
             // O dono precisa abrir o que está na lixeira para restaurar ou
             // apagar; para todo o resto vale só a porta de leitura.
             OR: [
-              this.access.readableDocumentsWhere(personId),
+              await this.access.readableDocumentsWhere(personId),
               this.access.trashedDocumentsWhere(personId),
             ],
           },

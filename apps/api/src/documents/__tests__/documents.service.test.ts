@@ -34,7 +34,7 @@ function createService(level: AccessLevel): {
   const access = {
     resolveAccess: vi.fn().mockResolvedValue(level),
     canWrite: vi.fn().mockResolvedValue(true),
-    readableDocumentsWhere: vi.fn().mockReturnValue({ ownerId: 'pessoa' }),
+    readableDocumentsWhere: vi.fn().mockResolvedValue({ ownerId: 'pessoa' }),
     trashedDocumentsWhere: vi
       .fn()
       .mockReturnValue({ ownerId: 'pessoa', trashedAt: { not: null } }),
@@ -82,7 +82,7 @@ function createContentService(prisma: Partial<PrismaService>): DocumentsService 
   const access = {
     resolveAccess: vi.fn(),
     canWrite: vi.fn(),
-    readableDocumentsWhere: vi.fn(),
+    readableDocumentsWhere: vi.fn().mockResolvedValue({}),
     trashedDocumentsWhere: vi.fn(),
   } as unknown as AccessService;
 
@@ -152,7 +152,7 @@ function createFavoriteService(record: unknown): DocumentsService {
   const access = {
     resolveAccess: vi.fn().mockResolvedValue('owner'),
     canWrite: vi.fn().mockResolvedValue(true),
-    readableDocumentsWhere: vi.fn().mockReturnValue({ ownerId: 'pessoa' }),
+    readableDocumentsWhere: vi.fn().mockResolvedValue({ ownerId: 'pessoa' }),
     trashedDocumentsWhere: vi
       .fn()
       .mockReturnValue({ ownerId: 'pessoa', trashedAt: { not: null } }),
@@ -189,7 +189,7 @@ function createCreatingService(): DocumentsService {
   const access = {
     resolveAccess: vi.fn(),
     canWrite: vi.fn(),
-    readableDocumentsWhere: vi.fn(),
+    readableDocumentsWhere: vi.fn().mockResolvedValue({}),
     trashedDocumentsWhere: vi.fn(),
   } as unknown as AccessService;
 
@@ -298,7 +298,7 @@ function createTrashService(
   const access: DocumentsServiceAccess = {
     resolveAccess: vi.fn().mockResolvedValue(options.level ?? 'owner'),
     canWrite: vi.fn().mockResolvedValue(options.canWrite ?? true),
-    readableDocumentsWhere: vi.fn().mockReturnValue(READABLE_WHERE),
+    readableDocumentsWhere: vi.fn().mockResolvedValue(READABLE_WHERE),
     trashedDocumentsWhere: vi.fn().mockReturnValue(TRASHED_WHERE),
   };
 

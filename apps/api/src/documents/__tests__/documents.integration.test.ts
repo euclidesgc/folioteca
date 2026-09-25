@@ -836,13 +836,107 @@ test('a document created in the unit space appears in my documents of the creato
   expect(colleagueList.body).toEqual({ data: [] });
 });
 
-test('POST documents with an inherited unit spaceId answers 404 with Espaço não encontrado.', async () => {
+type InheritedUnitScenario = {
+  parent: UnitWithSpace;
+  child: UnitWithSpace;
+  colleague: Person;
+  colleagueCookie: string;
+};
+
+/**
+ * A lotada só na mãe "Secretaria"; a filha "Protocolo" herda dela e tem o
+ * colega lotado diretamente.
+ */
+async function createInheritedUnit(): Promise<InheritedUnitScenario> {
   const parent = await createUnitSpace('Secretaria');
   const child = await createUnitSpace('Protocolo', {
     parentId: parent.orgUnitId,
     inheritsParent: true,
   });
+  const { person: colleague, cookie: colleagueCookie } =
+    await createPersonWithSession(app, {
+      name: 'João Lima',
+      email: 'joao@exemplo.org',
+    });
   await assign(parent.orgUnitId, personA.id);
+  await assign(child.orgUnitId, colleague.id);
+
+  return { parent, child, colleague, colleagueCookie };
+}
+
+test('POST /documents in an inherited unit space returns 201 owned by the caller', async () => {
+  const { child } = await createInheritedUnit();
+
+  const response = await postDocumentWith(cookieA, { spaceId: child.spaceId });
+  const created = (response.body as { data: DocumentBody }).data;
+  const stored = await prisma.document.findFirstOrThrow({
+    where: { id: created.id },
+  });
+
+  expect(response.status).toBe(201);
+  expect(created).toEqual(
+    expect.objectContaining({
+      spaceId: child.spaceId,
+      authorId: personA.id,
+      ownerId: personA.id,
+      accessLevel: 'owner',
+    }),
+  );
+  expect(stored.spaceId).toBe(child.spaceId);
+  expect(stored.ownerId).toBe(personA.id);
+});
+
+test('a document created by inheritance appears in Meus documentos and in the space list', async () => {
+  const { child } = await createInheritedUnit();
+  const created = await postDocumentWith(cookieA, { spaceId: child.spaceId });
+  const documentId = (created.body as { data: DocumentBody }).data.id;
+
+  const mine = await getDocuments(cookieA);
+  const spaceList = await httpRequest(app)
+    .get(`/api/spaces/${child.spaceId}/documents`)
+    .set('Cookie', cookieA)
+    .send();
+
+  expect(created.status).toBe(201);
+  expect(
+    (mine.body as { data: DocumentSummaryBody[] }).data.map((item) => item.id),
+  ).toEqual([documentId]);
+  expect(spaceList.status).toBe(200);
+  expect(
+    (spaceList.body as { data: DocumentSummaryBody[] }).data.map(
+      (item) => item.id,
+    ),
+  ).toEqual([documentId]);
+});
+
+test('a directly assigned person opens with edit a document created by an heir', async () => {
+  const { child, colleagueCookie } = await createInheritedUnit();
+  const created = await postDocumentWith(cookieA, { spaceId: child.spaceId });
+  const documentId = (created.body as { data: DocumentBody }).data.id;
+
+  const response = await getDocument(colleagueCookie, documentId);
+
+  expect(response.status).toBe(200);
+  expect((response.body as { data: DocumentBody }).data).toEqual(
+    expect.objectContaining({
+      id: documentId,
+      ownerId: personA.id,
+      accessLevel: 'edit',
+    }),
+  );
+});
+
+test('POST /documents in a unit space with a broken chain returns 404', async () => {
+  const grandparent = await createUnitSpace('Gabinete');
+  const parent = await createUnitSpace('Secretaria', {
+    parentId: grandparent.orgUnitId,
+    inheritsParent: false,
+  });
+  const child = await createUnitSpace('Protocolo', {
+    parentId: parent.orgUnitId,
+    inheritsParent: true,
+  });
+  await assign(grandparent.orgUnitId, personA.id);
 
   const response = await postDocumentWith(cookieA, { spaceId: child.spaceId });
 
@@ -851,6 +945,58 @@ test('POST documents with an inherited unit spaceId answers 404 with Espaço nã
   expect(await prisma.document.count({ where: { spaceId: child.spaceId } })).toBe(
     0,
   );
+});
+
+/**
+ * Organização única por instância (`Organization_singleton_check`): o escopo
+ * é provado no serviço real, contra o mesmo Postgres, com um
+ * `organizationId` gerado por `randomUUID()`.
+ */
+test('POST /documents in a unit space of another organization returns 404', async () => {
+  const { child } = await createInheritedUnit();
+  const person = await prisma.person.findFirstOrThrow({
+    where: { id: personA.id },
+    include: { organization: true },
+  });
+
+  await expect(
+    documents().create(
+      { ...person, organizationId: randomUUID() },
+      { spaceId: child.spaceId },
+    ),
+  ).rejects.toMatchObject({
+    status: 404,
+    message: 'Espaço não encontrado.',
+  });
+  expect(await prisma.document.count({ where: { spaceId: child.spaceId } })).toBe(
+    0,
+  );
+});
+
+test('an heir cannot trash a document of someone else', async () => {
+  const { child, colleagueCookie } = await createInheritedUnit();
+  const created = await postDocumentWith(colleagueCookie, {
+    spaceId: child.spaceId,
+  });
+  const documentId = (created.body as { data: DocumentBody }).data.id;
+
+  const opened = await getDocument(cookieA, documentId);
+  const trash = await httpRequest(app)
+    .post(`/api/documents/${documentId}/trash`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send();
+  const stored = await prisma.document.findFirstOrThrow({
+    where: { id: documentId },
+  });
+
+  expect(created.status).toBe(201);
+  expect((opened.body as { data: DocumentBody }).data.accessLevel).toBe('edit');
+  expect(trash.status).toBe(403);
+  expect(trash.body).toEqual({
+    message: 'Só o proprietário pode mover este documento para a lixeira.',
+  });
+  expect(stored.trashedAt).toBeNull();
 });
 
 test('POST documents with a unit spaceId without assignment answers 404', async () => {
