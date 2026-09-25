@@ -1289,6 +1289,17 @@ export const shareDocumentWithInstance = (
   return share;
 };
 
+// Removes the share with everyone in the organization, the way DELETE
+// /documents/:documentId/instance-share does: idempotent, so a document
+// without a row is not an error. Spliced out of the array already in the
+// database, never out of a copy of it (same reason as `shareDocument`).
+export const removeDocumentInstanceShare = (documentId: string): void => {
+  const index = state.instanceShares.findIndex(
+    (item) => item.documentId === documentId,
+  );
+  if (index !== -1) state.instanceShares.splice(index, 1);
+};
+
 // The level of everyone in the organization on a document, the way the
 // `instance` of GET /documents/:documentId/shares answers: `none` without a row.
 export const instanceShareLevelOf = (

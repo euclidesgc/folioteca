@@ -1435,9 +1435,10 @@ test("sharing with the instance shows the success message and the row between th
   expect(rows[1]).toHaveTextContent("Todos da organização");
   expect(rows[1]).toHaveTextContent("Qualquer pessoa da organização");
   expect(
-    within(rows[1] as HTMLElement).getByText("Pode editar"),
-  ).toBeInTheDocument();
-  expect(within(rows[1] as HTMLElement).queryByRole("combobox")).toBeNull();
+    within(rows[1] as HTMLElement).getByRole("combobox", {
+      name: "Nível de Todos da organização",
+    }),
+  ).toHaveValue("edit");
   expect(rows[2]).toHaveTextContent("Beatriz Nogueira");
   expect(
     screen.getByRole("dialog", { name: "Compartilhar documento" }),
@@ -1453,8 +1454,10 @@ test("sharing with the instance again switches the badge without duplicating the
   const list = await findAccessList(dialog);
   expect(instanceRows(list)).toHaveLength(1);
   expect(
-    within(instanceRows(list)[0] as HTMLElement).getByText("Pode editar"),
-  ).toBeInTheDocument();
+    within(instanceRows(list)[0] as HTMLElement).getByRole("combobox", {
+      name: "Nível de Todos da organização",
+    }),
+  ).toHaveValue("edit");
 
   expect(getViewRadio(dialog)).toBeChecked();
   await user.click(
@@ -1464,8 +1467,10 @@ test("sharing with the instance again switches the badge without duplicating the
 
   await waitFor(() =>
     expect(
-      within(instanceRows(list)[0] as HTMLElement).getByText("Pode ver"),
-    ).toBeInTheDocument(),
+      within(instanceRows(list)[0] as HTMLElement).getByRole("combobox", {
+        name: "Nível de Todos da organização",
+      }),
+    ).toHaveValue("view"),
   );
   expect(instanceRows(list)).toHaveLength(1);
 });
@@ -1493,4 +1498,287 @@ test("the Todos da organização row is absent when the instance level is none",
   expect(within(list).getAllByRole("listitem")).toHaveLength(1);
   expect(instanceRows(list)).toHaveLength(0);
   expect(within(list).queryByText("Todos da organização")).toBeNull();
+});
+
+const INSTANCE_NAME = "Todos da organização";
+const INSTANCE_REMOVED = "Todos da organização não têm mais acesso ao documento.";
+
+// Opens the dialog with the document already shared with the organization and
+// waits for the select of its row.
+const openWithInstanceShare = async (
+  level: "view" | "edit" = "view",
+) => {
+  shareDocumentWithInstance(DOCUMENT_ID, level);
+  const opened = await openDialog();
+  const select = await findLevelSelect(opened.dialog, INSTANCE_NAME);
+  return { ...opened, select };
+};
+
+// Counts every DELETE of the instance share and holds it until `release` is
+// called (right away when `hold` is false), then lets it reach the fake API.
+const countInstanceRemovals = ({ hold }: { hold: boolean }) => {
+  const counter = { calls: 0 };
+  let release: () => void = () => undefined;
+  const held = hold
+    ? new Promise<void>((resolve) => {
+        release = resolve;
+      })
+    : Promise.resolve();
+  server.use(
+    http.delete(INSTANCE_SHARE_URL, async () => {
+      counter.calls += 1;
+      await held;
+    }),
+  );
+  return { counter, release: () => release() };
+};
+
+test("the Todos da organização row has a level select with Remover acesso last", async () => {
+  const { dialog, select } = await openWithInstanceShare("view");
+
+  const list = await findAccessList(dialog);
+  const row = within(list).getAllByRole("listitem")[1] as HTMLElement;
+  expect(row).toHaveTextContent("Todos da organização");
+  expect(row).toHaveTextContent("Qualquer pessoa da organização");
+  expect(within(row).getByRole("combobox")).toBe(select);
+  expect(
+    within(select)
+      .getAllByRole("option")
+      .map((option) => option.textContent),
+  ).toEqual(["Pode ver", "Pode editar", "Remover acesso"]);
+  expect(select).toHaveValue("view");
+});
+
+test("changing the instance level to Pode editar sends one PUT and announces it", async () => {
+  const counter = countInstanceShares();
+  const { user, dialog, select } = await openWithInstanceShare("view");
+
+  await user.selectOptions(select, "Pode editar");
+
+  expect(
+    await within(dialog).findByText(
+      "Nível de Todos da organização alterado para Pode editar.",
+    ),
+  ).toHaveAttribute("aria-live", "polite");
+  expect(counter.calls).toBe(1);
+  expect(select).toHaveValue("edit");
+  expect(instanceShareLevelOf(DOCUMENT_ID)).toBe("edit");
+  expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  expect(useNotifications.getState().notifications).toEqual([]);
+});
+
+test("while changing the instance level the select shows Salvando… and is aria-disabled and not disabled", async () => {
+  const { release } = holdInstanceShares();
+  const { user, dialog, select } = await openWithInstanceShare("view");
+
+  await user.selectOptions(select, "Pode editar");
+
+  expect(await within(dialog).findByText("Salvando…")).toBeInTheDocument();
+  expect(select).toHaveValue("edit");
+  expect(select).toHaveAttribute("aria-disabled", "true");
+  expect(select).not.toBeDisabled();
+
+  // A change while sending is ignored: the sent level stays.
+  await user.selectOptions(select, "Pode ver");
+  expect(select).toHaveValue("edit");
+
+  release();
+  await waitFor(() =>
+    expect(within(dialog).queryByText("Salvando…")).not.toBeInTheDocument(),
+  );
+  expect(select).not.toHaveAttribute("aria-disabled");
+});
+
+test("changing the instance level keeps the focus on the select", async () => {
+  const { user, dialog, select } = await openWithInstanceShare("view");
+
+  await user.selectOptions(select, "Pode editar");
+  await within(dialog).findByText(
+    "Nível de Todos da organização alterado para Pode editar.",
+  );
+
+  expect(getLevelSelect(dialog, INSTANCE_NAME)).toBe(select);
+  expect(select).toHaveFocus();
+});
+
+test("a failed instance level change returns to Pode ver and notifies", async () => {
+  server.use(
+    http.put(INSTANCE_SHARE_URL, () =>
+      HttpResponse.json(
+        { message: "Erro interno do servidor." },
+        { status: 500 },
+      ),
+    ),
+  );
+  const { user, dialog, select } = await openWithInstanceShare("view");
+
+  await user.selectOptions(select, "Pode editar");
+
+  const message =
+    "Não foi possível mudar o nível de Todos da organização. Tente de novo.";
+  expect(await within(dialog).findByText(message)).toHaveAttribute(
+    "aria-live",
+    "polite",
+  );
+  expect(select).toHaveValue("view");
+  expect(
+    within(select).getByRole("option", { name: "Pode ver", selected: true }),
+  ).toBeInTheDocument();
+  expect(notificationTitles("error")).toEqual([message]);
+  expect(instanceShareLevelOf(DOCUMENT_ID)).toBe("view");
+});
+
+test("Remover acesso on the instance row opens the confirmation and cancel returns the focus to the select", async () => {
+  const { counter } = countInstanceRemovals({ hold: false });
+  const { user, select } = await openWithInstanceShare("edit");
+
+  await user.selectOptions(select, "Remover acesso");
+
+  const confirmation = await findRemoveConfirmation(INSTANCE_NAME);
+  expect(
+    within(confirmation).getByText(
+      "Quem só tem acesso pela organização deixa de ver o documento.",
+    ),
+  ).toBeInTheDocument();
+  expect(
+    within(confirmation)
+      .getAllByRole("button")
+      .map((button) => button.textContent),
+  ).toEqual(["Cancelar", "Remover"]);
+  expect(select).toHaveValue("edit");
+
+  await user.click(
+    within(confirmation).getByRole("button", { name: "Cancelar" }),
+  );
+
+  await waitFor(() =>
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+  );
+  await waitFor(() => expect(select).toHaveFocus());
+  expect(counter.calls).toBe(0);
+  expect(instanceShareLevelOf(DOCUMENT_ID)).toBe("edit");
+});
+
+test("while removing the instance the confirm button shows Removendo… and is aria-disabled", async () => {
+  const { release } = countInstanceRemovals({ hold: true });
+  const { user, select } = await openWithInstanceShare("view");
+
+  await user.selectOptions(select, "Remover acesso");
+  const confirmation = await findRemoveConfirmation(INSTANCE_NAME);
+  await user.click(
+    within(confirmation).getByRole("button", { name: "Remover" }),
+  );
+
+  const busy = await within(confirmation).findByRole("button", {
+    name: "Removendo…",
+  });
+  expect(busy).toHaveAttribute("aria-disabled", "true");
+  expect(busy).toHaveAttribute("aria-busy", "true");
+  expect(busy).not.toBeDisabled();
+
+  release();
+  await waitFor(() =>
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+  );
+});
+
+test("a double click on Remover removes the instance only once", async () => {
+  const { counter, release } = countInstanceRemovals({ hold: true });
+  const { user, select } = await openWithInstanceShare("view");
+
+  await user.selectOptions(select, "Remover acesso");
+  const confirmation = await findRemoveConfirmation(INSTANCE_NAME);
+  await user.dblClick(
+    within(confirmation).getByRole("button", { name: "Remover" }),
+  );
+  await user.click(
+    await within(confirmation).findByRole("button", { name: "Removendo…" }),
+  );
+  release();
+
+  await waitFor(() =>
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+  );
+  expect(counter.calls).toBe(1);
+  expect(instanceShareLevelOf(DOCUMENT_ID)).toBe("none");
+});
+
+test("removing the instance hides the row, notifies and focuses the owner row", async () => {
+  shareDocument(DOCUMENT_ID, BEATRIZ_ID, "view");
+  const { user, dialog, select } = await openWithInstanceShare("edit");
+
+  await user.selectOptions(select, "Remover acesso");
+  const confirmation = await findRemoveConfirmation(INSTANCE_NAME);
+  await user.click(
+    within(confirmation).getByRole("button", { name: "Remover" }),
+  );
+
+  await waitFor(() =>
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+  );
+  const list = await findAccessList(dialog);
+  expect(instanceRows(list)).toHaveLength(0);
+  const rows = within(list).getAllByRole("listitem");
+  expect(rows).toHaveLength(2);
+  expect(notificationTitles("success")).toEqual([INSTANCE_REMOVED]);
+  expect(within(dialog).getByText(INSTANCE_REMOVED)).toHaveAttribute(
+    "aria-live",
+    "polite",
+  );
+  const ownerRow = rows[0] as HTMLElement;
+  expect(ownerRow).toHaveTextContent("Ana Souza");
+  await waitFor(() => expect(ownerRow).toHaveFocus());
+  expect(instanceShareLevelOf(DOCUMENT_ID)).toBe("none");
+});
+
+test("a failed instance removal keeps the confirmation open with the error", async () => {
+  server.use(
+    http.delete(
+      INSTANCE_SHARE_URL,
+      () =>
+        HttpResponse.json(
+          { message: "Erro interno do servidor." },
+          { status: 500 },
+        ),
+      { once: true },
+    ),
+  );
+  const { user, select } = await openWithInstanceShare("view");
+
+  await user.selectOptions(select, "Remover acesso");
+  const confirmation = await findRemoveConfirmation(INSTANCE_NAME);
+  await user.click(
+    within(confirmation).getByRole("button", { name: "Remover" }),
+  );
+
+  const message =
+    "Não foi possível remover o acesso de Todos da organização. Tente de novo.";
+  expect(await within(confirmation).findByRole("alert")).toHaveTextContent(
+    message,
+  );
+  expect(notificationTitles("error")).toEqual([message]);
+  expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+  expect(
+    within(confirmation).getByRole("button", { name: "Remover" }),
+  ).not.toHaveAttribute("aria-disabled");
+  expect(instanceShareLevelOf(DOCUMENT_ID)).toBe("view");
+});
+
+test("removing the first person with the instance row present focuses the instance select", async () => {
+  shareDocument(DOCUMENT_ID, BEATRIZ_ID, "view");
+  const { user, dialog, select } = await openWithInstanceShare("view");
+  const personSelect = await findLevelSelect(dialog, "Beatriz Nogueira");
+
+  await user.selectOptions(personSelect, "Remover acesso");
+  const confirmation = await findRemoveConfirmation("Beatriz Nogueira");
+  await user.click(
+    within(confirmation).getByRole("button", { name: "Remover" }),
+  );
+
+  await waitFor(() =>
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+  );
+  const list = await findAccessList(dialog);
+  expect(within(list).queryByText("Beatriz Nogueira")).not.toBeInTheDocument();
+  await waitFor(() => expect(select).toHaveFocus());
 });
