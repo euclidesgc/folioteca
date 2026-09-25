@@ -18,6 +18,7 @@ export const enableMocking = async (): Promise<void> => {
     seedSampleOrgUnits,
     seedSamplePeople,
     seedSampleTrash,
+    seedSharedEditableDocument,
     seedSharedReadOnlyDocument,
     seedSpaceMembers,
     seedUnitSpaceDocuments,
@@ -59,6 +60,9 @@ export const enableMocking = async (): Promise<void> => {
   // `shared-view` adds a document of someone else that the signed-in person
   // only reads (needs an installation already seeded).
   if (documentsKey === 'shared-view') seedSharedReadOnlyDocument();
+  // `shared-edit` adds a document of someone else that the signed-in person
+  // edits (needs an installation already seeded).
+  if (documentsKey === 'shared-edit') seedSharedEditableDocument();
   // `unit-space` assigns the signed-in person to a sample unit and adds a
   // document of a colleague to its space (needs the sample units already
   // seeded, see `mock-org-units` above).

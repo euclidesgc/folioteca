@@ -1335,14 +1335,19 @@ export const listDocumentShares = (
   ];
 };
 
-// Id of the document `seedSharedReadOnlyDocument` creates.
+// Ids of the documents `seedSharedReadOnlyDocument` and
+// `seedSharedEditableDocument` create.
 const SHARED_READ_ONLY_DOCUMENT_ID = 'document-shared-view';
+const SHARED_EDITABLE_DOCUMENT_ID = 'document-shared-edit';
 
 // Adds a document owned by someone else and shared with the signed-in person
-// in `view`, so the read-only page can be opened in the browser. Kept separate
-// from the other seeds because the existing journeys expect only documents of
-// their own. Answers the id of the document, or null without an installation.
-export const seedSharedReadOnlyDocument = (): string | null => {
+// at the given level. Answers the id of the document, or null without an
+// installation.
+const seedSharedDocument = (
+  id: string,
+  title: string,
+  level: MockDocumentShare['level'],
+): string | null => {
   const reader = getSignedInPerson();
   if (!reader) return null;
 
@@ -1358,20 +1363,40 @@ export const seedSharedReadOnlyDocument = (): string | null => {
 
   const now = new Date().toISOString();
   state.documents.push({
-    id: SHARED_READ_ONLY_DOCUMENT_ID,
-    title: 'Normas de uso do acervo de obras raras',
+    id,
+    title,
     spaceId: `space-${owner.id}`,
     authorId: owner.id,
     ownerId: owner.id,
     createdAt: now,
     updatedAt: now,
     trashedAt: null,
-    accessLevel: 'view',
+    accessLevel: level,
   });
-  shareDocument(SHARED_READ_ONLY_DOCUMENT_ID, reader.id);
+  shareDocument(id, reader.id, level);
 
-  return SHARED_READ_ONLY_DOCUMENT_ID;
+  return id;
 };
+
+// Adds a document owned by someone else and shared with the signed-in person
+// in `view`, so the read-only page can be opened in the browser. Kept separate
+// from the other seeds because the existing journeys expect only documents of
+// their own. Answers the id of the document, or null without an installation.
+export const seedSharedReadOnlyDocument = (): string | null =>
+  seedSharedDocument(
+    SHARED_READ_ONLY_DOCUMENT_ID,
+    'Normas de uso do acervo de obras raras',
+    'view',
+  );
+
+// The same, shared in `edit`, so the page of a person who edits a document of
+// someone else can be opened in the browser.
+export const seedSharedEditableDocument = (): string | null =>
+  seedSharedDocument(
+    SHARED_EDITABLE_DOCUMENT_ID,
+    'Roteiro de visitas guiadas ao acervo',
+    'edit',
+  );
 
 // The unit the signed-in person is directly assigned to by
 // `seedUnitSpaceDocuments`, one of the units of `seedSampleOrgUnits`.
