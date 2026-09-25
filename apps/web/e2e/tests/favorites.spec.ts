@@ -29,8 +29,13 @@ test('marks a document as favorite from the keyboard, finds it in the sidebar an
   await page.getByRole('button', { name: 'Novo documento' }).click();
   await expect(page).toHaveURL(/\/documents\/.+/, ROUTE_TIMEOUT);
 
-  const titleField = page.getByRole('textbox', { name: 'Título' });
-  await expect(titleField).toHaveValue('Sem título', ROUTE_TIMEOUT);
+  const titleField = page.getByRole('textbox', {
+    name: 'Título do documento',
+  });
+  await expect(titleField).toHaveValue(
+    /documento-sem-titulo-\d+/,
+    ROUTE_TIMEOUT,
+  );
   await expect(
     page.getByRole('region', { name: 'Conteúdo do documento' }),
   ).toBeVisible({ timeout: EDITOR_TIMEOUT });
@@ -42,9 +47,19 @@ test('marks a document as favorite from the keyboard, finds it in the sidebar an
     name: 'Documentos favoritos',
   });
 
-  // Focus the favorite button by keyboard only, from the title field: it sits
-  // right before the title field in the page, so one Shift+Tab reaches it.
-  await page.keyboard.press('Shift+Tab');
+  // Focus the favorite button by keyboard only, from the title field: the
+  // actions row goes title, Compartilhar, Mover para a lixeira, then the
+  // favorite button.
+  const shareButton = page.getByRole('button', { name: 'Compartilhar' });
+  const trashButton = page.getByRole('button', {
+    name: 'Mover para a lixeira',
+  });
+  await expect(titleField).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(shareButton).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(trashButton).toBeFocused();
+  await page.keyboard.press('Tab');
   const addFavoriteButton = page.getByRole('button', {
     name: 'Adicionar aos favoritos',
   });
@@ -88,7 +103,9 @@ test('marks a document as favorite from the keyboard, finds it in the sidebar an
     page.getByRole('region', { name: 'Conteúdo do documento' }),
   ).toBeVisible({ timeout: EDITOR_TIMEOUT });
 
-  const reopenedTitleField = page.getByRole('textbox', { name: 'Título' });
+  const reopenedTitleField = page.getByRole('textbox', {
+    name: 'Título do documento',
+  });
   await expect(reopenedTitleField).toHaveValue(firstTitle);
 
   await reopenedTitleField.fill(secondTitle);
@@ -97,7 +114,12 @@ test('marks a document as favorite from the keyboard, finds it in the sidebar an
   await expect(favoritesSidebarNav.getByText(secondTitle)).toBeVisible();
 
   // Focus the favorite button by keyboard only, again from the title field.
-  await page.keyboard.press('Shift+Tab');
+  await expect(reopenedTitleField).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(shareButton).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(trashButton).toBeFocused();
+  await page.keyboard.press('Tab');
   await expect(removeFavoriteButton).toBeFocused();
   await page.keyboard.press('Space');
 

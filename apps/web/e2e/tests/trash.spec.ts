@@ -30,8 +30,13 @@ test('moves a document to the trash from the keyboard, restores it from Lixeira,
   await page.getByRole('button', { name: 'Novo documento' }).click();
   await expect(page).toHaveURL(/\/documents\/.+/, ROUTE_TIMEOUT);
 
-  const titleField = page.getByRole('textbox', { name: 'Título' });
-  await expect(titleField).toHaveValue('Sem título', ROUTE_TIMEOUT);
+  const titleField = page.getByRole('textbox', {
+    name: 'Título do documento',
+  });
+  await expect(titleField).toHaveValue(
+    /documento-sem-titulo-\d+/,
+    ROUTE_TIMEOUT,
+  );
   await expect(
     page.getByRole('region', { name: 'Conteúdo do documento' }),
   ).toBeVisible({ timeout: EDITOR_TIMEOUT });
@@ -46,10 +51,19 @@ test('moves a document to the trash from the keyboard, restores it from Lixeira,
     name: 'Meus documentos recentes',
   });
 
-  // The button order in the document page is: Mover para a lixeira, Adicionar
-  // aos favoritos, then the title field. From the title field, one Shift+Tab
-  // reaches the favorite button.
-  await page.keyboard.press('Shift+Tab');
+  // The actions row goes: the title field, Compartilhar, Mover para a
+  // lixeira, then Adicionar aos favoritos. From the title field, three Tabs
+  // reach the favorite button.
+  await expect(titleField).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(
+    page.getByRole('button', { name: 'Compartilhar' }),
+  ).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(
+    page.getByRole('button', { name: 'Mover para a lixeira' }),
+  ).toBeFocused();
+  await page.keyboard.press('Tab');
   const addFavoriteButton = page.getByRole('button', {
     name: 'Adicionar aos favoritos',
   });
@@ -106,7 +120,9 @@ test('moves a document to the trash from the keyboard, restores it from Lixeira,
   await expect(
     page.getByRole('heading', { name: title, level: 1 }),
   ).toBeVisible();
-  await expect(page.getByRole('textbox', { name: 'Título' })).toHaveCount(0);
+  await expect(
+    page.getByRole('textbox', { name: 'Título do documento' }),
+  ).toHaveCount(0);
   await expect(favoritesSidebarNav.getByText(title)).not.toBeVisible();
   await expect(recentDocumentsNav.getByText(title)).not.toBeVisible();
 
@@ -159,10 +175,15 @@ test('moves a document to the trash from the keyboard, restores it from Lixeira,
     page.getByRole('region', { name: 'Conteúdo do documento' }),
   ).toBeVisible({ timeout: EDITOR_TIMEOUT });
 
-  const reopenedTitleField = page.getByRole('textbox', { name: 'Título' });
+  const reopenedTitleField = page.getByRole('textbox', {
+    name: 'Título do documento',
+  });
   await reopenedTitleField.focus();
-  await page.keyboard.press('Shift+Tab');
-  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('Tab');
+  await expect(
+    page.getByRole('button', { name: 'Compartilhar' }),
+  ).toBeFocused();
+  await page.keyboard.press('Tab');
   await expect(trashButton).toBeFocused();
   await page.keyboard.press('Enter');
 
