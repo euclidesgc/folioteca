@@ -27,6 +27,9 @@ const OWNER_ONLY_MESSAGE =
 const OWNER_ONLY_LIST_MESSAGE =
   'Só o proprietário pode ver quem tem acesso a este documento.';
 
+const OWNER_ONLY_REMOVE_MESSAGE =
+  'Só o proprietário pode remover o acesso a este documento.';
+
 const SHARE_WITH_SELF_MESSAGE = 'Você já é o proprietário deste documento.';
 
 const PERSON_NOT_FOUND_MESSAGE = 'Pessoa não encontrada nesta instância.';
@@ -100,6 +103,44 @@ export class SharesService {
         level,
       },
     };
+  }
+
+  /**
+   * Removes the person's direct share of the document. Idempotent: removing a
+   * share that does not exist (already removed, never created, the owner
+   * themself or a malformed personId) succeeds without changes. Checks run in
+   * the order not found (opaque) → forbidden (not the owner) → conflict
+   * (document in the trash).
+   */
+  async remove(
+    requester: PersonWithOrganization,
+    documentId: string,
+    personId: string,
+  ): Promise<void> {
+    const accessLevel = await this.access.resolveAccess(
+      requester.id,
+      documentId,
+    );
+
+    if (accessLevel === 'none') {
+      throw documentNotFound();
+    }
+
+    if (accessLevel !== 'owner') {
+      throw new ForbiddenException(OWNER_ONLY_REMOVE_MESSAGE);
+    }
+
+    if (!(await this.access.canWrite(requester.id, documentId))) {
+      throw new ConflictException(TRASHED_DOCUMENT_MESSAGE);
+    }
+
+    if (!isUuid(personId)) {
+      return;
+    }
+
+    await this.prisma.documentShare.deleteMany({
+      where: { documentId, personId },
+    });
   }
 
   /**

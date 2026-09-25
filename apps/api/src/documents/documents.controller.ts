@@ -162,4 +162,14 @@ export class DocumentsController {
   ): Promise<DocumentShareResponse> {
     return this.shares.share(person, documentId, personId, body);
   }
+
+  @Delete(':documentId/shares/:personId')
+  @HttpCode(204)
+  async removeDocumentShare(
+    @CurrentPerson() person: PersonWithOrganization,
+    @Param('documentId') documentId: string,
+    @Param('personId') personId: string,
+  ): Promise<void> {
+    await this.shares.remove(person, documentId, personId);
+  }
 }

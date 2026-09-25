@@ -6,6 +6,7 @@ import path from 'node:path';
 import SwaggerParser from '@apidevtools/swagger-parser';
 import { RequestMethod, type INestApplication } from '@nestjs/common';
 import {
+  HTTP_CODE_METADATA,
   METHOD_METADATA,
   PATH_METADATA,
   ROUTE_ARGS_METADATA,
@@ -730,7 +731,12 @@ type RawContract = {
     Partial<
       Record<
         'get' | 'post' | 'put' | 'patch' | 'delete',
-        { operationId?: string; parameters?: RawParameter[] }
+        {
+          operationId?: string;
+          parameters?: RawParameter[];
+          requestBody?: unknown;
+          responses?: Record<string, { description?: string }>;
+        }
       >
     >
   >;
@@ -806,7 +812,8 @@ test('shareDocument path method and personId param match the controller', async 
     '{$1}',
   );
 
-  expect(Object.keys(pathItem ?? {})).toEqual(['put']);
+  // DV3: a fatia 179 acrescentou o `delete` ao mesmo path.
+  expect(Object.keys(pathItem ?? {}).sort()).toEqual(['delete', 'put']);
   expect(pathItem?.put?.operationId).toBe('shareDocument');
   expect(requestMethod).toBe(RequestMethod.PUT);
   expect(contractPath).toBe(SHARE_CONTRACT_PATH);
@@ -817,4 +824,126 @@ test('shareDocument path method and personId param match the controller', async 
       .map((parameter) => parameter.name)
       .sort(),
   ).toEqual(['documentId', 'personId']);
+});
+
+/** Operação `delete` do path do compartilhamento, sem resolver `$ref`. */
+async function rawRemoveOperation() {
+  return (await rawContract()).paths?.[SHARE_CONTRACT_PATH]?.delete;
+}
+
+function deleteShare(
+  documentId: string,
+  personId: string,
+  shareCookie?: string,
+): Promise<Response> {
+  const request = httpRequest(app)
+    .delete(`/api/documents/${documentId}/shares/${personId}`)
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return (
+    shareCookie === undefined ? request : request.set('Cookie', shareCookie)
+  ).send();
+}
+
+async function expectRemoveShareContract(
+  response: Response,
+  status: number,
+): Promise<void> {
+  expect(response.status).toBe(status);
+  await expectMatchesContract({
+    path: SHARE_CONTRACT_PATH,
+    method: 'delete',
+    status,
+    body: response.body,
+  });
+}
+
+test('removeDocumentShare is a delete on the shares path with 204 401 403 404 409', async () => {
+  const operation = await rawRemoveOperation();
+  const documentId = await createDocumentId();
+  const trashedId = await createDocumentId();
+  const viewer = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+  await putShare(documentId, viewer.person.id, cookie);
+  await putShare(trashedId, viewer.person.id, cookie);
+  await trashDocument(trashedId);
+
+  const forbidden = await deleteShare(
+    documentId,
+    viewer.person.id,
+    viewer.cookie,
+  );
+  const unauthorized = await deleteShare(documentId, viewer.person.id);
+  const missing = await deleteShare(randomUUID(), viewer.person.id, cookie);
+  const trashed = await deleteShare(trashedId, viewer.person.id, cookie);
+  const removed = await deleteShare(documentId, viewer.person.id, cookie);
+
+  expect(operation?.operationId).toBe('removeDocumentShare');
+  expect(Object.keys(operation?.responses ?? {}).sort()).toEqual([
+    '204',
+    '401',
+    '403',
+    '404',
+    '409',
+  ]);
+  expect(operation?.responses?.['403']?.description).toContain(
+    'Só o proprietário pode remover o acesso a este documento.',
+  );
+  await expectRemoveShareContract(forbidden, 403);
+  await expectRemoveShareContract(unauthorized, 401);
+  await expectRemoveShareContract(missing, 404);
+  await expectRemoveShareContract(trashed, 409);
+  expect(removed.status).toBe(204);
+  await expectDocumentedEmptyResponse(SHARE_CONTRACT_PATH, 'delete', 204);
+});
+
+test('removeDocumentShare path method and params match the controller', async () => {
+  const operation = await rawRemoveOperation();
+  const controllerPath = Reflect.getMetadata(
+    PATH_METADATA,
+    DocumentsController,
+  ) as unknown;
+  const handler = Object.getOwnPropertyDescriptor(
+    DocumentsController.prototype,
+    'removeDocumentShare',
+  )?.value as object;
+  const methodPath = Reflect.getMetadata(PATH_METADATA, handler) as unknown;
+  const requestMethod = Reflect.getMetadata(METHOD_METADATA, handler) as unknown;
+  const httpCode = Reflect.getMetadata(HTTP_CODE_METADATA, handler) as unknown;
+  const routeArgs = (Reflect.getMetadata(
+    ROUTE_ARGS_METADATA,
+    DocumentsController,
+    'removeDocumentShare',
+  ) ?? {}) as Record<string, { data?: unknown }>;
+  const paramNames = Object.entries(routeArgs)
+    .filter(([key]) => key.startsWith(`${RouteParamtypes.PARAM}:`))
+    .map(([, arg]) => arg.data)
+    .sort();
+  const contractPath = `/${String(controllerPath)}/${String(methodPath)}`.replace(
+    /:(\w+)/g,
+    '{$1}',
+  );
+
+  expect(operation?.operationId).toBe('removeDocumentShare');
+  expect(requestMethod).toBe(RequestMethod.DELETE);
+  expect(httpCode).toBe(204);
+  expect(contractPath).toBe(SHARE_CONTRACT_PATH);
+  expect(paramNames).toEqual(['documentId', 'personId']);
+  expect(
+    (operation?.parameters ?? [])
+      .filter((parameter) => parameter.in === 'path')
+      .map((parameter) => parameter.name)
+      .sort(),
+  ).toEqual(['documentId', 'personId']);
+});
+
+test('removeDocumentShare has no request body and no nullable', async () => {
+  const operation = await rawRemoveOperation();
+  const pathItem = (await rawContract()).paths?.[SHARE_CONTRACT_PATH];
+
+  expect(operation).toBeDefined();
+  expect(operation?.requestBody).toBeUndefined();
+  expect(JSON.stringify(pathItem)).not.toContain('nullable');
 });

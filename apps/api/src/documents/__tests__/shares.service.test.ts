@@ -49,16 +49,18 @@ function createService(
   findFirst: ReturnType<typeof vi.fn>;
   upsert: ReturnType<typeof vi.fn>;
   findMany: ReturnType<typeof vi.fn>;
+  deleteMany: ReturnType<typeof vi.fn>;
   canWriteMock: ReturnType<typeof vi.fn>;
 } {
   const findFirst = vi.fn().mockResolvedValue(storedPerson);
   const upsert = vi.fn().mockResolvedValue({});
   const findMany = vi.fn().mockResolvedValue(shareRows);
+  const deleteMany = vi.fn().mockResolvedValue({ count: 1 });
   const canWriteMock = vi.fn().mockResolvedValue(canWrite);
 
   const prisma = {
     person: { findFirst },
-    documentShare: { upsert, findMany },
+    documentShare: { upsert, findMany, deleteMany },
   } as unknown as PrismaService;
 
   const access = {
@@ -71,6 +73,7 @@ function createService(
     findFirst,
     upsert,
     findMany,
+    deleteMany,
     canWriteMock,
   };
 }
@@ -365,4 +368,69 @@ test('list puts the owner first with isCurrentPerson true', async () => {
       isCurrentPerson: false,
     },
   ]);
+});
+
+test('remove throws not found when access is none and deletes nothing', async () => {
+  const { service, deleteMany } = createService('none');
+
+  const error = await errorOf(service.remove(owner, DOCUMENT_ID, PERSON_ID));
+
+  expect(error).toBeInstanceOf(NotFoundException);
+  expect((error as NotFoundException).getStatus()).toBe(404);
+  expect(deleteMany).not.toHaveBeenCalled();
+});
+
+test('remove throws forbidden when access is not owner and deletes nothing', async () => {
+  const viewer = createService('view');
+  const editor = createService('edit');
+
+  const viewError = await errorOf(
+    viewer.service.remove(owner, DOCUMENT_ID, PERSON_ID),
+  );
+  const editError = await errorOf(
+    editor.service.remove(owner, DOCUMENT_ID, PERSON_ID),
+  );
+
+  expect(viewError).toBeInstanceOf(ForbiddenException);
+  expect((viewError as ForbiddenException).message).toBe(
+    'Só o proprietário pode remover o acesso a este documento.',
+  );
+  expect(editError).toBeInstanceOf(ForbiddenException);
+  expect((editError as ForbiddenException).message).toBe(
+    'Só o proprietário pode remover o acesso a este documento.',
+  );
+  expect(viewer.deleteMany).not.toHaveBeenCalled();
+  expect(editor.deleteMany).not.toHaveBeenCalled();
+});
+
+test('remove throws conflict when the document is trashed and deletes nothing', async () => {
+  const { service, deleteMany } = createService('owner', { canWrite: false });
+
+  const error = await errorOf(service.remove(owner, DOCUMENT_ID, PERSON_ID));
+
+  expect(error).toBeInstanceOf(ConflictException);
+  expect((error as ConflictException).message).toBe(
+    'Este documento está na lixeira. Restaure-o para editar.',
+  );
+  expect(deleteMany).not.toHaveBeenCalled();
+});
+
+test('remove skips the query for a malformed personId', async () => {
+  const { service, deleteMany } = createService('owner');
+
+  const result = await service.remove(owner, DOCUMENT_ID, 'nao-e-uuid');
+
+  expect(result).toBeUndefined();
+  expect(deleteMany).not.toHaveBeenCalled();
+});
+
+test('remove calls deleteMany with documentId and personId', async () => {
+  const { service, deleteMany } = createService('owner');
+
+  await service.remove(owner, DOCUMENT_ID, PERSON_ID);
+
+  expect(deleteMany).toHaveBeenCalledTimes(1);
+  expect(deleteMany).toHaveBeenCalledWith({
+    where: { documentId: DOCUMENT_ID, personId: PERSON_ID },
+  });
 });

@@ -954,3 +954,224 @@ test('a view share still gets 403 on PATCH', async () => {
     ).title,
   ).not.toBe('Rascunho');
 });
+
+const OWNER_ONLY_REMOVE_MESSAGE =
+  'Só o proprietário pode remover o acesso a este documento.';
+
+const TRASHED_DOCUMENT_MESSAGE =
+  'Este documento está na lixeira. Restaure-o para editar.';
+
+function deleteShare(
+  documentId: string,
+  personId: string,
+  cookie: string,
+): Promise<Response> {
+  return httpRequest(app)
+    .delete(`/api/documents/${documentId}/shares/${personId}`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie)
+    .send();
+}
+
+function shareRowsOf(documentId: string, personId: string): Promise<number> {
+  return prisma.documentShare.count({ where: { documentId, personId } });
+}
+
+test('DELETE share answers 204 and the row is gone', async () => {
+  const documentId = await createDocument(ownerCookie);
+  await putShare(documentId, other.id, VIEW_BODY, ownerCookie);
+
+  const response = await deleteShare(documentId, other.id, ownerCookie);
+
+  expect(response.status).toBe(204);
+  expect(response.body).toEqual({});
+  expect(await shareRowsOf(documentId, other.id)).toBe(0);
+});
+
+test('DELETE share again answers 204', async () => {
+  const documentId = await createDocument(ownerCookie);
+  await putShare(documentId, other.id, EDIT_BODY, ownerCookie);
+
+  const first = await deleteShare(documentId, other.id, ownerCookie);
+  const second = await deleteShare(documentId, other.id, ownerCookie);
+
+  expect(first.status).toBe(204);
+  expect(second.status).toBe(204);
+  expect(await shareRows(documentId)).toBe(0);
+});
+
+test('DELETE share with a malformed personId answers 204 and changes nothing', async () => {
+  const documentId = await createDocument(ownerCookie);
+  await putShare(documentId, other.id, VIEW_BODY, ownerCookie);
+
+  const response = await deleteShare(documentId, 'nao-e-uuid', ownerCookie);
+
+  expect(response.status).toBe(204);
+  expect(await shareRowsOf(documentId, other.id)).toBe(1);
+});
+
+test('DELETE share for a person without a share answers 204 and changes nothing', async () => {
+  const documentId = await createDocument(ownerCookie);
+  const { person: third } = await createPersonWithSession(app, {
+    name: 'Ana Ramos',
+    email: 'ana@exemplo.org',
+  });
+  await putShare(documentId, other.id, VIEW_BODY, ownerCookie);
+
+  const response = await deleteShare(documentId, third.id, ownerCookie);
+
+  expect(response.status).toBe(204);
+  expect(await shareRowsOf(documentId, other.id)).toBe(1);
+  expect(await shareRows(documentId)).toBe(1);
+});
+
+test('DELETE share for the owner themself answers 204 and changes nothing', async () => {
+  const documentId = await createDocument(ownerCookie);
+  await putShare(documentId, other.id, VIEW_BODY, ownerCookie);
+
+  const response = await deleteShare(documentId, owner.id, ownerCookie);
+  const read = await getDocument(documentId, ownerCookie);
+
+  expect(response.status).toBe(204);
+  expect(await shareRows(documentId)).toBe(1);
+  expect(accessLevelOf(read)).toBe('owner');
+});
+
+test('DELETE share by a view share answers 403 with the owner-only message', async () => {
+  const documentId = await createDocument(ownerCookie);
+  await putShare(documentId, other.id, VIEW_BODY, ownerCookie);
+
+  const response = await deleteShare(documentId, other.id, otherCookie);
+
+  expect(response.status).toBe(403);
+  expect(messageOf(response)).toBe(OWNER_ONLY_REMOVE_MESSAGE);
+  expect(await shareRowsOf(documentId, other.id)).toBe(1);
+});
+
+test('DELETE share by an edit share answers 403 with the owner-only message', async () => {
+  const documentId = await createDocument(ownerCookie);
+  const { person: third } = await createPersonWithSession(app, {
+    name: 'Ana Ramos',
+    email: 'ana@exemplo.org',
+  });
+  await putShare(documentId, other.id, EDIT_BODY, ownerCookie);
+  await putShare(documentId, third.id, VIEW_BODY, ownerCookie);
+
+  const response = await deleteShare(documentId, third.id, otherCookie);
+
+  expect(response.status).toBe(403);
+  expect(messageOf(response)).toBe(OWNER_ONLY_REMOVE_MESSAGE);
+  expect(await shareRows(documentId)).toBe(2);
+});
+
+test('DELETE share by a third person without access answers 404', async () => {
+  const documentId = await createDocument(ownerCookie);
+  const third = await createPersonWithSession(app, {
+    name: 'Ana Ramos',
+    email: 'ana@exemplo.org',
+  });
+  await putShare(documentId, other.id, VIEW_BODY, ownerCookie);
+
+  const response = await deleteShare(documentId, other.id, third.cookie);
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({ message: 'Documento não encontrado.' });
+  expect(await shareRowsOf(documentId, other.id)).toBe(1);
+});
+
+test('DELETE share on a document of another organization answers 404', async () => {
+  const foreignDocumentId = await createForeignDocument();
+  await prisma.documentShare.create({
+    data: { documentId: foreignDocumentId, personId: other.id, level: 'VIEW' },
+  });
+  const requester = await prisma.person.findFirstOrThrow({
+    where: { id: owner.id },
+    include: { organization: true },
+  });
+
+  const byHttp = await deleteShare(foreignDocumentId, other.id, ownerCookie);
+  const error: unknown = await app
+    .get(SharesService)
+    .remove(
+      { ...requester, organizationId: randomUUID() },
+      foreignDocumentId,
+      other.id,
+    )
+    .catch((reason: unknown) => reason);
+
+  expect(byHttp.status).toBe(404);
+  expect(byHttp.body).toEqual({ message: 'Documento não encontrado.' });
+  expect(error).toBeInstanceOf(NotFoundException);
+  expect(await shareRowsOf(foreignDocumentId, other.id)).toBe(1);
+});
+
+test('DELETE share on a missing document answers 404', async () => {
+  const response = await deleteShare(randomUUID(), other.id, ownerCookie);
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({ message: 'Documento não encontrado.' });
+});
+
+test('DELETE share with a malformed documentId answers 404', async () => {
+  const documentId = await createDocument(ownerCookie);
+  await putShare(documentId, other.id, VIEW_BODY, ownerCookie);
+
+  const response = await deleteShare('nao-e-uuid', other.id, ownerCookie);
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({ message: 'Documento não encontrado.' });
+  expect(await shareRowsOf(documentId, other.id)).toBe(1);
+});
+
+test('DELETE share on a trashed document answers 409 and keeps the row', async () => {
+  const documentId = await createDocument(ownerCookie);
+  await putShare(documentId, other.id, VIEW_BODY, ownerCookie);
+  await postAction(documentId, 'trash', ownerCookie);
+
+  const response = await deleteShare(documentId, other.id, ownerCookie);
+
+  expect(response.status).toBe(409);
+  expect(messageOf(response)).toBe(TRASHED_DOCUMENT_MESSAGE);
+  expect(await shareRowsOf(documentId, other.id)).toBe(1);
+});
+
+test('after removal the person gets 404 on GET document', async () => {
+  const documentId = await createDocument(ownerCookie);
+  await putShare(documentId, other.id, VIEW_BODY, ownerCookie);
+
+  const before = await getDocument(documentId, otherCookie);
+  const removed = await deleteShare(documentId, other.id, ownerCookie);
+  const after = await getDocument(documentId, otherCookie);
+
+  expect(before.status).toBe(200);
+  expect(removed.status).toBe(204);
+  expect(after.status).toBe(404);
+  expect(after.body).toEqual({ message: 'Documento não encontrado.' });
+});
+
+test('removing a view share of an edit space member keeps edit', async () => {
+  const documentId = await createFreeSpaceDocument('EDIT');
+  await putShare(documentId, other.id, VIEW_BODY, ownerCookie);
+
+  const removed = await deleteShare(documentId, other.id, ownerCookie);
+  const read = await getDocument(documentId, otherCookie);
+
+  expect(removed.status).toBe(204);
+  expect(await shareRowsOf(documentId, other.id)).toBe(0);
+  expect(read.status).toBe(200);
+  expect(accessLevelOf(read)).toBe('edit');
+});
+
+test('switching a share from edit to view is seen by the person on GET document', async () => {
+  const documentId = await createDocument(ownerCookie);
+  await putShare(documentId, other.id, EDIT_BODY, ownerCookie);
+
+  const asEdit = await getDocument(documentId, otherCookie);
+  const switched = await putShare(documentId, other.id, VIEW_BODY, ownerCookie);
+  const asView = await getDocument(documentId, otherCookie);
+
+  expect(accessLevelOf(asEdit)).toBe('edit');
+  expect(switched.status).toBe(200);
+  expect(asView.status).toBe(200);
+  expect(accessLevelOf(asView)).toBe('view');
+});

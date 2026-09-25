@@ -236,7 +236,11 @@ export interface paths {
          */
         put: operations["shareDocument"];
         post?: never;
-        delete?: never;
+        /**
+         * Remove o acesso de uma pessoa ao documento
+         * @description Remove o compartilhamento direto do documento com uma pessoa. Só o proprietário remove. A operação é idempotente: responde 204 também quando a pessoa já não tinha compartilhamento. As checagens acontecem nesta ordem: 401, 404 (documento inexistente ou sem acesso), 403 (quem chama não é o proprietário), 409 (documento na lixeira).
+         */
+        delete: operations["removeDocumentShare"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1873,6 +1877,63 @@ export interface operations {
                 };
             };
             /** @description O documento está na lixeira. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    removeDocumentShare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: string;
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Acesso removido; também responde 204 se a pessoa já não tinha compartilhamento. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Só o proprietário pode remover o acesso a este documento. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O documento não existe ou não está acessível. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Este documento está na lixeira. Restaure-o para editar. */
             409: {
                 headers: {
                     [name: string]: unknown;
