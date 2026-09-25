@@ -35,6 +35,7 @@ const SEED_USER: CurrentUser = {
     name: 'Ana Souza',
     email: SEED_EMAIL,
     isAdmin: true,
+    documentPageWidth: 'medium',
   },
 };
 

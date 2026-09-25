@@ -53,7 +53,7 @@ export const authHandlers = [
 
     const body: CurrentUserResponse = {
       data: {
-        person,
+        person: { ...person, documentPageWidth: 'medium' },
         organization: installation.organization,
       },
     };
@@ -99,7 +99,10 @@ export const authHandlers = [
     const body: CurrentUserResponse = {
       data: {
         // Same source as GET /auth/me: who the session belongs to.
-        person: getSignedInPerson() ?? installation.person,
+        person: {
+          ...(getSignedInPerson() ?? installation.person),
+          documentPageWidth: 'medium',
+        },
         organization: installation.organization,
       },
     };

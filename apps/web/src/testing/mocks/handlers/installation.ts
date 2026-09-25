@@ -134,7 +134,9 @@ export const installationHandlers = [
     });
     addUnitSpace(root.id);
 
-    const responseBody: CurrentUserResponse = { data: { person, organization } };
+    const responseBody: CurrentUserResponse = {
+      data: { person: { ...person, documentPageWidth: 'medium' }, organization },
+    };
 
     // Session is written the same way `seedInstalled` does, to `document.cookie`
     // directly: MSW's own `Set-Cookie` handling persists across

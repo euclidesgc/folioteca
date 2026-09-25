@@ -101,6 +101,7 @@ test('POST /api/installation returns 201 with the person and the organization', 
         name: 'Maria Souza',
         email: 'maria@exemplo.org',
         isAdmin: true,
+        documentPageWidth: 'medium',
       },
       organization: {
         id: ANY_STRING,

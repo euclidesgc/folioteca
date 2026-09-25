@@ -84,6 +84,40 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /auth/me/preferences:
+    patch:
+      operationId: updateCurrentUserPreferences
+      summary: Grava as preferências da pessoa da sessão atual
+      description: >-
+        Grava a largura da página escolhida pela pessoa, que vale para todos os
+        documentos dela, e devolve a pessoa da sessão atual já atualizada.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePreferencesBody"
+      responses:
+        "200":
+          description: As preferências foram gravadas.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUserResponse"
+        "400":
+          description: A largura da página está ausente ou é inválida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                message: Escolha uma largura de página válida.
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /auth/login:
     post:
       operationId: login
@@ -1964,11 +1998,14 @@ components:
               type: string
             isAdmin:
               type: boolean
+            documentPageWidth:
+              $ref: "#/components/schemas/DocumentPageWidth"
           required:
             - id
             - name
             - email
             - isAdmin
+            - documentPageWidth
         organization:
           type: object
           properties:
@@ -1982,6 +2019,19 @@ components:
       required:
         - person
         - organization
+    DocumentPageWidth:
+      type: string
+      description: >-
+        Largura da folha do documento escolhida pela pessoa: Pequena, Média,
+        Grande ou Completa.
+      enum: [small, medium, large, full]
+    UpdatePreferencesBody:
+      type: object
+      properties:
+        documentPageWidth:
+          $ref: "#/components/schemas/DocumentPageWidth"
+      required:
+        - documentPageWidth
     CurrentUserResponse:
       type: object
       properties:

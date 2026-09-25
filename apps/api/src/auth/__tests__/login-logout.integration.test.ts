@@ -110,6 +110,7 @@ test('POST /api/auth/login returns 200 with the same body as GET /api/auth/me', 
         name: 'Maria Souza',
         email: EMAIL,
         isAdmin: true,
+        documentPageWidth: 'medium',
       },
       organization: {
         id: ANY_STRING,

@@ -75,6 +75,7 @@ test('GET /api/auth/me returns the person and the organization with the session 
         name: 'Maria Souza',
         email: 'maria@exemplo.org',
         isAdmin: true,
+        documentPageWidth: 'medium',
       },
       organization: {
         id: ANY_STRING,

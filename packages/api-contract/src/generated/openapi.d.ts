@@ -56,6 +56,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/me/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Grava as preferências da pessoa da sessão atual
+         * @description Grava a largura da página escolhida pela pessoa, que vale para todos os documentos dela, e devolve a pessoa da sessão atual já atualizada.
+         */
+        patch: operations["updateCurrentUserPreferences"];
+        trace?: never;
+    };
     "/auth/login": {
         parameters: {
             query?: never;
@@ -655,11 +675,20 @@ export interface components {
                 name: string;
                 email: string;
                 isAdmin: boolean;
+                documentPageWidth: components["schemas"]["DocumentPageWidth"];
             };
             organization: {
                 id: string;
                 name: string;
             };
+        };
+        /**
+         * @description Largura da folha do documento escolhida pela pessoa: Pequena, Média, Grande ou Completa.
+         * @enum {string}
+         */
+        DocumentPageWidth: "small" | "medium" | "large" | "full";
+        UpdatePreferencesBody: {
+            documentPageWidth: components["schemas"]["DocumentPageWidth"];
         };
         CurrentUserResponse: {
             data: components["schemas"]["CurrentUser"];
@@ -1134,6 +1163,53 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CurrentUserResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    updateCurrentUserPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePreferencesBody"];
+            };
+        };
+        responses: {
+            /** @description As preferências foram gravadas. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUserResponse"];
+                };
+            };
+            /** @description A largura da página está ausente ou é inválida. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "message": "Escolha uma largura de página válida."
+                     *     }
+                     */
+                    "application/json": components["schemas"]["Error"];
                 };
             };
             /** @description Não há sessão válida. */

@@ -1,10 +1,14 @@
 import 'reflect-metadata';
 
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 
-import type { INestApplication } from '@nestjs/common';
+import SwaggerParser from '@apidevtools/swagger-parser';
+import { RequestMethod, type INestApplication } from '@nestjs/common';
+import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 
 import { createApp } from '../../create-app';
+import { AuthController } from '../auth.controller';
 import { PrismaService } from '../../prisma/prisma.service';
 import { expectMatchesContract } from '../../../test/contract';
 import { httpRequest } from '../../../test/http';
@@ -14,6 +18,33 @@ let app: INestApplication;
 let prisma: PrismaService;
 
 const EMAIL = 'maria@exemplo.org';
+
+const openapiPath = path.resolve(
+  import.meta.dirname,
+  '../../../../../packages/api-contract/openapi.yaml',
+);
+
+/** Esquema do contrato sem resolver `$ref`, para conferir a declaração. */
+type RawSchema = {
+  type?: string;
+  enum?: string[];
+  required?: string[];
+  properties?: Record<string, RawSchema>;
+  $ref?: string;
+};
+
+type RawContract = {
+  paths?: Record<
+    string,
+    Partial<
+      Record<
+        'get' | 'post' | 'put' | 'patch' | 'delete',
+        { operationId?: string; responses?: Record<string, unknown> }
+      >
+    >
+  >;
+  components?: { schemas?: Record<string, RawSchema> };
+};
 
 /** Senha da pessoa criada pela última instalação do teste. */
 let installedPassword = '';
@@ -149,4 +180,49 @@ test('POST logout 204 has no body', async () => {
   expect(response.status).toBe(204);
   expect(response.text).toBe('');
   expect(response.body).toEqual({});
+});
+
+test('updateCurrentUserPreferences path and method match the controller', async () => {
+  const document = (await SwaggerParser.parse(openapiPath)) as RawContract;
+  const controllerPath = Reflect.getMetadata(
+    PATH_METADATA,
+    AuthController,
+  ) as unknown;
+  const handler = Object.getOwnPropertyDescriptor(
+    AuthController.prototype,
+    'updatePreferences',
+  )?.value as object;
+  const methodPath = Reflect.getMetadata(PATH_METADATA, handler) as unknown;
+  const requestMethod = Reflect.getMetadata(METHOD_METADATA, handler) as unknown;
+
+  const operation = document.paths?.['/auth/me/preferences']?.patch;
+
+  expect(operation?.operationId).toBe('updateCurrentUserPreferences');
+  expect(controllerPath).toBe('auth');
+  expect(methodPath).toBe('me/preferences');
+  expect(`/${String(controllerPath)}/${String(methodPath)}`).toBe(
+    '/auth/me/preferences',
+  );
+  expect(requestMethod).toBe(RequestMethod.PATCH);
+  expect(Object.keys(operation?.responses ?? {}).sort()).toEqual([
+    '200',
+    '400',
+    '401',
+  ]);
+});
+
+test('CurrentUser requires documentPageWidth as an enum without nullable', async () => {
+  const document = (await SwaggerParser.parse(openapiPath)) as RawContract;
+  const schemas = document.components?.schemas ?? {};
+  const person = schemas.CurrentUser?.properties?.person;
+  const pageWidth = schemas.DocumentPageWidth;
+
+  expect(person?.required).toContain('documentPageWidth');
+  expect(person?.properties?.documentPageWidth).toEqual({
+    $ref: '#/components/schemas/DocumentPageWidth',
+  });
+  expect(pageWidth?.type).toBe('string');
+  expect(pageWidth?.enum).toEqual(['small', 'medium', 'large', 'full']);
+  expect(pageWidth).not.toHaveProperty('nullable');
+  expect(person?.properties?.documentPageWidth).not.toHaveProperty('nullable');
 });

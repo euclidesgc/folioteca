@@ -17,6 +17,7 @@ const userWith = (isAdmin: boolean): CurrentUser => ({
     name: 'Ana Souza',
     email: 'ana.souza@exemplo.com.br',
     isAdmin,
+    documentPageWidth: 'medium',
   },
 });
 

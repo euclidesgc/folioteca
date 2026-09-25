@@ -266,7 +266,10 @@ export const invitationsHandlers = [
       document.cookie = `${SESSION_COOKIE_NAME}=mock-session-token; path=/`;
 
       const body: CurrentUserResponse = {
-        data: { person, organization: installation.organization },
+        data: {
+          person: { ...person, documentPageWidth: 'medium' },
+          organization: installation.organization,
+        },
       };
       return HttpResponse.json(body, { status: 201 });
     },
