@@ -53,16 +53,25 @@ function createService(
   findMany: ReturnType<typeof vi.fn>;
   deleteMany: ReturnType<typeof vi.fn>;
   canWriteMock: ReturnType<typeof vi.fn>;
+  instanceUpsert: ReturnType<typeof vi.fn>;
+  instanceDeleteMany: ReturnType<typeof vi.fn>;
 } {
   const findFirst = vi.fn().mockResolvedValue(storedPerson);
   const upsert = vi.fn().mockResolvedValue({});
   const findMany = vi.fn().mockResolvedValue(shareRows);
   const deleteMany = vi.fn().mockResolvedValue({ count: 1 });
   const canWriteMock = vi.fn().mockResolvedValue(canWrite);
+  const instanceUpsert = vi.fn().mockResolvedValue({});
+  const instanceDeleteMany = vi.fn().mockResolvedValue({ count: 1 });
 
   const prisma = {
     person: { findFirst },
     documentShare: { upsert, findMany, deleteMany },
+    documentInstanceShare: {
+      findFirst: vi.fn().mockResolvedValue(null),
+      upsert: instanceUpsert,
+      deleteMany: instanceDeleteMany,
+    },
   } as unknown as PrismaService;
 
   const access = {
@@ -77,6 +86,8 @@ function createService(
     findMany,
     deleteMany,
     canWriteMock,
+    instanceUpsert,
+    instanceDeleteMany,
   };
 }
 
@@ -561,4 +572,197 @@ test('a throwing listener does not break share', async () => {
   } finally {
     logError.mockRestore();
   }
+});
+
+test('shareInstance checks 404 then 403 then 409 then 400', async () => {
+  const invalidBody = { level: 'owner' };
+  const none = createService('none', { canWrite: false });
+  const view = createService('view', { canWrite: false });
+  const edit = createService('edit', { canWrite: false });
+  const trashed = createService('owner', { canWrite: false });
+  const owner = createService('owner');
+
+  const notFound = await errorOf(
+    none.service.shareInstance(requester, DOCUMENT_ID, invalidBody),
+  );
+  const forbiddenView = await errorOf(
+    view.service.shareInstance(requester, DOCUMENT_ID, invalidBody),
+  );
+  const forbiddenEdit = await errorOf(
+    edit.service.shareInstance(requester, DOCUMENT_ID, invalidBody),
+  );
+  const conflict = await errorOf(
+    trashed.service.shareInstance(requester, DOCUMENT_ID, invalidBody),
+  );
+  const badRequest = await errorOf(
+    owner.service.shareInstance(requester, DOCUMENT_ID, invalidBody),
+  );
+
+  expect(notFound).toBeInstanceOf(NotFoundException);
+  expect((notFound as NotFoundException).message).toBe(
+    'Documento não encontrado.',
+  );
+  expect(forbiddenView).toBeInstanceOf(ForbiddenException);
+  expect(forbiddenEdit).toBeInstanceOf(ForbiddenException);
+  expect((forbiddenEdit as ForbiddenException).message).toBe(
+    'Só o proprietário pode compartilhar este documento.',
+  );
+  expect(conflict).toBeInstanceOf(ConflictException);
+  expect((conflict as ConflictException).message).toBe(
+    'Este documento está na lixeira. Restaure-o para editar.',
+  );
+  expect(badRequest).toBeInstanceOf(BadRequestException);
+  expect(none.instanceUpsert).not.toHaveBeenCalled();
+  expect(view.instanceUpsert).not.toHaveBeenCalled();
+  expect(edit.instanceUpsert).not.toHaveBeenCalled();
+  expect(trashed.instanceUpsert).not.toHaveBeenCalled();
+  expect(owner.instanceUpsert).not.toHaveBeenCalled();
+  expect(none.canWriteMock).not.toHaveBeenCalled();
+  expect(view.canWriteMock).not.toHaveBeenCalled();
+});
+
+test('removeInstance checks 404 then 403 then 409 before deleting', async () => {
+  const none = createService('none', { canWrite: false });
+  const view = createService('view', { canWrite: false });
+  const edit = createService('edit', { canWrite: false });
+  const trashed = createService('owner', { canWrite: false });
+  const allowed = createService('owner');
+  const listener = vi.fn();
+  allowed.service.onShareChanged(listener);
+
+  const notFound = await errorOf(
+    none.service.removeInstance(owner, DOCUMENT_ID),
+  );
+  const forbiddenView = await errorOf(
+    view.service.removeInstance(owner, DOCUMENT_ID),
+  );
+  const forbiddenEdit = await errorOf(
+    edit.service.removeInstance(owner, DOCUMENT_ID),
+  );
+  const conflict = await errorOf(
+    trashed.service.removeInstance(owner, DOCUMENT_ID),
+  );
+  const result = await allowed.service.removeInstance(owner, DOCUMENT_ID);
+
+  expect(notFound).toBeInstanceOf(NotFoundException);
+  expect((notFound as NotFoundException).message).toBe(
+    'Documento não encontrado.',
+  );
+  expect(forbiddenView).toBeInstanceOf(ForbiddenException);
+  expect((forbiddenView as ForbiddenException).message).toBe(
+    'Só o proprietário pode remover o acesso a este documento.',
+  );
+  expect(forbiddenEdit).toBeInstanceOf(ForbiddenException);
+  expect((forbiddenEdit as ForbiddenException).message).toBe(
+    'Só o proprietário pode remover o acesso a este documento.',
+  );
+  expect(conflict).toBeInstanceOf(ConflictException);
+  expect((conflict as ConflictException).message).toBe(
+    'Este documento está na lixeira. Restaure-o para editar.',
+  );
+  expect(none.canWriteMock).not.toHaveBeenCalled();
+  expect(view.canWriteMock).not.toHaveBeenCalled();
+  expect(edit.canWriteMock).not.toHaveBeenCalled();
+  expect(none.instanceDeleteMany).not.toHaveBeenCalled();
+  expect(view.instanceDeleteMany).not.toHaveBeenCalled();
+  expect(edit.instanceDeleteMany).not.toHaveBeenCalled();
+  expect(trashed.instanceDeleteMany).not.toHaveBeenCalled();
+  expect(result).toBeUndefined();
+  expect(allowed.instanceDeleteMany).toHaveBeenCalledTimes(1);
+  expect(allowed.instanceDeleteMany).toHaveBeenCalledWith({
+    where: { documentId: DOCUMENT_ID },
+  });
+  expect(allowed.canWriteMock.mock.invocationCallOrder[0]).toBeLessThan(
+    allowed.instanceDeleteMany.mock.invocationCallOrder[0] ?? 0,
+  );
+  expect(allowed.deleteMany).not.toHaveBeenCalled();
+  expect(listener).toHaveBeenCalledTimes(1);
+  expect(listener).toHaveBeenCalledWith(DOCUMENT_ID, null);
+});
+
+test('shareInstance notifies listeners with a null person after the upsert', async () => {
+  const { service, instanceUpsert } = createService('owner');
+  const first = vi.fn();
+  const second = vi.fn();
+  service.onShareChanged(first);
+  service.onShareChanged(second);
+
+  await service.shareInstance(requester, DOCUMENT_ID, { level: 'edit' });
+  await service.shareInstance(requester, DOCUMENT_ID, { level: 'edit' });
+
+  expect(instanceUpsert).toHaveBeenCalledTimes(2);
+  expect(first).toHaveBeenCalledTimes(2);
+  expect(first).toHaveBeenNthCalledWith(1, DOCUMENT_ID, null);
+  expect(first).toHaveBeenNthCalledWith(2, DOCUMENT_ID, null);
+  expect(second).toHaveBeenCalledWith(DOCUMENT_ID, null);
+  expect(instanceUpsert.mock.invocationCallOrder[0]).toBeLessThan(
+    first.mock.invocationCallOrder[0] ?? 0,
+  );
+});
+
+test('removeInstance notifies listeners with a null person when a row was deleted', async () => {
+  const { service, instanceDeleteMany } = createService('owner');
+  const listener = vi.fn();
+  service.onShareChanged(listener);
+
+  await service.removeInstance(owner, DOCUMENT_ID);
+
+  expect(listener).toHaveBeenCalledTimes(1);
+  expect(listener).toHaveBeenCalledWith(DOCUMENT_ID, null);
+  expect(instanceDeleteMany.mock.invocationCallOrder[0]).toBeLessThan(
+    listener.mock.invocationCallOrder[0] ?? 0,
+  );
+});
+
+test('removeInstance does not notify when there was no instance share', async () => {
+  const { service, instanceDeleteMany } = createService('owner');
+  instanceDeleteMany.mockResolvedValue({ count: 0 });
+  const listener = vi.fn();
+  service.onShareChanged(listener);
+
+  const result = await service.removeInstance(owner, DOCUMENT_ID);
+
+  expect(result).toBeUndefined();
+  expect(instanceDeleteMany).toHaveBeenCalledTimes(1);
+  expect(listener).not.toHaveBeenCalled();
+});
+
+test('shareInstance and removeInstance do not notify when refused', async () => {
+  const hidden = createService('none');
+  const viewer = createService('view');
+  const trashed = createService('owner', { canWrite: false });
+  const invalid = createService('owner');
+  const listener = vi.fn();
+  hidden.service.onShareChanged(listener);
+  viewer.service.onShareChanged(listener);
+  trashed.service.onShareChanged(listener);
+  invalid.service.onShareChanged(listener);
+
+  const errors = [
+    await errorOf(
+      hidden.service.shareInstance(requester, DOCUMENT_ID, VALID_BODY),
+    ),
+    await errorOf(
+      viewer.service.shareInstance(requester, DOCUMENT_ID, VALID_BODY),
+    ),
+    await errorOf(
+      trashed.service.shareInstance(requester, DOCUMENT_ID, VALID_BODY),
+    ),
+    await errorOf(
+      invalid.service.shareInstance(requester, DOCUMENT_ID, {
+        level: 'owner',
+      }),
+    ),
+    await errorOf(hidden.service.removeInstance(owner, DOCUMENT_ID)),
+    await errorOf(viewer.service.removeInstance(owner, DOCUMENT_ID)),
+    await errorOf(trashed.service.removeInstance(owner, DOCUMENT_ID)),
+  ];
+
+  expect(errors.map((error) => (error as HttpException).getStatus())).toEqual(
+    [404, 403, 409, 400, 404, 403, 409],
+  );
+  expect(hidden.instanceUpsert).not.toHaveBeenCalled();
+  expect(invalid.instanceUpsert).not.toHaveBeenCalled();
+  expect(trashed.instanceDeleteMany).not.toHaveBeenCalled();
+  expect(listener).not.toHaveBeenCalled();
 });

@@ -1628,3 +1628,140 @@ test('POST documents twice in parallel answers 201 with distinct numbers', async
     ),
   ).toEqual(new Set(['documento-sem-titulo-1', 'documento-sem-titulo-2']));
 });
+
+/** A dona compartilha o documento com todos da organização, pela API. */
+async function shareWithInstance(
+  documentId: string,
+  level: 'view' | 'edit',
+): Promise<void> {
+  const response = await httpRequest(app)
+    .put(`/api/documents/${documentId}/instance-share`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send({ level });
+
+  expect(response.status).toBe(200);
+}
+
+/** Colega da organização, sem compartilhamento pessoal nem espaço em comum. */
+async function createColleague(): Promise<{ person: Person; cookie: string }> {
+  return createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+}
+
+test('a colleague opens a document shared with the instance with the right accessLevel', async () => {
+  const viewDocument = await createDocument(cookieA);
+  const editDocument = await createDocument(cookieA);
+  await shareWithInstance(viewDocument.id, 'view');
+  await shareWithInstance(editDocument.id, 'edit');
+  const { cookie } = await createColleague();
+
+  const opensView = await getDocument(cookie, viewDocument.id);
+  const opensEdit = await getDocument(cookie, editDocument.id);
+  const renameView = await patchDocument(cookie, viewDocument.id, {
+    title: 'Título do colega',
+  });
+  const renameEdit = await patchDocument(cookie, editDocument.id, {
+    title: 'Título do colega',
+  });
+
+  expect(opensView.status).toBe(200);
+  expect((opensView.body as { data: DocumentBody }).data).toEqual(
+    expect.objectContaining({
+      id: viewDocument.id,
+      ownerId: personA.id,
+      accessLevel: 'view',
+    }),
+  );
+  expect(opensEdit.status).toBe(200);
+  expect((opensEdit.body as { data: DocumentBody }).data).toEqual(
+    expect.objectContaining({
+      id: editDocument.id,
+      ownerId: personA.id,
+      accessLevel: 'edit',
+    }),
+  );
+  expect(renameView.status).toBe(403);
+  expect(renameEdit.status).toBe(200);
+});
+
+test('a document shared with the instance appears in the colleague lists', async () => {
+  const document = await createDocument(cookieA);
+  await shareWithInstance(document.id, 'view');
+  const { cookie } = await createColleague();
+
+  const favorite = await httpRequest(app)
+    .put(`/api/documents/${document.id}/favorite`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie)
+    .send();
+  const favorites = await getDocuments(cookie, '?scope=favorites');
+  const mine = await getDocuments(cookie);
+
+  expect(favorite.status).toBe(204);
+  expect(favorites.status).toBe(200);
+  expect(
+    (favorites.body as { data: DocumentSummaryBody[] }).data.map(
+      (item) => item.id,
+    ),
+  ).toEqual([document.id]);
+  // "Meus documentos" continua só com o que é da pessoa.
+  expect(mine.body).toEqual({ data: [] });
+});
+
+test('a colleague through the instance gets 403 on trash and delete', async () => {
+  const document = await createDocument(cookieA);
+  await shareWithInstance(document.id, 'edit');
+  const { cookie } = await createColleague();
+
+  const trash = await httpRequest(app)
+    .post(`/api/documents/${document.id}/trash`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie)
+    .send();
+  const remove = await httpRequest(app)
+    .delete(`/api/documents/${document.id}`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie)
+    .send();
+  const stored = await prisma.document.findFirstOrThrow({
+    where: { id: document.id },
+  });
+
+  expect(trash.status).toBe(403);
+  expect(trash.body).toEqual({
+    message: 'Só o proprietário pode mover este documento para a lixeira.',
+  });
+  expect(remove.status).toBe(403);
+  expect(remove.body).toEqual({
+    message: 'Só o proprietário pode excluir este documento.',
+  });
+  expect(stored.trashedAt).toBeNull();
+});
+
+test('a colleague reached only through the instance gets 404 after the instance share is removed', async () => {
+  const document = await createDocument(cookieA);
+  await shareWithInstance(document.id, 'edit');
+  const { cookie } = await createColleague();
+
+  const before = await getDocument(cookie, document.id);
+  const removed = await httpRequest(app)
+    .delete(`/api/documents/${document.id}/instance-share`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send();
+  const after = await getDocument(cookie, document.id);
+  const rename = await patchDocument(cookie, document.id, {
+    title: 'Título do colega',
+  });
+  const byOwner = await getDocument(cookieA, document.id);
+
+  expect(before.status).toBe(200);
+  expect(removed.status).toBe(204);
+  expect(after.status).toBe(404);
+  expect(after.body).toEqual({ message: 'Documento não encontrado.' });
+  expect(rename.status).toBe(404);
+  expect(byOwner.status).toBe(200);
+});

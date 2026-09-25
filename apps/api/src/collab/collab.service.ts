@@ -50,14 +50,23 @@ export const ACCESS_CHANGED_MESSAGE = JSON.stringify({
 /** Teto do debounce: nunca esperar mais do que cinco janelas para gravar. */
 const MAX_DEBOUNCE_FACTOR = 5;
 
-/** Whether the connection context belongs to the given person. */
-function belongsTo(context: unknown, personId: string): boolean {
-  return (
+/** The person of the connection context, or `null` when it carries none. */
+function personIdOf(context: unknown): string | null {
+  if (
     typeof context === 'object' &&
     context !== null &&
     'personId' in context &&
-    context.personId === personId
-  );
+    typeof context.personId === 'string'
+  ) {
+    return context.personId;
+  }
+
+  return null;
+}
+
+/** Whether the connection context belongs to the given person. */
+function belongsTo(context: unknown, personId: string): boolean {
+  return personIdOf(context) === personId;
 }
 
 function toUint8Array(data: RawData): Uint8Array {
@@ -99,12 +108,13 @@ function toWebRequest(request: IncomingMessage): Request {
  * própria, alimentada pelos sockets que `attachCollab` aceita em `/collab`.
  *
  * The access is checked on connect and re-evaluated in the middle of the
- * session when a direct share changes (level switched or share removed) or
- * when the document goes to the trash (its connections are closed and whoever
- * reconnects enters read only).
+ * session when a direct share or the organization share changes (level
+ * switched or share removed) or when the document goes to the trash (its
+ * connections are closed and whoever reconnects enters read only).
  *
- * Limite conhecido: a change through the space (membership or the space's
- * level) is not re-evaluated until the person reconnects (debt 049). Accepted
+ * Limite conhecido: leaving the organization or a change through the space
+ * (membership or the space's level) is not re-evaluated until the person
+ * reconnects (debt 049). Accepted
  * race: a connection still inside `onConnect` when the share changes is not
  * re-evaluated; it keeps the access it resolved there.
  */
@@ -194,24 +204,43 @@ export class CollabService implements OnModuleDestroy {
 
   /**
    * Resolves again, through the same calls as `onConnect`, the access of each
-   * open connection of the person to the document. No access: sends
-   * `access-changed` and closes the connection without a reason. Otherwise
-   * switches `readOnly` and sends `access-changed`, even when nothing changed.
-   * A document not loaded in memory has nothing to re-evaluate.
+   * open connection of the person to the document, or of every open
+   * connection of the document when `personId` is `null` (each one with its
+   * own person, the owner included). No access: sends `access-changed` and
+   * closes the connection without a reason. Otherwise switches `readOnly` and
+   * sends `access-changed`, even when nothing changed. A connection without a
+   * person never passed `onConnect` and is closed without a message. A
+   * document not loaded in memory has nothing to re-evaluate.
    */
-  async reevaluateAccess(documentId: string, personId: string): Promise<void> {
+  async reevaluateAccess(
+    documentId: string,
+    personId: string | null,
+  ): Promise<void> {
     const document = this.hocuspocus.documents.get(documentId);
 
     if (document === undefined) {
       return;
     }
 
-    const connections = document
-      .getConnections()
-      .filter((connection) => belongsTo(connection.context, personId));
+    const connections =
+      personId === null
+        ? document.getConnections()
+        : document
+            .getConnections()
+            .filter((connection) => belongsTo(connection.context, personId));
 
     for (const connection of connections) {
-      const accessLevel = await this.access.resolveAccess(personId, documentId);
+      const connectionPersonId = personIdOf(connection.context);
+
+      if (connectionPersonId === null) {
+        connection.close();
+        continue;
+      }
+
+      const accessLevel = await this.access.resolveAccess(
+        connectionPersonId,
+        documentId,
+      );
 
       if (accessLevel === 'none') {
         connection.sendStateless(ACCESS_CHANGED_MESSAGE);
@@ -219,7 +248,10 @@ export class CollabService implements OnModuleDestroy {
         continue;
       }
 
-      connection.readOnly = !(await this.access.canWrite(personId, documentId));
+      connection.readOnly = !(await this.access.canWrite(
+        connectionPersonId,
+        documentId,
+      ));
       connection.sendStateless(ACCESS_CHANGED_MESSAGE);
     }
   }

@@ -168,6 +168,7 @@ model Document {
   content   DocumentContent?
   favorites Favorite[]
   shares    DocumentShare[]
+  instanceShare DocumentInstanceShare?
   space     Space            @relation(fields: [spaceId], references: [id], onDelete: Restrict)
   author    Person           @relation("DocumentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
   owner     Person           @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Restrict)
@@ -209,6 +210,18 @@ model DocumentShare {
 
   @@id([documentId, personId])
   @@index([personId])
+}
+
+/// Compartilhamento de um documento com todos da organização do dono: no
+/// máximo uma linha por documento. A organização é a do dono, lida a cada
+/// decisão; nada é gravado por pessoa.
+model DocumentInstanceShare {
+  documentId String     @id
+  level      ShareLevel
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
 /// Estado Yjs consolidado do documento, fora do modelo lido pelas listas.

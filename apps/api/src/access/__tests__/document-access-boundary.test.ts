@@ -808,11 +808,13 @@ const SHARE_TABLE_FILES = [ACCESS_SERVICE_FILE, SHARES_SERVICE_FILE];
 const SHARE_TABLE_PATTERN = /\.documentShare\s*\./g;
 const SHARE_RAW_TABLE_PATTERN = /"DocumentShare"/g;
 const SHARE_FIND_UNIQUE_PATTERN = /\.documentShare\.findUnique\s*\(/g;
+const INSTANCE_SHARE_TABLE_PATTERN = /\.documentInstanceShare\s*\./g;
+const INSTANCE_SHARE_RAW_TABLE_PATTERN = /"DocumentInstanceShare"/g;
 
 /**
- * Regra 9: só `access.service.ts` e `shares.service.ts` tocam a tabela
- * `DocumentShare`, `shares.service.ts` decide pelo `resolveAccess` e
- * `documentShare.findUnique` só aparece na decisão de acesso.
+ * Regra 9: só `access.service.ts` e `shares.service.ts` tocam as tabelas
+ * `DocumentShare` e `DocumentInstanceShare`, `shares.service.ts` decide pelo
+ * `resolveAccess` e `documentShare.findUnique` só aparece na decisão de acesso.
  */
 function checkShareTable({ file, source }: SourceFile): Violation[] {
   const violations: Violation[] = [];
@@ -825,6 +827,20 @@ function checkShareTable({ file, source }: SourceFile): Violation[] {
           line: lineAt(source, match.index),
           message:
             'toca na tabela DocumentShare fora de access.service.ts e shares.service.ts',
+        });
+      }
+    }
+
+    for (const pattern of [
+      INSTANCE_SHARE_TABLE_PATTERN,
+      INSTANCE_SHARE_RAW_TABLE_PATTERN,
+    ]) {
+      for (const match of source.matchAll(pattern)) {
+        violations.push({
+          file,
+          line: lineAt(source, match.index),
+          message:
+            'toca na tabela DocumentInstanceShare fora de access.service.ts e shares.service.ts',
         });
       }
     }
@@ -901,6 +917,59 @@ test('rule 9 accepts documentShare in access service and shares service', () => 
   expect(report(compliantAccess)).toEqual([]);
   expect(sourceFiles.map(({ file }) => file)).toContain(SHARES_SERVICE_FILE);
   expect(sharesSource).toContain('resolveAccess(');
+  expect(report(realViolations)).toEqual([]);
+});
+
+test('rule 9 flags documentInstanceShare outside access and shares service', () => {
+  const offender = checkShareTable({
+    file: DOCUMENTS_SERVICE_FILE,
+    source: [
+      'await this.prisma.documentInstanceShare.findFirst({ where: { documentId } });',
+      'await this.prisma.$queryRaw`SELECT level FROM "DocumentInstanceShare"`;',
+    ].join('\n'),
+  });
+  const collabOffender = checkShareTable({
+    file: COLLAB_SERVICE_FILE,
+    source:
+      'await this.prisma.documentInstanceShare.upsert({ where: { documentId } });',
+  });
+
+  expect(report(offender)).toEqual([
+    'documents/documents.service.ts:1 toca na tabela DocumentInstanceShare fora de access.service.ts e shares.service.ts',
+    'documents/documents.service.ts:2 toca na tabela DocumentInstanceShare fora de access.service.ts e shares.service.ts',
+  ]);
+  expect(report(collabOffender)).toEqual([
+    'collab/collab.service.ts:1 toca na tabela DocumentInstanceShare fora de access.service.ts e shares.service.ts',
+  ]);
+});
+
+test('rule 9 accepts documentInstanceShare in access service and shares service', () => {
+  const compliantShares = checkShareTable({
+    file: SHARES_SERVICE_FILE,
+    source: [
+      'const level = await this.access.resolveAccess(requester.id, documentId);',
+      'await this.prisma.documentInstanceShare.upsert({ where: { documentId } });',
+    ].join('\n'),
+  });
+  const compliantAccess = checkShareTable({
+    file: ACCESS_SERVICE_FILE,
+    source: [
+      'await this.prisma.documentInstanceShare.findFirst({ where: { documentId } });',
+      'await this.prisma.$queryRaw`SELECT level FROM "DocumentInstanceShare"`;',
+    ].join('\n'),
+  });
+
+  // O código real responde pela mesma regra: só as duas portas tocam a tabela
+  // do compartilhamento com a organização, e o serviço de compartilhamento a
+  // grava de fato.
+  const realViolations = sourceFiles.flatMap(checkShareTable);
+  const sharesSource = sourceFiles.find(
+    ({ file }) => file === SHARES_SERVICE_FILE,
+  )?.source;
+
+  expect(report(compliantShares)).toEqual([]);
+  expect(report(compliantAccess)).toEqual([]);
+  expect(sharesSource).toContain('documentInstanceShare.upsert(');
   expect(report(realViolations)).toEqual([]);
 });
 
@@ -1210,5 +1279,111 @@ test('rule 12 flags the offending example and accepts the conforming one', () =>
   expect(report(conformingReach)).toEqual([]);
   expect(report(conformingAccess)).toEqual([]);
   expect(report(conformingSpaces)).toEqual([]);
+  expect(report(realViolations)).toEqual([]);
+});
+
+/** Ramo da organização do dono dentro da porta de leitura. */
+const INSTANCE_OWNER_ORGANIZATION_FILTER =
+  'owner: { organization: { people: { some: { id: personId } } } }';
+
+/**
+ * Regra 13: o compartilhamento com a organização só dá acesso a documento pela
+ * porta. Fora de `access.service.ts`, nenhuma leitura de `Document` filtra por
+ * `instanceShare`, e a porta de leitura só o alcança pela organização do dono.
+ */
+function checkInstanceShareFilter({ file, source }: SourceFile): Violation[] {
+  const violations: Violation[] = [];
+
+  if (file === ACCESS_SERVICE_FILE) {
+    return violations;
+  }
+
+  for (const match of source.matchAll(ASSIGNMENT_READ_CALL_PATTERN)) {
+    const openIndex = match.index + match[0].length - 1;
+    const call = source.slice(openIndex, endOfCall(source, openIndex) + 1);
+
+    if (call.includes('instanceShare')) {
+      violations.push({
+        file,
+        line: lineAt(source, match.index),
+        message: `leitura document.${match[1]} filtra por instanceShare fora de access.service.ts`,
+      });
+    }
+  }
+
+  return violations;
+}
+
+/** Corpo da definição de `readableDocumentsWhere` no fonte informado. */
+function readableGateBody(source: string): string {
+  const definition = READABLE_GATE_DEFINITION_PATTERN.exec(source);
+
+  if (definition === null) {
+    return '';
+  }
+
+  const openIndex = definition.index + definition[0].length - 1;
+
+  return source.slice(openIndex, endOfBlock(source, openIndex) + 1);
+}
+
+test('rule 13: readableDocumentsWhere reaches instance shares through the owner organization', () => {
+  const accessSource =
+    sourceFiles.find(({ file }) => file === ACCESS_SERVICE_FILE)?.source ?? '';
+  const body = readableGateBody(accessSource);
+
+  expect(body).toContain('instanceShare: { isNot: null }');
+  expect(body).toContain(INSTANCE_OWNER_ORGANIZATION_FILTER);
+  expect(body).toContain('trashedAt: null');
+});
+
+test('rule 13: no Document read outside access filters by instanceShare', () => {
+  const violations = sourceFiles.flatMap(checkInstanceShareFilter);
+
+  expect(sourceFiles.map(({ file }) => file)).toContain(SHARES_SERVICE_FILE);
+  expect(report(violations)).toEqual([]);
+});
+
+test('rule 13 flags the offending example and accepts the conforming one', () => {
+  const offender = checkInstanceShareFilter({
+    file: DOCUMENTS_SERVICE_FILE,
+    source: [
+      'await this.prisma.document.findMany({',
+      '  where: { instanceShare: { isNot: null } },',
+      '});',
+      'await this.prisma.document.findFirst({ where: { id }, select: { instanceShare: true } });',
+    ].join('\n'),
+  });
+
+  const conformingAccess = checkInstanceShareFilter({
+    file: ACCESS_SERVICE_FILE,
+    source:
+      'await this.prisma.document.findFirst({ where: { id: documentId }, select: { instanceShare: { select: { level: true } } } });',
+  });
+  const conformingService = checkInstanceShareFilter({
+    file: DOCUMENTS_SERVICE_FILE,
+    source:
+      'await this.prisma.document.findMany({ where: { AND: [this.access.readableDocumentsWhere(personId), { spaceId }] } });',
+  });
+
+  const offendingGate = readableGateBody(
+    [
+      'readableDocumentsWhere(personId: string): Prisma.DocumentWhereInput {',
+      '  return { trashedAt: null, OR: [{ ownerId: personId }, { instanceShare: { isNot: null } }] };',
+      '}',
+    ].join('\n'),
+  );
+
+  // O código real responde pela mesma regra.
+  const realViolations = sourceFiles.flatMap(checkInstanceShareFilter);
+
+  expect(report(offender)).toEqual([
+    'documents/documents.service.ts:1 leitura document.findMany filtra por instanceShare fora de access.service.ts',
+    'documents/documents.service.ts:4 leitura document.findFirst filtra por instanceShare fora de access.service.ts',
+  ]);
+  expect(offendingGate).toContain('instanceShare: { isNot: null }');
+  expect(offendingGate).not.toContain(INSTANCE_OWNER_ORGANIZATION_FILTER);
+  expect(report(conformingAccess)).toEqual([]);
+  expect(report(conformingService)).toEqual([]);
   expect(report(realViolations)).toEqual([]);
 });
