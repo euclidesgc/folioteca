@@ -259,7 +259,11 @@ function LoadedDocument({
             : null}
         </p>
 
-        {canEditTitle ? <SaveIndicator status={saveStatus} /> : null}
+        {/* Before the first sync the reconnection notice takes the editor's
+            place, so the sentence appears only once. */}
+        {canEditTitle && saveStatus !== 'unreachable' ? (
+          <SaveIndicator status={saveStatus} />
+        ) : null}
 
         <ErrorBoundary
           FallbackComponent={EditorErrorFallback}
@@ -282,6 +286,8 @@ function LoadedDocument({
                   color: USER_COLOR,
                 }}
               />
+            ) : saveStatus === 'unreachable' ? (
+              <EditorUnreachable />
             ) : (
               <EditorLoading />
             )}
@@ -296,6 +302,20 @@ function EditorLoading(): React.JSX.Element {
   return (
     <p role="status" className="mt-6 text-gray-600">
       Carregando editor…
+    </p>
+  );
+}
+
+// The provider retries on its own, so there is no button: once it connects
+// and syncs, the editor takes this notice's place.
+function EditorUnreachable(): React.JSX.Element {
+  return (
+    <p
+      role="status"
+      aria-live="polite"
+      className="mt-6 rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-800"
+    >
+      Não foi possível conectar ao editor — tentando de novo…
     </p>
   );
 }

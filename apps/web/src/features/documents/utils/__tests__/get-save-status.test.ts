@@ -2,35 +2,38 @@ import { expect, it } from 'vitest';
 
 import { getSaveStatus } from '../get-save-status';
 
-// Exactly the five rules of the table, one case each; the rows that must not
+// Exactly the six rules of the table, one case each; the rows that must not
 // change the answer are asserted side by side, without a loop.
 
-it('returns offline when disconnected, whatever the other fields', () => {
+it('returns unreachable when disconnected before the first sync', () => {
   expect(
     getSaveStatus({
       connection: 'disconnected',
       hasSynced: false,
       unsyncedChanges: 0,
     }),
-  ).toBe('offline');
+  ).toBe('unreachable');
   expect(
     getSaveStatus({
       connection: 'disconnected',
-      hasSynced: true,
-      unsyncedChanges: 0,
-    }),
-  ).toBe('offline');
-  expect(
-    getSaveStatus({
-      connection: 'disconnected',
-      hasSynced: true,
+      hasSynced: false,
       unsyncedChanges: 3,
     }),
+  ).toBe('unreachable');
+});
+
+it('returns offline when disconnected after the first sync, whatever the unsynced changes', () => {
+  expect(
+    getSaveStatus({
+      connection: 'disconnected',
+      hasSynced: true,
+      unsyncedChanges: 0,
+    }),
   ).toBe('offline');
   expect(
     getSaveStatus({
       connection: 'disconnected',
-      hasSynced: false,
+      hasSynced: true,
       unsyncedChanges: 3,
     }),
   ).toBe('offline');

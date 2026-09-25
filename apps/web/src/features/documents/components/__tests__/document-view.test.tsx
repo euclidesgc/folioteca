@@ -369,6 +369,85 @@ test('keeps the editor mounted and shows the offline sentence when the connectio
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 
+// Bug 174: in hml the collaboration socket never opened while the HTTP API
+// answered, and the page promised to send changes that did not exist while the
+// editor stayed on its loading line forever.
+test('says the editor could not connect, instead of the offline sentence and an endless loading, when the connection closes before the first sync', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  await screen.findByRole('textbox', { name: 'Título do documento' });
+  await emit('status', { status: 'connecting' });
+  await emit('status', { status: 'disconnected' });
+
+  expect(
+    screen.getByText(/Não foi possível conectar ao editor/),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByText(
+      'Sem conexão — as alterações serão enviadas ao reconectar',
+    ),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByText('Carregando editor…')).not.toBeInTheDocument();
+});
+
+const UNREACHABLE_SENTENCE =
+  'Não foi possível conectar ao editor — tentando de novo…';
+
+test('shows the could not connect notice once, with role status and aria-live polite, before the first sync', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  await screen.findByRole('textbox', { name: 'Título do documento' });
+  await emit('status', { status: 'disconnected' });
+
+  const notices = screen.getAllByText(UNREACHABLE_SENTENCE);
+  expect(notices).toHaveLength(1);
+  expect(notices[0]).toHaveAttribute('role', 'status');
+  expect(notices[0]).toHaveAttribute('aria-live', 'polite');
+  expect(screen.queryByRole('button', { name: /tentar/i })).not.toBeInTheDocument();
+  expect(screen.queryByTestId('document-editor')).not.toBeInTheDocument();
+});
+
+test('mounts the editor and hides the could not connect notice when the connection syncs after failing', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  await screen.findByRole('textbox', { name: 'Título do documento' });
+  await emit('status', { status: 'disconnected' });
+  expect(screen.getByText(UNREACHABLE_SENTENCE)).toBeInTheDocument();
+
+  await connectAndSync();
+
+  expect(
+    await screen.findByTestId('document-editor', undefined, LAZY_TIMEOUT),
+  ).toBeInTheDocument();
+  expect(screen.queryByText(UNREACHABLE_SENTENCE)).not.toBeInTheDocument();
+  expect(screen.getByText('Salvo')).toBeInTheDocument();
+});
+
+test('keeps Carregando editor… while connecting before the first sync', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  await screen.findByRole('textbox', { name: 'Título do documento' });
+  await emit('status', { status: 'connecting' });
+
+  expect(
+    await screen.findByText('Carregando editor…', undefined, LAZY_TIMEOUT),
+  ).toHaveAttribute('role', 'status');
+  expect(screen.queryByText(UNREACHABLE_SENTENCE)).not.toBeInTheDocument();
+  expect(screen.getByText('Conectando…')).toBeInTheDocument();
+});
+
 test('shows the editor error with Tentar novamente when the editor fails to render', async () => {
   // React prints the caught render error; this is the only case that silences
   // the console, and the spy is restored in afterEach.

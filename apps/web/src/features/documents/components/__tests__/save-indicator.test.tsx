@@ -33,6 +33,19 @@ test('shows the offline sentence', () => {
   expect(status).toHaveClass('text-amber-800');
 });
 
+test('shows the could not connect sentence with role status when unreachable', () => {
+  render(<SaveIndicator status="unreachable" />);
+
+  expect(screen.getByRole('status')).toHaveTextContent(
+    'Não foi possível conectar ao editor — tentando de novo…',
+  );
+  expect(
+    screen.queryByText(
+      'Sem conexão — as alterações serão enviadas ao reconectar',
+    ),
+  ).not.toBeInTheDocument();
+});
+
 test('renders a single status at a time', () => {
   const { rerender } = render(<SaveIndicator status="saving" />);
 

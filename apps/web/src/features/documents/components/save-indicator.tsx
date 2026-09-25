@@ -13,6 +13,7 @@ const messages: Record<SaveStatus, string> = {
   saving: 'Salvando…',
   saved: 'Salvo',
   offline: 'Sem conexão — as alterações serão enviadas ao reconectar',
+  unreachable: 'Não foi possível conectar ao editor — tentando de novo…',
 };
 
 export function SaveIndicator({
@@ -22,7 +23,7 @@ export function SaveIndicator({
     <p
       role="status"
       className={
-        status === 'offline'
+        status === 'offline' || status === 'unreachable'
           ? 'mt-2 text-sm text-amber-800'
           : 'mt-2 text-sm text-gray-600'
       }

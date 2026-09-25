@@ -3,8 +3,10 @@ import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
 import type { Server } from 'node:http';
 
-import type { INestApplication } from '@nestjs/common';
+import { Logger, type INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import type { MockInstance } from 'vitest';
+import { WebSocket as NodeWebSocket } from 'ws';
 import * as Y from 'yjs';
 
 import { AccessService } from '../../access/access.service';
@@ -173,6 +175,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await Promise.all(connections.map((connection) => connection.close()));
+  vi.restoreAllMocks();
 });
 
 test('the owner writes, the content row appears and the document updatedAt advances', async () => {
@@ -978,6 +981,121 @@ test('after demoting the free space member to view the next connection is read o
 
   expect(await storedText(documentId)).toBe('Plano do projeto');
   expect(next.statelessPayloads).not.toContain(STORED_MESSAGE);
+});
+
+type LoggerSpy = MockInstance<Logger['log']>;
+
+type LoggerSpies = {
+  log: LoggerSpy;
+  warn: LoggerSpy;
+};
+
+/** Espiões silenciosos nos logs do Nest, restaurados no `afterEach`. */
+function spyOnLogger(): LoggerSpies {
+  return {
+    log: vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined),
+    warn: vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined),
+  };
+}
+
+/** Primeiro argumento de cada chamada, como texto. */
+function messagesOf(spy: LoggerSpy): string[] {
+  return spy.mock.calls.map((call) => String(call[0]));
+}
+
+/** Tudo o que os espiões receberam, serializado, para procurar vazamentos. */
+function everythingLogged(spies: LoggerSpies): string {
+  return JSON.stringify([...spies.log.mock.calls, ...spies.warn.mock.calls]);
+}
+
+test('logs Upgrade de /collab recusado: 401 (sem sessão válida) without a cookie', async () => {
+  const spies = spyOnLogger();
+
+  const result = await rawUpgrade({ port, origin });
+
+  expect(result).toEqual({ status: 401, opened: false });
+  expect(messagesOf(spies.warn)).toContain(
+    'Upgrade de /collab recusado: 401 (sem sessão válida)',
+  );
+});
+
+test('logs Upgrade de /collab recusado: 403 (origem recusada) for a foreign origin', async () => {
+  const spies = spyOnLogger();
+
+  const result = await rawUpgrade({
+    port,
+    cookie: cookieA,
+    origin: 'http://outro.exemplo.org',
+  });
+
+  expect(result).toEqual({ status: 403, opened: false });
+  expect(messagesOf(spies.warn)).toContain(
+    'Upgrade de /collab recusado: 403 (origem recusada)',
+  );
+});
+
+test('logs Upgrade de /collab aceito and Conexão de /collab fechada: código with the close code', async () => {
+  const spies = spyOnLogger();
+  const closeCode = 4321;
+
+  const socket = new NodeWebSocket(`ws://127.0.0.1:${port}/collab`, {
+    headers: { Cookie: cookieA, Origin: origin },
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    socket.once('open', () => resolve());
+    socket.once('error', reject);
+  });
+
+  expect(messagesOf(spies.log)).toContain('Upgrade de /collab aceito');
+
+  socket.close(closeCode);
+
+  await waitFor(
+    () =>
+      messagesOf(spies.log).includes(
+        `Conexão de /collab fechada: código ${closeCode}`,
+      ),
+    { message: 'O fechamento da conexão não foi registrado' },
+  );
+
+  expect(messagesOf(spies.log)).toContain(
+    `Conexão de /collab fechada: código ${closeCode}`,
+  );
+});
+
+test('never logs the session cookie value in any collab upgrade line', async () => {
+  const spies = spyOnLogger();
+  const cookieValue = cookieA.slice('folioteca_session='.length);
+  const created = await createDocument(cookieA);
+
+  const connection = open({ documentId: created.id, cookie: cookieA });
+  await connection.synced;
+  await connection.close();
+
+  await waitFor(
+    () =>
+      messagesOf(spies.log).some((message) =>
+        message.startsWith('Conexão de /collab fechada: código'),
+      ),
+    { message: 'O fechamento da conexão não foi registrado' },
+  );
+
+  await rawUpgrade({
+    port,
+    cookie: cookieA,
+    origin: 'http://outro.exemplo.org',
+  });
+
+  expect(cookieValue).not.toBe('');
+  expect(messagesOf(spies.log)).toContain('Upgrade de /collab aceito');
+  expect(messagesOf(spies.warn)).toContain(
+    'Upgrade de /collab recusado: 403 (origem recusada)',
+  );
+  expect(everythingLogged(spies)).not.toContain(cookieValue);
+  expect(everythingLogged(spies)).not.toContain('folioteca_session');
 });
 
 /** João com um compartilhamento no nível informado num documento da dona. */
