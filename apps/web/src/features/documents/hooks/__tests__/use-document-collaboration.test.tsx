@@ -242,6 +242,26 @@ test('maps provider events to connecting, saving, saved and offline', async () =
   expect(result.current.saveStatus).toBe('offline');
 });
 
+test('goes unreachable when disconnected before sync and offline when disconnected after sync', async () => {
+  const { result } = renderHook(() => useDocumentCollaboration('doc-1'), {
+    wrapper,
+  });
+
+  await waitFor(() => expect(result.current.session).not.toBeNull(), {
+    timeout: TIMEOUT,
+  });
+
+  await emit('status', { status: 'disconnected' });
+  expect(result.current.saveStatus).toBe('unreachable');
+
+  await emit('status', { status: 'connected' });
+  await emit('synced', { state: true });
+  expect(result.current.saveStatus).toBe('saved');
+
+  await emit('status', { status: 'disconnected' });
+  expect(result.current.saveStatus).toBe('offline');
+});
+
 test('hasSynced stays true after a disconnect', async () => {
   const { result } = renderHook(() => useDocumentCollaboration('doc-1'), {
     wrapper,
@@ -442,7 +462,7 @@ test('does not invalidate when pending changes drop to zero', async () => {
   expect(invalidate).not.toHaveBeenCalled();
 });
 
-test('reports the error and goes offline when the factory fails', async () => {
+test('reports the error and goes unreachable when the factory fails', async () => {
   const failure = new Error('falha ao abrir a colaboração');
   factory.createCollaborationProvider.mockRejectedValueOnce(failure);
 
@@ -450,7 +470,7 @@ test('reports the error and goes offline when the factory fails', async () => {
     wrapper,
   });
 
-  await waitFor(() => expect(result.current.saveStatus).toBe('offline'), {
+  await waitFor(() => expect(result.current.saveStatus).toBe('unreachable'), {
     timeout: TIMEOUT,
   });
 

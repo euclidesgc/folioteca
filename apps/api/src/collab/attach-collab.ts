@@ -14,6 +14,11 @@ const STATUS_LINES: Record<401 | 403, string> = {
   403: 'HTTP/1.1 403 Forbidden',
 };
 
+const REFUSAL_REASONS: Record<401 | 403, string> = {
+  401: 'sem sessão válida',
+  403: 'origem recusada',
+};
+
 /** Recusa o upgrade com uma resposta HTTP crua, sem corpo. */
 function refuse(socket: Duplex, status: 401 | 403): void {
   socket.write(`${STATUS_LINES[status]}\r\nConnection: close\r\n\r\n`);
@@ -60,12 +65,20 @@ export function attachCollab(app: INestApplication): void {
     const authentication = await collab.authenticateUpgrade(request.headers);
 
     if (!authentication.ok) {
+      // Só o status e o motivo fixo: nunca cabeçalhos, cookie nem URL.
+      logger.warn(
+        `Upgrade de /collab recusado: ${authentication.status} (${REFUSAL_REASONS[authentication.status]})`,
+      );
       refuse(socket, authentication.status);
 
       return;
     }
 
     wss.handleUpgrade(request, socket, head, (websocket) => {
+      logger.log('Upgrade de /collab aceito');
+      websocket.on('close', (code: number) =>
+        logger.log(`Conexão de /collab fechada: código ${code}`),
+      );
       collab.handleConnection(websocket, request, {
         personId: authentication.personId,
       });
