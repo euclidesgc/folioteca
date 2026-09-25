@@ -116,8 +116,9 @@ test('shareDocumentSchema rejects a missing level with Escolha o nível de acess
   expect(result.error?.issues[0]?.message).toBe('Escolha o nível de acesso.');
 });
 
-test('shareDocumentSchema rejects level edit', () => {
-  const result = shareDocumentSchema.safeParse({ level: 'edit' });
+test('shareDocumentSchema rejects an uppercase level', () => {
+  // DV1: `edit` em minúsculas passou a ser válido; `EDIT` continua fora.
+  const result = shareDocumentSchema.safeParse({ level: 'EDIT' });
 
   expect(result.success).toBe(false);
   expect(result.error?.issues[0]?.message).toBe('Escolha o nível de acesso.');

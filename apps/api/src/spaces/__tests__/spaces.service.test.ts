@@ -10,6 +10,8 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
+import { AccessService } from '../../access/access.service';
+import type { ReachedUnitSpace } from '../../access/unit-reach';
 import { PrismaService } from '../../prisma/prisma.service';
 import { compareMembers, SpacesService } from '../spaces.service';
 import { updateSpaceMemberSchema, updateSpaceSchema } from '../spaces.schema';
@@ -27,8 +29,25 @@ type SpaceRow = {
 };
 
 /**
- * Serviço com o Prisma substituído por um dublê: as linhas de unidade viram
- * unidades raiz com o espaço e a pessoa lotada; as livres, espaços livres.
+ * `AccessService` falso: `unitSpacesReachedBy` devolve os espaços de unidade
+ * dados, sem ler a árvore (a regra de alcance é testada em `unit-reach`).
+ */
+function createFakeAccess(reached: ReachedUnitSpace[] = []): {
+  access: AccessService;
+  unitSpacesReachedBy: ReturnType<typeof vi.fn>;
+} {
+  const unitSpacesReachedBy = vi.fn().mockResolvedValue(reached);
+
+  return {
+    access: { unitSpacesReachedBy } as unknown as AccessService,
+    unitSpacesReachedBy,
+  };
+}
+
+/**
+ * Serviço com o Prisma e o `AccessService` substituídos por dublês: as linhas
+ * de unidade viram espaços de unidade alcançados diretamente; as livres,
+ * espaços livres.
  */
 function createService(rows: SpaceRow[]): {
   service: SpacesService;
@@ -42,17 +61,16 @@ function createService(rows: SpaceRow[]): {
       .filter((row) => row.orgUnit === null)
       .map((row) => ({ id: row.id, name: row.name ?? null })),
   );
-  const findUnits = vi.fn().mockResolvedValue(
-    rows.flatMap((row) =>
+  const { access, unitSpacesReachedBy: findUnits } = createFakeAccess(
+    rows.flatMap((row): ReachedUnitSpace[] =>
       row.orgUnit === null
         ? []
         : [
             {
-              id: `unit-${row.id}`,
-              parentId: null,
+              orgUnitId: `unit-${row.id}`,
+              spaceId: row.id,
               name: row.orgUnit.name,
-              space: { id: row.id, inheritsParent: false },
-              assignments: [{ personId: PERSON_ID }],
+              reach: 'direct',
             },
           ],
     ),
@@ -64,11 +82,10 @@ function createService(rows: SpaceRow[]): {
 
   const prisma = {
     space: { findMany, findFirst, create },
-    orgUnit: { findMany: findUnits },
   } as unknown as PrismaService;
 
   return {
-    service: new SpacesService(prisma),
+    service: new SpacesService(prisma, access),
     findMany,
     findUnits,
     findFirst,
@@ -81,19 +98,7 @@ test('list queries unit spaces scoped by the given organization and person', asy
 
   await service.list(ORGANIZATION_ID, PERSON_ID);
 
-  expect(findUnits).toHaveBeenCalledWith({
-    where: { organizationId: ORGANIZATION_ID },
-    select: {
-      id: true,
-      parentId: true,
-      name: true,
-      space: { select: { id: true, inheritsParent: true } },
-      assignments: {
-        where: { personId: PERSON_ID },
-        select: { personId: true },
-      },
-    },
-  });
+  expect(findUnits).toHaveBeenCalledWith(ORGANIZATION_ID, PERSON_ID);
 });
 
 test('list never reads isAdmin', async () => {
@@ -164,9 +169,7 @@ test('list queries unit and free spaces with the OR scoped by organization and p
     ],
   });
   expect(findUnits).toHaveBeenCalledTimes(1);
-  expect((findUnits.mock.calls[0]?.[0] as { where: unknown }).where).toEqual({
-    organizationId: ORGANIZATION_ID,
-  });
+  expect(findUnits).toHaveBeenCalledWith(ORGANIZATION_ID, PERSON_ID);
 });
 
 test('list maps free rows to id, type free and name', async () => {
@@ -289,111 +292,6 @@ test('create rethrows an error that is not a unique violation', async () => {
   await expect(attempt).rejects.not.toThrow(ConflictException);
 });
 
-type UnitRow = {
-  id: string;
-  parentId: string | null;
-  name: string;
-  space: { id: string; inheritsParent: boolean } | null;
-  assignments: { personId: string }[];
-};
-
-/** Unidade do dublê: `assigned` lota a pessoa; `inherits` marca o espaço. */
-function unitRow(
-  id: string,
-  parentId: string | null,
-  options: { assigned?: boolean; inherits?: boolean } = {},
-): UnitRow {
-  return {
-    id,
-    parentId,
-    name: `Unidade ${id}`,
-    space: { id: `space-${id}`, inheritsParent: options.inherits ?? false },
-    assignments: options.assigned === true ? [{ personId: PERSON_ID }] : [],
-  };
-}
-
-/** Serviço cujo Prisma falso devolve a árvore `units` e nenhum espaço livre. */
-function createTreeService(units: UnitRow[]): SpacesService {
-  const prisma = {
-    space: { findMany: vi.fn().mockResolvedValue([]) },
-    orgUnit: { findMany: vi.fn().mockResolvedValue(units) },
-  } as unknown as PrismaService;
-
-  return new SpacesService(prisma);
-}
-
-async function listedSpaceIds(units: UnitRow[]): Promise<string[]> {
-  const result = await createTreeService(units).list(ORGANIZATION_ID, PERSON_ID);
-
-  return result.data.map((space) => space.id);
-}
-
-test('list shows a child unit space that inherits to a person assigned to the parent', async () => {
-  const ids = await listedSpaceIds([
-    unitRow('root', null),
-    unitRow('parent', 'root', { assigned: true }),
-    unitRow('child', 'parent', { inherits: true }),
-    unitRow('other', 'parent'),
-  ]);
-
-  expect(ids.sort()).toEqual(['space-child', 'space-parent']);
-});
-
-test('list follows the inheritance chain while spaces inherit', async () => {
-  const ids = await listedSpaceIds([
-    unitRow('root', null, { assigned: true }),
-    unitRow('parent', 'root', { inherits: true }),
-    unitRow('child', 'parent', { inherits: true }),
-    unitRow('grandchild', 'child', { inherits: true }),
-  ]);
-
-  expect(ids.sort()).toEqual([
-    'space-child',
-    'space-grandchild',
-    'space-parent',
-    'space-root',
-  ]);
-});
-
-test('list stops the chain at the first own space', async () => {
-  const ids = await listedSpaceIds([
-    unitRow('root', null, { assigned: true }),
-    unitRow('parent', 'root'),
-    unitRow('child', 'parent', { inherits: true }),
-  ]);
-
-  expect(ids).toEqual(['space-root']);
-});
-
-test('list ignores inherit on a root unit', async () => {
-  const ids = await listedSpaceIds([
-    unitRow('root', null, { inherits: true }),
-    unitRow('child', 'root', { assigned: true }),
-  ]);
-
-  expect(ids).toEqual(['space-child']);
-});
-
-test('list treats a parent cycle as not reaching', async () => {
-  const ids = await listedSpaceIds([
-    unitRow('a', 'b', { inherits: true }),
-    unitRow('b', 'a', { inherits: true }),
-    unitRow('c', 'a', { inherits: true }),
-  ]);
-
-  expect(ids).toEqual([]);
-});
-
-test('list returns each unit space once when reached twice', async () => {
-  const ids = await listedSpaceIds([
-    unitRow('root', null),
-    unitRow('parent', 'root', { assigned: true }),
-    unitRow('child', 'parent', { assigned: true, inherits: true }),
-  ]);
-
-  expect(ids.sort()).toEqual(['space-child', 'space-parent']);
-});
-
 /**
  * Organização única por instância (`Organization_singleton_check`): o escopo
  * do `addMember` é provado no serviço real, ligado ao Prisma de teste, com um
@@ -438,7 +336,7 @@ describe('addMember on the test database', () => {
         name: 'Projeto Alfa',
       },
     });
-    const service = new SpacesService(prisma);
+    const service = new SpacesService(prisma, new AccessService(prisma));
 
     const attempt = service.addMember(
       { organizationId: randomUUID(), id: owner.id },
@@ -543,7 +441,7 @@ describe('free space members on the test database', () => {
   test('listMembers with another organization id returns null for a FREE space', async () => {
     const { organizationId, ownerId, memberId, spaceId } =
       await createFreeSpaceWithMember();
-    const service = new SpacesService(prisma);
+    const service = new SpacesService(prisma, new AccessService(prisma));
 
     const mine = await service.listMembers(organizationId, ownerId, spaceId);
     const others = await service.listMembers(randomUUID(), ownerId, spaceId);
@@ -554,7 +452,7 @@ describe('free space members on the test database', () => {
 
   test('removeMember with another organization id throws not found', async () => {
     const { ownerId, memberId, spaceId } = await createFreeSpaceWithMember();
-    const service = new SpacesService(prisma);
+    const service = new SpacesService(prisma, new AccessService(prisma));
 
     const attempt = service.removeMember(
       { organizationId: randomUUID(), id: ownerId },
@@ -632,7 +530,12 @@ function createSettingsService(spaceRows: unknown[]): {
     spaceMember: { upsert },
   } as unknown as PrismaService;
 
-  return { service: new SpacesService(prisma), findFirst, update, upsert };
+  return {
+    service: new SpacesService(prisma, createFakeAccess().access),
+    findFirst,
+    update,
+    upsert,
+  };
 }
 
 test('updateSettings throws not found for a malformed id', async () => {
@@ -830,7 +733,12 @@ function createLevelService(
     spaceMember: { findUnique, update },
   } as unknown as PrismaService;
 
-  return { service: new SpacesService(prisma), findFirst, findUnique, update };
+  return {
+    service: new SpacesService(prisma, createFakeAccess().access),
+    findFirst,
+    findUnique,
+    update,
+  };
 }
 
 const TARGET_MEMBER_ROW = {
@@ -967,9 +875,10 @@ test('listMembers returns level null for the owner and the member level', async 
       },
     ],
   });
-  const service = new SpacesService({
-    space: { findFirst },
-  } as unknown as PrismaService);
+  const service = new SpacesService(
+    { space: { findFirst } } as unknown as PrismaService,
+    createFakeAccess().access,
+  );
 
   const result = await service.listMembers(
     ORGANIZATION_ID,

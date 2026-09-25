@@ -84,7 +84,7 @@ export class FavoritesService {
     const favorites = await this.prisma.favorite.findMany({
       where: {
         personId,
-        document: this.access.readableDocumentsWhere(personId),
+        document: await this.access.readableDocumentsWhere(personId),
       },
       orderBy: [{ createdAt: 'desc' }, { documentId: 'desc' }],
       take: 100,

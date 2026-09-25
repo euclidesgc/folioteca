@@ -150,7 +150,7 @@ test('POST /api/documents returns 201 with a Sem título document owned and auth
   expect(response.body).toEqual({
     data: {
       id: ANY_STRING,
-      title: 'Sem título',
+      title: 'documento-sem-titulo-1',
       spaceId: ANY_STRING,
       authorId: personA.id,
       ownerId: personA.id,
@@ -394,7 +394,7 @@ test('another person cannot read, list or rename the document', async () => {
   expect(read.status).toBe(404);
   expect(list.body).toEqual({ data: [] });
   expect(rename.status).toBe(404);
-  expect(stored.title).toBe('Sem título');
+  expect(stored.title).toBe('documento-sem-titulo-1');
 });
 
 test('an administrator who is not the owner cannot read, list or rename the document', async () => {
@@ -416,7 +416,7 @@ test('an administrator who is not the owner cannot read, list or rename the docu
   expect(read.status).toBe(404);
   expect(list.body).toEqual({ data: [] });
   expect(rename.status).toBe(404);
-  expect(stored.title).toBe('Sem título');
+  expect(stored.title).toBe('documento-sem-titulo-1');
 });
 
 test('GET returns the same 404 status and body for unknown, foreign and malformed ids', async () => {
@@ -658,10 +658,10 @@ test('PATCH a shared document by a view person answers 403', async () => {
   });
 
   expect(response.status).toBe(403);
-  expect(stored.title).toBe('Sem título');
+  expect(stored.title).toBe('documento-sem-titulo-1');
 });
 
-test('POST trash on a shared document by a view person answers 404', async () => {
+test('POST trash on a shared document by a view person answers 403', async () => {
   const { document, viewerCookie } = await createSharedDocument();
 
   const response = await httpRequest(app)
@@ -673,8 +673,10 @@ test('POST trash on a shared document by a view person answers 404', async () =>
     where: { id: document.id },
   });
 
-  expect(response.status).toBe(404);
-  expect(response.body).toEqual({ message: NOT_FOUND_MESSAGE });
+  expect(response.status).toBe(403);
+  expect(response.body).toEqual({
+    message: 'Só o proprietário pode mover este documento para a lixeira.',
+  });
   expect(stored.trashedAt).toBeNull();
 });
 
@@ -808,7 +810,7 @@ test('POST documents with a direct unit spaceId answers 201 in that space owned 
   expect(response.status).toBe(201);
   expect(created).toEqual(
     expect.objectContaining({
-      title: 'Sem título',
+      title: 'documento-sem-titulo-1',
       spaceId: unit.spaceId,
       authorId: personA.id,
       ownerId: personA.id,
@@ -834,13 +836,107 @@ test('a document created in the unit space appears in my documents of the creato
   expect(colleagueList.body).toEqual({ data: [] });
 });
 
-test('POST documents with an inherited unit spaceId answers 404 with Espaço não encontrado.', async () => {
+type InheritedUnitScenario = {
+  parent: UnitWithSpace;
+  child: UnitWithSpace;
+  colleague: Person;
+  colleagueCookie: string;
+};
+
+/**
+ * A lotada só na mãe "Secretaria"; a filha "Protocolo" herda dela e tem o
+ * colega lotado diretamente.
+ */
+async function createInheritedUnit(): Promise<InheritedUnitScenario> {
   const parent = await createUnitSpace('Secretaria');
   const child = await createUnitSpace('Protocolo', {
     parentId: parent.orgUnitId,
     inheritsParent: true,
   });
+  const { person: colleague, cookie: colleagueCookie } =
+    await createPersonWithSession(app, {
+      name: 'João Lima',
+      email: 'joao@exemplo.org',
+    });
   await assign(parent.orgUnitId, personA.id);
+  await assign(child.orgUnitId, colleague.id);
+
+  return { parent, child, colleague, colleagueCookie };
+}
+
+test('POST /documents in an inherited unit space returns 201 owned by the caller', async () => {
+  const { child } = await createInheritedUnit();
+
+  const response = await postDocumentWith(cookieA, { spaceId: child.spaceId });
+  const created = (response.body as { data: DocumentBody }).data;
+  const stored = await prisma.document.findFirstOrThrow({
+    where: { id: created.id },
+  });
+
+  expect(response.status).toBe(201);
+  expect(created).toEqual(
+    expect.objectContaining({
+      spaceId: child.spaceId,
+      authorId: personA.id,
+      ownerId: personA.id,
+      accessLevel: 'owner',
+    }),
+  );
+  expect(stored.spaceId).toBe(child.spaceId);
+  expect(stored.ownerId).toBe(personA.id);
+});
+
+test('a document created by inheritance appears in Meus documentos and in the space list', async () => {
+  const { child } = await createInheritedUnit();
+  const created = await postDocumentWith(cookieA, { spaceId: child.spaceId });
+  const documentId = (created.body as { data: DocumentBody }).data.id;
+
+  const mine = await getDocuments(cookieA);
+  const spaceList = await httpRequest(app)
+    .get(`/api/spaces/${child.spaceId}/documents`)
+    .set('Cookie', cookieA)
+    .send();
+
+  expect(created.status).toBe(201);
+  expect(
+    (mine.body as { data: DocumentSummaryBody[] }).data.map((item) => item.id),
+  ).toEqual([documentId]);
+  expect(spaceList.status).toBe(200);
+  expect(
+    (spaceList.body as { data: DocumentSummaryBody[] }).data.map(
+      (item) => item.id,
+    ),
+  ).toEqual([documentId]);
+});
+
+test('a directly assigned person opens with edit a document created by an heir', async () => {
+  const { child, colleagueCookie } = await createInheritedUnit();
+  const created = await postDocumentWith(cookieA, { spaceId: child.spaceId });
+  const documentId = (created.body as { data: DocumentBody }).data.id;
+
+  const response = await getDocument(colleagueCookie, documentId);
+
+  expect(response.status).toBe(200);
+  expect((response.body as { data: DocumentBody }).data).toEqual(
+    expect.objectContaining({
+      id: documentId,
+      ownerId: personA.id,
+      accessLevel: 'edit',
+    }),
+  );
+});
+
+test('POST /documents in a unit space with a broken chain returns 404', async () => {
+  const grandparent = await createUnitSpace('Gabinete');
+  const parent = await createUnitSpace('Secretaria', {
+    parentId: grandparent.orgUnitId,
+    inheritsParent: false,
+  });
+  const child = await createUnitSpace('Protocolo', {
+    parentId: parent.orgUnitId,
+    inheritsParent: true,
+  });
+  await assign(grandparent.orgUnitId, personA.id);
 
   const response = await postDocumentWith(cookieA, { spaceId: child.spaceId });
 
@@ -849,6 +945,58 @@ test('POST documents with an inherited unit spaceId answers 404 with Espaço nã
   expect(await prisma.document.count({ where: { spaceId: child.spaceId } })).toBe(
     0,
   );
+});
+
+/**
+ * Organização única por instância (`Organization_singleton_check`): o escopo
+ * é provado no serviço real, contra o mesmo Postgres, com um
+ * `organizationId` gerado por `randomUUID()`.
+ */
+test('POST /documents in a unit space of another organization returns 404', async () => {
+  const { child } = await createInheritedUnit();
+  const person = await prisma.person.findFirstOrThrow({
+    where: { id: personA.id },
+    include: { organization: true },
+  });
+
+  await expect(
+    documents().create(
+      { ...person, organizationId: randomUUID() },
+      { spaceId: child.spaceId },
+    ),
+  ).rejects.toMatchObject({
+    status: 404,
+    message: 'Espaço não encontrado.',
+  });
+  expect(await prisma.document.count({ where: { spaceId: child.spaceId } })).toBe(
+    0,
+  );
+});
+
+test('an heir cannot trash a document of someone else', async () => {
+  const { child, colleagueCookie } = await createInheritedUnit();
+  const created = await postDocumentWith(colleagueCookie, {
+    spaceId: child.spaceId,
+  });
+  const documentId = (created.body as { data: DocumentBody }).data.id;
+
+  const opened = await getDocument(cookieA, documentId);
+  const trash = await httpRequest(app)
+    .post(`/api/documents/${documentId}/trash`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send();
+  const stored = await prisma.document.findFirstOrThrow({
+    where: { id: documentId },
+  });
+
+  expect(created.status).toBe(201);
+  expect((opened.body as { data: DocumentBody }).data.accessLevel).toBe('edit');
+  expect(trash.status).toBe(403);
+  expect(trash.body).toEqual({
+    message: 'Só o proprietário pode mover este documento para a lixeira.',
+  });
+  expect(stored.trashedAt).toBeNull();
 });
 
 test('POST documents with a unit spaceId without assignment answers 404', async () => {
@@ -928,7 +1076,7 @@ test('a colleague renames the unit space document with 200', async () => {
   expect(stored.ownerId).toBe(personA.id);
 });
 
-test('a colleague gets 404 on trash, restore and delete of the unit space document', async () => {
+test('a colleague gets 403 on trash, restore and delete of the unit space document', async () => {
   const { document, colleagueCookie } = await createUnitDocument();
 
   const trash = await httpRequest(app)
@@ -950,12 +1098,18 @@ test('a colleague gets 404 on trash, restore and delete of the unit space docume
     where: { id: document.id },
   });
 
-  expect(trash.status).toBe(404);
-  expect(trash.body).toEqual({ message: NOT_FOUND_MESSAGE });
-  expect(restore.status).toBe(404);
-  expect(restore.body).toEqual({ message: NOT_FOUND_MESSAGE });
-  expect(remove.status).toBe(404);
-  expect(remove.body).toEqual({ message: NOT_FOUND_MESSAGE });
+  expect(trash.status).toBe(403);
+  expect(trash.body).toEqual({
+    message: 'Só o proprietário pode mover este documento para a lixeira.',
+  });
+  expect(restore.status).toBe(403);
+  expect(restore.body).toEqual({
+    message: 'Só o proprietário pode restaurar este documento.',
+  });
+  expect(remove.status).toBe(403);
+  expect(remove.body).toEqual({
+    message: 'Só o proprietário pode excluir este documento.',
+  });
   expect(stored.trashedAt).toBeNull();
 });
 
@@ -1045,7 +1199,7 @@ test('POST documents with a free spaceId answers 201 to a member in that space o
 
   expect(document).toEqual(
     expect.objectContaining({
-      title: 'Sem título',
+      title: 'documento-sem-titulo-1',
       spaceId,
       authorId: member.id,
       ownerId: member.id,
@@ -1105,7 +1259,7 @@ test('the free space owner renames the member document with 200', async () => {
   expect(stored.ownerId).toBe(member.id);
 });
 
-test('the free space owner gets 404 on trash, restore and delete of the member document', async () => {
+test('the free space owner gets 403 on trash, restore and delete of the member document', async () => {
   const { document } = await createFreeDocument();
 
   const trash = await httpRequest(app)
@@ -1127,12 +1281,18 @@ test('the free space owner gets 404 on trash, restore and delete of the member d
     where: { id: document.id },
   });
 
-  expect(trash.status).toBe(404);
-  expect(trash.body).toEqual({ message: NOT_FOUND_MESSAGE });
-  expect(restore.status).toBe(404);
-  expect(restore.body).toEqual({ message: NOT_FOUND_MESSAGE });
-  expect(remove.status).toBe(404);
-  expect(remove.body).toEqual({ message: NOT_FOUND_MESSAGE });
+  expect(trash.status).toBe(403);
+  expect(trash.body).toEqual({
+    message: 'Só o proprietário pode mover este documento para a lixeira.',
+  });
+  expect(restore.status).toBe(403);
+  expect(restore.body).toEqual({
+    message: 'Só o proprietário pode restaurar este documento.',
+  });
+  expect(remove.status).toBe(403);
+  expect(remove.body).toEqual({
+    message: 'Só o proprietário pode excluir este documento.',
+  });
   expect(stored.trashedAt).toBeNull();
 });
 
@@ -1307,7 +1467,7 @@ test('a viewer member PATCH on a colleague document of the free space is refused
   });
 
   expect(response.status).toBe(403);
-  expect(stored.title).toBe('Sem título');
+  expect(stored.title).toBe('documento-sem-titulo-1');
 });
 
 test('a viewer member renames and trashes their own document in the free space', async () => {
@@ -1331,4 +1491,140 @@ test('a viewer member renames and trashes their own document in the free space',
   expect(trashed.status).toBe(200);
   expect(stored.title).toBe('Rascunho do João');
   expect(stored.trashedAt).not.toBeNull();
+});
+
+/** Manda o documento para a lixeira pela API. */
+function trashDocument(cookie: string, documentId: string): Promise<Response> {
+  return httpRequest(app)
+    .post(`/api/documents/${documentId}/trash`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie)
+    .send();
+}
+
+test('POST documents names the first document documento-sem-titulo-1', async () => {
+  const response = await postDocument(cookieA);
+
+  expect(response.status).toBe(201);
+  expect((response.body as { data: DocumentBody }).data.title).toBe(
+    'documento-sem-titulo-1',
+  );
+});
+
+test('POST documents names the second document documento-sem-titulo-2', async () => {
+  await createDocument(cookieA);
+
+  const response = await postDocument(cookieA);
+
+  expect(response.status).toBe(201);
+  expect((response.body as { data: DocumentBody }).data.title).toBe(
+    'documento-sem-titulo-2',
+  );
+});
+
+test('POST documents counts trashed documents when picking the number', async () => {
+  const first = await createDocument(cookieA);
+  const trashed = await trashDocument(cookieA, first.id);
+
+  const response = await postDocument(cookieA);
+
+  expect(first.title).toBe('documento-sem-titulo-1');
+  expect(trashed.status).toBe(200);
+  expect((response.body as { data: DocumentBody }).data.title).toBe(
+    'documento-sem-titulo-2',
+  );
+});
+
+test('POST documents reuses the smallest free number after a rename', async () => {
+  await createDocument(cookieA);
+  const second = await createDocument(cookieA);
+  await createDocument(cookieA);
+  const renamed = await patchDocument(cookieA, second.id, {
+    title: 'Plano de obras',
+  });
+
+  const response = await postDocument(cookieA);
+
+  expect(second.title).toBe('documento-sem-titulo-2');
+  expect(renamed.status).toBe(200);
+  expect((response.body as { data: DocumentBody }).data.title).toBe(
+    'documento-sem-titulo-2',
+  );
+});
+
+test('POST documents numbering of another owner does not interfere', async () => {
+  await createDocument(cookieA);
+  await createDocument(cookieA);
+  const { cookie } = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+
+  const response = await postDocument(cookie);
+  const next = await postDocument(cookieA);
+
+  expect(response.status).toBe(201);
+  expect((response.body as { data: DocumentBody }).data.title).toBe(
+    'documento-sem-titulo-1',
+  );
+  expect((next.body as { data: DocumentBody }).data.title).toBe(
+    'documento-sem-titulo-3',
+  );
+});
+
+test('POST documents keeps existing Sem título documents untouched', async () => {
+  const personalSpace = await prisma.space.findFirstOrThrow({
+    where: { personId: personA.id, type: 'PERSONAL' },
+  });
+  const existing = await prisma.document.create({
+    data: {
+      title: 'Sem título',
+      spaceId: personalSpace.id,
+      authorId: personA.id,
+      ownerId: personA.id,
+    },
+  });
+
+  const response = await postDocument(cookieA);
+  const stored = await prisma.document.findFirstOrThrow({
+    where: { id: existing.id },
+  });
+
+  expect(response.status).toBe(201);
+  expect((response.body as { data: DocumentBody }).data.title).toBe(
+    'documento-sem-titulo-1',
+  );
+  expect(stored.title).toBe('Sem título');
+});
+
+test('create twice at the same time for the same owner gives distinct numbers', async () => {
+  const person = await prisma.person.findFirstOrThrow({
+    where: { id: personA.id },
+    include: { organization: true },
+  });
+
+  const created = await Promise.all([
+    documents().create(person, undefined),
+    documents().create(person, undefined),
+  ]);
+
+  expect(new Set(created.map((document) => document.title))).toEqual(
+    new Set(['documento-sem-titulo-1', 'documento-sem-titulo-2']),
+  );
+});
+
+test('POST documents twice in parallel answers 201 with distinct numbers', async () => {
+  const responses = await Promise.all([
+    postDocument(cookieA),
+    postDocument(cookieA),
+  ]);
+
+  expect(responses.map((response) => response.status)).toEqual([201, 201]);
+  expect(
+    new Set(
+      responses.map(
+        (response) => (response.body as { data: DocumentBody }).data.title,
+      ),
+    ),
+  ).toEqual(new Set(['documento-sem-titulo-1', 'documento-sem-titulo-2']));
 });

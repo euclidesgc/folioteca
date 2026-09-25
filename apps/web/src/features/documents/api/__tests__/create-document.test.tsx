@@ -171,3 +171,42 @@ test('useCreateDocument invalidates the space documents list', async () => {
     queryKey: ['space-documents'],
   });
 });
+
+test('useCreateDocument returns documento-sem-titulo-1 for the first document', async () => {
+  const { result } = renderMutation();
+
+  result.current.mutate(undefined);
+
+  await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+  expect(result.current.data?.data.title).toBe('documento-sem-titulo-1');
+});
+
+test('useCreateDocument awaits list invalidation before the caller onSuccess', async () => {
+  const onSuccess = vi.fn();
+  const invalidated = vi.fn();
+  let release = (): void => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const { result, queryClient } = renderMutation(onSuccess);
+  const invalidateQueries = vi
+    .spyOn(queryClient, 'invalidateQueries')
+    .mockImplementation(async () => {
+      await gate;
+      invalidated();
+    });
+
+  result.current.mutate(undefined);
+
+  await waitFor(() => expect(invalidateQueries).toHaveBeenCalledTimes(4));
+  expect(onSuccess).not.toHaveBeenCalled();
+
+  release();
+
+  await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1));
+  expect(invalidated).toHaveBeenCalledTimes(4);
+  expect(Math.max(...invalidated.mock.invocationCallOrder)).toBeLessThan(
+    onSuccess.mock.invocationCallOrder[0] ?? 0,
+  );
+});

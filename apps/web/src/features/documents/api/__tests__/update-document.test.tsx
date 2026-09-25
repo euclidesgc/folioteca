@@ -116,3 +116,48 @@ test('invalidates the favorites list too', async () => {
     queryKey: getDocumentsQueryOptions('favorites').queryKey,
   });
 });
+
+test('useUpdateDocument awaits list invalidation before the caller onSuccess', async () => {
+  const seeded = firstSeededDocument();
+  const queryClient = new QueryClient({ defaultOptions: queryConfig });
+  const wrapper = ({
+    children,
+  }: {
+    children: React.ReactNode;
+  }): React.JSX.Element => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+  const onSuccess = vi.fn();
+  const invalidated = vi.fn();
+  let release = (): void => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const invalidateQueries = vi
+    .spyOn(queryClient, 'invalidateQueries')
+    .mockImplementation(async () => {
+      await gate;
+      invalidated();
+    });
+
+  const { result } = renderHook(
+    () => useUpdateDocument({ mutationConfig: { onSuccess } }),
+    { wrapper },
+  );
+
+  result.current.mutate({
+    documentId: seeded.id,
+    data: { title: 'Ata aguardada' },
+  });
+
+  await waitFor(() => expect(invalidateQueries).toHaveBeenCalledTimes(4));
+  expect(onSuccess).not.toHaveBeenCalled();
+
+  release();
+
+  await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1));
+  expect(invalidated).toHaveBeenCalledTimes(4);
+  expect(Math.max(...invalidated.mock.invocationCallOrder)).toBeLessThan(
+    onSuccess.mock.invocationCallOrder[0] ?? 0,
+  );
+});

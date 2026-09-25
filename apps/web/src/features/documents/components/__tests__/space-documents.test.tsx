@@ -25,6 +25,7 @@ const LAZY_TIMEOUT = { timeout: 5000 };
 
 const INSTALLED_PERSON_ID = 'person-1';
 const CATALOGACAO_SPACE_ID = 'space-org-unit-catalogacao';
+const RESTAURO_SPACE_ID = 'space-org-unit-restauro';
 const EMPTY_MESSAGE =
   'Nenhum documento neste espaço ainda. Crie o primeiro em “Novo documento”.';
 const DIRECT_ASSIGNMENT_NOTICE =
@@ -162,22 +163,58 @@ test('shows the error with Tentar novamente and refetches', async () => {
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 
-test('a 403 shows the direct assignment notice without button nor list', async () => {
-  // Restauro inherits from Acervo, where the person is assigned: the space is
-  // reached, its documents are not.
+// Restauro inherits from Acervo, where the person is assigned: the person
+// reaches the unit space only by inheritance.
+const reachRestauroByInheritance = (): void => {
   setOrgUnitSpaceAccess('org-unit-restauro', 'inherit');
   addAssignment('org-unit-acervo', INSTALLED_PERSON_ID);
+};
 
-  renderSpaceDocuments('space-org-unit-restauro');
+test('an inherited reach sees the list and the Novo documento button', async () => {
+  reachRestauroByInheritance();
+  const document = createDocumentIn(INSTALLED_PERSON_ID, RESTAURO_SPACE_ID);
+  document.title = 'Plano de conservação preventiva';
+
+  renderSpaceDocuments(RESTAURO_SPACE_ID);
+
+  const list = await screen.findByRole('list', {}, LAZY_TIMEOUT);
+  expect(
+    within(list).getByRole('link', { name: 'Plano de conservação preventiva' }),
+  ).toHaveAttribute('href', paths.document.getHref(document.id));
+  expect(
+    screen.getByRole('button', { name: 'Novo documento' }),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
+test('the direct assignment notice is never shown', async () => {
+  reachRestauroByInheritance();
+
+  renderSpaceDocuments(RESTAURO_SPACE_ID);
 
   expect(
-    await screen.findByText(DIRECT_ASSIGNMENT_NOTICE, {}, LAZY_TIMEOUT),
+    await screen.findByText(EMPTY_MESSAGE, {}, LAZY_TIMEOUT),
+  ).toBeInTheDocument();
+  expect(screen.queryByText(DIRECT_ASSIGNMENT_NOTICE)).not.toBeInTheDocument();
+});
+
+test('a 404 still shows the error state with Tentar novamente', async () => {
+  // Nobody assigned the person to Restauro nor to a unit it inherits from:
+  // the simulated API answers 404 Espaço não encontrado.
+  renderSpaceDocuments(RESTAURO_SPACE_ID);
+
+  const alert = await screen.findByRole('alert', {}, LAZY_TIMEOUT);
+  expect(alert).toHaveTextContent(
+    'Não foi possível carregar os documentos do espaço.',
+  );
+  expect(
+    within(alert).getByRole('button', { name: 'Tentar novamente' }),
   ).toBeInTheDocument();
   expect(
     screen.queryByRole('button', { name: 'Novo documento' }),
-  ).toBeNull();
-  expect(screen.queryByRole('list')).toBeNull();
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  ).not.toBeInTheDocument();
+  expect(screen.queryByRole('list')).not.toBeInTheDocument();
+  expect(screen.queryByText(DIRECT_ASSIGNMENT_NOTICE)).not.toBeInTheDocument();
 });
 
 test('creating a document navigates to it', async () => {

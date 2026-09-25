@@ -15,9 +15,9 @@ import { parseBody } from '../common/parse-body';
 import { spaceNotFound } from '../common/space-not-found';
 import { PrismaService } from '../prisma/prisma.service';
 import { documentNotFound } from './document-not-found';
+import { DEFAULT_TITLE_PREFIX, nextDefaultTitle } from './default-title';
 import {
   createDocumentSchema,
-  DEFAULT_DOCUMENT_TITLE,
   listDocumentsQuerySchema,
   updateDocumentSchema,
 } from './documents.schema';
@@ -32,6 +32,15 @@ const CANNOT_EDIT_MESSAGE =
 
 export const TRASHED_DOCUMENT_MESSAGE =
   'Este documento está na lixeira. Restaure-o para editar.';
+
+const OWNER_ONLY_TRASH_MESSAGE =
+  'Só o proprietário pode mover este documento para a lixeira.';
+
+const OWNER_ONLY_RESTORE_MESSAGE =
+  'Só o proprietário pode restaurar este documento.';
+
+const OWNER_ONLY_DELETE_MESSAGE =
+  'Só o proprietário pode excluir este documento.';
 
 const DELETE_OUTSIDE_TRASH_MESSAGE =
   'Mova o documento para a lixeira antes de apagá-lo definitivamente.';
@@ -93,12 +102,22 @@ export class DocumentsService {
   ) {}
 
   /**
-   * Cria um documento sem título. Sem `spaceId` no corpo, nasce no espaço
+   * Cria um documento com o nome padrão "documento-sem-titulo-N", N o menor
+   * inteiro livre entre os documentos do dono (a lixeira conta). Sem
+   * `spaceId` no corpo, nasce no espaço
    * pessoal de quem chamou, que nasce junto na mesma transação se ainda não
-   * existir. Com `spaceId`, nasce no espaço da unidade em que a pessoa está
-   * lotada diretamente ou no espaço livre de que ela é dona ou membro, na
-   * organização dela; qualquer outro espaço (inclusive o alcançado só por
-   * herança) é o mesmo 404 opaco.
+   * existir. Com `spaceId`, nasce no espaço da unidade que a pessoa alcança
+   * (lotação direta ou herança da unidade-pai) ou no espaço livre de que ela
+   * é dona ou membro, na organização dela; qualquer outro espaço é o mesmo
+   * 404 opaco.
+   *
+   * O N é calculado sob um lock consultivo por dono
+   * (`pg_advisory_xact_lock`), a primeira instrução da transação: a segunda
+   * criação do mesmo dono espera o commit da primeira e, em READ COMMITTED, a
+   * leitura seguinte já vê o título gravado, então as duas recebem números
+   * diferentes. O lock é liberado no fim da transação, inclusive em erro.
+   * Donos diferentes não se bloqueiam (uma colisão de hash só causaria espera,
+   * nunca nome errado).
    */
   async create(
     person: PersonWithOrganization,
@@ -109,7 +128,22 @@ export class DocumentsService {
       body === undefined ? {} : body,
     );
 
+    if (spaceId !== undefined && !isUuid(spaceId)) {
+      throw spaceNotFound();
+    }
+
+    // Reaching a unit space is an access decision, read outside the title
+    // transaction; the result only holds unit spaces of the person's
+    // organization.
+    const reachesUnitSpace =
+      spaceId !== undefined &&
+      (
+        await this.access.unitSpacesReachedBy(person.organizationId, person.id)
+      ).some((unitSpace) => unitSpace.spaceId === spaceId);
+
     const document = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('document-default-title:' || ${person.id}, 0))`;
+
       let targetSpaceId: string;
 
       if (spaceId === undefined) {
@@ -119,30 +153,17 @@ export class DocumentsService {
           update: {},
         });
         targetSpaceId = space.id;
+      } else if (reachesUnitSpace) {
+        targetSpaceId = spaceId;
       } else {
-        if (!isUuid(spaceId)) {
-          throw spaceNotFound();
-        }
-
         const space = await tx.space.findFirst({
           where: {
             id: spaceId,
+            type: 'FREE',
+            organizationId: person.organizationId,
             OR: [
-              {
-                type: 'UNIT',
-                orgUnit: {
-                  organizationId: person.organizationId,
-                  assignments: { some: { personId: person.id } },
-                },
-              },
-              {
-                type: 'FREE',
-                organizationId: person.organizationId,
-                OR: [
-                  { ownerId: person.id },
-                  { members: { some: { personId: person.id } } },
-                ],
-              },
+              { ownerId: person.id },
+              { members: { some: { personId: person.id } } },
             ],
           },
           select: {
@@ -174,9 +195,18 @@ export class DocumentsService {
         targetSpaceId = space.id;
       }
 
+      // Sem filtro de `trashedAt`: documento na lixeira também ocupa número.
+      const titles = await tx.document.findMany({
+        where: {
+          ownerId: person.id,
+          title: { startsWith: DEFAULT_TITLE_PREFIX },
+        },
+        select: { title: true },
+      });
+
       return tx.document.create({
         data: {
-          title: DEFAULT_DOCUMENT_TITLE,
+          title: nextDefaultTitle(titles.map((d) => d.title)),
           spaceId: targetSpaceId,
           authorId: person.id,
           ownerId: person.id,
@@ -195,7 +225,7 @@ export class DocumentsService {
     const documents = await this.prisma.document.findMany({
       where: {
         AND: [
-          this.access.readableDocumentsWhere(personId),
+          await this.access.readableDocumentsWhere(personId),
           { ownerId: personId },
         ],
       },
@@ -225,7 +255,7 @@ export class DocumentsService {
   ): Promise<DocumentsResponse> {
     const documents = await this.prisma.document.findMany({
       where: {
-        AND: [this.access.readableDocumentsWhere(personId), { spaceId }],
+        AND: [await this.access.readableDocumentsWhere(personId), { spaceId }],
       },
       orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
       take: 100,
@@ -280,7 +310,7 @@ export class DocumentsService {
             // O dono precisa abrir o que está na lixeira para restaurar ou
             // apagar; para todo o resto vale só a porta de leitura.
             OR: [
-              this.access.readableDocumentsWhere(personId),
+              await this.access.readableDocumentsWhere(personId),
               this.access.trashedDocumentsWhere(personId),
             ],
           },
@@ -336,18 +366,23 @@ export class DocumentsService {
   }
 
   /**
-   * Só o dono move, restaura e apaga. Qualquer outro nível — inclusive os de
-   * compartilhamento que virão — sai daqui como 404, igual a documento
-   * inexistente e a id malformado.
+   * Only the owner trashes, restores and deletes. Whoever cannot reach the
+   * document gets the opaque 404, like a missing document or a malformed id;
+   * whoever reaches it without owning it gets a 403 with `forbiddenMessage`.
    */
   private async requireOwner(
     personId: string,
     documentId: string,
+    forbiddenMessage: string,
   ): Promise<void> {
     const accessLevel = await this.access.resolveAccess(personId, documentId);
 
-    if (accessLevel !== 'owner') {
+    if (accessLevel === 'none') {
       throw documentNotFound();
+    }
+
+    if (accessLevel !== 'owner') {
+      throw new ForbiddenException(forbiddenMessage);
     }
   }
 
@@ -371,7 +406,7 @@ export class DocumentsService {
    * gravação só alcança o que ainda está fora dela.
    */
   async trash(personId: string, documentId: string): Promise<Document> {
-    await this.requireOwner(personId, documentId);
+    await this.requireOwner(personId, documentId, OWNER_ONLY_TRASH_MESSAGE);
 
     await this.prisma.document.updateMany({
       where: { id: documentId, trashedAt: null },
@@ -388,7 +423,7 @@ export class DocumentsService {
    * voltam exatamente como estavam.
    */
   async restore(personId: string, documentId: string): Promise<Document> {
-    await this.requireOwner(personId, documentId);
+    await this.requireOwner(personId, documentId, OWNER_ONLY_RESTORE_MESSAGE);
 
     await this.prisma.document.updateMany({
       where: { id: documentId, trashedAt: { not: null } },
@@ -404,7 +439,7 @@ export class DocumentsService {
    * `onDelete: Cascade` do schema.
    */
   async delete(personId: string, documentId: string): Promise<void> {
-    await this.requireOwner(personId, documentId);
+    await this.requireOwner(personId, documentId, OWNER_ONLY_DELETE_MESSAGE);
 
     const { count } = await this.prisma.document.deleteMany({
       where: { id: documentId, trashedAt: { not: null } },

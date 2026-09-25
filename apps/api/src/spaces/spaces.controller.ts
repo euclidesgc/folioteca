@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Delete,
-  ForbiddenException,
   Get,
   HttpCode,
   Param,
@@ -29,9 +28,6 @@ type SpaceMembersResponse = components['schemas']['SpaceMembersResponse'];
 type SpaceMemberResponse = components['schemas']['SpaceMemberResponse'];
 type SpaceMemberLevelResponse =
   components['schemas']['SpaceMemberLevelResponse'];
-
-const INHERITED_REACH_MESSAGE =
-  'Os documentos deste espaço estão disponíveis para quem está lotado diretamente na unidade.';
 
 /**
  * O guard fica **na classe** e sem `AdminGuard`: toda pessoa com sessão lista
@@ -181,10 +177,10 @@ export class SpacesController {
   }
 
   /**
-   * Documentos do espaço de unidade, só para quem está lotado diretamente
-   * nela, ou do espaço livre, só para o dono ou um membro (200). Id
-   * malformado, espaço inexistente ou fora de alcance: o mesmo 404. Alcance
-   * só por herança: 403.
+   * Documentos do espaço de unidade, para quem o alcança por lotação direta
+   * ou por herança da unidade-pai, ou do espaço livre, só para o dono ou um
+   * membro (200). Id malformado, espaço inexistente ou fora de alcance: o
+   * mesmo 404. Não há 403.
    */
   @Get(':spaceId/documents')
   async listSpaceDocuments(
@@ -203,10 +199,6 @@ export class SpacesController {
 
     if (reach === 'none') {
       throw spaceNotFound();
-    }
-
-    if (reach === 'inherited') {
-      throw new ForbiddenException(INHERITED_REACH_MESSAGE);
     }
 
     return this.documents.listInSpace(person.id, spaceId);

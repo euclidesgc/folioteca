@@ -33,7 +33,7 @@ export const networkDelay = (): Promise<void> =>
 //     colleague to the space of that unit, to see the list of a unit space
 //     and create documents there (needs
 //     localStorage.setItem('mock-org-units', 'sample') too); the space of a
-//     unit reached only by inheritance shows the direct assignment notice
+//     unit reached by inheritance lists its documents the same way
 //   localStorage.setItem('mock-space-members', 'sample')  -> assigns the
 //     signed-in person and a colleague, Marta Ribeiro, directly to
 //     "Catalogação", to see "Pessoas nesta unidade" with two rows (needs

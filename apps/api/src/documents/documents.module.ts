@@ -11,6 +11,6 @@ import { SharesService } from './shares.service';
   imports: [AuthModule, AccessModule],
   controllers: [DocumentsController],
   providers: [DocumentsService, FavoritesService, SharesService],
-  exports: [DocumentsService],
+  exports: [DocumentsService, SharesService],
 })
 export class DocumentsModule {}

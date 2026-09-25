@@ -1,6 +1,9 @@
 import { z } from 'zod';
 
-/** Título de um documento recém-criado e de um título apagado. */
+/**
+ * Título gravado quando o título é apagado ao renomear. Documento novo não usa
+ * este valor: nasce como "documento-sem-titulo-N" (ver `default-title.ts`).
+ */
 export const DEFAULT_DOCUMENT_TITLE = 'Sem título';
 
 /** Tamanho máximo do título, contado depois de aparar os espaços. */
@@ -32,10 +35,10 @@ export const listDocumentsQuerySchema = z.object({
 
 export type ListDocumentsQuery = z.infer<typeof listDocumentsQuerySchema>;
 
-/** Corpo do compartilhamento: nesta fatia, só o nível de leitura. */
+/** Share body: the access level to grant, view or edit. */
 export const shareDocumentSchema = z.strictObject(
   {
-    level: z.literal('view', { error: 'Escolha o nível de acesso.' }),
+    level: z.enum(['view', 'edit'], { error: 'Escolha o nível de acesso.' }),
   },
   { error: 'Campo não permitido.' },
 );

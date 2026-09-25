@@ -21,6 +21,7 @@ const CURRENT_USER: CurrentUserResponse = {
       name: 'Ana Souza',
       email: EMAIL,
       isAdmin: true,
+      documentPageWidth: 'medium',
     },
   },
 };

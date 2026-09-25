@@ -22,22 +22,26 @@ type DocumentCollaboration = {
   saveStatus: SaveStatus;
 };
 
-// The server sends this after writing the content to the database, which is
-// the moment the document's `updatedAt` really changed.
-const isStoredMessage = (payload: string): boolean => {
+type StatelessType = 'stored' | 'access-changed';
+
+// `stored`: the server sends it after writing the content to the database,
+// which is the moment the document's `updatedAt` really changed.
+// `access-changed`: the server reevaluated this person's access after a share
+// changed. The message carries no level: the level always comes from the GET.
+const parseStatelessType = (payload: string): StatelessType | null => {
   let message: unknown;
 
   try {
     message = JSON.parse(payload);
   } catch {
-    return false;
+    return null;
   }
 
-  return (
-    typeof message === 'object' &&
-    message !== null &&
-    (message as { type?: unknown }).type === 'stored'
-  );
+  if (typeof message !== 'object' || message === null) return null;
+
+  const type = (message as { type?: unknown }).type;
+
+  return type === 'stored' || type === 'access-changed' ? type : null;
 };
 
 export const useDocumentCollaboration = (
@@ -98,12 +102,22 @@ export const useDocumentCollaboration = (
       const handleStateless = ({
         payload,
       }: CollaborationEvents['stateless']): void => {
-        if (!isStoredMessage(payload)) return;
+        const type = parseStatelessType(payload);
 
-        invalidateDocumentLists(queryClient);
-        void queryClient.invalidateQueries({
-          queryKey: getDocumentQueryOptions(documentId).queryKey,
-        });
+        if (type === null) return;
+
+        // Both reread the document and the lists: after `access-changed` the
+        // new `accessLevel` (or a 404, when the access is gone) drives the page.
+        void refreshDocument();
+      };
+
+      const refreshDocument = async (): Promise<void> => {
+        await Promise.all([
+          invalidateDocumentLists(queryClient),
+          queryClient.invalidateQueries({
+            queryKey: getDocumentQueryOptions(documentId).queryKey,
+          }),
+        ]);
       };
 
       created.provider.on('status', handleStatus);

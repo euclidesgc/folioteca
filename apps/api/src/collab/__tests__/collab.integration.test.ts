@@ -749,6 +749,106 @@ test('after removing the assignment the next connection is refused', async () =>
   expect(readText(next.ydoc)).toBe('');
 });
 
+type UnitHeir = {
+  documentId: string;
+  childSpaceId: string;
+  heirCookie: string;
+};
+
+/**
+ * A dona lotada na filha "Protocolo", cujo espaço herda da mãe "Secretaria";
+ * a herdeira lotada só na mãe; um documento da dona criado pela API no espaço
+ * da filha.
+ */
+async function createInheritedSpaceDocument(): Promise<UnitHeir> {
+  const owner = await prisma.person.findFirstOrThrow({
+    where: { email: EMAIL },
+  });
+  const root = await prisma.orgUnit.findFirstOrThrow({
+    where: { organizationId: owner.organizationId, parentId: null },
+  });
+  const parent = await prisma.orgUnit.create({
+    data: {
+      organizationId: owner.organizationId,
+      parentId: root.id,
+      name: 'Secretaria',
+    },
+  });
+  await prisma.space.create({ data: { type: 'UNIT', orgUnitId: parent.id } });
+  const child = await prisma.orgUnit.create({
+    data: {
+      organizationId: owner.organizationId,
+      parentId: parent.id,
+      name: 'Protocolo',
+    },
+  });
+  const childSpace = await prisma.space.create({
+    data: { type: 'UNIT', orgUnitId: child.id, inheritsParent: true },
+  });
+  const { person: heir, cookie: heirCookie } = await createPersonWithSession(
+    app,
+    { name: 'João Lima', email: 'joao@exemplo.org' },
+  );
+  await prisma.orgUnitAssignment.createMany({
+    data: [
+      { orgUnitId: child.id, personId: owner.id },
+      { orgUnitId: parent.id, personId: heir.id },
+    ],
+  });
+
+  const response = await httpRequest(app)
+    .post('/api/documents')
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send({ spaceId: childSpace.id });
+
+  expect(response.status).toBe(201);
+
+  return {
+    documentId: (response.body as { data: { id: string } }).data.id,
+    childSpaceId: childSpace.id,
+    heirCookie,
+  };
+}
+
+test('an heir connects and writes to an inherited unit space document', async () => {
+  const { documentId, heirCookie } = await createInheritedSpaceDocument();
+  const heir = open({ documentId, cookie: heirCookie });
+
+  await heir.synced;
+
+  expect(heir.provider.authorizedScope).not.toBe('readonly');
+
+  writeText(heir.ydoc, 'Ata herdada');
+
+  await waitFor(() => heir.statelessPayloads.includes(STORED_MESSAGE), {
+    message: 'A gravação da herdeira não foi confirmada',
+  });
+
+  expect(await storedText(documentId)).toBe('Ata herdada');
+});
+
+test('after losing inheritance a new connection is refused', async () => {
+  const { documentId, childSpaceId, heirCookie } =
+    await createInheritedSpaceDocument();
+  const first = open({ documentId, cookie: heirCookie });
+
+  await first.synced;
+  await first.close();
+
+  await prisma.space.update({
+    where: { id: childSpaceId },
+    data: { inheritsParent: false },
+  });
+
+  const next = open({ documentId, cookie: heirCookie });
+  const reason = await next.refused;
+
+  expect(reason).toBeTruthy();
+  expect(next.provider.isSynced).toBe(false);
+  expect(readText(next.ydoc)).toBe('');
+});
+
 type FreeSpaceMember = {
   documentId: string;
   spaceId: string;
@@ -878,4 +978,345 @@ test('after demoting the free space member to view the next connection is read o
 
   expect(await storedText(documentId)).toBe('Plano do projeto');
   expect(next.statelessPayloads).not.toContain(STORED_MESSAGE);
+});
+
+/** João com um compartilhamento no nível informado num documento da dona. */
+async function shareWithJoao(
+  documentId: string,
+  level: 'view' | 'edit',
+): Promise<string> {
+  const { person, cookie } = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+  const share = await httpRequest(app)
+    .put(`/api/documents/${documentId}/shares/${person.id}`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send({ level });
+
+  expect(share.status).toBe(200);
+
+  return cookie;
+}
+
+test('a person with an edit share connects and their change reaches another client', async () => {
+  const created = await createDocument(cookieA);
+  const editorCookie = await shareWithJoao(created.id, 'edit');
+  const owner = open({ documentId: created.id, cookie: cookieA });
+  const editor = open({ documentId: created.id, cookie: editorCookie });
+
+  await owner.synced;
+  await editor.synced;
+
+  expect(editor.provider.authorizedScope).not.toBe('readonly');
+
+  writeText(editor.ydoc, 'Texto de quem edita');
+
+  await waitFor(() => readText(owner.ydoc) === 'Texto de quem edita', {
+    message: 'A alteração de quem edita não chegou ao outro cliente',
+  });
+  await waitFor(
+    async () => (await storedText(created.id)) === 'Texto de quem edita',
+    { message: 'A alteração de quem edita não foi gravada' },
+  );
+
+  expect(readText(owner.ydoc)).toBe('Texto de quem edita');
+});
+
+test('a person with a view share connects read only', async () => {
+  const created = await createDocument(cookieA);
+  const viewerCookie = await shareWithJoao(created.id, 'view');
+  const owner = open({ documentId: created.id, cookie: cookieA });
+  const viewer = open({ documentId: created.id, cookie: viewerCookie });
+
+  await owner.synced;
+  await viewer.synced;
+
+  expect(viewer.provider.authorizedScope).toBe('readonly');
+
+  writeText(viewer.ydoc, 'Rascunho de quem só vê');
+
+  // O cliente da dona escreve depois: quando a escrita dela chega e é
+  // gravada, a janela em que a de quem só vê teria chegado já passou.
+  writeText(owner.ydoc, 'Texto da dona');
+  await waitFor(() => owner.statelessPayloads.includes(STORED_MESSAGE), {
+    message: 'A gravação da dona não foi confirmada',
+  });
+
+  expect(readText(owner.ydoc)).toBe('Texto da dona');
+  expect(await storedText(created.id)).toBe('Texto da dona');
+});
+
+test('a trashed document refuses a person with an edit share', async () => {
+  const created = await createDocument(cookieA);
+  const editorCookie = await shareWithJoao(created.id, 'edit');
+
+  expect(await trashDocument(created.id)).toBe(200);
+
+  const editor = open({ documentId: created.id, cookie: editorCookie });
+  const reason = await editor.refused;
+
+  expect(reason).toBeTruthy();
+  expect(editor.provider.isSynced).toBe(false);
+  expect(readText(editor.ydoc)).toBe('');
+});
+
+const ACCESS_CHANGED = '{"type":"access-changed"}';
+
+/** Troca, pela API e com o cookie da dona, o nível de uma pessoa. */
+async function putShare(
+  documentId: string,
+  personId: string,
+  level: 'view' | 'edit',
+): Promise<void> {
+  const response = await httpRequest(app)
+    .put(`/api/documents/${documentId}/shares/${personId}`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send({ level });
+
+  expect(response.status).toBe(200);
+}
+
+/** Remove, pela API e com o cookie da dona, o compartilhamento de uma pessoa. */
+async function deleteShare(documentId: string, personId: string): Promise<void> {
+  const response = await httpRequest(app)
+    .delete(`/api/documents/${documentId}/shares/${personId}`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send();
+
+  expect(response.status).toBe(204);
+}
+
+/** Espera a mensagem `access-changed` chegar à conexão. */
+function accessChanged(connection: CollabConnection): Promise<void> {
+  return waitFor(
+    () => connection.statelessPayloads.includes(ACCESS_CHANGED),
+    { message: 'A mensagem access-changed não chegou' },
+  );
+}
+
+/** Espera o estado guardado do documento ficar igual ao texto informado. */
+function storedEquals(documentId: string, text: string): Promise<void> {
+  return waitFor(async () => (await storedText(documentId)) === text, {
+    message: `O estado guardado não chegou a "${text}"`,
+  });
+}
+
+/**
+ * João com o documento da dona aberto por um compartilhamento no nível
+ * informado, e a dona conectada ao mesmo documento.
+ */
+async function openSharedDocument(level: 'view' | 'edit'): Promise<{
+  documentId: string;
+  personId: string;
+  owner: CollabConnection;
+  person: CollabConnection;
+}> {
+  const created = await createDocument(cookieA);
+  const { person, cookie } = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+
+  await putShare(created.id, person.id, level);
+
+  const owner = open({ documentId: created.id, cookie: cookieA });
+  const joao = open({ documentId: created.id, cookie });
+
+  await owner.synced;
+  await joao.synced;
+
+  return {
+    documentId: created.id,
+    personId: person.id,
+    owner,
+    person: joao,
+  };
+}
+
+test('downgrading a share to view sends access-changed and later writes are not stored', async () => {
+  const { documentId, personId, owner, person } =
+    await openSharedDocument('edit');
+
+  writeText(person.ydoc, 'Texto de João');
+  await storedEquals(documentId, 'Texto de João');
+
+  await putShare(documentId, personId, 'view');
+  await accessChanged(person);
+
+  writeText(person.ydoc, ' — depois do rebaixamento');
+
+  // A dona escreve depois e força a gravação: quando o texto dela está no
+  // banco, a escrita de João já teria entrado junto.
+  await waitFor(() => readText(owner.ydoc) === 'Texto de João', {
+    message: 'A dona não recebeu o texto de João',
+  });
+  writeText(owner.ydoc, ' e da dona');
+  await storedEquals(documentId, 'Texto de João e da dona');
+
+  expect(person.statelessPayloads).toContain(ACCESS_CHANGED);
+  expect(await storedText(documentId)).toBe('Texto de João e da dona');
+  expect(readText(owner.ydoc)).toBe('Texto de João e da dona');
+});
+
+test('upgrading a share to edit sends access-changed and later writes are stored', async () => {
+  const { documentId, personId, person } = await openSharedDocument('view');
+
+  expect(person.provider.authorizedScope).toBe('readonly');
+
+  await putShare(documentId, personId, 'edit');
+  await accessChanged(person);
+
+  writeText(person.ydoc, 'Texto de João promovido');
+  await storedEquals(documentId, 'Texto de João promovido');
+
+  expect(person.statelessPayloads).toContain(ACCESS_CHANGED);
+  expect(await storedText(documentId)).toBe('Texto de João promovido');
+});
+
+test('removing a share sends access-changed and closes the connection', async () => {
+  const { documentId, personId, owner, person } =
+    await openSharedDocument('edit');
+  let payloadsAtClose: string[] | undefined;
+
+  person.provider.on('close', () => {
+    payloadsAtClose ??= [...person.statelessPayloads];
+  });
+
+  await deleteShare(documentId, personId);
+
+  await waitFor(() => payloadsAtClose !== undefined, {
+    message: 'A conexão de João não foi encerrada',
+  });
+
+  expect(payloadsAtClose).toContain(ACCESS_CHANGED);
+  expect(person.provider.isAuthenticated).toBe(false);
+  expect(owner.statelessPayloads).not.toContain(ACCESS_CHANGED);
+});
+
+test('after removal the person cannot connect again', async () => {
+  const created = await createDocument(cookieA);
+  const { person, cookie } = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+  await putShare(created.id, person.id, 'edit');
+
+  const owner = open({ documentId: created.id, cookie: cookieA });
+  const first = open({ documentId: created.id, cookie });
+  await owner.synced;
+  await first.synced;
+
+  await deleteShare(created.id, person.id);
+  await waitFor(() => !first.provider.isAuthenticated, {
+    message: 'A conexão de João não foi encerrada',
+  });
+
+  const next = open({ documentId: created.id, cookie });
+  const reason = await next.refused;
+
+  expect(reason).toBeTruthy();
+  expect(next.provider.isSynced).toBe(false);
+  expect(readText(next.ydoc)).toBe('');
+});
+
+test('removing a view share of an edit space member keeps writing', async () => {
+  const { documentId, memberId, memberCookie } =
+    await createFreeSpaceDocument();
+  await putShare(documentId, memberId, 'view');
+
+  const owner = open({ documentId, cookie: cookieA });
+  const member = open({ documentId, cookie: memberCookie });
+  await owner.synced;
+  await member.synced;
+
+  await deleteShare(documentId, memberId);
+  await accessChanged(member);
+
+  writeText(member.ydoc, 'Plano do projeto');
+  await storedEquals(documentId, 'Plano do projeto');
+
+  expect(member.provider.isAuthenticated).toBe(true);
+  expect(await storedText(documentId)).toBe('Plano do projeto');
+});
+
+test('removing an edit share of a view space member makes the connection read only', async () => {
+  const { documentId, spaceId, memberId, memberCookie } =
+    await createFreeSpaceDocument();
+  const demoted = await httpRequest(app)
+    .patch(`/api/spaces/${spaceId}/members/${memberId}`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send({ level: 'view' });
+
+  expect(demoted.status).toBe(200);
+
+  await putShare(documentId, memberId, 'edit');
+
+  const owner = open({ documentId, cookie: cookieA });
+  const member = open({ documentId, cookie: memberCookie });
+  await owner.synced;
+  await member.synced;
+
+  writeText(member.ydoc, 'Plano do projeto');
+  await storedEquals(documentId, 'Plano do projeto');
+
+  await deleteShare(documentId, memberId);
+  await accessChanged(member);
+
+  writeText(member.ydoc, ' — rascunho do leitor');
+
+  await waitFor(() => readText(owner.ydoc) === 'Plano do projeto', {
+    message: 'A dona não recebeu o texto do membro',
+  });
+  writeText(owner.ydoc, ' e da dona');
+  await storedEquals(documentId, 'Plano do projeto e da dona');
+
+  expect(member.provider.isAuthenticated).toBe(true);
+  expect(await storedText(documentId)).toBe('Plano do projeto e da dona');
+});
+
+test('a share change for another person does not message nor change this connection', async () => {
+  const { documentId, person } = await openSharedDocument('edit');
+  const { person: ana, cookie: anaCookie } = await createPersonWithSession(
+    app,
+    { name: 'Ana Reis', email: 'ana@exemplo.org' },
+  );
+  await putShare(documentId, ana.id, 'edit');
+
+  const anaConnection = open({ documentId, cookie: anaCookie });
+  await anaConnection.synced;
+
+  await putShare(documentId, ana.id, 'view');
+  // A reavaliação de Ana e a de João, se houvesse, saem do mesmo aviso: quando
+  // a mensagem chega a Ana, a de João já teria sido enviada.
+  await accessChanged(anaConnection);
+
+  writeText(person.ydoc, 'Texto de João');
+  await storedEquals(documentId, 'Texto de João');
+
+  expect(person.statelessPayloads).not.toContain(ACCESS_CHANGED);
+  expect(person.provider.isAuthenticated).toBe(true);
+  expect(await storedText(documentId)).toBe('Texto de João');
+});
+
+test('the access-changed message carries only the type', async () => {
+  const { documentId, personId, person } = await openSharedDocument('edit');
+
+  await putShare(documentId, personId, 'view');
+  await accessChanged(person);
+
+  const received = person.statelessPayloads.filter(
+    (payload) => payload !== STORED_MESSAGE,
+  );
+
+  expect(received).toHaveLength(1);
+  expect(JSON.parse(received[0] ?? '')).toEqual({ type: 'access-changed' });
+  expect(received[0]).not.toContain(personId);
+  expect(received[0]).not.toContain('João');
+  expect(received[0]).not.toContain('joao@exemplo.org');
+  expect(received[0]).not.toContain('view');
 });

@@ -1,5 +1,5 @@
 import type React from 'react';
-import { lazy, Suspense, useEffect, useRef } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { Link, useNavigate } from 'react-router';
 
@@ -8,15 +8,19 @@ import { paths } from '@/config/paths';
 import { useDocument } from '@/features/documents/api/get-document';
 import { DocumentTitleForm } from '@/features/documents/components/document-title-form';
 import { FavoriteButton } from '@/features/documents/components/favorite-button';
+import { PageWidthMenu } from '@/features/documents/components/page-width-menu';
 import { SaveIndicator } from '@/features/documents/components/save-indicator';
 import { ShareDocumentDialog } from '@/features/documents/components/share-document-dialog';
 import { TrashDocumentButton } from '@/features/documents/components/trash-document-button';
 import { TrashedDocumentActions } from '@/features/documents/components/trashed-document-actions';
 import { useDocumentCollaboration } from '@/features/documents/hooks/use-document-collaboration';
+import { usePageWidth } from '@/features/documents/stores/page-width-store';
+import { pageWidthClass } from '@/features/documents/utils/page-width';
 import { useUser } from '@/lib/auth';
 import { isNotFoundError } from '@/lib/errors';
 import { reportError } from '@/lib/report-error';
 import type { Document } from '@/types/api';
+import { cn } from '@/utils/cn';
 import { formatDateTime } from '@/utils/format-date-time';
 
 // The editor is heavy and only this screen uses it: it arrives in its own
@@ -104,6 +108,7 @@ function LoadedDocument({
 }): React.JSX.Element {
   const user = useUser();
   const navigate = useNavigate();
+  const pageWidth = usePageWidth();
   // The collaboration session is opened in the trash too: the content only
   // ever arrives through Yjs, and the server marks the connection read-only.
   const { session, hasSynced, saveStatus } = useDocumentCollaboration(
@@ -115,6 +120,8 @@ function LoadedDocument({
   // Whoever only reads sees the title and the content, with nothing to edit.
   // The server is the real barrier: it refuses the writes of this person.
   const isReadOnly = document.accessLevel === 'view';
+  // The server refuses to rename in the trash (409): no field is offered there.
+  const canEditTitle = !isTrashed && !isReadOnly;
   const noticeRef = useRef<HTMLDivElement>(null);
   const wasTrashedRef = useRef(isTrashed);
 
@@ -127,10 +134,42 @@ function LoadedDocument({
     wasTrashedRef.current = isTrashed;
   }, [isTrashed]);
 
+  const accessLevel = document.accessLevel;
+  // The level of the previous render, kept in state (not in a ref) so the
+  // notice is adjusted during the render itself, without an extra effect.
+  const [previousAccessLevel, setPreviousAccessLevel] = useState(accessLevel);
+  const [showDowngradeNotice, setShowDowngradeNotice] = useState(false);
+
+  // The level only changes here after the server reevaluated the access of
+  // this person (`access-changed`) and the page reread the document. Only the
+  // transition from editing to viewing warns; opening already in view does not.
+  if (previousAccessLevel !== accessLevel) {
+    setPreviousAccessLevel(accessLevel);
+
+    if (previousAccessLevel === 'edit' && accessLevel === 'view') {
+      setShowDowngradeNotice(true);
+    } else if (accessLevel !== 'view') {
+      setShowDowngradeNotice(false);
+    }
+  }
+
+  const isDowngradeNoticeVisible = showDowngradeNotice && !isTrashed;
+
   return (
-    <main id="main-content" className="mx-auto max-w-2xl p-8">
-      {trashedAt !== null ? (
-        <>
+    // The grey background around the sheet. Below `sm` it loses the side
+    // gutter and the sheet takes the whole width, with no horizontal scroll.
+    <main
+      id="main-content"
+      className="min-h-full bg-gray-100 px-0 py-4 sm:px-4 sm:py-8 md:px-6"
+    >
+      <div
+        data-page-width={pageWidth}
+        className={cn(
+          'mx-auto w-full border-y border-gray-200 bg-white p-4 shadow-sm sm:rounded-md sm:border-x sm:p-8',
+          pageWidthClass(pageWidth),
+        )}
+      >
+        {trashedAt !== null ? (
           <div
             ref={noticeRef}
             tabIndex={-1}
@@ -148,80 +187,107 @@ function LoadedDocument({
               />
             </div>
           </div>
+        ) : null}
 
-          {/* With no editable title field, the heading becomes the visible
-              title of the page. */}
-          <h1 className="mt-6 text-2xl font-bold break-words">
-            {document.title}
-          </h1>
-        </>
-      ) : (
-        <>
-          {/* The visible title is the editable field below; the heading keeps
-              the page named for screen readers. */}
-          {isReadOnly ? null : <h1 className="sr-only">{document.title}</h1>}
+        {/* The visible title of whoever edits is the field in the actions row;
+            this heading keeps the page named for screen readers. Whoever cannot
+            edit gets the title as the heading itself, so there is a single h1. */}
+        {canEditTitle ? <h1 className="sr-only">{document.title}</h1> : null}
 
-          <div className="mb-4 flex flex-wrap justify-end gap-2">
-            {isReadOnly ? (
-              <span className="mr-auto self-center rounded-full bg-gray-100 px-2 py-0.5 text-sm text-gray-800">
-                Somente leitura
-              </span>
-            ) : null}
-            {/* The server applies the same rule: only the owner may share a
-                document or move it to the trash. */}
-            {document.accessLevel === 'owner' ? (
+        <div
+          className={cn(
+            'mb-4 flex flex-wrap items-center gap-2',
+            isTrashed && 'mt-6',
+          )}
+        >
+          <div className="flex min-w-0 grow basis-48 items-center gap-2">
+            {canEditTitle ? (
+              <DocumentTitleForm document={document} />
+            ) : (
               <>
-                <ShareDocumentDialog
-                  documentId={document.id}
-                  documentTitle={document.title}
-                />
-                <TrashDocumentButton document={document} />
+                <h1
+                  title={document.title}
+                  className="min-w-0 truncate px-2 text-base font-semibold text-gray-900"
+                >
+                  {document.title}
+                </h1>
+                {isReadOnly && !isTrashed ? (
+                  <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-sm text-gray-800">
+                    Somente leitura
+                  </span>
+                ) : null}
               </>
-            ) : null}
-            <FavoriteButton document={document} />
+            )}
           </div>
 
-          {isReadOnly ? (
-            // With no title field to edit, the heading is the visible title.
-            <h1 className="text-2xl font-bold break-words">
-              {document.title}
-            </h1>
-          ) : (
-            <>
-              <DocumentTitleForm document={document} />
+          {/* The page width belongs to the person, not to the document: it is
+              offered to whoever only reads and in the trash too, where it is
+              the only action. */}
+          <div className="ml-auto flex flex-wrap gap-2">
+            <PageWidthMenu />
+            {isTrashed ? null : (
+              <>
+                {/* The server applies the same rule: only the owner may share
+                    a document or move it to the trash. */}
+                {document.accessLevel === 'owner' ? (
+                  <ShareDocumentDialog
+                    documentId={document.id}
+                    documentTitle={document.title}
+                  />
+                ) : null}
+                <FavoriteButton document={document} />
+                {document.accessLevel === 'owner' ? (
+                  <TrashDocumentButton document={document} />
+                ) : null}
+              </>
+            )}
+          </div>
+        </div>
 
-              <SaveIndicator status={saveStatus} />
-            </>
+        {/* Always mounted and empty until the change, so screen readers
+            announce the text when it is inserted. It does not take the focus. */}
+        <p
+          role="status"
+          aria-live="polite"
+          className={cn(
+            isDowngradeNoticeVisible &&
+              'mt-0 mb-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-800',
           )}
-        </>
-      )}
+        >
+          {isDowngradeNoticeVisible
+            ? 'Agora você só pode ver este documento.'
+            : null}
+        </p>
 
-      <ErrorBoundary
-        FallbackComponent={EditorErrorFallback}
-        onError={(error, info) =>
-          reportError(error, { componentStack: info.componentStack })
-        }
-      >
-        <Suspense fallback={<EditorLoading />}>
-          {/* Mounting only after the first sync keeps an empty document from
-              flashing before the stored content arrives. A later disconnection
-              does not unmount it: the person keeps writing and the indicator
-              is what warns them. */}
-          {session && hasSynced ? (
-            <DocumentEditor
-              fragment={session.fragment}
-              provider={session.provider}
-              editable={!isTrashed && !isReadOnly}
-              user={{
-                name: user.data?.person.name ?? 'Você',
-                color: USER_COLOR,
-              }}
-            />
-          ) : (
-            <EditorLoading />
-          )}
-        </Suspense>
-      </ErrorBoundary>
+        {canEditTitle ? <SaveIndicator status={saveStatus} /> : null}
+
+        <ErrorBoundary
+          FallbackComponent={EditorErrorFallback}
+          onError={(error, info) =>
+            reportError(error, { componentStack: info.componentStack })
+          }
+        >
+          <Suspense fallback={<EditorLoading />}>
+            {/* Mounting only after the first sync keeps an empty document from
+                flashing before the stored content arrives. A later disconnection
+                does not unmount it: the person keeps writing and the indicator
+                is what warns them. */}
+            {session && hasSynced ? (
+              <DocumentEditor
+                fragment={session.fragment}
+                provider={session.provider}
+                editable={!isTrashed && !isReadOnly}
+                user={{
+                  name: user.data?.person.name ?? 'Você',
+                  color: USER_COLOR,
+                }}
+              />
+            ) : (
+              <EditorLoading />
+            )}
+          </Suspense>
+        </ErrorBoundary>
+      </div>
     </main>
   );
 }

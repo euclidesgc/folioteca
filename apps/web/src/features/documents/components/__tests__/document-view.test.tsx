@@ -7,13 +7,18 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { createRoutes } from '@/app/router';
 import { env } from '@/config/env';
 import { paths } from '@/config/paths';
+import { usePageWidthStore } from '@/features/documents/stores/page-width-store';
 import { queryConfig } from '@/lib/react-query';
 import type { MockDocument } from '@/testing/mocks/db';
 import {
   getDb,
+  getSignedInPerson,
+  removeDocumentShare,
   seedInstalled,
   seedSampleDocuments,
+  seedSharedEditableDocument,
   seedSharedReadOnlyDocument,
+  shareDocument,
 } from '@/testing/mocks/db';
 import { server } from '@/testing/mocks/server';
 import { formatDateTime } from '@/utils/format-date-time';
@@ -116,6 +121,7 @@ vi.mock('@/features/documents/utils/create-collaboration-provider', () => ({
 }));
 
 beforeEach(() => {
+  usePageWidthStore.setState(usePageWidthStore.getInitialState());
   seedInstalled({ signedIn: true });
   editor.fails = false;
   factory.reset();
@@ -191,7 +197,7 @@ test('shows Documento and Carregando documento… while loading', async () => {
     'Carregando documento…',
   );
 
-  await screen.findByLabelText('Título');
+  await screen.findByRole('textbox', { name: 'Título do documento' });
 });
 
 test('shows Documento não encontrado with the link to Meus documentos on 404', async () => {
@@ -250,7 +256,7 @@ test('shows the error alert on 500 and Tentar novamente loads the document', asy
     within(alert).getByRole('button', { name: 'Tentar novamente' }),
   );
 
-  expect(await screen.findByLabelText('Título')).toHaveValue(seeded.title);
+  expect(await screen.findByRole('textbox', { name: 'Título do documento' })).toHaveValue(seeded.title);
 });
 
 test('shows the Título field, the sr-only h1 and the save indicator', async () => {
@@ -259,7 +265,7 @@ test('shows the Título field, the sr-only h1 and the save indicator', async () 
 
   renderApp(<DocumentView documentId={seeded.id} />);
 
-  const field = await screen.findByLabelText('Título');
+  const field = await screen.findByRole('textbox', { name: 'Título do documento' });
   expect(field).toHaveValue(seeded.title);
 
   expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
@@ -286,7 +292,7 @@ test('does not show the editor notice from the previous delivery', async () => {
 
   renderApp(<DocumentView documentId={seeded.id} />);
 
-  await screen.findByLabelText('Título');
+  await screen.findByRole('textbox', { name: 'Título do documento' });
   await connectAndSync();
   await screen.findByTestId('document-editor', undefined, {
     timeout: TIMEOUT,
@@ -301,7 +307,7 @@ test('shows Carregando editor… until the first sync', async () => {
 
   renderApp(<DocumentView documentId={seeded.id} />);
 
-  await screen.findByLabelText('Título');
+  await screen.findByRole('textbox', { name: 'Título do documento' });
 
   expect(
     await screen.findByText('Carregando editor…', undefined, {
@@ -322,7 +328,7 @@ test('mounts the editor only after the first sync', async () => {
 
   renderApp(<DocumentView documentId={seeded.id} />);
 
-  await screen.findByLabelText('Título');
+  await screen.findByRole('textbox', { name: 'Título do documento' });
   expect(screen.queryByTestId('document-editor')).not.toBeInTheDocument();
 
   await connectAndSync();
@@ -346,7 +352,7 @@ test('keeps the editor mounted and shows the offline sentence when the connectio
 
   renderApp(<DocumentView documentId={seeded.id} />);
 
-  await screen.findByLabelText('Título');
+  await screen.findByRole('textbox', { name: 'Título do documento' });
   await connectAndSync();
   const mounted = await screen.findByTestId('document-editor', undefined, {
     timeout: TIMEOUT,
@@ -373,7 +379,7 @@ test('shows the editor error with Tentar novamente when the editor fails to rend
 
   renderApp(<DocumentView documentId={seeded.id} />);
 
-  await screen.findByLabelText('Título');
+  await screen.findByRole('textbox', { name: 'Título do documento' });
   await connectAndSync();
 
   const alert = await screen.findByRole('alert', undefined, {
@@ -395,7 +401,7 @@ test('Tentar novamente remounts the editor', async () => {
 
   renderApp(<DocumentView documentId={seeded.id} />);
 
-  await screen.findByLabelText('Título');
+  await screen.findByRole('textbox', { name: 'Título do documento' });
   await connectAndSync();
 
   const alert = await screen.findByRole('alert', undefined, {
@@ -415,28 +421,28 @@ test('Tentar novamente remounts the editor', async () => {
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 
-test('shows the favorite button before the title field when the document is loaded', async () => {
+test('shows the title field first and the favorite button to its right when the document is loaded', async () => {
   seedSampleDocuments();
   const seeded = firstSeededDocument();
 
   renderApp(<DocumentView documentId={seeded.id} />);
 
-  const field = await screen.findByLabelText('Título');
+  const field = await screen.findByRole('textbox', { name: 'Título do documento' });
   const favorite = screen.getByRole('button', {
     name: 'Adicionar aos favoritos',
   });
   const heading = screen.getByRole('heading', { level: 1 });
 
   expect(favorite).toHaveClass('text-gray-700');
-  expect(favorite.parentElement).toHaveClass('flex', 'justify-end');
+  // Since 169 the actions sit to the right of the title field, in the same row.
+  expect(favorite.parentElement).toHaveClass('flex', 'ml-auto');
 
-  // Order on the page: heading, action row, title field.
+  // Order on the page: heading, title field, actions.
   expect(
-    heading.compareDocumentPosition(favorite) &
-      Node.DOCUMENT_POSITION_FOLLOWING,
+    heading.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeGreaterThan(0);
   expect(
-    favorite.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING,
+    field.compareDocumentPosition(favorite) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeGreaterThan(0);
 });
 
@@ -457,7 +463,7 @@ test('shows no favorite button while loading, when not found and on error', asyn
   );
   expect(screen.queryByRole('button', { name: /favoritos/ })).not.toBeInTheDocument();
 
-  await screen.findByLabelText('Título');
+  await screen.findByRole('textbox', { name: 'Título do documento' });
   loading.unmount();
 
   // Back to the seeded database, where the unknown id answers 404.
@@ -503,13 +509,13 @@ test('opens no collaboration session for a document that was not found', async (
   expect(screen.queryByTestId('document-editor')).not.toBeInTheDocument();
 });
 
-test('shows Mover para a lixeira before the favorite button for the owner', async () => {
+test('shows Mover para a lixeira after the favorite button for the owner', async () => {
   seedSampleDocuments();
   const seeded = firstSeededDocument();
 
   renderApp(<DocumentView documentId={seeded.id} />);
 
-  await screen.findByLabelText('Título');
+  await screen.findByRole('textbox', { name: 'Título do documento' });
   const trash = screen.getByRole('button', { name: 'Mover para a lixeira' });
   const favorite = screen.getByRole('button', {
     name: 'Adicionar aos favoritos',
@@ -517,7 +523,7 @@ test('shows Mover para a lixeira before the favorite button for the owner', asyn
 
   expect(trash.parentElement).toBe(favorite.parentElement);
   expect(
-    trash.compareDocumentPosition(favorite) & Node.DOCUMENT_POSITION_FOLLOWING,
+    favorite.compareDocumentPosition(trash) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeGreaterThan(0);
 });
 
@@ -528,7 +534,7 @@ test('hides Mover para a lixeira when accessLevel is not owner', async () => {
 
   renderApp(<DocumentView documentId={seeded.id} />);
 
-  await screen.findByLabelText('Título');
+  await screen.findByRole('textbox', { name: 'Título do documento' });
 
   expect(
     screen.queryByRole('button', { name: 'Mover para a lixeira' }),
@@ -567,7 +573,7 @@ test('trashed document shows a visible h1 and no title field, favorite button or
   expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   expect(heading).not.toHaveClass('sr-only');
 
-  expect(screen.queryByLabelText('Título')).not.toBeInTheDocument();
+  expect(screen.queryByRole('textbox', { name: 'Título do documento' })).not.toBeInTheDocument();
   expect(
     screen.queryByRole('button', { name: /favoritos/ }),
   ).not.toBeInTheDocument();
@@ -594,7 +600,7 @@ test('mounts the editor with editable false in the trash and true outside it', a
 
   renderApp(<DocumentView documentId={seeded.id} />);
 
-  await screen.findByLabelText('Título');
+  await screen.findByRole('textbox', { name: 'Título do documento' });
   await connectAndSync();
 
   expect(
@@ -624,7 +630,7 @@ test('moves focus to the trash notice after moving the document', async () => {
 
   renderApp(<DocumentView documentId={seeded.id} />);
 
-  await screen.findByLabelText('Título');
+  await screen.findByRole('textbox', { name: 'Título do documento' });
   await user.click(screen.getByRole('button', { name: 'Mover para a lixeira' }));
 
   const dialog = await screen.findByRole('alertdialog');
@@ -662,7 +668,7 @@ test('Restaurar brings back the title field and the action row', async () => {
   await screen.findByText(noticeText(trashedAt));
   await user.click(screen.getByRole('button', { name: 'Restaurar' }));
 
-  expect(await screen.findByLabelText('Título')).toHaveValue(seeded.title);
+  expect(await screen.findByRole('textbox', { name: 'Título do documento' })).toHaveValue(seeded.title);
   expect(
     screen.getByRole('button', { name: 'Mover para a lixeira' }),
   ).toBeInTheDocument();
@@ -714,7 +720,7 @@ test('the owner sees the Compartilhar button', async () => {
 
   renderApp(<DocumentView documentId={seeded.id} />);
 
-  await screen.findByLabelText('Título');
+  await screen.findByRole('textbox', { name: 'Título do documento' });
   const share = screen.getByRole('button', { name: 'Compartilhar' });
   const trash = screen.getByRole('button', { name: 'Mover para a lixeira' });
 
@@ -765,7 +771,7 @@ test('a view person sees the title as a heading without the title field', async 
   });
   expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   expect(heading).not.toHaveClass('sr-only');
-  expect(screen.queryByLabelText('Título')).not.toBeInTheDocument();
+  expect(screen.queryByRole('textbox', { name: 'Título do documento' })).not.toBeInTheDocument();
 });
 
 test('a view person has no Compartilhar nor trash button', async () => {
@@ -784,4 +790,373 @@ test('a view person has no Compartilhar nor trash button', async () => {
   expect(
     screen.getByRole('button', { name: /favoritos/ }),
   ).toBeInTheDocument();
+});
+
+const titleField = (): Promise<HTMLElement> =>
+  screen.findByRole('textbox', { name: 'Título do documento' });
+
+const isBefore = (first: Node, second: Node): boolean =>
+  (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING) >
+  0;
+
+test('an editor sees the title field in the actions row', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  const field = await titleField();
+  expect(field).toHaveValue(seeded.title);
+
+  const favorite = screen.getByRole('button', {
+    name: 'Adicionar aos favoritos',
+  });
+  const share = screen.getByRole('button', { name: 'Compartilhar' });
+  const actions = favorite.parentElement;
+  const row = actions?.parentElement;
+
+  expect(actions).toHaveClass('ml-auto');
+  expect(row).toHaveClass('flex-wrap');
+  expect(row).toContainElement(field);
+  expect(row).toContainElement(share);
+  expect(isBefore(field, share)).toBe(true);
+});
+
+test('a viewer sees the title as a heading and Somente leitura', async () => {
+  const shared = sharedReadOnlyDocument();
+
+  renderApp(<DocumentView documentId={shared.id} />);
+
+  const heading = await screen.findByRole('heading', {
+    level: 1,
+    name: shared.title,
+  });
+  const badge = screen.getByText('Somente leitura');
+
+  expect(heading).not.toHaveClass('sr-only');
+  expect(heading).toHaveClass('truncate');
+  expect(heading).toHaveAttribute('title', shared.title);
+  expect(isBefore(heading, badge)).toBe(true);
+  expect(
+    screen.queryByRole('textbox', { name: 'Título do documento' }),
+  ).not.toBeInTheDocument();
+});
+
+test('a trashed document shows the title as a heading below the trash notice', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+  const trashedAt = trashInDb(seeded);
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  const notice = await screen.findByText(noticeText(trashedAt));
+  const heading = screen.getByRole('heading', {
+    level: 1,
+    name: seeded.title,
+  });
+
+  expect(heading).not.toHaveClass('sr-only');
+  expect(heading).toHaveAttribute('title', seeded.title);
+  expect(isBefore(notice, heading)).toBe(true);
+  expect(
+    screen.queryByRole('textbox', { name: 'Título do documento' }),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByText('Somente leitura')).not.toBeInTheDocument();
+});
+
+test('renders a single h1 for each access level', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+
+  const editing = renderApp(<DocumentView documentId={seeded.id} />);
+  await titleField();
+  expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  editing.unmount();
+
+  const shared = sharedReadOnlyDocument();
+  const viewing = renderApp(<DocumentView documentId={shared.id} />);
+  await screen.findByText('Somente leitura');
+  expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  viewing.unmount();
+
+  const trashedAt = trashInDb(seeded);
+  renderApp(<DocumentView documentId={seeded.id} />);
+  await screen.findByText(noticeText(trashedAt));
+  expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+});
+
+test('no longer renders the title below the actions row', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  const field = await titleField();
+  const favorite = screen.getByRole('button', {
+    name: 'Adicionar aos favoritos',
+  });
+  const row = favorite.parentElement?.parentElement;
+
+  // The only text with the title is the heading kept for screen readers,
+  // before the row; the field carries it as a value.
+  const texts = screen.getAllByText(seeded.title);
+  expect(texts).toHaveLength(1);
+  expect(texts[0]).toHaveClass('sr-only');
+  expect(row).toContainElement(field);
+  expect(row?.nextElementSibling).not.toHaveTextContent(seeded.title);
+});
+
+// The sheet the document is written on, carrying the width it is shown in.
+const documentSheet = (): HTMLElement => {
+  const sheet = document.querySelector<HTMLElement>('[data-page-width]');
+  if (!sheet) throw new Error('a folha do documento não foi renderizada');
+  return sheet;
+};
+
+const widthButton = (): HTMLElement =>
+  screen.getByRole('button', { name: 'Largura da página' });
+
+test('the sheet uses the medium width by default', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  const field = await titleField();
+
+  await waitFor(() =>
+    expect(documentSheet()).toHaveAttribute('data-page-width', 'medium'),
+  );
+  expect(documentSheet()).toHaveClass('max-w-4xl', 'bg-white');
+  expect(documentSheet()).toContainElement(field);
+  expect(screen.getByRole('main')).toHaveClass('bg-gray-100');
+});
+
+test('a viewer also sees Largura da página', async () => {
+  const shared = sharedReadOnlyDocument();
+
+  renderApp(<DocumentView documentId={shared.id} />);
+
+  await screen.findByText('Somente leitura');
+
+  expect(widthButton()).toBeInTheDocument();
+});
+
+test('a trashed document shows only Largura da página in the actions', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+  const trashedAt = trashInDb(seeded);
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  await screen.findByText(noticeText(trashedAt));
+
+  // The menu wraps its button; the actions block is the wrapper's parent.
+  const actions = widthButton().parentElement?.parentElement;
+  if (!actions) throw new Error('o bloco de ações não foi renderizado');
+
+  expect(
+    within(actions)
+      .getAllByRole('button')
+      .map((button) => button.textContent),
+  ).toEqual(['Largura da página']);
+  expect(
+    screen.queryByRole('button', { name: /favoritos/ }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: 'Compartilhar' }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: 'Mover para a lixeira' }),
+  ).not.toBeInTheDocument();
+});
+
+test('the actions are ordered width share favorite trash', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  await titleField();
+
+  const width = widthButton();
+  const share = screen.getByRole('button', { name: 'Compartilhar' });
+  const favorite = screen.getByRole('button', {
+    name: 'Adicionar aos favoritos',
+  });
+  const trash = screen.getByRole('button', { name: 'Mover para a lixeira' });
+
+  expect(isBefore(width, share)).toBe(true);
+  expect(isBefore(share, favorite)).toBe(true);
+  expect(isBefore(favorite, trash)).toBe(true);
+});
+
+test('choosing Grande widens the sheet without reloading', async () => {
+  const user = userEvent.setup();
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  const field = await titleField();
+  await waitFor(() =>
+    expect(documentSheet()).toHaveAttribute('data-page-width', 'medium'),
+  );
+
+  await user.click(widthButton());
+  await user.click(screen.getByRole('radio', { name: 'Grande' }));
+
+  await waitFor(() =>
+    expect(documentSheet()).toHaveAttribute('data-page-width', 'large'),
+  );
+  expect(documentSheet()).toHaveClass('max-w-6xl');
+  expect(documentSheet()).not.toHaveClass('max-w-4xl');
+  // Same field, same collaboration session: the page was not reloaded.
+  expect(
+    screen.getByRole('textbox', { name: 'Título do documento' }),
+  ).toBe(field);
+  expect(factory.createCollaborationProvider).toHaveBeenCalledTimes(1);
+});
+
+const DOWNGRADE_NOTICE = 'Agora você só pode ver este documento.';
+
+// The document another person shared with the signed-in one, in `edit`.
+const sharedEditableDocumentId = (): string => {
+  const id = seedSharedEditableDocument();
+  if (!id) throw new Error('o banco simulado está sem o documento editável');
+  return id;
+};
+
+const signedInPersonId = (): string => {
+  const person = getSignedInPerson();
+  if (!person) throw new Error('ninguém está conectado no banco simulado');
+  return person.id;
+};
+
+// What the server sends after it reevaluated this person's access: the new
+// level is already in the fake database, the message carries none.
+const emitAccessChanged = (): Promise<void> =>
+  emit('stateless', { payload: JSON.stringify({ type: 'access-changed' }) });
+
+const editorDouble = (): Promise<HTMLElement> =>
+  screen.findByTestId('document-editor', undefined, LAZY_TIMEOUT);
+
+test('the status region is mounted and empty while editing', async () => {
+  const id = sharedEditableDocumentId();
+
+  renderApp(<DocumentView documentId={id} />);
+
+  await titleField();
+  await connectAndSync();
+  await editorDouble();
+
+  // The notice region, then the save indicator: both are status regions.
+  const [region, indicator] = screen.getAllByRole('status');
+  expect(region).toHaveAttribute('aria-live', 'polite');
+  expect(region).toHaveTextContent(/^$/);
+  expect(indicator).toHaveTextContent('Salvo');
+  expect(screen.queryByText(DOWNGRADE_NOTICE)).not.toBeInTheDocument();
+});
+
+test('a downgrade from edit to view shows the badge the notice and a read only editor', async () => {
+  const id = sharedEditableDocumentId();
+
+  renderApp(<DocumentView documentId={id} />);
+
+  const field = await titleField();
+  await connectAndSync();
+  expect(await editorDouble()).toHaveAttribute('data-editable', 'true');
+
+  shareDocument(id, signedInPersonId(), 'view');
+  await emitAccessChanged();
+
+  expect(
+    await screen.findByText('Somente leitura', undefined, LAZY_TIMEOUT),
+  ).toBeInTheDocument();
+  expect(screen.getByRole('status')).toHaveTextContent(DOWNGRADE_NOTICE);
+  expect(screen.getByTestId('document-editor')).toHaveAttribute(
+    'data-editable',
+    'false',
+  );
+  expect(field).not.toBeInTheDocument();
+  expect(screen.queryByText('Salvo')).not.toBeInTheDocument();
+  // Same session: the page was not reloaded, and the focus was not taken.
+  expect(factory.createCollaborationProvider).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole('status')).not.toHaveFocus();
+});
+
+test('an upgrade from view to edit makes the page editable again and hides the notice', async () => {
+  const id = sharedEditableDocumentId();
+  const personId = signedInPersonId();
+
+  renderApp(<DocumentView documentId={id} />);
+
+  await titleField();
+  await connectAndSync();
+  await editorDouble();
+
+  shareDocument(id, personId, 'view');
+  await emitAccessChanged();
+  await screen.findByText(DOWNGRADE_NOTICE, undefined, LAZY_TIMEOUT);
+
+  shareDocument(id, personId, 'edit');
+  await emitAccessChanged();
+
+  expect(await titleField()).toBeInTheDocument();
+  expect(screen.queryByText(DOWNGRADE_NOTICE)).not.toBeInTheDocument();
+  expect(screen.queryByText('Somente leitura')).not.toBeInTheDocument();
+  expect(screen.getByText('Salvo')).toBeInTheDocument();
+  expect(screen.getByTestId('document-editor')).toHaveAttribute(
+    'data-editable',
+    'true',
+  );
+  expect(factory.createCollaborationProvider).toHaveBeenCalledTimes(1);
+});
+
+test('opening a document already in view shows no notice', async () => {
+  const shared = sharedReadOnlyDocument();
+
+  renderApp(<DocumentView documentId={shared.id} />);
+
+  await screen.findByText('Somente leitura');
+  await connectAndSync();
+  await editorDouble();
+
+  expect(screen.queryByText(DOWNGRADE_NOTICE)).not.toBeInTheDocument();
+  expect(screen.getByRole('status')).toHaveTextContent(/^$/);
+});
+
+test('losing access shows Documento não encontrado with the app navigation', async () => {
+  const id = sharedEditableDocumentId();
+
+  renderRoutes(paths.document.getHref(id));
+
+  await screen.findByRole(
+    'textbox',
+    { name: 'Título do documento' },
+    LAZY_TIMEOUT,
+  );
+  await connectAndSync();
+
+  // Without the share the fake GET answers 404, like the real one.
+  removeDocumentShare(id, signedInPersonId());
+  await emitAccessChanged();
+
+  expect(
+    await screen.findByRole(
+      'heading',
+      { level: 1, name: 'Documento não encontrado' },
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText('Este documento não existe ou você não tem acesso a ele.'),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole('link', { name: 'Ir para Meus documentos' }),
+  ).toHaveAttribute('href', paths.myDocuments.getHref());
+  expect(
+    screen.getByRole('navigation', { name: 'Navegação principal' }),
+  ).toBeInTheDocument();
+  expect(factory.sessions[0]?.provider.isDestroyed).toBe(true);
 });

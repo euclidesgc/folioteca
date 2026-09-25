@@ -1,6 +1,6 @@
 import type { IncomingHttpHeaders, IncomingMessage } from 'node:http';
 
-import { Injectable, type OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
 import { Hocuspocus } from '@hocuspocus/server';
 import type { RawData, WebSocket, WebSocketServer } from 'ws';
 import { applyUpdate, encodeStateAsUpdate } from 'yjs';
@@ -9,6 +9,7 @@ import { AccessService } from '../access/access.service';
 import { SessionService } from '../auth/session.service';
 import { env } from '../config/env';
 import { DocumentsService } from '../documents/documents.service';
+import { SharesService } from '../documents/shares.service';
 import { checkUpgradeRequest } from './upgrade-gate';
 
 /** Contexto que a porta do upgrade entrega ao Hocuspocus. */
@@ -38,8 +39,26 @@ class AccessRefusedError extends Error {
 /** Aviso enviado às conexões do documento depois de gravar o conteúdo. */
 const STORED_MESSAGE = JSON.stringify({ type: 'stored' });
 
+/**
+ * Sent only to a connection whose access was re-evaluated. Carries no level,
+ * reason nor personal data: the web reads the document again to learn it.
+ */
+export const ACCESS_CHANGED_MESSAGE = JSON.stringify({
+  type: 'access-changed',
+});
+
 /** Teto do debounce: nunca esperar mais do que cinco janelas para gravar. */
 const MAX_DEBOUNCE_FACTOR = 5;
+
+/** Whether the connection context belongs to the given person. */
+function belongsTo(context: unknown, personId: string): boolean {
+  return (
+    typeof context === 'object' &&
+    context !== null &&
+    'personId' in context &&
+    context.personId === personId
+  );
+}
 
 function toUint8Array(data: RawData): Uint8Array {
   if (Array.isArray(data)) {
@@ -79,10 +98,15 @@ function toWebRequest(request: IncomingMessage): Request {
  * Servidor de colaboração embutido: uma instância do Hocuspocus sem porta
  * própria, alimentada pelos sockets que `attachCollab` aceita em `/collab`.
  *
- * Limite conhecido: o acesso é conferido ao conectar. A lixeira é a exceção —
- * mover ou apagar fecha as conexões daquele documento, e quem reconecta entra
- * somente leitura. Derrubar o socket de quem perdeu o acesso por outro motivo
- * no meio da sessão fica para a fatia 015.
+ * The access is checked on connect and re-evaluated in the middle of the
+ * session when a direct share changes (level switched or share removed) or
+ * when the document goes to the trash (its connections are closed and whoever
+ * reconnects enters read only).
+ *
+ * Limite conhecido: a change through the space (membership or the space's
+ * level) is not re-evaluated until the person reconnects (debt 049). Accepted
+ * race: a connection still inside `onConnect` when the share changes is not
+ * re-evaluated; it keeps the access it resolved there.
  */
 @Injectable()
 export class CollabService implements OnModuleDestroy {
@@ -94,10 +118,13 @@ export class CollabService implements OnModuleDestroy {
   /** Servidor WebSocket de `/collab`, quando `attachCollab` ligou um. */
   private websocketServer: WebSocketServer | null = null;
 
+  private readonly logger = new Logger(CollabService.name);
+
   constructor(
     private readonly sessions: SessionService,
     private readonly access: AccessService,
     private readonly documents: DocumentsService,
+    private readonly shares: SharesService,
   ) {
     this.hocuspocus = new Hocuspocus<CollabContext>({
       debounce: env.COLLAB_STORE_DEBOUNCE_MS,
@@ -150,6 +177,51 @@ export class CollabService implements OnModuleDestroy {
     this.documents.onDocumentClosed((documentId) => {
       this.hocuspocus.closeConnections(documentId);
     });
+
+    // The share was already stored; a failed re-evaluation must not reach the
+    // HTTP response, and the log carries no ids of who was involved.
+    this.shares.onShareChanged((documentId, personId) => {
+      void this.reevaluateAccess(documentId, personId).catch(
+        (error: unknown) => {
+          this.logger.error(
+            'Re-evaluating collab access after a share change failed.',
+            error instanceof Error ? error.stack : undefined,
+          );
+        },
+      );
+    });
+  }
+
+  /**
+   * Resolves again, through the same calls as `onConnect`, the access of each
+   * open connection of the person to the document. No access: sends
+   * `access-changed` and closes the connection without a reason. Otherwise
+   * switches `readOnly` and sends `access-changed`, even when nothing changed.
+   * A document not loaded in memory has nothing to re-evaluate.
+   */
+  async reevaluateAccess(documentId: string, personId: string): Promise<void> {
+    const document = this.hocuspocus.documents.get(documentId);
+
+    if (document === undefined) {
+      return;
+    }
+
+    const connections = document
+      .getConnections()
+      .filter((connection) => belongsTo(connection.context, personId));
+
+    for (const connection of connections) {
+      const accessLevel = await this.access.resolveAccess(personId, documentId);
+
+      if (accessLevel === 'none') {
+        connection.sendStateless(ACCESS_CHANGED_MESSAGE);
+        connection.close();
+        continue;
+      }
+
+      connection.readOnly = !(await this.access.canWrite(personId, documentId));
+      connection.sendStateless(ACCESS_CHANGED_MESSAGE);
+    }
   }
 
   /** Confere a porta do upgrade e resolve a sessão do cookie. */

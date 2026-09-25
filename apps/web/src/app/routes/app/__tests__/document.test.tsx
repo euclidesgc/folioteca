@@ -74,7 +74,7 @@ test('opens a document from its address and shows the title field', async () => 
   renderRoutes(paths.document.getHref(seeded.id));
 
   expect(
-    await screen.findByLabelText('Título', {}, { timeout: TIMEOUT }),
+    await screen.findByRole('textbox', { name: 'Título do documento' }, { timeout: TIMEOUT }),
   ).toHaveValue(seeded.title);
 });
 
@@ -113,7 +113,7 @@ test('switching documents resets the title field', async () => {
   renderRoutes(paths.document.getHref(first.id));
 
   expect(
-    await screen.findByLabelText('Título', {}, { timeout: TIMEOUT }),
+    await screen.findByRole('textbox', { name: 'Título do documento' }, { timeout: TIMEOUT }),
   ).toHaveValue(first.title);
 
   const section = await screen.findByRole(
@@ -126,7 +126,7 @@ test('switching documents resets the title field', async () => {
   );
 
   await waitFor(
-    () => expect(screen.getByLabelText('Título')).toHaveValue(second.title),
+    () => expect(screen.getByRole('textbox', { name: 'Título do documento' })).toHaveValue(second.title),
     { timeout: TIMEOUT },
   );
 });
@@ -140,7 +140,7 @@ test(
     renderRoutes(paths.document.getHref(seeded.id));
 
     expect(
-      await screen.findByLabelText('Título', {}, { timeout: TIMEOUT }),
+      await screen.findByRole('textbox', { name: 'Título do documento' }, { timeout: TIMEOUT }),
     ).toHaveValue(seeded.title);
     expect(screen.getByText('Conectando…')).toBeInTheDocument();
     expect(screen.getByText('Carregando editor…')).toBeInTheDocument();
@@ -165,7 +165,7 @@ test(
 
     renderRoutes(paths.document.getHref(seeded.id));
 
-    await screen.findByLabelText('Título', {}, { timeout: TIMEOUT });
+    await screen.findByRole('textbox', { name: 'Título do documento' }, { timeout: TIMEOUT });
     await screen.findByTestId('document-editor', {}, { timeout: TIMEOUT });
 
     expect(screen.queryByText(/próxima entrega/)).not.toBeInTheDocument();
@@ -182,7 +182,7 @@ test(
 
     renderRoutes(paths.document.getHref(first.id));
 
-    await screen.findByLabelText('Título', {}, { timeout: TIMEOUT });
+    await screen.findByRole('textbox', { name: 'Título do documento' }, { timeout: TIMEOUT });
     const mounted = await screen.findByTestId(
       'document-editor',
       {},
@@ -200,7 +200,7 @@ test(
     );
 
     await waitFor(
-      () => expect(screen.getByLabelText('Título')).toHaveValue(second.title),
+      () => expect(screen.getByRole('textbox', { name: 'Título do documento' })).toHaveValue(second.title),
       { timeout: TIMEOUT },
     );
     await waitFor(
@@ -214,3 +214,40 @@ test(
     expect(screen.getByText('Salvo')).toBeInTheDocument();
   },
 );
+
+test('renaming in the title field updates the sidebar', { timeout: 10000 }, async () => {
+  const user = userEvent.setup();
+  const seeded = seededDocument('Ata da reunião de diretoria');
+
+  renderRoutes(paths.document.getHref(seeded.id));
+
+  const field = await screen.findByRole(
+    'textbox',
+    { name: 'Título do documento' },
+    { timeout: TIMEOUT },
+  );
+  const section = await screen.findByRole(
+    'navigation',
+    { name: 'Meus documentos recentes' },
+    { timeout: TIMEOUT },
+  );
+  expect(
+    within(section).getByRole('link', { name: /Ata da reunião de diretoria/ }),
+  ).toBeInTheDocument();
+
+  await user.clear(field);
+  await user.type(field, 'Ata renomeada na barra{Enter}');
+
+  expect(
+    await within(section).findByRole(
+      'link',
+      { name: /Ata renomeada na barra/ },
+      { timeout: TIMEOUT },
+    ),
+  ).toBeInTheDocument();
+  expect(
+    within(section).queryByRole('link', {
+      name: /Ata da reunião de diretoria/,
+    }),
+  ).not.toBeInTheDocument();
+});

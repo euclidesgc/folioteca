@@ -96,6 +96,27 @@ function checkOutsideGates({ file, source }: SourceFile): Violation[] {
   return violations;
 }
 
+/**
+ * Exceção única da regra 2: a leitura que numera o título padrão na criação
+ * (`documento-sem-titulo-N`). Ela não devolve documento a ninguém, só calcula
+ * o próximo número, é restrita ao `ownerId` de quem cria e inclui a lixeira de
+ * propósito, então nenhuma das duas portas serve. Vale só em
+ * `documents.service.ts` e só para uma chamada com essas três marcas.
+ */
+const DEFAULT_TITLE_READ_FILE = 'documents/documents.service.ts';
+const DEFAULT_TITLE_READ_MARKS = [
+  'ownerId: person.id',
+  'title: { startsWith: DEFAULT_TITLE_PREFIX }',
+  'select: { title: true }',
+];
+
+function isDefaultTitleRead(file: string, call: string): boolean {
+  return (
+    file === DEFAULT_TITLE_READ_FILE &&
+    DEFAULT_TITLE_READ_MARKS.every((mark) => call.includes(mark))
+  );
+}
+
 /** Regra 2: em `documents/`, nada de `findUnique` e leitura só com a porta. */
 function checkDocumentsReads({ file, source }: SourceFile): Violation[] {
   const violations: Violation[] = [];
@@ -116,7 +137,8 @@ function checkDocumentsReads({ file, source }: SourceFile): Violation[] {
     // legítima quanto a de sempre, e a regra 8 cuida de onde ela pode aparecer.
     if (
       !call.includes('readableDocumentsWhere(') &&
-      !call.includes('trashedDocumentsWhere(')
+      !call.includes('trashedDocumentsWhere(') &&
+      !isDefaultTitleRead(file, call)
     ) {
       violations.push({
         file,
@@ -248,7 +270,15 @@ test('rule 2 flags a sample offender and accepts a sample compliant snippet', ()
     source: [
       'await this.prisma.document.findMany({ where: this.access.readableDocumentsWhere(personId) });',
       'await this.prisma.document.findMany({ where: this.access.trashedDocumentsWhere(personId) });',
+      'await tx.document.findMany({ where: { ownerId: person.id, title: { startsWith: DEFAULT_TITLE_PREFIX } }, select: { title: true } });',
     ].join('\n'),
+  });
+
+  // A exceção do título padrão não vale fora de documents.service.ts.
+  const exceptionElsewhere = checkDocumentsReads({
+    file: 'documents/favorites.service.ts',
+    source:
+      'await tx.document.findMany({ where: { ownerId: person.id, title: { startsWith: DEFAULT_TITLE_PREFIX } }, select: { title: true } });',
   });
 
   expect(report(offender)).toEqual([
@@ -256,6 +286,9 @@ test('rule 2 flags a sample offender and accepts a sample compliant snippet', ()
     'documents/documents.service.ts:2 document.findMany sem readableDocumentsWhere nem trashedDocumentsWhere',
   ]);
   expect(report(compliant)).toEqual([]);
+  expect(report(exceptionElsewhere)).toEqual([
+    'documents/favorites.service.ts:1 document.findMany sem readableDocumentsWhere nem trashedDocumentsWhere',
+  ]);
 });
 
 test('rule 3 flags a sample offender and accepts a sample compliant snippet', () => {
@@ -955,8 +988,26 @@ test('rule 10 accepts assignments in the access service', () => {
 
   expect(report(compliantAccess)).toEqual([]);
   expect(report(compliantService)).toEqual([]);
-  expect(accessSource).toContain('assignments: { some: { personId } }');
+  expect(accessSource).toContain('unitSpacesReachedBy(');
   expect(report(realViolations)).toEqual([]);
+});
+
+test('rule 10: readableDocumentsWhere filters unit spaces by reached ids', () => {
+  const accessSource =
+    sourceFiles.find(({ file }) => file === ACCESS_SERVICE_FILE)?.source ?? '';
+  const definition = READABLE_GATE_DEFINITION_PATTERN.exec(accessSource);
+  const openIndex =
+    definition === null ? 0 : definition.index + definition[0].length - 1;
+  const body =
+    definition === null
+      ? ''
+      : accessSource.slice(openIndex, endOfBlock(accessSource, openIndex) + 1);
+
+  expect(definition).not.toBeNull();
+  expect(accessSource).toContain('unitSpacesReachedBy(');
+  expect(body).toContain('spaceId: { in:');
+  expect(body).toContain('trashedAt: null');
+  expect(body).not.toContain('assignments: { some: { personId } }');
 });
 
 /** Filtro pelo dono do espaço dentro de `space: { … }`, em qualquer posição. */
@@ -1041,5 +1092,123 @@ test('rule 11 accepts space members in the access service', () => {
   expect(report(compliantAccess)).toEqual([]);
   expect(report(compliantService)).toEqual([]);
   expect(accessSource).toContain('members: { some: { personId } }');
+  expect(report(realViolations)).toEqual([]);
+});
+
+const UNIT_REACH_FILE = 'access/unit-reach.ts';
+
+const REACH_DECLARATION_PATTERN = /\b(?:function|const|let)\s+resolveReach\b/;
+const REACH_CALL_PATTERN = /\bresolveReach\s*\(/;
+const COMMENT_LINE_PATTERN = /^\s*(?:\/\/|\*|\/\*)/;
+
+/**
+ * Regra 12: a regra de alcance tem uma só definição. `resolveReach` é
+ * declarada só em `access/unit-reach.ts`, e nenhum arquivo fora de `access/`
+ * a chama: quem precisa do alcance pede a `unitSpacesReachedBy`.
+ */
+function checkReachRule({ file, source }: SourceFile): Violation[] {
+  return source.split('\n').flatMap((text, index): Violation[] => {
+    if (COMMENT_LINE_PATTERN.test(text)) {
+      return [];
+    }
+
+    if (REACH_DECLARATION_PATTERN.test(text)) {
+      return file === UNIT_REACH_FILE
+        ? []
+        : [
+            {
+              file,
+              line: index + 1,
+              message: 'declara resolveReach fora de access/unit-reach.ts',
+            },
+          ];
+    }
+
+    if (REACH_CALL_PATTERN.test(text) && !file.startsWith('access/')) {
+      return [
+        {
+          file,
+          line: index + 1,
+          message: 'chama resolveReach fora de access/',
+        },
+      ];
+    }
+
+    return [];
+  });
+}
+
+test('rule 12: resolveReach is declared only in access/unit-reach.ts', () => {
+  const violations = sourceFiles
+    .flatMap(checkReachRule)
+    .filter((violation) => violation.message.startsWith('declara'));
+  const reachSource = sourceFiles.find(
+    ({ file }) => file === UNIT_REACH_FILE,
+  )?.source;
+
+  expect(reachSource).toContain('export function resolveReach(');
+  expect(report(violations)).toEqual([]);
+});
+
+test('rule 12: no file outside access calls resolveReach', () => {
+  const violations = sourceFiles
+    .flatMap(checkReachRule)
+    .filter((violation) => violation.message.startsWith('chama'));
+
+  expect(sourceFiles.map(({ file }) => file)).toContain(
+    'spaces/spaces.service.ts',
+  );
+  expect(report(violations)).toEqual([]);
+});
+
+test('rule 12 flags the offending example and accepts the conforming one', () => {
+  const offenderSpaces = checkReachRule({
+    file: 'spaces/spaces.service.ts',
+    source: [
+      'function resolveReach(units: ReachUnit[]) {',
+      '  return () => true;',
+      '}',
+      'const reaches = resolveReach(units);',
+    ].join('\n'),
+  });
+  const offenderAccess = checkReachRule({
+    file: ACCESS_SERVICE_FILE,
+    source: 'const resolveReach = (units: ReachUnit[]) => () => false;',
+  });
+
+  const conformingReach = checkReachRule({
+    file: UNIT_REACH_FILE,
+    source: [
+      'export function resolveReach(units: ReachUnit[]): (unitId: string) => boolean {',
+      '  return () => false;',
+      '}',
+      'const reaches = resolveReach(units);',
+    ].join('\n'),
+  });
+  const conformingAccess = checkReachRule({
+    file: ACCESS_SERVICE_FILE,
+    source: 'return reachedUnitSpaces(units);',
+  });
+  const conformingSpaces = checkReachRule({
+    file: 'spaces/spaces.service.ts',
+    source: [
+      '// the old resolveReach(units) moved to access/unit-reach.ts',
+      'const reached = await this.access.unitSpacesReachedBy(organizationId, personId);',
+    ].join('\n'),
+  });
+
+  // O código real responde pela mesma regra.
+  const realViolations = sourceFiles.flatMap(checkReachRule);
+
+  expect(report(offenderSpaces)).toEqual([
+    'spaces/spaces.service.ts:1 declara resolveReach fora de access/unit-reach.ts',
+    'spaces/spaces.service.ts:4 chama resolveReach fora de access/',
+  ]);
+  expect(report(offenderAccess)).toEqual([
+    'access/access.service.ts:1 declara resolveReach fora de access/unit-reach.ts',
+  ]);
+  expect(report(conformingReach)).toEqual([]);
+  expect(report(conformingAccess)).toEqual([]);
+  expect(report(conformingSpaces)).toEqual([]);
   expect(report(realViolations)).toEqual([]);
 });
