@@ -1242,6 +1242,20 @@ export const shareDocument = (
   return share;
 };
 
+// Removes the share of a person from a document, the way DELETE /documents/
+// :documentId/shares/:personId does: idempotent, so a pair without a row is
+// not an error. Spliced out of the array already in the database, never out
+// of a copy of it (same reason as `shareDocument` above).
+export const removeDocumentShare = (
+  documentId: string,
+  personId: string,
+): void => {
+  const index = state.shares.findIndex(
+    (item) => item.documentId === documentId && item.personId === personId,
+  );
+  if (index !== -1) state.shares.splice(index, 1);
+};
+
 // The same hard limit the real search has, with no parameter to raise it.
 const SHARE_SEARCH_LIMIT = 10;
 

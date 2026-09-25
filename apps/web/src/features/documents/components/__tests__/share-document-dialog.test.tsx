@@ -1,9 +1,12 @@
 import { delay, http, HttpResponse } from "msw";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
+import { useNotifications } from "@/components/ui/notifications/notifications-store";
 import { env } from "@/config/env";
 import { paths } from "@/config/paths";
 import {
+  getDb,
+  removeDocumentShare,
   shareDocument,
   seedInstalled,
   seedSampleDocuments,
@@ -79,7 +82,7 @@ const selectBeatriz = async () => {
       LAZY_TIMEOUT,
     ),
   );
-  await within(opened.dialog).findByText("Pode ver");
+  await within(opened.dialog).findByRole("group", { name: "Nível de acesso" });
   return opened;
 };
 
@@ -453,13 +456,17 @@ test("lists shared people with Pode ver and Pode editar in server order", async 
   expect(rows[1]).toHaveTextContent("Zilda Marques");
   expect(rows[1]).toHaveTextContent("zilda.marques@exemplo.com.br");
   expect(
-    within(rows[1] as HTMLElement).getByText("Pode editar"),
-  ).toBeInTheDocument();
+    within(rows[1] as HTMLElement).getByRole("combobox", {
+      name: "Nível de Zilda Marques",
+    }),
+  ).toHaveValue("edit");
   expect(within(rows[1] as HTMLElement).queryByText("você")).toBeNull();
   expect(rows[2]).toHaveTextContent("Beatriz Nogueira");
   expect(
-    within(rows[2] as HTMLElement).getByText("Pode ver"),
-  ).toBeInTheDocument();
+    within(rows[2] as HTMLElement).getByRole("combobox", {
+      name: "Nível de Beatriz Nogueira",
+    }),
+  ).toHaveValue("view");
   expect(within(rows[2] as HTMLElement).queryByText("você")).toBeNull();
 });
 
@@ -550,8 +557,10 @@ test("a shared person appears in the list once after sharing", async () => {
     .filter((row) => row.textContent?.includes("Beatriz Nogueira"));
   expect(rows).toHaveLength(1);
   expect(
-    within(rows[0] as HTMLElement).getByText("Pode ver"),
-  ).toBeInTheDocument();
+    within(rows[0] as HTMLElement).getByRole("combobox", {
+      name: "Nível de Beatriz Nogueira",
+    }),
+  ).toHaveValue("view");
 });
 
 test("Copiar link writes the document URL and announces Link copiado", async () => {
@@ -742,8 +751,10 @@ test("sharing with Pode editar shows the Pode editar badge", async () => {
   const list = await findAccessList(dialog);
   await waitFor(() => expect(beatrizRows(list)).toHaveLength(1));
   expect(
-    within(beatrizRows(list)[0] as HTMLElement).getByText("Pode editar"),
-  ).toBeInTheDocument();
+    within(beatrizRows(list)[0] as HTMLElement).getByRole("combobox", {
+      name: "Nível de Beatriz Nogueira",
+    }),
+  ).toHaveValue("edit");
 });
 
 test("sharing again with Pode ver switches the badge without duplicating the row", async () => {
@@ -752,8 +763,10 @@ test("sharing again with Pode ver switches the badge without duplicating the row
   const list = await findAccessList(dialog);
   expect(beatrizRows(list)).toHaveLength(1);
   expect(
-    within(beatrizRows(list)[0] as HTMLElement).getByText("Pode editar"),
-  ).toBeInTheDocument();
+    within(beatrizRows(list)[0] as HTMLElement).getByRole("combobox", {
+      name: "Nível de Beatriz Nogueira",
+    }),
+  ).toHaveValue("edit");
 
   expect(getViewRadio(dialog)).toBeChecked();
   await user.click(
@@ -765,13 +778,12 @@ test("sharing again with Pode ver switches the badge without duplicating the row
 
   await waitFor(() =>
     expect(
-      within(beatrizRows(list)[0] as HTMLElement).getByText("Pode ver"),
-    ).toBeInTheDocument(),
+      within(beatrizRows(list)[0] as HTMLElement).getByRole("combobox", {
+        name: "Nível de Beatriz Nogueira",
+      }),
+    ).toHaveValue("view"),
   );
   expect(beatrizRows(list)).toHaveLength(1);
-  expect(
-    within(beatrizRows(list)[0] as HTMLElement).queryByText("Pode editar"),
-  ).not.toBeInTheDocument();
 });
 
 test("while sharing the radios are aria-disabled never disabled and show the sent level", async () => {
@@ -880,4 +892,397 @@ test("the level goes back to Pode ver after a successful share", async () => {
 
   expect(getViewRadio(dialog)).toBeChecked();
   expect(getEditRadio(dialog)).not.toBeChecked();
+});
+
+const EDUARDO_ID = "person-sample-6";
+
+// Beatriz (Pode ver) and Eduardo (Pode editar), in this order after the owner.
+const seedTwoShares = (): void => {
+  shareDocument(DOCUMENT_ID, BEATRIZ_ID, "view");
+  shareDocument(DOCUMENT_ID, EDUARDO_ID, "edit");
+};
+
+const getLevelSelect = (dialog: HTMLElement, name: string) =>
+  within(dialog).getByRole("combobox", { name: `Nível de ${name}` });
+
+const findLevelSelect = (dialog: HTMLElement, name: string) =>
+  within(dialog).findByRole("combobox", { name: `Nível de ${name}` });
+
+const findRemoveConfirmation = (name: string) =>
+  screen.findByRole("alertdialog", { name: `Remover o acesso de ${name}?` });
+
+const notificationTitles = (type: "success" | "error"): string[] =>
+  useNotifications
+    .getState()
+    .notifications.filter((item) => item.type === type)
+    .map((item) => item.title);
+
+// Counts every DELETE of a share and lets it reach the fake API.
+const countRemovals = () => {
+  const counter = { calls: 0 };
+  server.use(
+    http.delete(SHARE_URL, () => {
+      counter.calls += 1;
+    }),
+  );
+  return counter;
+};
+
+beforeEach(() => {
+  useNotifications.setState({ notifications: [] });
+});
+
+test("the level control appears only on share rows with the current level", async () => {
+  seedTwoShares();
+  const { dialog } = await openDialog();
+
+  const list = await findAccessList(dialog);
+  const rows = within(list).getAllByRole("listitem");
+  expect(rows).toHaveLength(3);
+  expect(within(list).getAllByRole("combobox")).toHaveLength(2);
+  expect(
+    within(rows[1] as HTMLElement).getByRole("combobox", {
+      name: "Nível de Beatriz Nogueira",
+    }),
+  ).toHaveValue("view");
+  expect(
+    within(rows[2] as HTMLElement).getByRole("combobox", {
+      name: "Nível de Eduardo Silva",
+    }),
+  ).toHaveValue("edit");
+});
+
+test("the level control lists Pode ver Pode editar and Remover acesso in this order", async () => {
+  shareDocument(DOCUMENT_ID, BEATRIZ_ID, "view");
+  const { dialog } = await openDialog();
+
+  const select = await findLevelSelect(dialog, "Beatriz Nogueira");
+  const options = within(select).getAllByRole("option");
+  expect(options.map((option) => option.textContent)).toEqual([
+    "Pode ver",
+    "Pode editar",
+    "Remover acesso",
+  ]);
+  expect(
+    within(select).getByRole("option", { name: "Pode ver", selected: true }),
+  ).toBeInTheDocument();
+});
+
+test("the owner row keeps the dono and você badges without a level control", async () => {
+  shareDocument(DOCUMENT_ID, BEATRIZ_ID, "view");
+  const { dialog } = await openDialog();
+
+  const list = await findAccessList(dialog);
+  const ownerRow = within(list).getAllByRole("listitem")[0] as HTMLElement;
+  expect(ownerRow).toHaveTextContent("Ana Souza");
+  expect(within(ownerRow).getByText("dono")).toBeInTheDocument();
+  expect(within(ownerRow).getByText("você")).toBeInTheDocument();
+  expect(within(ownerRow).queryByRole("combobox")).not.toBeInTheDocument();
+});
+
+test("changing the level keeps the dialog open and announces the new level", async () => {
+  shareDocument(DOCUMENT_ID, BEATRIZ_ID, "view");
+  const { user, dialog } = await openDialog();
+  const select = await findLevelSelect(dialog, "Beatriz Nogueira");
+
+  await user.selectOptions(select, "Pode editar");
+
+  expect(
+    await within(dialog).findByText(
+      "Nível de Beatriz Nogueira alterado para Pode editar.",
+    ),
+  ).toHaveAttribute("aria-live", "polite");
+  expect(getLevelSelect(dialog, "Beatriz Nogueira")).toHaveValue("edit");
+  expect(
+    screen.getByRole("dialog", { name: "Compartilhar documento" }),
+  ).toBeInTheDocument();
+  expect(getDb().shares).toEqual([
+    { documentId: DOCUMENT_ID, personId: BEATRIZ_ID, level: "edit" },
+  ]);
+  expect(useNotifications.getState().notifications).toEqual([]);
+
+  await user.selectOptions(select, "Pode ver");
+
+  expect(
+    await within(dialog).findByText(
+      "Nível de Beatriz Nogueira alterado para Pode ver.",
+    ),
+  ).toBeInTheDocument();
+  expect(getLevelSelect(dialog, "Beatriz Nogueira")).toHaveValue("view");
+});
+
+test("while changing the level the select is aria-disabled never disabled and keeps the focus", async () => {
+  shareDocument(DOCUMENT_ID, BEATRIZ_ID, "view");
+  const { release } = holdShares();
+  const { user, dialog } = await openDialog();
+  const select = await findLevelSelect(dialog, "Beatriz Nogueira");
+
+  await user.selectOptions(select, "Pode editar");
+  await within(dialog).findByText("Salvando…");
+
+  expect(select).toHaveAttribute("aria-disabled", "true");
+  expect(select).not.toBeDisabled();
+  expect(select).toHaveFocus();
+
+  // A change while sending is ignored: the sent level stays.
+  await user.selectOptions(select, "Pode ver");
+  expect(select).toHaveValue("edit");
+  expect(select).toHaveFocus();
+
+  release();
+  await waitFor(() =>
+    expect(within(dialog).queryByText("Salvando…")).not.toBeInTheDocument(),
+  );
+  expect(select).not.toHaveAttribute("aria-disabled");
+});
+
+test("while changing the level the select shows the sent level and Salvando…", async () => {
+  shareDocument(DOCUMENT_ID, BEATRIZ_ID, "view");
+  const { release } = holdShares();
+  const { user, dialog } = await openDialog();
+  const select = await findLevelSelect(dialog, "Beatriz Nogueira");
+
+  await user.selectOptions(select, "Pode editar");
+
+  expect(await within(dialog).findByText("Salvando…")).toBeInTheDocument();
+  expect(select).toHaveValue("edit");
+
+  release();
+  await waitFor(() =>
+    expect(within(dialog).queryByText("Salvando…")).not.toBeInTheDocument(),
+  );
+});
+
+test("a failed level change goes back to the previous level and notifies", async () => {
+  shareDocument(DOCUMENT_ID, BEATRIZ_ID, "view");
+  server.use(
+    http.put(SHARE_URL, () =>
+      HttpResponse.json(
+        { message: "Erro interno do servidor." },
+        { status: 500 },
+      ),
+    ),
+  );
+  const { user, dialog } = await openDialog();
+  const select = await findLevelSelect(dialog, "Beatriz Nogueira");
+
+  await user.selectOptions(select, "Pode editar");
+
+  const message =
+    "Não foi possível mudar o nível de Beatriz Nogueira. Tente de novo.";
+  expect(await within(dialog).findByText(message)).toHaveAttribute(
+    "aria-live",
+    "polite",
+  );
+  expect(select).toHaveValue("view");
+  expect(within(dialog).queryByText("Salvando…")).not.toBeInTheDocument();
+  expect(notificationTitles("error")).toEqual([message]);
+  expect(getDb().shares).toEqual([
+    { documentId: DOCUMENT_ID, personId: BEATRIZ_ID, level: "view" },
+  ]);
+});
+
+test("choosing Remover acesso opens the confirmation and keeps the current level", async () => {
+  shareDocument(DOCUMENT_ID, BEATRIZ_ID, "edit");
+  const removals = countRemovals();
+  const { user, dialog } = await openDialog();
+  const select = await findLevelSelect(dialog, "Beatriz Nogueira");
+
+  await user.selectOptions(select, "Remover acesso");
+
+  const confirmation = await findRemoveConfirmation("Beatriz Nogueira");
+  expect(
+    within(confirmation).getByRole("heading", {
+      name: "Remover o acesso de Beatriz Nogueira?",
+    }),
+  ).toBeInTheDocument();
+  expect(
+    within(confirmation).getByText("A pessoa perde o acesso na hora."),
+  ).toBeInTheDocument();
+  const buttons = within(confirmation).getAllByRole("button");
+  expect(buttons.map((button) => button.textContent)).toEqual([
+    "Cancelar",
+    "Remover",
+  ]);
+  expect(select).toHaveValue("edit");
+  expect(removals.calls).toBe(0);
+});
+
+test("canceling the removal calls nothing and returns the focus to the select", async () => {
+  shareDocument(DOCUMENT_ID, BEATRIZ_ID, "view");
+  const removals = countRemovals();
+  const { user, dialog } = await openDialog();
+  const select = await findLevelSelect(dialog, "Beatriz Nogueira");
+
+  await user.selectOptions(select, "Remover acesso");
+  const confirmation = await findRemoveConfirmation("Beatriz Nogueira");
+  await user.click(
+    within(confirmation).getByRole("button", { name: "Cancelar" }),
+  );
+
+  await waitFor(() =>
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+  );
+  await waitFor(() => expect(select).toHaveFocus());
+  expect(removals.calls).toBe(0);
+  expect(select).toHaveValue("view");
+  expect(getDb().shares).toHaveLength(1);
+});
+
+test("removing hides the person notifies and focuses the row above", async () => {
+  seedTwoShares();
+  const { user, dialog } = await openDialog();
+  const select = await findLevelSelect(dialog, "Eduardo Silva");
+
+  await user.selectOptions(select, "Remover acesso");
+  const confirmation = await findRemoveConfirmation("Eduardo Silva");
+  await user.click(
+    within(confirmation).getByRole("button", { name: "Remover" }),
+  );
+
+  await waitFor(() =>
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+  );
+  const message = "Eduardo Silva não tem mais acesso ao documento.";
+  const list = await findAccessList(dialog);
+  expect(within(list).queryByText("Eduardo Silva")).not.toBeInTheDocument();
+  expect(within(list).getAllByRole("listitem")).toHaveLength(2);
+  expect(notificationTitles("success")).toEqual([message]);
+  expect(within(dialog).getByText(message)).toHaveAttribute(
+    "aria-live",
+    "polite",
+  );
+  await waitFor(() =>
+    expect(getLevelSelect(dialog, "Beatriz Nogueira")).toHaveFocus(),
+  );
+  expect(getDb().shares).toEqual([
+    { documentId: DOCUMENT_ID, personId: BEATRIZ_ID, level: "view" },
+  ]);
+});
+
+test("removing the first share focuses the owner row", async () => {
+  seedTwoShares();
+  const { user, dialog } = await openDialog();
+  const select = await findLevelSelect(dialog, "Beatriz Nogueira");
+
+  await user.selectOptions(select, "Remover acesso");
+  const confirmation = await findRemoveConfirmation("Beatriz Nogueira");
+  await user.click(
+    within(confirmation).getByRole("button", { name: "Remover" }),
+  );
+
+  await waitFor(() =>
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+  );
+  const list = await findAccessList(dialog);
+  const ownerRow = within(list).getAllByRole("listitem")[0] as HTMLElement;
+  expect(ownerRow).toHaveTextContent("Ana Souza");
+  await waitFor(() => expect(ownerRow).toHaveFocus());
+  expect(ownerRow).toHaveAttribute("tabindex", "-1");
+  expect(within(list).queryByText("Beatriz Nogueira")).not.toBeInTheDocument();
+});
+
+test("removing a person already removed elsewhere succeeds", async () => {
+  shareDocument(DOCUMENT_ID, BEATRIZ_ID, "view");
+  const { user, dialog } = await openDialog();
+  const select = await findLevelSelect(dialog, "Beatriz Nogueira");
+
+  await user.selectOptions(select, "Remover acesso");
+  const confirmation = await findRemoveConfirmation("Beatriz Nogueira");
+  // Another tab removes the access while the confirmation is open.
+  removeDocumentShare(DOCUMENT_ID, BEATRIZ_ID);
+  await user.click(
+    within(confirmation).getByRole("button", { name: "Remover" }),
+  );
+
+  await waitFor(() =>
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+  );
+  const list = await findAccessList(dialog);
+  expect(within(list).queryByText("Beatriz Nogueira")).not.toBeInTheDocument();
+  expect(notificationTitles("success")).toEqual([
+    "Beatriz Nogueira não tem mais acesso ao documento.",
+  ]);
+  expect(notificationTitles("error")).toEqual([]);
+});
+
+test("a failed removal keeps the confirmation open announces the error and frees the button", async () => {
+  shareDocument(DOCUMENT_ID, BEATRIZ_ID, "view");
+  server.use(
+    http.delete(
+      SHARE_URL,
+      () =>
+        HttpResponse.json(
+          { message: "Erro interno do servidor." },
+          { status: 500 },
+        ),
+      { once: true },
+    ),
+  );
+  const { user, dialog } = await openDialog();
+  const select = await findLevelSelect(dialog, "Beatriz Nogueira");
+
+  await user.selectOptions(select, "Remover acesso");
+  const confirmation = await findRemoveConfirmation("Beatriz Nogueira");
+  await user.click(
+    within(confirmation).getByRole("button", { name: "Remover" }),
+  );
+
+  const message =
+    "Não foi possível remover o acesso de Beatriz Nogueira. Tente de novo.";
+  expect(await within(confirmation).findByRole("alert")).toHaveTextContent(
+    message,
+  );
+  expect(notificationTitles("error")).toEqual([message]);
+  expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+  const removeButton = within(confirmation).getByRole("button", {
+    name: "Remover",
+  });
+  expect(removeButton).not.toHaveAttribute("aria-disabled");
+  expect(removeButton).not.toHaveAttribute("aria-busy");
+  expect(getDb().shares).toHaveLength(1);
+
+  await user.click(removeButton);
+
+  await waitFor(() =>
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+  );
+  expect(getDb().shares).toEqual([]);
+});
+
+test("double clicking Remover sends a single request", async () => {
+  shareDocument(DOCUMENT_ID, BEATRIZ_ID, "view");
+  let calls = 0;
+  let release: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  // Counts, holds, then lets the fake API answer.
+  server.use(
+    http.delete(SHARE_URL, async () => {
+      calls += 1;
+      await held;
+    }),
+  );
+  const { user, dialog } = await openDialog();
+  const select = await findLevelSelect(dialog, "Beatriz Nogueira");
+
+  await user.selectOptions(select, "Remover acesso");
+  const confirmation = await findRemoveConfirmation("Beatriz Nogueira");
+  await user.dblClick(
+    within(confirmation).getByRole("button", { name: "Remover" }),
+  );
+  const busy = await within(confirmation).findByRole("button", {
+    name: "Removendo…",
+  });
+  expect(busy).toHaveAttribute("aria-disabled", "true");
+  expect(busy).toHaveAttribute("aria-busy", "true");
+  expect(busy).not.toBeDisabled();
+  await user.click(busy);
+  release();
+
+  await waitFor(() =>
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+  );
+  expect(calls).toBe(1);
 });

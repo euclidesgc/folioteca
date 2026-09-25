@@ -17,6 +17,7 @@ import {
   listDocumentShares,
   type MockDocument,
   type MockDocumentShare,
+  removeDocumentShare,
   shareDocument,
   spaceMemberLevelOf,
   spaceReachOf,
@@ -558,6 +559,43 @@ export const documentsHandlers = [
         },
       };
       return HttpResponse.json(body);
+    },
+  ),
+
+  // The same order as the real service: 404 without access, 403 for whoever
+  // has access but does not own the document, 409 in the trash. Idempotent:
+  // a person without a share also answers 204.
+  http.delete(
+    `${env.API_URL}/documents/:documentId/shares/:personId`,
+    async ({ params, cookies }) => {
+      await networkDelay();
+      const forced = await devOverride('documents');
+      if (forced) return forced;
+
+      if (!cookies[SESSION_COOKIE_NAME]) return unauthenticated();
+
+      const requester = getSignedInPerson();
+      if (!requester) return unauthenticated();
+
+      const { documents } = getDb();
+      const document = documents.find((item) => item.id === params.documentId);
+      if (!document) return notFound();
+
+      if (document.accessLevel !== 'owner') {
+        return HttpResponse.json(
+          {
+            message:
+              'Só o proprietário pode remover o acesso a este documento.',
+          },
+          { status: 403 },
+        );
+      }
+
+      if (document.trashedAt !== null) return inTrash();
+
+      removeDocumentShare(document.id, String(params.personId));
+
+      return new HttpResponse(null, { status: 204 });
     },
   ),
 ];

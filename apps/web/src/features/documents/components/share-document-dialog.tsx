@@ -7,6 +7,7 @@ import {
   type PersonPickerHandle,
 } from '@/components/person-picker/person-picker';
 import { Button } from '@/components/ui/button/button';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog/confirmation-dialog';
 import {
   Dialog,
   DialogClose,
@@ -14,11 +15,13 @@ import {
   DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog/dialog';
+import { useNotifications } from '@/components/ui/notifications/notifications-store';
 import { paths } from '@/config/paths';
 import {
   type DocumentAccessEntry,
   useDocumentShares,
 } from '@/features/documents/api/get-document-shares';
+import { useRemoveDocumentShare } from '@/features/documents/api/remove-document-share';
 import { useShareDocument } from '@/features/documents/api/share-document';
 import type { PersonSummary } from '@/hooks/use-person-lookup';
 import { isConflictError } from '@/lib/errors';
@@ -111,6 +114,10 @@ function SharePanel({
   const [level, setLevel] = useState<DocumentShareLevel>('view');
   const [successMessage, setSuccessMessage] = useState('');
   const [shareError, setShareError] = useState<string | null>(null);
+  // What the list announces (a level changed or not, a person removed). The
+  // notifications live outside the modal dialog, which hides them from
+  // assistive technology, so the same text is also said from in here.
+  const [announcement, setAnnouncement] = useState('');
 
   const pickerRef = useRef<PersonPickerHandle>(null);
   const shareButtonRef = useRef<HTMLButtonElement>(null);
@@ -210,7 +217,15 @@ function SharePanel({
         />
       </PersonPicker>
 
-      <AccessListSection sharesQuery={sharesQuery} />
+      <AccessListSection
+        documentId={documentId}
+        sharesQuery={sharesQuery}
+        onAnnounce={setAnnouncement}
+      />
+
+      <p aria-live="polite" className="sr-only">
+        {announcement}
+      </p>
 
       <p aria-live="polite" className="mt-4 text-sm text-green-800 empty:mt-0">
         {successMessage}
@@ -304,17 +319,31 @@ const BADGE_CLASS_NAME =
 const ROW_CLASS_NAME =
   'flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3';
 
-const LEVEL_BADGES: Record<'view' | 'edit', string> = {
+const LEVEL_LABELS: Record<DocumentShareLevel, string> = {
   view: 'Pode ver',
   edit: 'Pode editar',
 };
 
+// Recipe "Seletor na linha da lista": the field of "Campo de formulário"
+// with an automatic width, dimmed while sending.
+const LEVEL_SELECT_CLASS_NAME =
+  'h-10 w-auto rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
+
+// The value of the option that removes the access instead of changing it.
+const REMOVE_OPTION_VALUE = 'remove';
+
+type Announce = (message: string) => void;
+
 // Who has access to the document: the owner first, then the people in the
 // order the server sent (pt-BR collator). Nothing is reordered here.
 function AccessListSection({
+  documentId,
   sharesQuery,
+  onAnnounce,
 }: {
+  documentId: string;
   sharesQuery: SharesQuery;
+  onAnnounce: Announce;
 }): React.JSX.Element {
   const headingId = useId();
 
@@ -327,64 +356,275 @@ function AccessListSection({
           the arrival of the list (and of a person just shared) is
           announced. */}
       <div aria-live="polite">
-        <AccessListStates sharesQuery={sharesQuery} />
+        <AccessListStates
+          documentId={documentId}
+          sharesQuery={sharesQuery}
+          onAnnounce={onAnnounce}
+        />
       </div>
     </section>
   );
 }
 
+// What the confirmation needs, copied from the row: after the success the
+// person is no longer in the list, and the title still has to show the name
+// while the box closes.
+type RemovingShare = {
+  personId: string;
+  personName: string;
+  // The share right above, or `null` when the owner is right above.
+  aboveId: string | null;
+};
+
 function AccessListStates({
+  documentId,
   sharesQuery,
+  onAnnounce,
 }: {
+  documentId: string;
   sharesQuery: SharesQuery;
+  onAnnounce: Announce;
 }): React.JSX.Element {
+  // `isRemoveOpen` is separate from `removing` because the closing is
+  // animated.
+  const [removing, setRemoving] = useState<RemovingShare | null>(null);
+  const [isRemoveOpen, setIsRemoveOpen] = useState(false);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+  // The select that opened the confirmation, to give the focus back on
+  // cancel and on Escape; and, once the request succeeded, where the focus
+  // goes instead. Both are read inside `onCloseAutoFocus`, which runs after a
+  // render: refs, never state.
+  const removeOpenerRef = useRef<HTMLSelectElement | null>(null);
+  const focusAfterRemoveRef = useRef<{ aboveId: string | null } | null>(null);
+  // A second click, or a second Enter, can arrive before the button
+  // re-renders as busy.
+  const isSendingRef = useRef(false);
+  const ownerRowRef = useRef<HTMLLIElement | null>(null);
+  // The select of each share, reached by id when the focus has to land on
+  // the row above the one that was removed.
+  const levelSelectsRef = useRef(new Map<string, HTMLSelectElement>());
+
+  const addNotification = useNotifications((state) => state.addNotification);
+  // No `onSuccess` of its own here: the name and the row above are the ones
+  // of the confirmation that sent the request, passed to `mutate`.
+  const removeShareMutation = useRemoveDocumentShare({ documentId });
+  const isRemoving = removeShareMutation.isPending;
+
+  const handleRemoveRequest = (
+    entry: DocumentAccessEntry,
+    above: DocumentAccessEntry | undefined,
+    select: HTMLSelectElement,
+  ): void => {
+    removeOpenerRef.current = select;
+    setRemoveError(null);
+    setRemoving({
+      personId: entry.personId,
+      personName: entry.name,
+      aboveId: above && above.level !== 'owner' ? above.personId : null,
+    });
+    setIsRemoveOpen(true);
+  };
+
+  const handleConfirmRemove = (): void => {
+    if (isSendingRef.current || !removing) return;
+    isSendingRef.current = true;
+
+    const { personId, personName, aboveId } = removing;
+    // Cleared so a second failure is announced again.
+    setRemoveError(null);
+    removeShareMutation.mutate(
+      { documentId, personId },
+      {
+        // Runs after the list was read again (see `useRemoveDocumentShare`):
+        // the row is already gone when the box closes. A person already
+        // removed elsewhere answers the same 204 and ends up here too.
+        onSuccess: () => {
+          const message = `${personName} não tem mais acesso ao documento.`;
+          focusAfterRemoveRef.current = { aboveId };
+          addNotification({ type: 'success', title: message });
+          onAnnounce(message);
+          setIsRemoveOpen(false);
+        },
+        // The box stays open and the person stays listed: there is no
+        // optimistic update to undo. A 409 (trash) is this same failure.
+        onError: () => {
+          const message = `Não foi possível remover o acesso de ${personName}. Tente de novo.`;
+          addNotification({ type: 'error', title: message });
+          setRemoveError(message);
+        },
+        onSettled: () => {
+          isSendingRef.current = false;
+        },
+      },
+    );
+  };
+
+  // One confirmation for the whole list, and without a trigger of its own:
+  // the row that opened it disappears when the list is read again. Mounted in
+  // every state, so a failed reload never takes it away while it closes.
+  const confirmation = (
+    <ConfirmationDialog
+      open={isRemoveOpen}
+      onOpenChange={(open) => {
+        if (!open) setIsRemoveOpen(false);
+      }}
+      onCloseAutoFocus={(event) => {
+        const afterRemove = focusAfterRemoveRef.current;
+        if (afterRemove) {
+          focusAfterRemoveRef.current = null;
+          event.preventDefault();
+
+          const above = afterRemove.aboveId
+            ? levelSelectsRef.current.get(afterRemove.aboveId)
+            : undefined;
+          // No share above — or it was removed too, in another tab: the row
+          // of the owner, which is always there.
+          if (above?.isConnected) {
+            above.focus();
+            return;
+          }
+
+          ownerRowRef.current?.focus();
+          return;
+        }
+
+        // Cancel, Escape, or a failure followed by cancel: back to the
+        // select that opened the confirmation.
+        const opener = removeOpenerRef.current;
+        if (opener?.isConnected) {
+          event.preventDefault();
+          opener.focus();
+        }
+      }}
+      title={`Remover o acesso de ${removing?.personName ?? ''}?`}
+      description={
+        <>
+          A pessoa perde o acesso na hora.
+          {removeError ? (
+            <span role="alert" className="sr-only">
+              {` ${removeError}`}
+            </span>
+          ) : null}
+        </>
+      }
+      cancelLabel="Cancelar"
+      confirmButton={
+        // `aria-disabled`, never `disabled`: a disabled button loses the
+        // focus of the keyboard while the request goes out.
+        <Button
+          variant="destructive"
+          type="button"
+          aria-disabled={isRemoving || undefined}
+          aria-busy={isRemoving || undefined}
+          className="aria-disabled:cursor-not-allowed aria-disabled:opacity-60"
+          onClick={handleConfirmRemove}
+        >
+          {isRemoving ? 'Removendo…' : 'Remover'}
+        </Button>
+      }
+    />
+  );
+
   // A retry after a failed load goes back to "pending" in TanStack Query v5.
   if (sharesQuery.isPending || (sharesQuery.isError && sharesQuery.isFetching)) {
     return (
-      <p role="status" className="mt-4 text-sm text-gray-600">
-        Carregando quem tem acesso…
-      </p>
+      <>
+        <p role="status" className="mt-4 text-sm text-gray-600">
+          Carregando quem tem acesso…
+        </p>
+        {confirmation}
+      </>
     );
   }
 
   if (sharesQuery.isError) {
     return (
-      <div
-        role="alert"
-        className="mt-4 rounded-md border border-red-200 bg-red-50 p-4"
-      >
-        <p className="text-sm text-red-800">
-          Não foi possível carregar quem tem acesso.
-        </p>
-        <Button
-          variant="secondary"
-          type="button"
-          className="mt-3"
-          onClick={() => void sharesQuery.refetch()}
+      <>
+        <div
+          role="alert"
+          className="mt-4 rounded-md border border-red-200 bg-red-50 p-4"
         >
-          Tentar de novo
-        </Button>
-      </div>
+          <p className="text-sm text-red-800">
+            Não foi possível carregar quem tem acesso.
+          </p>
+          <Button
+            variant="secondary"
+            type="button"
+            className="mt-3"
+            onClick={() => void sharesQuery.refetch()}
+          >
+            Tentar de novo
+          </Button>
+        </div>
+        {confirmation}
+      </>
     );
   }
 
+  const entries = sharesQuery.data.data;
+
   // No empty state: the row of the owner is always there.
   return (
-    <ul aria-label="Quem tem acesso" className="mt-2 divide-y divide-gray-200">
-      {sharesQuery.data.data.map((entry) => (
-        <AccessListRow key={entry.personId} entry={entry} />
-      ))}
-    </ul>
+    <>
+      <ul
+        aria-label="Quem tem acesso"
+        className="mt-2 divide-y divide-gray-200"
+      >
+        {entries.map((entry, index) =>
+          entry.level === 'owner' ? (
+            <AccessListRow key={entry.personId} entry={entry} ref={ownerRowRef} />
+          ) : (
+            <AccessListRow key={entry.personId} entry={entry}>
+              <AccessLevelControl
+                documentId={documentId}
+                personId={entry.personId}
+                name={entry.name}
+                level={entry.level}
+                selectRef={(node) => {
+                  if (node) {
+                    levelSelectsRef.current.set(entry.personId, node);
+                  } else {
+                    levelSelectsRef.current.delete(entry.personId);
+                  }
+                }}
+                onAnnounce={onAnnounce}
+                onRemoveRequest={(select) =>
+                  handleRemoveRequest(entry, entries[index - 1], select)
+                }
+              />
+            </AccessListRow>
+          ),
+        )}
+      </ul>
+      {confirmation}
+    </>
   );
 }
 
+// One row of the list. The row of the owner takes a programmatic focus (after
+// removing the first share) without ever entering the `Tab` order.
 function AccessListRow({
   entry,
+  ref,
+  children,
 }: {
   entry: DocumentAccessEntry;
+  ref?: React.Ref<HTMLLIElement>;
+  // The control of the level, on the rows of a share.
+  children?: React.ReactNode;
 }): React.JSX.Element {
+  const isOwner = entry.level === 'owner';
+
   return (
-    <li className={ROW_CLASS_NAME}>
+    <li
+      ref={ref}
+      tabIndex={isOwner ? -1 : undefined}
+      className={
+        isOwner
+          ? `${ROW_CLASS_NAME} focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600`
+          : ROW_CLASS_NAME
+      }
+    >
       <span className="flex min-w-0 grow basis-48 flex-col">
         <span className="truncate text-gray-900" title={entry.name}>
           {entry.name}
@@ -396,16 +636,105 @@ function AccessListRow({
         </span>
       </span>
       <span className="ml-auto flex shrink-0 flex-wrap items-center gap-2">
-        {entry.level === 'owner' ? (
-          <span className={BADGE_CLASS_NAME}>dono</span>
-        ) : (
-          <span className={BADGE_CLASS_NAME}>{LEVEL_BADGES[entry.level]}</span>
-        )}
+        {isOwner ? <span className={BADGE_CLASS_NAME}>dono</span> : null}
         {entry.isCurrentPerson ? (
           <span className={BADGE_CLASS_NAME}>você</span>
         ) : null}
+        {children}
       </span>
     </li>
+  );
+}
+
+// The level of one share, chosen by the owner, with "Remover acesso" as the
+// last option. One per row, each with its own mutation, so a row being saved
+// never dims the others.
+function AccessLevelControl({
+  documentId,
+  personId,
+  name,
+  level,
+  selectRef,
+  onAnnounce,
+  onRemoveRequest,
+}: {
+  documentId: string;
+  personId: string;
+  name: string;
+  level: DocumentShareLevel;
+  selectRef: React.Ref<HTMLSelectElement>;
+  onAnnounce: Announce;
+  // Opens the confirmation; the select is who gets the focus back.
+  onRemoveRequest: (select: HTMLSelectElement) => void;
+}): React.JSX.Element {
+  const selectId = useId();
+  const addNotification = useNotifications((state) => state.addNotification);
+
+  const shareDocumentMutation = useShareDocument({
+    mutationConfig: {
+      // Runs after the list was read again (see `useShareDocument`): the
+      // select already shows the new level. Announced only: the dialog stays
+      // open and the change is visible where it was made.
+      onSuccess: (_response, variables) => {
+        onAnnounce(
+          `Nível de ${name} alterado para ${LEVEL_LABELS[variables.level]}.`,
+        );
+      },
+      // Nothing to undo: the value comes back by itself once the mutation is
+      // no longer pending.
+      onError: () => {
+        const message = `Não foi possível mudar o nível de ${name}. Tente de novo.`;
+        addNotification({ type: 'error', title: message });
+        onAnnounce(message);
+      },
+    },
+  });
+
+  const isSaving = shareDocumentMutation.isPending;
+  // Derived, never copied into state: while sending, the level just chosen;
+  // otherwise what the server says.
+  const shownLevel: DocumentShareLevel = shareDocumentMutation.isPending
+    ? shareDocumentMutation.variables.level
+    : level;
+
+  // Ignored while sending (the select is only `aria-disabled`, to keep the
+  // focus) and when the level is already the chosen one. "Remover acesso"
+  // sends nothing and leaves the controlled value on the current level.
+  const handleChange = (event: React.ChangeEvent<HTMLSelectElement>): void => {
+    if (isSaving) return;
+
+    const { value } = event.target;
+    if (value === REMOVE_OPTION_VALUE) {
+      onRemoveRequest(event.currentTarget);
+      return;
+    }
+
+    if ((value !== 'view' && value !== 'edit') || value === shownLevel) return;
+    shareDocumentMutation.mutate({ documentId, personId, level: value });
+  };
+
+  return (
+    <span className="flex items-center">
+      <label htmlFor={selectId} className="sr-only">
+        {`Nível de ${name}`}
+      </label>
+      <select
+        id={selectId}
+        ref={selectRef}
+        value={shownLevel}
+        aria-disabled={isSaving ? 'true' : undefined}
+        onChange={handleChange}
+        className={LEVEL_SELECT_CLASS_NAME}
+      >
+        <option value="view">Pode ver</option>
+        <option value="edit">Pode editar</option>
+        <option value={REMOVE_OPTION_VALUE}>Remover acesso</option>
+      </select>
+      {/* Always in the DOM, so the start of the saving is announced. */}
+      <span aria-live="polite" className="text-sm text-gray-600">
+        {isSaving ? <span className="ml-2">Salvando…</span> : null}
+      </span>
+    </span>
   );
 }
 
