@@ -9,7 +9,12 @@ import { env } from '@/config/env';
 import { paths } from '@/config/paths';
 import { queryConfig } from '@/lib/react-query';
 import type { MockDocument } from '@/testing/mocks/db';
-import { getDb, seedInstalled, seedSampleDocuments } from '@/testing/mocks/db';
+import {
+  getDb,
+  seedInstalled,
+  seedSampleDocuments,
+  seedSharedReadOnlyDocument,
+} from '@/testing/mocks/db';
 import { server } from '@/testing/mocks/server';
 import { formatDateTime } from '@/utils/format-date-time';
 import {
@@ -690,5 +695,93 @@ test('navigates to /trash after deleting permanently', async () => {
       { level: 1, name: 'Lixeira' },
       LAZY_TIMEOUT,
     ),
+  ).toBeInTheDocument();
+});
+
+// The document another person shared with the signed-in one, in `view`.
+const sharedReadOnlyDocument = (): MockDocument => {
+  const id = seedSharedReadOnlyDocument();
+  const document = getDb().documents.find((item) => item.id === id);
+  if (!document) {
+    throw new Error('o banco simulado está sem o documento compartilhado');
+  }
+  return document;
+};
+
+test('the owner sees the Compartilhar button', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  await screen.findByLabelText('Título');
+  const share = screen.getByRole('button', { name: 'Compartilhar' });
+  const trash = screen.getByRole('button', { name: 'Mover para a lixeira' });
+
+  expect(share.parentElement).toBe(trash.parentElement);
+  expect(
+    share.compareDocumentPosition(trash) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeGreaterThan(0);
+});
+
+test('the owner of a trashed document has no Compartilhar button', async () => {
+  seedSampleDocuments();
+  const seeded = firstSeededDocument();
+  const trashedAt = trashInDb(seeded);
+
+  renderApp(<DocumentView documentId={seeded.id} />);
+
+  await screen.findByText(noticeText(trashedAt));
+
+  expect(
+    screen.queryByRole('button', { name: 'Compartilhar' }),
+  ).not.toBeInTheDocument();
+});
+
+test('a view person sees Somente leitura and a read only editor', async () => {
+  const shared = sharedReadOnlyDocument();
+
+  renderApp(<DocumentView documentId={shared.id} />);
+
+  expect(await screen.findByText('Somente leitura')).toBeInTheDocument();
+  expect(screen.queryByText('Conectando…')).not.toBeInTheDocument();
+
+  await connectAndSync();
+
+  expect(
+    await screen.findByTestId('document-editor', undefined, LAZY_TIMEOUT),
+  ).toHaveAttribute('data-editable', 'false');
+  expect(screen.queryByText('Salvo')).not.toBeInTheDocument();
+});
+
+test('a view person sees the title as a heading without the title field', async () => {
+  const shared = sharedReadOnlyDocument();
+
+  renderApp(<DocumentView documentId={shared.id} />);
+
+  const heading = await screen.findByRole('heading', {
+    level: 1,
+    name: shared.title,
+  });
+  expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  expect(heading).not.toHaveClass('sr-only');
+  expect(screen.queryByLabelText('Título')).not.toBeInTheDocument();
+});
+
+test('a view person has no Compartilhar nor trash button', async () => {
+  const shared = sharedReadOnlyDocument();
+
+  renderApp(<DocumentView documentId={shared.id} />);
+
+  await screen.findByText('Somente leitura');
+
+  expect(
+    screen.queryByRole('button', { name: 'Compartilhar' }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: 'Mover para a lixeira' }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByRole('button', { name: /favoritos/ }),
   ).toBeInTheDocument();
 });

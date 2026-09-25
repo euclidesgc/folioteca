@@ -28,6 +28,27 @@ export const networkDelay = (): Promise<void> =>
 //   localStorage.setItem('mock-installation', 'signed-in')  -> seeds an installation, signed in
 //   localStorage.setItem('mock-documents', 'sample')  -> adds a varied batch of documents
 //     owned by the signed-in person (needs an installation already seeded)
+//   localStorage.setItem('mock-documents', 'unit-space')  -> assigns the
+//     signed-in person directly to "Catalogação" and adds a document of a
+//     colleague to the space of that unit, to see the list of a unit space
+//     and create documents there (needs
+//     localStorage.setItem('mock-org-units', 'sample') too); the space of a
+//     unit reached only by inheritance shows the direct assignment notice
+//   localStorage.setItem('mock-space-members', 'sample')  -> assigns the
+//     signed-in person and a colleague, Marta Ribeiro, directly to
+//     "Catalogação", to see "Pessoas nesta unidade" with two rows (needs
+//     localStorage.setItem('mock-org-units', 'sample') too)
+//   localStorage.setItem('mock-space-members', 'free-member')  -> adds
+//     "Clube de leitura", a free space of Otávio Mendes with the signed-in
+//     person as its member and "Ata da primeira reunião", a document of
+//     Otávio in it, to see it in "Espaços", open it without "Adicionar
+//     pessoa" and edit the document of the owner (needs an installation
+//     already seeded)
+//   localStorage.setItem('mock-space-members', 'free-removed')  -> adds
+//     "Clube de leitura", the same free space of Otávio Mendes, without the
+//     signed-in person as its member, the state after the owner removes them:
+//     /spaces/space-free-removed shows "Espaço não encontrado." and the space
+//     is not in "Espaços" (needs an installation already seeded)
 //   localStorage.setItem('mock-favorites', 'sample')  -> marks the first documents
 //     as favorites (needs the documents already seeded)
 //   localStorage.setItem('mock-trash', 'sample')  -> moves the last documents

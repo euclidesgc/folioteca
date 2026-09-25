@@ -767,3 +767,279 @@ test('rule 6 flags a sample offender and accepts a sample compliant snippet', ()
   ]);
   expect(report(compliant)).toEqual([]);
 });
+
+const SHARES_SERVICE_FILE = 'documents/shares.service.ts';
+
+const SHARE_TABLE_FILES = [ACCESS_SERVICE_FILE, SHARES_SERVICE_FILE];
+
+const SHARE_TABLE_PATTERN = /\.documentShare\s*\./g;
+const SHARE_RAW_TABLE_PATTERN = /"DocumentShare"/g;
+const SHARE_FIND_UNIQUE_PATTERN = /\.documentShare\.findUnique\s*\(/g;
+
+/**
+ * Regra 9: só `access.service.ts` e `shares.service.ts` tocam a tabela
+ * `DocumentShare`, `shares.service.ts` decide pelo `resolveAccess` e
+ * `documentShare.findUnique` só aparece na decisão de acesso.
+ */
+function checkShareTable({ file, source }: SourceFile): Violation[] {
+  const violations: Violation[] = [];
+
+  if (!SHARE_TABLE_FILES.includes(file)) {
+    for (const pattern of [SHARE_TABLE_PATTERN, SHARE_RAW_TABLE_PATTERN]) {
+      for (const match of source.matchAll(pattern)) {
+        violations.push({
+          file,
+          line: lineAt(source, match.index),
+          message:
+            'toca na tabela DocumentShare fora de access.service.ts e shares.service.ts',
+        });
+      }
+    }
+  }
+
+  if (file === SHARES_SERVICE_FILE && !source.includes('resolveAccess(')) {
+    violations.push({ file, line: 1, message: 'não chama resolveAccess' });
+  }
+
+  if (file !== ACCESS_SERVICE_FILE) {
+    for (const match of source.matchAll(SHARE_FIND_UNIQUE_PATTERN)) {
+      violations.push({
+        file,
+        line: lineAt(source, match.index),
+        message: 'usa documentShare.findUnique fora de access.service.ts',
+      });
+    }
+  }
+
+  return violations;
+}
+
+test('rule 9 flags documentShare outside access and shares service', () => {
+  const outsideOffender = checkShareTable({
+    file: 'documents/documents.service.ts',
+    source: [
+      'await this.prisma.documentShare.findUnique({ where: { documentId_personId } });',
+      'await this.prisma.$queryRaw`SELECT "personId" FROM "DocumentShare"`;',
+    ].join('\n'),
+  });
+
+  const insideOffender = checkShareTable({
+    file: SHARES_SERVICE_FILE,
+    source:
+      'await this.prisma.documentShare.findUnique({ where: { documentId_personId } });',
+  });
+
+  expect(report(outsideOffender)).toEqual([
+    'documents/documents.service.ts:1 toca na tabela DocumentShare fora de access.service.ts e shares.service.ts',
+    'documents/documents.service.ts:2 toca na tabela DocumentShare fora de access.service.ts e shares.service.ts',
+    'documents/documents.service.ts:1 usa documentShare.findUnique fora de access.service.ts',
+  ]);
+  expect(report(insideOffender)).toEqual([
+    'documents/shares.service.ts:1 não chama resolveAccess',
+    'documents/shares.service.ts:1 usa documentShare.findUnique fora de access.service.ts',
+  ]);
+});
+
+test('rule 9 accepts documentShare in access service and shares service', () => {
+  const compliantShares = checkShareTable({
+    file: SHARES_SERVICE_FILE,
+    source: [
+      'const level = await this.access.resolveAccess(requester.id, documentId);',
+      'await this.prisma.documentShare.upsert({ where: { documentId_personId } });',
+    ].join('\n'),
+  });
+
+  const compliantAccess = checkShareTable({
+    file: ACCESS_SERVICE_FILE,
+    source: [
+      'await this.prisma.documentShare.findUnique({ where: { documentId_personId } });',
+      'await this.prisma.$queryRaw`SELECT "personId" FROM "DocumentShare"`;',
+    ].join('\n'),
+  });
+
+  // O código real responde pela mesma regra: nenhum outro arquivo de `src/`
+  // toca a tabela, e o serviço de compartilhamento decide pelo acesso.
+  const realViolations = sourceFiles.flatMap(checkShareTable);
+  const sharesSource = sourceFiles.find(
+    ({ file }) => file === SHARES_SERVICE_FILE,
+  )?.source;
+
+  expect(report(compliantShares)).toEqual([]);
+  expect(report(compliantAccess)).toEqual([]);
+  expect(sourceFiles.map(({ file }) => file)).toContain(SHARES_SERVICE_FILE);
+  expect(sharesSource).toContain('resolveAccess(');
+  expect(report(realViolations)).toEqual([]);
+});
+
+/** Leituras de `Document` que a regra 10 examina. */
+const ASSIGNMENT_READ_METHODS = ['findMany', 'findFirst', 'findUnique', 'count'];
+
+const ASSIGNMENT_READ_CALL_PATTERN = new RegExp(
+  `\\.document\\.(${ASSIGNMENT_READ_METHODS.join('|')})\\s*\\(`,
+  'g',
+);
+
+/**
+ * Regra 10: a lotação só dá acesso a documento pela porta. Fora de
+ * `access.service.ts`, nenhuma leitura de `Document` filtra por `assignments`.
+ */
+function checkAssignmentFilter({ file, source }: SourceFile): Violation[] {
+  const violations: Violation[] = [];
+
+  if (file === ACCESS_SERVICE_FILE) {
+    return violations;
+  }
+
+  for (const match of source.matchAll(ASSIGNMENT_READ_CALL_PATTERN)) {
+    const openIndex = match.index + match[0].length - 1;
+    const call = source.slice(openIndex, endOfCall(source, openIndex) + 1);
+
+    if (call.includes('assignments')) {
+      violations.push({
+        file,
+        line: lineAt(source, match.index),
+        message: `leitura document.${match[1]} filtra por assignments fora de access.service.ts`,
+      });
+    }
+  }
+
+  return violations;
+}
+
+test('rule 10 flags a Document read filtered by assignments outside access service', () => {
+  const offender = checkAssignmentFilter({
+    file: DOCUMENTS_SERVICE_FILE,
+    source: [
+      'await this.prisma.document.findMany({',
+      '  where: { space: { orgUnit: { assignments: { some: { personId } } } } },',
+      '});',
+      'await this.prisma.document.findFirst({ where: { id, space: { orgUnit: { assignments: { some: { personId } } } } } });',
+      'await this.prisma.document.findUnique({ where: { id }, include: { space: { include: { orgUnit: { include: { assignments: true } } } } } });',
+      'await this.prisma.document.count({ where: { space: { orgUnit: { assignments: { some: { personId } } } } } });',
+    ].join('\n'),
+  });
+
+  expect(report(offender)).toEqual([
+    'documents/documents.service.ts:1 leitura document.findMany filtra por assignments fora de access.service.ts',
+    'documents/documents.service.ts:4 leitura document.findFirst filtra por assignments fora de access.service.ts',
+    'documents/documents.service.ts:5 leitura document.findUnique filtra por assignments fora de access.service.ts',
+    'documents/documents.service.ts:6 leitura document.count filtra por assignments fora de access.service.ts',
+  ]);
+});
+
+test('rule 10 accepts assignments in the access service', () => {
+  const compliantAccess = checkAssignmentFilter({
+    file: ACCESS_SERVICE_FILE,
+    source: [
+      'await this.prisma.document.findFirst({',
+      '  where: { id: documentId },',
+      '  select: { space: { select: { orgUnit: { select: { assignments: { where: { personId } } } } } } },',
+      '});',
+    ].join('\n'),
+  });
+
+  const compliantService = checkAssignmentFilter({
+    file: DOCUMENTS_SERVICE_FILE,
+    source: [
+      'await this.prisma.document.findMany({ where: { AND: [this.access.readableDocumentsWhere(personId), { spaceId }] } });',
+      'await tx.space.findFirst({ where: { id: spaceId, orgUnit: { assignments: { some: { personId } } } } });',
+    ].join('\n'),
+  });
+
+  // O código real responde pela mesma regra: fora da porta de acesso nenhuma
+  // leitura de `Document` enxerga a lotação.
+  const realViolations = sourceFiles.flatMap(checkAssignmentFilter);
+  const accessSource = sourceFiles.find(
+    ({ file }) => file === ACCESS_SERVICE_FILE,
+  )?.source;
+
+  expect(report(compliantAccess)).toEqual([]);
+  expect(report(compliantService)).toEqual([]);
+  expect(accessSource).toContain('assignments: { some: { personId } }');
+  expect(report(realViolations)).toEqual([]);
+});
+
+/** Filtro pelo dono do espaço dentro de `space: { … }`, em qualquer posição. */
+const SPACE_OWNER_FILTER_PATTERN = /space\s*:\s*\{[^}]*\bownerId\b/;
+
+/**
+ * Regra 11: dono e membros de espaço livre só dão acesso a documento pela
+ * porta. Fora de `access.service.ts`, nenhuma leitura de `Document` filtra por
+ * `members` nem pelo `ownerId` do espaço.
+ */
+function checkSpaceMembersFilter({ file, source }: SourceFile): Violation[] {
+  const violations: Violation[] = [];
+
+  if (file === ACCESS_SERVICE_FILE) {
+    return violations;
+  }
+
+  for (const match of source.matchAll(ASSIGNMENT_READ_CALL_PATTERN)) {
+    const openIndex = match.index + match[0].length - 1;
+    const call = source.slice(openIndex, endOfCall(source, openIndex) + 1);
+
+    if (call.includes('members') || SPACE_OWNER_FILTER_PATTERN.test(call)) {
+      violations.push({
+        file,
+        line: lineAt(source, match.index),
+        message: `leitura document.${match[1]} filtra por members ou pelo dono do espaço fora de access.service.ts`,
+      });
+    }
+  }
+
+  return violations;
+}
+
+test('rule 11 flags a Document read filtered by space members outside access service', () => {
+  const offender = checkSpaceMembersFilter({
+    file: DOCUMENTS_SERVICE_FILE,
+    source: [
+      'await this.prisma.document.findMany({',
+      '  where: { space: { members: { some: { personId } } } },',
+      '});',
+      'await this.prisma.document.findFirst({ where: { id, space: { ownerId: personId } } });',
+      'await this.prisma.document.findUnique({ where: { id }, include: { space: { include: { members: true } } } });',
+      'await this.prisma.document.count({ where: { space: { type: \'FREE\', ownerId: personId } } });',
+    ].join('\n'),
+  });
+
+  expect(report(offender)).toEqual([
+    'documents/documents.service.ts:1 leitura document.findMany filtra por members ou pelo dono do espaço fora de access.service.ts',
+    'documents/documents.service.ts:4 leitura document.findFirst filtra por members ou pelo dono do espaço fora de access.service.ts',
+    'documents/documents.service.ts:5 leitura document.findUnique filtra por members ou pelo dono do espaço fora de access.service.ts',
+    'documents/documents.service.ts:6 leitura document.count filtra por members ou pelo dono do espaço fora de access.service.ts',
+  ]);
+});
+
+test('rule 11 accepts space members in the access service', () => {
+  const compliantAccess = checkSpaceMembersFilter({
+    file: ACCESS_SERVICE_FILE,
+    source: [
+      'await this.prisma.document.findFirst({',
+      '  where: { id: documentId },',
+      '  select: { space: { select: { ownerId: true, members: { where: { personId } } } } },',
+      '});',
+      'await this.prisma.document.findMany({ where: { space: { type: \'FREE\', OR: [{ ownerId: personId }, { members: { some: { personId } } }] } } });',
+    ].join('\n'),
+  });
+
+  const compliantService = checkSpaceMembersFilter({
+    file: DOCUMENTS_SERVICE_FILE,
+    source: [
+      'await this.prisma.document.findMany({ where: { AND: [this.access.readableDocumentsWhere(personId), { spaceId }] } });',
+      'await tx.space.findFirst({ where: { id: spaceId, OR: [{ ownerId: person.id }, { members: { some: { personId: person.id } } }] } });',
+    ].join('\n'),
+  });
+
+  // O código real responde pela mesma regra: fora da porta de acesso nenhuma
+  // leitura de `Document` enxerga dono nem membros do espaço livre.
+  const realViolations = sourceFiles.flatMap(checkSpaceMembersFilter);
+  const accessSource = sourceFiles.find(
+    ({ file }) => file === ACCESS_SERVICE_FILE,
+  )?.source;
+
+  expect(report(compliantAccess)).toEqual([]);
+  expect(report(compliantService)).toEqual([]);
+  expect(accessSource).toContain('members: { some: { personId } }');
+  expect(report(realViolations)).toEqual([]);
+});

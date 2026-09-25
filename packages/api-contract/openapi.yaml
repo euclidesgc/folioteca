@@ -140,7 +140,13 @@ paths:
   /documents:
     post:
       operationId: createDocument
-      summary: Cria um documento sem título no espaço pessoal de quem chama
+      summary: Cria um documento sem título no espaço pessoal de quem chama, no espaço de unidade informado ou no espaço livre de que a pessoa é dona ou membro
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDocumentInput"
       responses:
         "201":
           description: O documento foi criado.
@@ -148,6 +154,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DocumentResponse"
+        "400":
+          description: Os dados informados são inválidos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
         "401":
           description: Não há sessão válida.
           content:
@@ -156,6 +168,14 @@ paths:
                 $ref: "#/components/schemas/Error"
         "403":
           description: A requisição foi recusada.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            O espaço informado não existe, tem id malformado, não é de unidade
+            ou quem chama não está lotado diretamente na unidade.
           content:
             application/json:
               schema:
@@ -433,6 +453,76 @@ paths:
                 $ref: "#/components/schemas/Error"
         "404":
           description: O documento não existe ou não está acessível.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /documents/{documentId}/shares/{personId}:
+    put:
+      operationId: shareDocument
+      tags:
+        - documents
+      summary: Compartilha o documento com uma pessoa da instância
+      description: >-
+        Dá a uma pessoa da instância acesso de leitura ao documento. Só o
+        proprietário compartilha. Repetir a chamada para a mesma pessoa devolve
+        o mesmo 200, sem criar um segundo compartilhamento. As checagens
+        acontecem nesta ordem: 401, 404 (documento inexistente ou sem acesso),
+        403 (quem chama não é o proprietário), 409 (documento na lixeira), 400
+        (corpo inválido, compartilhar consigo mesmo ou pessoa fora da
+        instância).
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShareDocumentInput"
+      responses:
+        "200":
+          description: A pessoa tem acesso de leitura ao documento.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentShareResponse"
+        "400":
+          description: >-
+            O corpo é inválido, a pessoa é o próprio proprietário ou a pessoa
+            não existe nesta instância.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Só o proprietário pode compartilhar este documento.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: O documento não existe ou não está acessível.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: O documento está na lixeira.
           content:
             application/json:
               schema:
@@ -899,6 +989,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /people/search:
+    get:
+      operationId: searchPeopleToShare
+      tags:
+        - people
+      summary: Busca pessoas da instância para compartilhar um documento
+      description: >-
+        Busca pessoas da organização de quem chama, por parte do nome ou do
+        e-mail, sem diferenciar maiúsculas de minúsculas. Qualquer pessoa com
+        sessão pode buscar. `q` com menos de 2 caracteres (depois de tirar os
+        espaços das pontas) devolve lista vazia, sem tocar o banco. Devolve no
+        máximo 10 pessoas, com `hasMore` avisando que há mais, e nunca inclui
+        quem pede.
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: As pessoas encontradas foram listadas.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PeopleResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /admins:
     get:
       operationId: getAdmins
@@ -1093,6 +1214,255 @@ paths:
                 $ref: "#/components/schemas/ValidationError"
         "401":
           description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /spaces/{spaceId}:
+    get:
+      operationId: getSpace
+      tags:
+        - spaces
+      summary: Lê um espaço
+      description: >-
+        Lê o espaço informado com a forma de alcance de quem chama. O espaço
+        livre só é lido pelo dono (reach owner). O espaço de unidade é lido por
+        quem a alcança diretamente (reach direct) ou por herança (reach
+        inherited). Qualquer outro caso (espaço inexistente, id malformado,
+        espaço pessoal, espaço livre de outra pessoa, sem alcance ou
+        administração não lotada) recebe o mesmo 404 "Espaço não encontrado.".
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: O espaço foi lido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceDetailResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            O espaço não existe, tem id malformado, é pessoal, é livre de outra
+            pessoa ou quem chama não o alcança.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /spaces/{spaceId}/members:
+    get:
+      operationId: listSpaceMembers
+      tags:
+        - spaces
+      summary: Lista as pessoas de um espaço
+      description: >-
+        No espaço de unidade, lista as pessoas lotadas diretamente na unidade,
+        com quem chama primeiro e depois por nome e e-mail; quem alcança o
+        espaço, diretamente ou por herança, vê a lista. No espaço livre, o dono
+        e os membros veem a lista: o dono primeiro, depois quem chama se for
+        membro, depois os demais por nome e e-mail. Não há 403. Espaço sem
+        alcance, inexistente, com id malformado ou livre que quem chama não
+        alcança recebe o mesmo 404 opaco.
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: As pessoas do espaço foram listadas.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceMembersResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            O espaço não existe, tem id malformado, é livre e quem chama não é
+            dono nem membro, ou quem chama não o alcança.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /spaces/{spaceId}/members/{personId}:
+    put:
+      operationId: addSpaceMember
+      tags:
+        - spaces
+      summary: Adiciona uma pessoa a um espaço livre
+      description: >-
+        Adiciona a pessoa informada, da mesma instância, como membro do espaço
+        livre. Só o dono do espaço livre adiciona. A operação é idempotente:
+        repetir para a mesma pessoa devolve o mesmo 200 sem duplicar. Adicionar
+        o próprio dono ou uma pessoa que não existe nesta instância recebe
+        400; um membro que tenta adicionar recebe 403; espaço inexistente, com
+        id malformado, de unidade ou que quem chama não alcança recebe o mesmo
+        404 opaco.
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A pessoa é membro do espaço livre.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpaceMemberResponse"
+        "400":
+          description: >-
+            "Você já é o dono deste espaço." ao adicionar o dono, ou "Pessoa
+            não encontrada nesta instância." para pessoa inexistente, com id
+            malformado ou de outra instância.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: >-
+            "Só o dono do espaço pode adicionar pessoas." para quem é membro
+            do espaço sem ser o dono.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            "Espaço não encontrado." para espaço inexistente, com id
+            malformado, de unidade ou que quem chama não alcança.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: removeSpaceMember
+      tags:
+        - spaces
+      summary: Remove uma pessoa de um espaço livre
+      description: >-
+        Remove a pessoa informada dos membros do espaço livre. Só o dono do
+        espaço livre remove. A operação é idempotente: remover uma pessoa que
+        não é membro também devolve 204. Remover o próprio dono recebe 400 "O
+        dono não pode ser removido."; um membro que tenta remover recebe 403
+        "Só o dono do espaço pode remover pessoas."; espaço inexistente, com
+        id malformado, de unidade ou que quem chama não alcança recebe o mesmo
+        404 "Espaço não encontrado.".
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: personId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: A pessoa não é membro do espaço livre.
+        "400":
+          description: >-
+            "O dono não pode ser removido." ao remover o dono do espaço.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: >-
+            "Só o dono do espaço pode remover pessoas." para quem é membro
+            do espaço sem ser o dono.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            "Espaço não encontrado." para espaço inexistente, com id
+            malformado, de unidade ou que quem chama não alcança.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /spaces/{spaceId}/documents:
+    get:
+      operationId: listSpaceDocuments
+      tags:
+        - spaces
+      summary: Lista os documentos de um espaço de unidade ou de um espaço livre
+      description: >-
+        Lista os documentos fora da lixeira do espaço de unidade ou do espaço
+        livre informado, dos mais recentes para os mais antigos. No espaço de
+        unidade, só quem está lotado diretamente na unidade vê a lista; no
+        espaço livre, o dono ou membro do espaço recebe 200. O 403 continua só
+        para quem alcança um espaço de unidade apenas por herança. Espaço sem
+        alcance, inexistente, com id malformado ou pessoal recebe o mesmo 404
+        opaco.
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Os documentos do espaço foram listados.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentsResponse"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: >-
+            Quem chama alcança o espaço só por herança, sem lotação direta na
+            unidade.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: >-
+            O espaço não existe, tem id malformado, não é de unidade ou quem
+            chama não o alcança.
           content:
             application/json:
               schema:
@@ -1503,6 +1873,15 @@ components:
           $ref: "#/components/schemas/Document"
       required:
         - data
+    CreateDocumentInput:
+      type: object
+      properties:
+        spaceId:
+          type: string
+          description: >-
+            Espaço de unidade onde o documento nasce. Ausente, o documento
+            nasce no espaço pessoal de quem chama.
+      additionalProperties: false
     DocumentsResponse:
       type: object
       properties:
@@ -1754,6 +2133,94 @@ components:
           $ref: "#/components/schemas/Space"
       required:
         - data
+    SpaceDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identificador do espaço (não da unidade).
+        type:
+          type: string
+          enum:
+            - unit
+            - free
+          description: Tipo do espaço, de unidade ou livre.
+        name:
+          type: string
+          description: >-
+            Nome da unidade, no espaço de unidade; nome dado pelo dono, no
+            espaço livre.
+        reach:
+          type: string
+          enum:
+            - direct
+            - inherited
+            - owner
+            - member
+          description: >-
+            Como quem chama alcança o espaço: lotação direta na unidade,
+            herança entre unidades, dono do espaço livre ou membro do espaço
+            livre.
+      required:
+        - id
+        - type
+        - name
+        - reach
+      additionalProperties: false
+    SpaceDetailResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/SpaceDetail"
+      required:
+        - data
+    SpaceMember:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identificador da pessoa.
+        name:
+          type: string
+        email:
+          type: string
+        isCurrentPerson:
+          type: boolean
+          description: Verdadeiro na linha de quem chama.
+        role:
+          type: string
+          enum:
+            - owner
+            - member
+            - assigned
+          description: >-
+            Papel da pessoa no espaço: `owner` é o dono do espaço livre,
+            `member` é membro do espaço livre e `assigned` é lotada na unidade
+            do espaço de unidade.
+      required:
+        - id
+        - name
+        - email
+        - isCurrentPerson
+        - role
+      additionalProperties: false
+    SpaceMembersResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/SpaceMember"
+      required:
+        - data
+    SpaceMemberResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/PersonSummary"
+      required:
+        - data
+      additionalProperties: false
     CreateSpaceInput:
       type: object
       properties:
@@ -1879,6 +2346,38 @@ components:
         - name
         - password
       additionalProperties: false
+    ShareDocumentInput:
+      type: object
+      properties:
+        level:
+          type: string
+          enum: [view]
+          description: Nível de acesso dado à pessoa.
+      required: [level]
+      additionalProperties: false
+    DocumentShare:
+      type: object
+      properties:
+        personId:
+          type: string
+          description: Identificador da pessoa com acesso.
+        name:
+          type: string
+          description: Nome da pessoa.
+        email:
+          type: string
+          description: E-mail da pessoa.
+        level:
+          type: string
+          enum: [view]
+          description: Nível de acesso da pessoa.
+      required: [personId, name, email, level]
+    DocumentShareResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/DocumentShare"
+      required: [data]
     UpdateDocumentBody:
       type: object
       properties:

@@ -605,3 +605,617 @@ test('deleting a document deletes its content', async () => {
     await prisma.documentContent.count({ where: { documentId: created.id } }),
   ).toBe(0);
 });
+
+/** A dona dá leitura do documento à pessoa, pela API. */
+async function shareWith(documentId: string, personId: string): Promise<void> {
+  const response = await httpRequest(app)
+    .put(`/api/documents/${documentId}/shares/${personId}`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send({ level: 'view' });
+
+  expect(response.status).toBe(200);
+}
+
+/** Pessoa com sessão que recebe leitura do documento criado pela dona. */
+async function createSharedDocument(): Promise<{
+  document: DocumentBody;
+  viewerCookie: string;
+}> {
+  const document = await createDocument(cookieA);
+  const { person, cookie } = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+  await shareWith(document.id, person.id);
+
+  return { document, viewerCookie: cookie };
+}
+
+test('GET a shared document answers 200 with accessLevel view', async () => {
+  const { document, viewerCookie } = await createSharedDocument();
+
+  const response = await getDocument(viewerCookie, document.id);
+
+  expect(response.status).toBe(200);
+  expect((response.body as { data: DocumentBody }).data).toEqual(
+    expect.objectContaining({
+      id: document.id,
+      ownerId: personA.id,
+      accessLevel: 'view',
+    }),
+  );
+});
+
+test('PATCH a shared document by a view person answers 403', async () => {
+  const { document, viewerCookie } = await createSharedDocument();
+
+  const response = await patchDocument(viewerCookie, document.id, {
+    title: 'Título da visitante',
+  });
+  const stored = await prisma.document.findFirstOrThrow({
+    where: { id: document.id },
+  });
+
+  expect(response.status).toBe(403);
+  expect(stored.title).toBe('Sem título');
+});
+
+test('POST trash on a shared document by a view person answers 404', async () => {
+  const { document, viewerCookie } = await createSharedDocument();
+
+  const response = await httpRequest(app)
+    .post(`/api/documents/${document.id}/trash`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', viewerCookie)
+    .send();
+  const stored = await prisma.document.findFirstOrThrow({
+    where: { id: document.id },
+  });
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual({ message: NOT_FOUND_MESSAGE });
+  expect(stored.trashedAt).toBeNull();
+});
+
+test('GET a shared document by a third person answers the same 404 as a missing one', async () => {
+  const { document } = await createSharedDocument();
+  const { cookie: thirdCookie } = await createPersonWithSession(app, {
+    name: 'Ana Ramos',
+    email: 'ana@exemplo.org',
+  });
+
+  const shared = await getDocument(thirdCookie, document.id);
+  const missing = await getDocument(thirdCookie, randomUUID());
+
+  expect(missing.status).toBe(404);
+  expect(shared.status).toBe(missing.status);
+  expect(shared.body).toEqual(missing.body);
+});
+
+test('my documents of the view person does not list the shared document', async () => {
+  const { viewerCookie } = await createSharedDocument();
+
+  const response = await getDocuments(viewerCookie);
+
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual({ data: [] });
+});
+
+const SPACE_NOT_FOUND_BODY = { message: 'Espaço não encontrado.' };
+
+/** `POST /api/documents` com o corpo informado. */
+function postDocumentWith(cookie: string, body: unknown): Promise<Response> {
+  return httpRequest(app)
+    .post('/api/documents')
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie)
+    .send(body as object);
+}
+
+type UnitWithSpace = { orgUnitId: string; spaceId: string };
+
+/** Unidade sob a raiz (ou sob `parentId`) com o espaço `UNIT` dela. */
+async function createUnitSpace(
+  name: string,
+  options: { parentId?: string; inheritsParent?: boolean } = {},
+): Promise<UnitWithSpace> {
+  const root = await prisma.orgUnit.findFirstOrThrow({
+    where: { organizationId: personA.organizationId, parentId: null },
+  });
+  const unit = await prisma.orgUnit.create({
+    data: {
+      organizationId: personA.organizationId,
+      parentId: options.parentId ?? root.id,
+      name,
+    },
+  });
+  const space = await prisma.space.create({
+    data: {
+      type: 'UNIT',
+      orgUnitId: unit.id,
+      inheritsParent: options.inheritsParent ?? false,
+    },
+  });
+
+  return { orgUnitId: unit.id, spaceId: space.id };
+}
+
+/** Lota a pessoa diretamente na unidade, pelo Prisma. */
+async function assign(orgUnitId: string, personId: string): Promise<void> {
+  await prisma.orgUnitAssignment.create({ data: { orgUnitId, personId } });
+}
+
+type UnitDocumentScenario = {
+  unit: UnitWithSpace;
+  document: DocumentBody;
+  colleague: Person;
+  colleagueCookie: string;
+};
+
+/** A e o colega lotados na mesma unidade; A cria um documento no espaço dela. */
+async function createUnitDocument(): Promise<UnitDocumentScenario> {
+  const unit = await createUnitSpace('Protocolo');
+  const { person: colleague, cookie: colleagueCookie } =
+    await createPersonWithSession(app, {
+      name: 'João Lima',
+      email: 'joao@exemplo.org',
+    });
+  await assign(unit.orgUnitId, personA.id);
+  await assign(unit.orgUnitId, colleague.id);
+
+  const response = await postDocumentWith(cookieA, { spaceId: unit.spaceId });
+
+  expect(response.status).toBe(201);
+
+  return {
+    unit,
+    document: (response.body as { data: DocumentBody }).data,
+    colleague,
+    colleagueCookie,
+  };
+}
+
+test('POST documents without body still creates in the personal space', async () => {
+  const response = await httpRequest(app)
+    .post('/api/documents')
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA);
+  const personalSpace = await prisma.space.findFirstOrThrow({
+    where: { personId: personA.id, type: 'PERSONAL' },
+  });
+
+  expect(response.status).toBe(201);
+  expect((response.body as { data: DocumentBody }).data).toEqual(
+    expect.objectContaining({
+      spaceId: personalSpace.id,
+      ownerId: personA.id,
+      accessLevel: 'owner',
+    }),
+  );
+});
+
+test('POST documents with a direct unit spaceId answers 201 in that space owned by the caller', async () => {
+  const unit = await createUnitSpace('Protocolo');
+  await assign(unit.orgUnitId, personA.id);
+
+  const response = await postDocumentWith(cookieA, { spaceId: unit.spaceId });
+  const created = (response.body as { data: DocumentBody }).data;
+  const stored = await prisma.document.findFirstOrThrow({
+    where: { id: created.id },
+  });
+
+  expect(response.status).toBe(201);
+  expect(created).toEqual(
+    expect.objectContaining({
+      title: 'Sem título',
+      spaceId: unit.spaceId,
+      authorId: personA.id,
+      ownerId: personA.id,
+      accessLevel: 'owner',
+    }),
+  );
+  expect(stored.spaceId).toBe(unit.spaceId);
+  expect(stored.ownerId).toBe(personA.id);
+});
+
+test('a document created in the unit space appears in my documents of the creator and not of the colleague', async () => {
+  const { document, colleagueCookie } = await createUnitDocument();
+
+  const creatorList = await getDocuments(cookieA);
+  const colleagueList = await getDocuments(colleagueCookie);
+
+  expect(
+    (creatorList.body as { data: DocumentSummaryBody[] }).data.map(
+      (item) => item.id,
+    ),
+  ).toEqual([document.id]);
+  expect(colleagueList.status).toBe(200);
+  expect(colleagueList.body).toEqual({ data: [] });
+});
+
+test('POST documents with an inherited unit spaceId answers 404 with Espaço não encontrado.', async () => {
+  const parent = await createUnitSpace('Secretaria');
+  const child = await createUnitSpace('Protocolo', {
+    parentId: parent.orgUnitId,
+    inheritsParent: true,
+  });
+  await assign(parent.orgUnitId, personA.id);
+
+  const response = await postDocumentWith(cookieA, { spaceId: child.spaceId });
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual(SPACE_NOT_FOUND_BODY);
+  expect(await prisma.document.count({ where: { spaceId: child.spaceId } })).toBe(
+    0,
+  );
+});
+
+test('POST documents with a unit spaceId without assignment answers 404', async () => {
+  const unit = await createUnitSpace('Protocolo');
+
+  const response = await postDocumentWith(cookieA, { spaceId: unit.spaceId });
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual(SPACE_NOT_FOUND_BODY);
+  expect(await prisma.document.count()).toBe(0);
+});
+
+test('POST documents with a random spaceId answers 404', async () => {
+  const response = await postDocumentWith(cookieA, { spaceId: randomUUID() });
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual(SPACE_NOT_FOUND_BODY);
+  expect(await prisma.document.count()).toBe(0);
+});
+
+test('POST documents with a malformed spaceId answers 404', async () => {
+  const response = await postDocumentWith(cookieA, { spaceId: MALFORMED_ID });
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual(SPACE_NOT_FOUND_BODY);
+  expect(await prisma.document.count()).toBe(0);
+});
+
+test('POST documents with an extra field answers 400', async () => {
+  const unit = await createUnitSpace('Protocolo');
+  await assign(unit.orgUnitId, personA.id);
+
+  const response = await postDocumentWith(cookieA, {
+    spaceId: unit.spaceId,
+    ownerId: randomUUID(),
+  });
+
+  expect(response.status).toBe(400);
+  expect((response.body as ValidationErrorBody).errors).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ message: 'Campo não permitido.' }),
+    ]),
+  );
+  expect(await prisma.document.count()).toBe(0);
+});
+
+test('a colleague GETs the unit space document with accessLevel edit', async () => {
+  const { document, colleagueCookie } = await createUnitDocument();
+
+  const response = await getDocument(colleagueCookie, document.id);
+
+  expect(response.status).toBe(200);
+  expect((response.body as { data: DocumentBody }).data).toEqual(
+    expect.objectContaining({
+      id: document.id,
+      ownerId: personA.id,
+      accessLevel: 'edit',
+    }),
+  );
+});
+
+test('a colleague renames the unit space document with 200', async () => {
+  const { document, colleagueCookie } = await createUnitDocument();
+
+  const response = await patchDocument(colleagueCookie, document.id, {
+    title: 'Regulamento do protocolo',
+  });
+  const stored = await prisma.document.findFirstOrThrow({
+    where: { id: document.id },
+  });
+
+  expect(response.status).toBe(200);
+  expect((response.body as { data: DocumentBody }).data.title).toBe(
+    'Regulamento do protocolo',
+  );
+  expect(stored.title).toBe('Regulamento do protocolo');
+  expect(stored.ownerId).toBe(personA.id);
+});
+
+test('a colleague gets 404 on trash, restore and delete of the unit space document', async () => {
+  const { document, colleagueCookie } = await createUnitDocument();
+
+  const trash = await httpRequest(app)
+    .post(`/api/documents/${document.id}/trash`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', colleagueCookie)
+    .send();
+  const restore = await httpRequest(app)
+    .post(`/api/documents/${document.id}/restore`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', colleagueCookie)
+    .send();
+  const remove = await httpRequest(app)
+    .delete(`/api/documents/${document.id}`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', colleagueCookie)
+    .send();
+  const stored = await prisma.document.findFirstOrThrow({
+    where: { id: document.id },
+  });
+
+  expect(trash.status).toBe(404);
+  expect(trash.body).toEqual({ message: NOT_FOUND_MESSAGE });
+  expect(restore.status).toBe(404);
+  expect(restore.body).toEqual({ message: NOT_FOUND_MESSAGE });
+  expect(remove.status).toBe(404);
+  expect(remove.body).toEqual({ message: NOT_FOUND_MESSAGE });
+  expect(stored.trashedAt).toBeNull();
+});
+
+/**
+ * A organização é única por instância (`Organization_singleton_check`): o
+ * escopo por organização é provado no serviço real, contra o mesmo Postgres,
+ * com um `organizationId` que não é o da instalação.
+ */
+test('create with another organization id answers 404', async () => {
+  const unit = await createUnitSpace('Protocolo');
+  await assign(unit.orgUnitId, personA.id);
+  const person = await prisma.person.findFirstOrThrow({
+    where: { id: personA.id },
+    include: { organization: true },
+  });
+
+  const created = await documents().create(person, { spaceId: unit.spaceId });
+
+  await expect(
+    documents().create(
+      { ...person, organizationId: randomUUID() },
+      { spaceId: unit.spaceId },
+    ),
+  ).rejects.toMatchObject({
+    status: 404,
+    message: 'Espaço não encontrado.',
+  });
+  expect(created.spaceId).toBe(unit.spaceId);
+  expect(await prisma.document.count({ where: { spaceId: unit.spaceId } })).toBe(
+    1,
+  );
+});
+
+/** Espaço livre "Projeto Alfa" da pessoa, gravado direto pelo Prisma. */
+async function createFreeSpace(owner: Person): Promise<string> {
+  const space = await prisma.space.create({
+    data: {
+      type: 'FREE',
+      organizationId: owner.organizationId,
+      name: 'Projeto Alfa',
+      ownerId: owner.id,
+    },
+  });
+
+  return space.id;
+}
+
+/** Torna a pessoa membro do espaço livre, pelo Prisma. */
+async function addFreeMember(spaceId: string, personId: string): Promise<void> {
+  await prisma.spaceMember.create({ data: { spaceId, personId } });
+}
+
+type FreeDocumentScenario = {
+  spaceId: string;
+  document: DocumentBody;
+  member: Person;
+  memberCookie: string;
+};
+
+/** A é dona do espaço livre, João é membro e cria um documento nele. */
+async function createFreeDocument(): Promise<FreeDocumentScenario> {
+  const spaceId = await createFreeSpace(personA);
+  const { person: member, cookie: memberCookie } =
+    await createPersonWithSession(app, {
+      name: 'João Lima',
+      email: 'joao@exemplo.org',
+    });
+  await addFreeMember(spaceId, member.id);
+
+  const response = await postDocumentWith(memberCookie, { spaceId });
+
+  expect(response.status).toBe(201);
+
+  return {
+    spaceId,
+    document: (response.body as { data: DocumentBody }).data,
+    member,
+    memberCookie,
+  };
+}
+
+test('POST documents with a free spaceId answers 201 to a member in that space owned by the caller', async () => {
+  const { spaceId, document, member } = await createFreeDocument();
+  const stored = await prisma.document.findFirstOrThrow({
+    where: { id: document.id },
+  });
+
+  expect(document).toEqual(
+    expect.objectContaining({
+      title: 'Sem título',
+      spaceId,
+      authorId: member.id,
+      ownerId: member.id,
+      accessLevel: 'owner',
+    }),
+  );
+  expect(stored.spaceId).toBe(spaceId);
+  expect(stored.ownerId).toBe(member.id);
+});
+
+test('a document created by a member in the free space appears in my documents of the member and not of the space owner', async () => {
+  const { document, memberCookie } = await createFreeDocument();
+
+  const memberList = await getDocuments(memberCookie);
+  const ownerList = await getDocuments(cookieA);
+
+  expect(memberList.status).toBe(200);
+  expect(
+    (memberList.body as { data: DocumentSummaryBody[] }).data.map(
+      (item) => item.id,
+    ),
+  ).toEqual([document.id]);
+  expect(ownerList.status).toBe(200);
+  expect(ownerList.body).toEqual({ data: [] });
+});
+
+test('the free space owner GETs the member document with accessLevel edit', async () => {
+  const { document, member } = await createFreeDocument();
+
+  const response = await getDocument(cookieA, document.id);
+
+  expect(response.status).toBe(200);
+  expect((response.body as { data: DocumentBody }).data).toEqual(
+    expect.objectContaining({
+      id: document.id,
+      ownerId: member.id,
+      accessLevel: 'edit',
+    }),
+  );
+});
+
+test('the free space owner renames the member document with 200', async () => {
+  const { document, member } = await createFreeDocument();
+
+  const response = await patchDocument(cookieA, document.id, {
+    title: 'Plano do projeto',
+  });
+  const stored = await prisma.document.findFirstOrThrow({
+    where: { id: document.id },
+  });
+
+  expect(response.status).toBe(200);
+  expect((response.body as { data: DocumentBody }).data.title).toBe(
+    'Plano do projeto',
+  );
+  expect(stored.title).toBe('Plano do projeto');
+  expect(stored.ownerId).toBe(member.id);
+});
+
+test('the free space owner gets 404 on trash, restore and delete of the member document', async () => {
+  const { document } = await createFreeDocument();
+
+  const trash = await httpRequest(app)
+    .post(`/api/documents/${document.id}/trash`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send();
+  const restore = await httpRequest(app)
+    .post(`/api/documents/${document.id}/restore`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send();
+  const remove = await httpRequest(app)
+    .delete(`/api/documents/${document.id}`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send();
+  const stored = await prisma.document.findFirstOrThrow({
+    where: { id: document.id },
+  });
+
+  expect(trash.status).toBe(404);
+  expect(trash.body).toEqual({ message: NOT_FOUND_MESSAGE });
+  expect(restore.status).toBe(404);
+  expect(restore.body).toEqual({ message: NOT_FOUND_MESSAGE });
+  expect(remove.status).toBe(404);
+  expect(remove.body).toEqual({ message: NOT_FOUND_MESSAGE });
+  expect(stored.trashedAt).toBeNull();
+});
+
+test('POST documents with a free spaceId answers 404 to a third person', async () => {
+  const spaceId = await createFreeSpace(personA);
+  const { cookie: thirdCookie } = await createPersonWithSession(app, {
+    name: 'Zilda Rocha',
+    email: 'zilda@exemplo.org',
+  });
+
+  const response = await postDocumentWith(thirdCookie, { spaceId });
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual(SPACE_NOT_FOUND_BODY);
+  expect(await prisma.document.count({ where: { spaceId } })).toBe(0);
+});
+
+test('POST documents with a free spaceId answers 404 to an admin who is not a member', async () => {
+  const { person: spaceOwner } = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+  const spaceId = await createFreeSpace(spaceOwner);
+
+  const response = await postDocumentWith(cookieA, { spaceId });
+
+  expect(personA.isAdmin).toBe(true);
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual(SPACE_NOT_FOUND_BODY);
+  expect(await prisma.document.count({ where: { spaceId } })).toBe(0);
+});
+
+test('POST documents with a free spaceId answers 404 to a removed member', async () => {
+  const { spaceId, member, memberCookie } = await createFreeDocument();
+
+  await prisma.spaceMember.delete({
+    where: { spaceId_personId: { spaceId, personId: member.id } },
+  });
+  const response = await postDocumentWith(memberCookie, { spaceId });
+
+  expect(response.status).toBe(404);
+  expect(response.body).toEqual(SPACE_NOT_FOUND_BODY);
+  expect(await prisma.document.count({ where: { spaceId } })).toBe(1);
+});
+
+test('POST documents with a random spaceId answers 404 for a free space caller', async () => {
+  const { memberCookie } = await createFreeDocument();
+
+  const ownerResponse = await postDocumentWith(cookieA, {
+    spaceId: randomUUID(),
+  });
+  const memberResponse = await postDocumentWith(memberCookie, {
+    spaceId: randomUUID(),
+  });
+
+  expect(ownerResponse.status).toBe(404);
+  expect(ownerResponse.body).toEqual(SPACE_NOT_FOUND_BODY);
+  expect(memberResponse.status).toBe(404);
+  expect(memberResponse.body).toEqual(SPACE_NOT_FOUND_BODY);
+  expect(await prisma.document.count()).toBe(1);
+});
+
+/**
+ * Organização única por instância (`Organization_singleton_check`): o escopo
+ * do espaço livre é provado no serviço real, contra o mesmo Postgres, com um
+ * `organizationId` que não é o da instalação, sobre um espaço de que a pessoa
+ * é dona.
+ */
+test('create in a free space with another organization id answers 404', async () => {
+  const spaceId = await createFreeSpace(personA);
+  const person = await prisma.person.findFirstOrThrow({
+    where: { id: personA.id },
+    include: { organization: true },
+  });
+
+  const created = await documents().create(person, { spaceId });
+
+  await expect(
+    documents().create({ ...person, organizationId: randomUUID() }, { spaceId }),
+  ).rejects.toMatchObject({
+    status: 404,
+    message: 'Espaço não encontrado.',
+  });
+  expect(created.spaceId).toBe(spaceId);
+  expect(await prisma.document.count({ where: { spaceId } })).toBe(1);
+});

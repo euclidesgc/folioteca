@@ -132,6 +132,58 @@ das duas portas ganhou um novo enunciado: acesso diferente de `none` só
 acontece quando o documento está na lista legível **ou** na da lixeira, nunca
 nas duas.
 
+**Entrega `share-with-person-view` (fatia 145).** O compartilhamento direto
+com uma pessoa existe na tabela `DocumentShare`, com chave
+`(documentId, personId)` e cascade com o documento e a pessoa. A migration
+`0015_document_share` foi escrita à mão; o enum `ShareLevel` tem `VIEW` e
+`EDIT`, e só `VIEW` é gravado por enquanto (`EDIT` fica reservado para a
+fatia 148). `resolveAccess` segue a ordem dono → lixeira → compartilhamento →
+`none`: o dono continua `owner` na lixeira, documento na lixeira some para
+quem não é dono mesmo compartilhado, e só então o compartilhamento dá `view`.
+O compartilhamento da pessoa é lido na mesma consulta do documento, a cada
+pedido, por isso revogar tira o acesso na hora. `readableDocumentsWhere`
+passou a incluir o documento compartilhado com a pessoa (dono **ou**
+compartilhamento, sempre fora da lixeira). A regra 9 do teste estrutural
+`document-access-boundary.test.ts` garante que só `access.service.ts` e
+`documents/shares.service.ts` tocam a tabela `DocumentShare`, que
+`shares.service.ts` decide pelo `resolveAccess` e que
+`documentShare.findUnique` só aparece na decisão de acesso.
+`PUT /documents/{documentId}/shares/{personId}` é só do dono: 404 único
+"Documento não encontrado." para quem não vê o documento, 403 para quem vê
+sem ser dono, 409 com o documento na lixeira, e só depois a validação do
+corpo; repetir para a mesma pessoa não cria segunda linha.
+`GET /people/search` fica num controller próprio
+(`people/people-search.controller.ts`) só com `SessionGuard`, sem
+`AdminGuard`: qualquer pessoa com sessão busca quem compartilhar, e a
+organização e quem pede vêm sempre da sessão.
+
+**Entrega `unit-space-documents` (fatia 127).** Quem está lotado
+**diretamente** na unidade dona de um espaço `UNIT` é **membro direto** do
+espaço e tem `edit` sobre os documentos dele. A lotação é lida na mesma
+consulta do documento, a cada pedido (`isUnitMember` em `findDecision`), por
+isso tirar a lotação tira o acesso na hora. `resolveAccess` segue a ordem dono
+→ lixeira → maior(compartilhamento, membro direto) → `none`: o documento na
+lixeira continua sumindo para quem não é dono, mesmo membro. A herança entre
+unidades **não dá acesso** a documento (fica para a 152).
+`readableDocumentsWhere` passou a incluir o documento do espaço `UNIT` em que a
+pessoa está lotada diretamente. A regra 10 do teste estrutural
+`document-access-boundary.test.ts` garante que, fora de `access.service.ts`,
+nenhuma leitura de `Document` filtra por `assignments`.
+A lista do espaço, `GET /spaces/{spaceId}/documents`, decide o alcance por
+`reachOf` (§6) e filtra os documentos por essa mesma porta.
+
+**Entrega `free-space-documents` (fatia 136).** A participação em espaço
+passou a valer também no espaço livre: lotação direta na unidade de um espaço
+`UNIT`, ou ser dono ou membro de um espaço `FREE`, dá `edit` sobre os
+documentos dele. `isSpaceMember` (antes `isUnitMember`) é lido na mesma
+consulta do documento, a cada pedido, por isso sair do espaço tira o acesso
+na hora. `resolveAccess` segue a ordem dono → lixeira → maior(compartilhamento,
+participação) → `none`. `readableDocumentsWhere` passou a incluir o documento
+do espaço livre de que a pessoa é dona ou membro. A regra 11 do teste
+estrutural `document-access-boundary.test.ts` garante que, fora de
+`access.service.ts`, nenhuma leitura de `Document` filtra por `members` nem
+pelo `ownerId` do espaço.
+
 ## 4. Árvore de unidades
 
 `parentId` + consulta recursiva (`WITH RECURSIVE`). "Unidade e tudo abaixo"
@@ -227,9 +279,10 @@ não distingue id inexistente de unidade de outra organização; o da pessoa,
 "Pessoa não encontrada.", não precisa ser opaco, porque o id só pode ter vindo
 de uma busca que já é restrita à própria organização.
 
-**Lotação não dá acesso a documento**: estar lotado numa unidade não abre nem
-um documento a ninguém — o acesso continua vindo só do caminho único da §3, e
-chegará com espaço de unidade e compartilhamento com unidade. O teste
+**A lotação direta dá acesso pela porta**: desde a 127, estar lotado
+diretamente numa unidade dá `edit` sobre os documentos do espaço dela, sempre
+pelo caminho único da §3 (`resolveAccess` e `readableDocumentsWhere`), nunca
+por consulta própria de quem lista ou grava. O teste
 estrutural de fronteira da §3 cobre os módulos novos **sem uma linha nova**:
 eles não tocam `Document` nem `resolveAccess`.
 
@@ -610,15 +663,15 @@ instância não dá espaço de unidade nenhum. O "não encontrado" é **um só e
 tela, por construção**: a página do espaço procura o id na lista da própria
 pessoa, então espaço inexistente, de outra organização ou de unidade em que ela
 não está lotada caem no mesmo "Espaço não encontrado." sem nenhuma resposta
-distinta do servidor. **Não há rota por id** até a primeira rota por id (128/134), que usará `findFirst`
-escopado por organização e lotação e responderá um **404 opaco, sem `isUuid`**,
-pela mesma razão da 114. Vale para `/spaces` a regra de `/admins`: **nenhum
+distinta do servidor (até a 128, que troca a lista por `GET /spaces/{spaceId}`). A fatia 127 trouxe `GET /spaces/{spaceId}/documents`,
+com `isUuid` antes da consulta. Vale para `/spaces` a regra de `/admins`: **nenhum
 segmento literal sob `/spaces/`**, porque casaria com o futuro `{spaceId}`.
 **Nenhuma migration**: o esquema já tinha tudo o que a leitura precisa.
 Na API simulada, o espaço `UNIT` **nasce junto com a unidade** —
 isso fecha a 075 —, e o handler novo decide quem está logado por
 `getSignedInPerson`, o padrão que o item 124 do roadmap vai estender aos
-handlers antigos. O espaço de unidade **continua sem dar acesso a documento**:
+handlers antigos. O espaço de unidade **continua sem dar acesso a documento** (até a fatia 127, que dá edição à
+lotação direta):
 a decisão de acesso segue o caminho único da §3, e documento no espaço da
 unidade é a 127.
 
@@ -626,7 +679,8 @@ unidade é a 127.
 caminho** do `GET`, no mesmo controller, com o `SessionGuard` **na classe** e
 **sem `AdminGuard`**: qualquer pessoa logada cria um espaço livre. O
 `organizationId` e o `ownerId` vêm **sempre da sessão** (`@CurrentPerson()`),
-nunca do corpo, que só traz o nome. O espaço livre é **visível só ao dono**: o
+nunca do corpo, que só traz o nome. O espaço livre é **visível só ao dono**
+(até a 134, que o mostra também aos membros): o
 `GET /spaces` passa a trazer, além dos espaços `UNIT` da lotação direta, os
 `FREE` cujo `ownerId` é a pessoa da sessão — `isAdmin` **continua não sendo
 lido**, e administrar a instância não dá acesso ao espaço livre de ninguém. No
@@ -639,9 +693,8 @@ maiúsculas. O "não encontrado" **continua um só e da tela**: a página do esp
 procura o id na lista da própria pessoa, então espaço livre alheio cai no mesmo
 "Espaço não encontrado." do espaço de unidade. Na API simulada, o espaço livre
 **nasce por um helper só** (`addFreeSpace`), usado pelo handler falso de
-`POST /spaces` e pelos testes. O espaço livre **não dá acesso a documento**: a
-decisão de acesso segue o caminho único da §3, e documento no espaço livre é a
-136.
+`POST /spaces` e pelos testes. O espaço livre **não dá acesso a documento** (até a fatia 136, que dá edição
+ao dono e aos membros): a decisão de acesso segue o caminho único da §3.
 
 **Entrega `unit-space-inherit-parent` (fatia 140)**: quem vê um espaço de
 unidade passa a ser quem tem **lotação direta** nela **mais** quem vê o espaço
@@ -655,8 +708,88 @@ não gera `CHECK`. A escrita é `PATCH /org-units/{orgUnitId}/space`, sob
 `AdminGuard`, com `organizationId` sempre da sessão; na **raiz**, que não tem
 pai de quem herdar, responde **409**. A administração **não ganha acesso** por
 mudar o modo: `isAdmin` continua não sendo lido no `GET /spaces`. O espaço de
-unidade **continua sem dar acesso a documento**: a decisão de acesso segue o
+unidade **continua sem dar acesso a documento** (até a fatia 127, que dá edição à
+lotação direta): a decisão de acesso segue o
 caminho único da §3.
+
+**Entrega `unit-space-documents` (fatia 127)**: `GET
+/spaces/{spaceId}/documents` é a primeira rota por id sob `/spaces/`, com o
+`SessionGuard` da classe e o `organizationId` sempre da sessão. A ordem é **401
+→ 404 → 403 → 200**: sem sessão, 401; id malformado, espaço inexistente, de
+outra organização, fora de alcance ou que não é de unidade (até a 136, que
+abre a lista ao espaço livre), o mesmo 404 "Espaço não encontrado."; alcance só por herança, 403 com a mensagem de lotação
+direta; membro direto, 200 com os documentos do espaço filtrados pela porta da
+§3. O alcance vem de `SpacesService.reachOf`, que responde `direct`,
+`inherited` ou `none` reaproveitando a resolução da herança da 140.
+`POST /documents` ganhou `spaceId` **opcional** no corpo: sem ele, o documento
+nasce no espaço pessoal, como antes; com ele, nasce no espaço `UNIT` em que a
+pessoa está lotada diretamente, e qualquer outro espaço (inclusive o alcançado
+só por herança) é o mesmo 404 opaco (a 136 acrescenta o espaço livre). A regra 10 da fronteira (§3) garante que
+só `access.service.ts` filtra `Document` por `assignments`.
+
+**Entrega `unit-space-members` (fatia 128)**: `GET /spaces/{spaceId}` devolve
+o espaço com `reach` — `owner` para o dono do espaço livre, `direct` ou
+`inherited` para o espaço de unidade — na ordem **401 → 404**, sem 403: id
+malformado (`isUuid`), espaço inexistente, pessoal, livre de outra pessoa, de
+outra organização ou fora de alcance, o mesmo 404 "Espaço não encontrado.".
+`isAdmin` continua não ampliando o alcance. `GET /spaces/{spaceId}/members`
+lista quem está **lotado diretamente** na unidade para quem a alcança direto
+ou por herança, com **quem pede primeiro** (`isCurrentPerson`) e o resto por
+nome e e-mail; mesma ordem **401 → 404**, sem 403, e espaço livre é 404. A
+ordenação é em memória com `ptBrCollator` (`common/pt-br-collator.ts`), que
+também ordena o `GET /spaces`, porque a collation do Postgres varia por
+instância. Na tela, a página do espaço **lê o espaço por id** (`useSpace`,
+chave `['space', id]`, `staleTime: 0`, fora do prefixo `['spaces']` que as
+mutações invalidam) em vez de procurar na lista, e o 404 vira o estado
+"Espaço não encontrado."; a barra lateral segue em `GET /spaces`.
+
+**Entrega `person-picker-shared` (fatia 159)**: a busca e a seleção de pessoa
+para agir sobre ela (hoje, compartilhar documento) são **compartilhadas**:
+`src/hooks/use-person-lookup.ts` chama `GET /people/search` só a partir de 2
+letras, e `src/components/person-picker/` (`person-picker.tsx`) desenha busca,
+resultados e pessoa escolhida. A administração de pessoas segue com
+`src/hooks/use-people-search.ts`, sem mudança.
+
+**Entrega `free-space-invite` (fatia 134)**: os membros do espaço livre ficam na
+tabela `SpaceMember`, com chave primária `spaceId`+`personId`, **sem papel** e
+com exclusão em cascata a partir do espaço e da pessoa; o dono continua em
+coluna. `PUT /spaces/{spaceId}/members/{personId}` adiciona a pessoa, **só o
+dono** adiciona, e repetir é **idempotente** (sem segunda linha); a ordem é
+**401 → 404 → 403 → 400**: sem sessão, 401; id malformado, espaço inexistente,
+de unidade, de outra organização ou fora de alcance, o mesmo 404 "Espaço não
+encontrado."; membro que não é dono, 403; o próprio dono ou pessoa fora da
+instância, 400. O espaço é conferido antes da pessoa, para uma pessoa inválida
+não revelar espaço alheio. `GET /spaces` e `GET /spaces/{spaceId}` passam a
+enxergar o membro, com `reach: member` (o dono segue `owner`); `GET
+/spaces/{spaceId}/members` continua **só de espaço de unidade** (até a 135,
+que a abre ao espaço livre). Na tela, a
+lista da barra lateral (`get-spaces.ts`) usa `staleTime: 0`, para o membro ver
+o espaço assim que for adicionado.
+
+**Entrega `free-space-members` (fatia 135)**: `GET /spaces/{spaceId}/members`
+passa a servir **também o espaço livre**, ao dono e aos membros, com o **dono
+primeiro**, depois quem pede e o resto por nome e e-mail (`compareMembers`).
+Cada `SpaceMember` ganhou `role`: `owner` e `member` no espaço livre,
+`assigned` no de unidade. `DELETE /spaces/{spaceId}/members/{personId}` remove
+um membro, **só o dono** remove, e é **idempotente**: remover quem não é membro
+(ou id de pessoa malformado) responde o mesmo 204. A ordem é **401 → 404 → 403
+→ 400 → 204**: sem sessão, 401; espaço que a pessoa não alcança, o mesmo 404
+"Espaço não encontrado."; membro que não é dono, 403; remover o próprio dono,
+400. O removido passa a receber 404 no espaço e o **perde da barra lateral**
+na próxima leitura de `GET /spaces`. Na tela, a lista de pessoas é **refeita
+depois de adicionar ou remover**, pela invalidação de
+`['space-members', spaceId]` (`add-space-member.ts` e
+`remove-space-member.ts`), sem atualização otimista.
+
+**Entrega `free-space-documents` (fatia 136)**: `SpacesService.reachOf` passou
+a cobrir o espaço `FREE`: dono ou membro responde `'direct'`, e quem não é
+nenhum dos dois, `'none'`. Com isso `GET /spaces/{spaceId}/documents` responde
+200 ao dono e aos membros do espaço livre, com os documentos filtrados pela
+porta da §3, e 404 "Espaço não encontrado." a quem está fora. `POST
+/documents` aceita `spaceId` de espaço livre de que a pessoa é dona ou membro;
+qualquer outro espaço livre segue o mesmo 404 opaco. A regra 11 da fronteira
+(§3) garante que só `access.service.ts` filtra `Document` por `members` ou pelo
+dono do espaço.
 
 ## 7. Testes
 

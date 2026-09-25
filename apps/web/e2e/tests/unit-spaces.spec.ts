@@ -22,7 +22,7 @@ const SEARCH_TERM = 'Souza';
 // Any space of a unit: the id comes from the server, never from the test.
 const SPACE_URL = /\/spaces\/[^/]+$/;
 
-const EMPTY_SPACE_NOTICE = 'Os documentos deste espaço ainda não chegaram.';
+const EMPTY_SPACE_NOTICE = 'Nenhum documento neste espaço ainda.';
 
 // Signs in as admin with the sample tree already seeded and waits for the home
 // page. The fake database lives in memory, so after this the journey never

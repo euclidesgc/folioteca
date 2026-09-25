@@ -1,7 +1,9 @@
 import {
   DEFAULT_DOCUMENT_TITLE,
   TITLE_MAX_LENGTH,
+  createDocumentSchema,
   listDocumentsQuerySchema,
+  shareDocumentSchema,
   updateDocumentSchema,
 } from '../documents.schema';
 
@@ -98,4 +100,66 @@ test('rejects a missing or unknown scope with Informe um escopo válido.', () =>
   expect(missing.error?.issues[0]?.message).toBe('Informe um escopo válido.');
   expect(unknown.success).toBe(false);
   expect(unknown.error?.issues[0]?.message).toBe('Informe um escopo válido.');
+});
+
+test('shareDocumentSchema accepts level view', () => {
+  const result = shareDocumentSchema.safeParse({ level: 'view' });
+
+  expect(result.success).toBe(true);
+  expect(result.data).toEqual({ level: 'view' });
+});
+
+test('shareDocumentSchema rejects a missing level with Escolha o nível de acesso.', () => {
+  const result = shareDocumentSchema.safeParse({});
+
+  expect(result.success).toBe(false);
+  expect(result.error?.issues[0]?.message).toBe('Escolha o nível de acesso.');
+});
+
+test('shareDocumentSchema rejects level edit', () => {
+  const result = shareDocumentSchema.safeParse({ level: 'edit' });
+
+  expect(result.success).toBe(false);
+  expect(result.error?.issues[0]?.message).toBe('Escolha o nível de acesso.');
+});
+
+test('shareDocumentSchema rejects extra fields with Campo não permitido.', () => {
+  const result = shareDocumentSchema.safeParse({
+    level: 'view',
+    personId: 'outra-pessoa',
+  });
+
+  expect(result.success).toBe(false);
+  expect(result.error?.issues[0]?.message).toBe('Campo não permitido.');
+});
+
+test('createDocumentSchema accepts an empty object', () => {
+  const result = createDocumentSchema.safeParse({});
+
+  expect(result.success).toBe(true);
+  expect(result.data).toEqual({});
+});
+
+test('createDocumentSchema accepts a spaceId string', () => {
+  const result = createDocumentSchema.safeParse({ spaceId: 'espaco-da-unidade' });
+
+  expect(result.success).toBe(true);
+  expect(result.data).toEqual({ spaceId: 'espaco-da-unidade' });
+});
+
+test('createDocumentSchema rejects a non string spaceId', () => {
+  const result = createDocumentSchema.safeParse({ spaceId: 42 });
+
+  expect(result.success).toBe(false);
+  expect(result.error?.issues[0]?.path).toEqual(['spaceId']);
+});
+
+test('createDocumentSchema rejects extra fields with Campo não permitido.', () => {
+  const result = createDocumentSchema.safeParse({
+    spaceId: 'espaco-da-unidade',
+    ownerId: 'outra-pessoa',
+  });
+
+  expect(result.success).toBe(false);
+  expect(result.error?.issues[0]?.message).toBe('Campo não permitido.');
 });

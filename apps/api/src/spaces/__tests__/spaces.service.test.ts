@@ -1,9 +1,12 @@
 import 'reflect-metadata';
 
-import { BadRequestException } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 
-import type { PrismaService } from '../../prisma/prisma.service';
-import { SpacesService } from '../spaces.service';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+
+import { PrismaService } from '../../prisma/prisma.service';
+import { compareMembers, SpacesService } from '../spaces.service';
+import { resetDatabase } from '../../../test/reset-database';
 
 const ORGANIZATION_ID = '11111111-1111-4111-8111-111111111111';
 
@@ -140,7 +143,10 @@ test('list queries unit and free spaces with the OR scoped by organization and p
   expect((findMany.mock.calls[0]?.[0] as { where: unknown }).where).toEqual({
     type: 'FREE',
     organizationId: ORGANIZATION_ID,
-    ownerId: PERSON_ID,
+    OR: [
+      { ownerId: PERSON_ID },
+      { members: { some: { personId: PERSON_ID } } },
+    ],
   });
   expect(findUnits).toHaveBeenCalledTimes(1);
   expect((findUnits.mock.calls[0]?.[0] as { where: unknown }).where).toEqual({
@@ -316,4 +322,178 @@ test('list returns each unit space once when reached twice', async () => {
   ]);
 
   expect(ids.sort()).toEqual(['space-child', 'space-parent']);
+});
+
+/**
+ * Organização única por instância (`Organization_singleton_check`): o escopo
+ * do `addMember` é provado no serviço real, ligado ao Prisma de teste, com um
+ * `organizationId` que não é o da organização do espaço.
+ */
+describe('addMember on the test database', () => {
+  const prisma = new PrismaService();
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  beforeEach(async () => {
+    await resetDatabase(prisma);
+  });
+
+  test('addMember with another organization id throws not found', async () => {
+    const organization = await prisma.organization.create({
+      data: { name: 'Prefeitura de Exemplo' },
+    });
+    const owner = await prisma.person.create({
+      data: {
+        organizationId: organization.id,
+        name: 'João Souza',
+        email: 'joao@exemplo.org',
+        passwordHash: randomUUID(),
+      },
+    });
+    const other = await prisma.person.create({
+      data: {
+        organizationId: organization.id,
+        name: 'Ana Lima',
+        email: 'ana@exemplo.org',
+        passwordHash: randomUUID(),
+      },
+    });
+    const space = await prisma.space.create({
+      data: {
+        type: 'FREE',
+        organizationId: organization.id,
+        ownerId: owner.id,
+        name: 'Projeto Alfa',
+      },
+    });
+    const service = new SpacesService(prisma);
+
+    const attempt = service.addMember(
+      { organizationId: randomUUID(), id: owner.id },
+      space.id,
+      other.id,
+    );
+
+    await expect(attempt).rejects.toThrow(NotFoundException);
+    await expect(attempt).rejects.toThrow('Espaço não encontrado.');
+    expect(await prisma.spaceMember.count()).toBe(0);
+  });
+});
+
+test('compareMembers puts the owner before the current person', () => {
+  const owner = {
+    id: 'b',
+    name: 'Zilda Rocha',
+    email: 'zilda@exemplo.org',
+    isCurrentPerson: false,
+    role: 'owner' as const,
+  };
+  const current = {
+    id: 'a',
+    name: 'Álvaro Dias',
+    email: 'alvaro@exemplo.org',
+    isCurrentPerson: true,
+    role: 'member' as const,
+  };
+
+  expect(compareMembers(owner, current)).toBeLessThan(0);
+  expect(compareMembers(current, owner)).toBeGreaterThan(0);
+  expect([current, owner].sort(compareMembers).map((item) => item.id)).toEqual([
+    'b',
+    'a',
+  ]);
+});
+
+/**
+ * Organização única por instância (`Organization_singleton_check`): o escopo
+ * de `listMembers` e `removeMember` no espaço livre é provado no serviço real,
+ * ligado ao Prisma de teste, com um `organizationId` que não é o do espaço.
+ */
+describe('free space members on the test database', () => {
+  const prisma = new PrismaService();
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  beforeEach(async () => {
+    await resetDatabase(prisma);
+  });
+
+  /** Espaço livre de João com Ana como membro. */
+  async function createFreeSpaceWithMember(): Promise<{
+    organizationId: string;
+    ownerId: string;
+    memberId: string;
+    spaceId: string;
+  }> {
+    const organization = await prisma.organization.create({
+      data: { name: 'Prefeitura de Exemplo' },
+    });
+    const owner = await prisma.person.create({
+      data: {
+        organizationId: organization.id,
+        name: 'João Souza',
+        email: 'joao@exemplo.org',
+        passwordHash: randomUUID(),
+      },
+    });
+    const member = await prisma.person.create({
+      data: {
+        organizationId: organization.id,
+        name: 'Ana Lima',
+        email: 'ana@exemplo.org',
+        passwordHash: randomUUID(),
+      },
+    });
+    const space = await prisma.space.create({
+      data: {
+        type: 'FREE',
+        organizationId: organization.id,
+        ownerId: owner.id,
+        name: 'Projeto Alfa',
+      },
+    });
+    await prisma.spaceMember.create({
+      data: { spaceId: space.id, personId: member.id },
+    });
+
+    return {
+      organizationId: organization.id,
+      ownerId: owner.id,
+      memberId: member.id,
+      spaceId: space.id,
+    };
+  }
+
+  test('listMembers with another organization id returns null for a FREE space', async () => {
+    const { organizationId, ownerId, memberId, spaceId } =
+      await createFreeSpaceWithMember();
+    const service = new SpacesService(prisma);
+
+    const mine = await service.listMembers(organizationId, ownerId, spaceId);
+    const others = await service.listMembers(randomUUID(), ownerId, spaceId);
+
+    expect(mine?.data.map((item) => item.id)).toEqual([ownerId, memberId]);
+    expect(others).toBeNull();
+  });
+
+  test('removeMember with another organization id throws not found', async () => {
+    const { ownerId, memberId, spaceId } = await createFreeSpaceWithMember();
+    const service = new SpacesService(prisma);
+
+    const attempt = service.removeMember(
+      { organizationId: randomUUID(), id: ownerId },
+      spaceId,
+      memberId,
+    );
+
+    await expect(attempt).rejects.toThrow(NotFoundException);
+    await expect(attempt).rejects.toThrow('Espaço não encontrado.');
+    expect(
+      await prisma.spaceMember.count({ where: { spaceId, personId: memberId } }),
+    ).toBe(1);
+  });
 });

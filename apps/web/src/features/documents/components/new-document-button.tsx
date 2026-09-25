@@ -5,7 +5,16 @@ import { Button } from '@/components/ui/button/button';
 import { paths } from '@/config/paths';
 import { useCreateDocument } from '@/features/documents/api/create-document';
 
-export function NewDocumentButton(): React.JSX.Element {
+type NewDocumentButtonProps = {
+  // Creates the document in this space; without it, in the personal space.
+  spaceId?: string;
+  className?: string;
+};
+
+export function NewDocumentButton({
+  spaceId,
+  className = 'w-full',
+}: NewDocumentButtonProps = {}): React.JSX.Element {
   const navigate = useNavigate();
   const createDocumentMutation = useCreateDocument({
     mutationConfig: {
@@ -19,13 +28,15 @@ export function NewDocumentButton(): React.JSX.Element {
   return (
     <Button
       type="button"
-      className="w-full"
+      className={className}
       isLoading={createDocumentMutation.isPending}
       onClick={() => {
         // A second click can arrive before the button re-renders as disabled.
         if (createDocumentMutation.isPending) return;
 
-        createDocumentMutation.mutate(undefined);
+        createDocumentMutation.mutate(
+          spaceId === undefined ? undefined : { spaceId },
+        );
       }}
     >
       {createDocumentMutation.isPending ? 'Criando…' : 'Novo documento'}

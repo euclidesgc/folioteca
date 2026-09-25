@@ -6,6 +6,9 @@ import type { components } from '@folioteca/api-contract';
 import { MOCK_PASSWORD } from './utils';
 
 type Space = components['schemas']['Space'];
+type SpaceDetail = components['schemas']['SpaceDetail'];
+type SpaceMember = components['schemas']['SpaceMember'];
+type PersonSummary = components['schemas']['PersonSummary'];
 
 export type MockOrganization = { id: string; name: string };
 export type MockPerson = {
@@ -38,6 +41,15 @@ export type MockDocument = {
 // A favorite is personal, and the fake database has a single person: the row
 // only needs the document it points at and when it was marked.
 export type MockFavorite = { documentId: string; createdAt: string };
+
+// A share: the person reads a document someone else owns. The pair is the
+// row, like the composite primary key of the real table, and `view` is the
+// only level this slice gives.
+export type MockDocumentShare = {
+  documentId: string;
+  personId: string;
+  level: 'view';
+};
 
 // An organization unit, in the same flat shape the API answers with:
 // `parentId` is null on the root of the organization. `spaceAccess` is the
@@ -82,13 +94,20 @@ export type MockSpace =
   | { id: string; type: 'unit'; orgUnitId: string }
   | { id: string; type: 'free'; name: string; ownerId: string };
 
+// A person added to a free space by its owner. Like `MockAssignment`, the pair
+// is the whole row: the real table's composite primary key keeps the same
+// person from being added twice to the same space.
+export type MockSpaceMember = { spaceId: string; personId: string };
+
 type DbState = {
   installation: MockInstallation | null;
   documents: MockDocument[];
   favorites: MockFavorite[];
+  shares: MockDocumentShare[];
   orgUnits: MockOrgUnit[];
   assignments: MockAssignment[];
   spaces: MockSpace[];
+  spaceMembers: MockSpaceMember[];
   invitations: MockInvitation[];
   // People created by accepting an invitation, and which of them is signed in.
   // Null means the installed person, which is what every journey before 086
@@ -101,9 +120,11 @@ const initialState = (): DbState => ({
   installation: null,
   documents: [],
   favorites: [],
+  shares: [],
   orgUnits: [],
   assignments: [],
   spaces: [],
+  spaceMembers: [],
   invitations: [],
   people: [],
   signedInPersonId: null,
@@ -437,8 +458,14 @@ export const addFreeSpace = (ownerId: string, name: string): MockSpace => {
   return space;
 };
 
+// Whether a person was added to a free space by its owner.
+const isSpaceMember = (personId: string, spaceId: string): boolean =>
+  state.spaceMembers.some(
+    (item) => item.spaceId === spaceId && item.personId === personId,
+  );
+
 // The spaces of a person, the way GET /spaces answers: the unit spaces the
-// person reaches and the free spaces the person owns, mixed and sorted by the
+// person reaches and the free spaces the person owns or is a member of, mixed and sorted by the
 // pt-BR collator with the tie broken by `id`, the same pair of rules the
 // service applies.
 //
@@ -475,7 +502,7 @@ export const listSpacesOf = (personId: string): Space[] =>
   state.spaces
     .flatMap((space): Space[] => {
       if (space.type === 'free') {
-        return space.ownerId === personId
+        return space.ownerId === personId || isSpaceMember(personId, space.id)
           ? [{ id: space.id, type: 'free', name: space.name }]
           : [];
       }
@@ -489,6 +516,265 @@ export const listSpacesOf = (personId: string): Space[] =>
       (a, b) =>
         spacesCollator.compare(a.name, b.name) || a.id.localeCompare(b.id),
     );
+
+// How a person reaches a space, the way `SpacesService.reachOf` answers: the
+// same rule as `listSpacesOf` above, split in two. The owner or a member of a
+// free space and whoever is assigned to the unit are `direct`; reached only
+// through the chain of inheriting spaces is `inherited`. A free space of
+// someone else, an unknown id and an unreached unit are `none`.
+export const spaceReachOf = (
+  personId: string,
+  spaceId: string,
+): 'direct' | 'inherited' | 'none' => {
+  const space = state.spaces.find((item) => item.id === spaceId);
+  if (!space) return 'none';
+
+  if (space.type === 'free') {
+    return space.ownerId === personId || isSpaceMember(personId, space.id)
+      ? 'direct'
+      : 'none';
+  }
+
+  const assigned = state.assignments.some(
+    (item) => item.orgUnitId === space.orgUnitId && item.personId === personId,
+  );
+  if (assigned) return 'direct';
+
+  return reachesUnit(personId, space.orgUnitId) ? 'inherited' : 'none';
+};
+
+// One space of a person, the way GET /spaces/:spaceId answers: a free space
+// only for its owner (`owner`) and its members (`member`), a unit space for whoever reaches the unit, directly or
+// by inheritance. Anything else (unknown id, free space of someone else,
+// unreached unit) is `null`, the 404 of the handler.
+export const spaceDetailOf = (
+  personId: string,
+  spaceId: string,
+): SpaceDetail | null => {
+  const space = state.spaces.find((item) => item.id === spaceId);
+  if (!space) return null;
+
+  if (space.type === 'free') {
+    if (space.ownerId === personId) {
+      return { id: space.id, type: 'free', name: space.name, reach: 'owner' };
+    }
+
+    return isSpaceMember(personId, space.id)
+      ? { id: space.id, type: 'free', name: space.name, reach: 'member' }
+      : null;
+  }
+
+  const reach = spaceReachOf(personId, spaceId);
+  const unit = state.orgUnits.find((item) => item.id === space.orgUnitId);
+  if (reach === 'none' || !unit) return null;
+
+  return { id: space.id, type: 'unit', name: unit.name, reach };
+};
+
+// What adding a member answers: the refusal with its status and message, or
+// the person added.
+export type AddSpaceMemberResult =
+  | { ok: false; status: 400 | 403 | 404; message: string }
+  | { ok: true; person: PersonSummary };
+
+// Adds a person to a free space, the way PUT /spaces/:spaceId/members/
+// :personId does, in the same order as `SpacesService.addMember`: a space the
+// requester does not reach (unknown, a unit, a free space of someone else) is
+// 404, a member is 403, then the owner and an unknown person are 400. Adding
+// the same pair again keeps a single row, the upsert of the real service.
+export const addSpaceMember = (
+  requesterId: string,
+  spaceId: string,
+  personId: string,
+): AddSpaceMemberResult => {
+  const space = state.spaces.find((item) => item.id === spaceId);
+  if (
+    space?.type !== 'free' ||
+    (space.ownerId !== requesterId && !isSpaceMember(requesterId, spaceId))
+  ) {
+    return { ok: false, status: 404, message: 'Espaço não encontrado.' };
+  }
+
+  if (space.ownerId !== requesterId) {
+    return {
+      ok: false,
+      status: 403,
+      message: 'Só o dono do espaço pode adicionar pessoas.',
+    };
+  }
+
+  if (personId === space.ownerId) {
+    return {
+      ok: false,
+      status: 400,
+      message: 'Você já é o dono deste espaço.',
+    };
+  }
+
+  const person = allPeople().find((item) => item.id === personId);
+  if (!person) {
+    return {
+      ok: false,
+      status: 400,
+      message: 'Pessoa não encontrada nesta instância.',
+    };
+  }
+
+  if (!isSpaceMember(person.id, spaceId)) {
+    state.spaceMembers.push({ spaceId, personId: person.id });
+  }
+
+  return {
+    ok: true,
+    person: { id: person.id, name: person.name, email: person.email },
+  };
+};
+
+// The order of GET /spaces/:spaceId/members, the one of
+// `compareMembers`: the owner first, then whoever asks, then by name and
+// e-mail with the pt-BR collator, the tie broken by `id`.
+const compareSpaceMembers = (a: SpaceMember, b: SpaceMember): number =>
+  Number(b.role === 'owner') - Number(a.role === 'owner') ||
+  Number(b.isCurrentPerson) - Number(a.isCurrentPerson) ||
+  spacesCollator.compare(a.name, b.name) ||
+  spacesCollator.compare(a.email, b.email) ||
+  a.id.localeCompare(b.id);
+
+// The people of a space, the way GET /spaces/:spaceId/members answers. A free
+// space: its owner (`owner`) and its members (`member`), only to the owner
+// and the members. A unit space: the people assigned directly to the unit
+// (`assigned`), to whoever reaches it. `null` otherwise, the 404 of the
+// handler.
+export const listSpaceMembers = (
+  personId: string,
+  spaceId: string,
+): SpaceMember[] | null => {
+  const space = state.spaces.find((item) => item.id === spaceId);
+  if (!space) return null;
+
+  const people = allPeople();
+  const toMember = (
+    id: string,
+    role: SpaceMember['role'],
+  ): SpaceMember[] => {
+    const person = people.find((candidate) => candidate.id === id);
+    return person
+      ? [
+          {
+            id: person.id,
+            name: person.name,
+            email: person.email,
+            isCurrentPerson: person.id === personId,
+            role,
+          },
+        ]
+      : [];
+  };
+
+  if (space.type === 'free') {
+    if (space.ownerId !== personId && !isSpaceMember(personId, space.id)) {
+      return null;
+    }
+
+    return [
+      ...toMember(space.ownerId, 'owner'),
+      ...state.spaceMembers
+        .filter((item) => item.spaceId === space.id)
+        .flatMap((item) => toMember(item.personId, 'member')),
+    ].sort(compareSpaceMembers);
+  }
+
+  if (spaceReachOf(personId, spaceId) === 'none') return null;
+
+  return state.assignments
+    .filter((item) => item.orgUnitId === space.orgUnitId)
+    .flatMap((item) => toMember(item.personId, 'assigned'))
+    .sort(compareSpaceMembers);
+};
+
+// What removing a member answers: the refusal with its status and message,
+// or done.
+export type RemoveSpaceMemberResult =
+  | { ok: false; status: 400 | 403 | 404; message: string }
+  | { ok: true };
+
+// Removes a person from a free space, the way DELETE /spaces/:spaceId/
+// members/:personId does, in the same order as `SpacesService.removeMember`:
+// a space the requester does not reach (unknown, a unit, a free space of
+// someone else) is 404, a member is 403, the owner is 400. Removing someone
+// who is not a member is done all the same.
+export const removeSpaceMember = (
+  requesterId: string,
+  spaceId: string,
+  personId: string,
+): RemoveSpaceMemberResult => {
+  const space = state.spaces.find((item) => item.id === spaceId);
+  if (
+    space?.type !== 'free' ||
+    (space.ownerId !== requesterId && !isSpaceMember(requesterId, spaceId))
+  ) {
+    return { ok: false, status: 404, message: 'Espaço não encontrado.' };
+  }
+
+  if (space.ownerId !== requesterId) {
+    return {
+      ok: false,
+      status: 403,
+      message: 'Só o dono do espaço pode remover pessoas.',
+    };
+  }
+
+  if (personId === space.ownerId) {
+    return {
+      ok: false,
+      status: 400,
+      message: 'O dono não pode ser removido.',
+    };
+  }
+
+  state.spaceMembers = state.spaceMembers.filter(
+    (item) => !(item.spaceId === spaceId && item.personId === personId),
+  );
+
+  return { ok: true };
+};
+
+// The same hard limit the real list of a space has.
+const SPACE_DOCUMENTS_LIMIT = 100;
+
+// The documents of a space, the way GET /spaces/:spaceId/documents answers:
+// outside the trash, the most recently updated first, the tie broken by `id`.
+export const listSpaceDocuments = (spaceId: string): MockDocument[] =>
+  state.documents
+    .filter((item) => item.spaceId === spaceId && item.trashedAt === null)
+    .sort(
+      (a, b) =>
+        b.updatedAt.localeCompare(a.updatedAt) || b.id.localeCompare(a.id),
+    )
+    .slice(0, SPACE_DOCUMENTS_LIMIT);
+
+// Creates a document owned by `personId` in `spaceId`, the way POST
+// /documents does. Pushed into the array already in the database, never into
+// a copy of it (same reason as `touchDocumentUpdatedAt` above).
+export const createDocumentIn = (
+  personId: string,
+  spaceId: string,
+): MockDocument => {
+  const now = new Date().toISOString();
+  const document: MockDocument = {
+    id: crypto.randomUUID(),
+    title: 'Sem título',
+    spaceId,
+    authorId: personId,
+    ownerId: personId,
+    createdAt: now,
+    updatedAt: now,
+    trashedAt: null,
+    accessLevel: 'owner',
+  };
+  state.documents.push(document);
+  return document;
+};
 
 // The same seven days the real API gives an invitation.
 const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -789,4 +1075,239 @@ export const seedSampleTrash = (): void => {
         now - index * 1000 * 60 * 60,
       ).toISOString();
     });
+};
+
+// Shares a document with a person, the way PUT /documents/:documentId/shares/
+// :personId does: sharing the same pair again keeps a single row, the upsert
+// of the real service. Pushed into the array already in the database, never
+// into a copy of it (same reason as `touchDocumentUpdatedAt` above).
+export const shareDocument = (
+  documentId: string,
+  personId: string,
+): MockDocumentShare => {
+  const existing = state.shares.find(
+    (item) => item.documentId === documentId && item.personId === personId,
+  );
+  if (existing) {
+    existing.level = 'view';
+    return existing;
+  }
+
+  const share: MockDocumentShare = { documentId, personId, level: 'view' };
+  state.shares.push(share);
+  return share;
+};
+
+// The same hard limit the real search has, with no parameter to raise it.
+const SHARE_SEARCH_LIMIT = 10;
+
+const shareSearchCollator = new Intl.Collator('pt-BR', {
+  sensitivity: 'base',
+});
+
+// Case and accents ignored, name or e-mail, like the real search.
+const normalizeSearchText = (value: string): string =>
+  value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+// The people a document can be shared with, the way GET /people/search
+// answers: at least 2 letters, whoever asks is left out, sorted by the pt-BR
+// collator with the tie broken by `id`, and at most ten with `hasMore`.
+export const searchPeopleToShare = (
+  term: string,
+  requesterId: string,
+): { data: MockPerson[]; hasMore: boolean } => {
+  const trimmed = term.trim();
+  if (trimmed.length < 2) return { data: [], hasMore: false };
+
+  const needle = normalizeSearchText(trimmed);
+  const matches = allPeople()
+    .filter(
+      (person) =>
+        person.id !== requesterId &&
+        (normalizeSearchText(person.name).includes(needle) ||
+          normalizeSearchText(person.email).includes(needle)),
+    )
+    .sort(
+      (a, b) =>
+        shareSearchCollator.compare(a.name, b.name) ||
+        a.id.localeCompare(b.id),
+    );
+
+  return {
+    data: matches.slice(0, SHARE_SEARCH_LIMIT),
+    hasMore: matches.length > SHARE_SEARCH_LIMIT,
+  };
+};
+
+// Id of the document `seedSharedReadOnlyDocument` creates.
+const SHARED_READ_ONLY_DOCUMENT_ID = 'document-shared-view';
+
+// Adds a document owned by someone else and shared with the signed-in person
+// in `view`, so the read-only page can be opened in the browser. Kept separate
+// from the other seeds because the existing journeys expect only documents of
+// their own. Answers the id of the document, or null without an installation.
+export const seedSharedReadOnlyDocument = (): string | null => {
+  const reader = getSignedInPerson();
+  if (!reader) return null;
+
+  const owner: MockPerson = {
+    id: 'person-shared-owner',
+    name: 'Roberto Lima',
+    email: 'roberto.lima@exemplo.com.br',
+    isAdmin: false,
+  };
+  if (!state.people.some((person) => person.id === owner.id)) {
+    state.people.push(owner);
+  }
+
+  const now = new Date().toISOString();
+  state.documents.push({
+    id: SHARED_READ_ONLY_DOCUMENT_ID,
+    title: 'Normas de uso do acervo de obras raras',
+    spaceId: `space-${owner.id}`,
+    authorId: owner.id,
+    ownerId: owner.id,
+    createdAt: now,
+    updatedAt: now,
+    trashedAt: null,
+    accessLevel: 'view',
+  });
+  shareDocument(SHARED_READ_ONLY_DOCUMENT_ID, reader.id);
+
+  return SHARED_READ_ONLY_DOCUMENT_ID;
+};
+
+// The unit the signed-in person is directly assigned to by
+// `seedUnitSpaceDocuments`, one of the units of `seedSampleOrgUnits`.
+const UNIT_SPACE_SAMPLE_ORG_UNIT_ID = 'org-unit-catalogacao';
+
+// The colleague of the unit space samples, added once to the organization.
+const addUnitColleague = (): MockPerson => {
+  const colleague: MockPerson = {
+    id: 'person-unit-colleague',
+    name: 'Marta Ribeiro',
+    email: 'marta.ribeiro@exemplo.com.br',
+    isAdmin: false,
+  };
+  if (!state.people.some((item) => item.id === colleague.id)) {
+    state.people.push(colleague);
+  }
+  return colleague;
+};
+
+// Assigns the signed-in person and the colleague directly to "Catalogação",
+// so "Pessoas nesta unidade" shows two rows. Needs the sample units already
+// seeded; does nothing without them.
+export const seedSpaceMembers = (): void => {
+  const person = getSignedInPerson();
+  const unit = state.orgUnits.find(
+    (item) => item.id === UNIT_SPACE_SAMPLE_ORG_UNIT_ID,
+  );
+  if (!person || !unit) return;
+
+  addAssignment(unit.id, person.id);
+  addAssignment(unit.id, addUnitColleague().id);
+};
+
+// Assigns the signed-in person directly to "Catalogação" and adds a document
+// of a colleague to the space of that unit, so the list of a unit space can be
+// opened in the browser with something in it. Needs the sample units already
+// seeded; does nothing without them.
+export const seedUnitSpaceDocuments = (): void => {
+  const person = getSignedInPerson();
+  const unit = state.orgUnits.find(
+    (item) => item.id === UNIT_SPACE_SAMPLE_ORG_UNIT_ID,
+  );
+  if (!person || !unit) return;
+
+  addAssignment(unit.id, person.id);
+
+  const colleague = addUnitColleague();
+
+  const now = new Date().toISOString();
+  state.documents.push({
+    id: 'document-unit-space-colleague',
+    title: 'Manual de catalogação de periódicos',
+    spaceId: `space-${unit.id}`,
+    authorId: colleague.id,
+    ownerId: colleague.id,
+    createdAt: now,
+    updatedAt: now,
+    trashedAt: null,
+    accessLevel: 'edit',
+  });
+};
+
+// Name of the free space `seedFreeSpaceMembership` creates.
+const MEMBER_FREE_SPACE_NAME = 'Clube de leitura';
+
+// Adds a free space owned by someone else with the signed-in person as its
+// member, and a document of the owner in it, so the sidebar and the page of a
+// space the person only reads, with a document to edit, can be opened in the
+// browser. Kept separate from `seedSpaceMembers`, which assigns
+// people to a unit. Needs an installation already seeded; does nothing
+// without it.
+export const seedFreeSpaceMembership = (): void => {
+  const member = getSignedInPerson();
+  if (!member) return;
+
+  const owner: MockPerson = {
+    id: 'person-free-space-owner',
+    name: 'Otávio Mendes',
+    email: 'otavio.mendes@exemplo.com.br',
+    isAdmin: false,
+  };
+  if (!state.people.some((person) => person.id === owner.id)) {
+    state.people.push(owner);
+  }
+
+  const space = addFreeSpace(owner.id, MEMBER_FREE_SPACE_NAME);
+  state.spaceMembers.push({ spaceId: space.id, personId: member.id });
+
+  // A member edits every document of the space, the owner's included.
+  const now = new Date().toISOString();
+  state.documents.push({
+    id: 'document-free-space-owner',
+    title: 'Ata da primeira reunião',
+    spaceId: space.id,
+    authorId: owner.id,
+    ownerId: owner.id,
+    createdAt: now,
+    updatedAt: now,
+    trashedAt: null,
+    accessLevel: 'edit',
+  });
+};
+
+// Id of the free space `seedRemovedFromFreeSpace` creates, fixed so its page
+// can be opened by URL.
+export const REMOVED_FREE_SPACE_ID = 'space-free-removed';
+
+// Adds "Clube de leitura", the free space of Otávio Mendes, without the
+// signed-in person among its members: the state the person is left in after
+// the owner removes them. The fake database lives in each tab, so a removal
+// made in one browser never reaches another; this seed reproduces the result.
+// Needs an installation already seeded; does nothing without it.
+export const seedRemovedFromFreeSpace = (): void => {
+  if (!getSignedInPerson()) return;
+
+  const owner: MockPerson = {
+    id: 'person-free-space-owner',
+    name: 'Otávio Mendes',
+    email: 'otavio.mendes@exemplo.com.br',
+    isAdmin: false,
+  };
+  if (!state.people.some((person) => person.id === owner.id)) {
+    state.people.push(owner);
+  }
+
+  state.spaces.push({
+    id: REMOVED_FREE_SPACE_ID,
+    type: 'free',
+    name: MEMBER_FREE_SPACE_NAME,
+    ownerId: owner.id,
+  });
 };

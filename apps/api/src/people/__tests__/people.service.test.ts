@@ -1,7 +1,11 @@
 import 'reflect-metadata';
 
 import type { PrismaService } from '../../prisma/prisma.service';
-import { PEOPLE_SEARCH_LIMIT, PeopleService } from '../people.service';
+import {
+  PEOPLE_SEARCH_LIMIT,
+  PEOPLE_SHARE_SEARCH_MIN_LENGTH,
+  PeopleService,
+} from '../people.service';
 
 const ORGANIZATION_ID = '11111111-1111-4111-8111-111111111111';
 
@@ -90,4 +94,45 @@ test('eleven results answer ten items and hasMore true', async () => {
   expect(result.data).toHaveLength(PEOPLE_SEARCH_LIMIT);
   expect(result.hasMore).toBe(true);
   expect(result.data.at(-1)?.id).toBe(`pessoa-${PEOPLE_SEARCH_LIMIT - 1}`);
+});
+
+const REQUESTER_ID = '22222222-2222-4222-8222-222222222222';
+
+test('searchToShare returns empty without querying for a 1 character term', async () => {
+  const { service, findMany } = createService(peopleList(1));
+
+  const result = await service.searchToShare(ORGANIZATION_ID, REQUESTER_ID, ' a ');
+
+  expect(PEOPLE_SHARE_SEARCH_MIN_LENGTH).toBe(2);
+  expect(result).toEqual({ data: [], hasMore: false });
+  expect(findMany).not.toHaveBeenCalled();
+});
+
+test('searchToShare excludes the requester and caps at 10', async () => {
+  const { service, findMany } = createService(
+    peopleList(PEOPLE_SEARCH_LIMIT + 1),
+  );
+
+  const result = await service.searchToShare(
+    ORGANIZATION_ID,
+    REQUESTER_ID,
+    '  Silva  ',
+  );
+
+  expect(findMany).toHaveBeenCalledWith(
+    expect.objectContaining({
+      where: {
+        organizationId: ORGANIZATION_ID,
+        NOT: { id: REQUESTER_ID },
+        OR: [
+          { name: { contains: 'Silva', mode: 'insensitive' } },
+          { email: { contains: 'Silva', mode: 'insensitive' } },
+        ],
+      },
+      take: PEOPLE_SEARCH_LIMIT + 1,
+      select: { id: true, name: true, email: true },
+    }),
+  );
+  expect(result.data).toHaveLength(PEOPLE_SEARCH_LIMIT);
+  expect(result.hasMore).toBe(true);
 });

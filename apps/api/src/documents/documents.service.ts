@@ -10,10 +10,13 @@ import { Prisma, type Document as DocumentRecord } from '@prisma/client';
 import { canEdit } from '../access/access-level';
 import { AccessService } from '../access/access.service';
 import type { PersonWithOrganization } from '../auth/session.service';
+import { isUuid } from '../common/is-uuid';
 import { parseBody } from '../common/parse-body';
+import { spaceNotFound } from '../common/space-not-found';
 import { PrismaService } from '../prisma/prisma.service';
 import { documentNotFound } from './document-not-found';
 import {
+  createDocumentSchema,
   DEFAULT_DOCUMENT_TITLE,
   listDocumentsQuerySchema,
   updateDocumentSchema,
@@ -22,11 +25,12 @@ import {
 type Document = components['schemas']['Document'];
 type DocumentSummary = components['schemas']['DocumentSummary'];
 type AccessLevel = components['schemas']['AccessLevel'];
+type DocumentsResponse = components['schemas']['DocumentsResponse'];
 
 const CANNOT_EDIT_MESSAGE =
   'Você não tem permissão para editar este documento.';
 
-const TRASHED_DOCUMENT_MESSAGE =
+export const TRASHED_DOCUMENT_MESSAGE =
   'Este documento está na lixeira. Restaure-o para editar.';
 
 const DELETE_OUTSIDE_TRASH_MESSAGE =
@@ -89,21 +93,71 @@ export class DocumentsService {
   ) {}
 
   /**
-   * Cria um documento sem título no espaço pessoal de quem chamou. O espaço
-   * pessoal nasce junto, na mesma transação, se ainda não existir.
+   * Cria um documento sem título. Sem `spaceId` no corpo, nasce no espaço
+   * pessoal de quem chamou, que nasce junto na mesma transação se ainda não
+   * existir. Com `spaceId`, nasce no espaço da unidade em que a pessoa está
+   * lotada diretamente ou no espaço livre de que ela é dona ou membro, na
+   * organização dela; qualquer outro espaço (inclusive o alcançado só por
+   * herança) é o mesmo 404 opaco.
    */
-  async create(person: PersonWithOrganization): Promise<Document> {
+  async create(
+    person: PersonWithOrganization,
+    body: unknown,
+  ): Promise<Document> {
+    const { spaceId } = parseBody(
+      createDocumentSchema,
+      body === undefined ? {} : body,
+    );
+
     const document = await this.prisma.$transaction(async (tx) => {
-      const space = await tx.space.upsert({
-        where: { personId: person.id },
-        create: { type: 'PERSONAL', personId: person.id },
-        update: {},
-      });
+      let targetSpaceId: string;
+
+      if (spaceId === undefined) {
+        const space = await tx.space.upsert({
+          where: { personId: person.id },
+          create: { type: 'PERSONAL', personId: person.id },
+          update: {},
+        });
+        targetSpaceId = space.id;
+      } else {
+        if (!isUuid(spaceId)) {
+          throw spaceNotFound();
+        }
+
+        const space = await tx.space.findFirst({
+          where: {
+            id: spaceId,
+            OR: [
+              {
+                type: 'UNIT',
+                orgUnit: {
+                  organizationId: person.organizationId,
+                  assignments: { some: { personId: person.id } },
+                },
+              },
+              {
+                type: 'FREE',
+                organizationId: person.organizationId,
+                OR: [
+                  { ownerId: person.id },
+                  { members: { some: { personId: person.id } } },
+                ],
+              },
+            ],
+          },
+          select: { id: true },
+        });
+
+        if (space === null) {
+          throw spaceNotFound();
+        }
+        targetSpaceId = space.id;
+      }
 
       return tx.document.create({
         data: {
           title: DEFAULT_DOCUMENT_TITLE,
-          spaceId: space.id,
+          spaceId: targetSpaceId,
           authorId: person.id,
           ownerId: person.id,
         },
@@ -138,6 +192,34 @@ export class DocumentsService {
       updatedAt: document.updatedAt.toISOString(),
       trashedAt: null,
     }));
+  }
+
+  /**
+   * Documentos que a pessoa pode ler num espaço, dos mais recentes para os
+   * mais antigos. Quem pode entrar no espaço é decidido antes, por quem
+   * chama; aqui vale só a porta de leitura.
+   */
+  async listInSpace(
+    personId: string,
+    spaceId: string,
+  ): Promise<DocumentsResponse> {
+    const documents = await this.prisma.document.findMany({
+      where: {
+        AND: [this.access.readableDocumentsWhere(personId), { spaceId }],
+      },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+      take: 100,
+      select: { id: true, title: true, updatedAt: true },
+    });
+
+    return {
+      data: documents.map((document) => ({
+        id: document.id,
+        title: document.title,
+        updatedAt: document.updatedAt.toISOString(),
+        trashedAt: null,
+      })),
+    };
   }
 
   /** Documentos na lixeira da pessoa, dos movidos há menos tempo aos mais antigos. */

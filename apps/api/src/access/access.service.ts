@@ -8,7 +8,16 @@ const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /** O que uma decisão de acesso precisa saber sobre o documento. */
-type DocumentDecision = { ownerId: string; trashedAt: Date | null };
+type DocumentDecision = {
+  ownerId: string;
+  trashedAt: Date | null;
+  shareLevel: 'view' | 'edit' | null;
+  /**
+   * Participa do espaço do documento: lotada diretamente na unidade dona do
+   * espaço (`UNIT`), ou dona ou membro do espaço livre (`FREE`).
+   */
+  isSpaceMember: boolean;
+};
 
 /**
  * Nível da pessoa sobre o documento já lido. Documento ausente (inexistente
@@ -27,15 +36,21 @@ function levelOf(
     return 'owner';
   }
 
-  // Documento na lixeira some para quem não é o dono. Hoje o retorno final já
-  // daria `'none'` de qualquer jeito; o ramo fica escrito para que os níveis
-  // de compartilhamento, que entrarão depois dele, não passem por cima da
-  // lixeira sem querer.
+  // Documento na lixeira some para quem não é o dono, mesmo compartilhado:
+  // este ramo vem antes do compartilhamento para que ele não passe por cima
+  // da lixeira.
   if (document.trashedAt !== null) {
     return 'none';
   }
 
-  return 'none';
+  // Participar do espaço (lotação direta na unidade, ou dono ou membro do
+  // espaço livre) vale edição; a herança entre unidades não entra aqui. Vale
+  // o maior entre ela e o compartilhamento.
+  if (document.isSpaceMember) {
+    return 'edit';
+  }
+
+  return document.shareLevel ?? 'none';
 }
 
 /**
@@ -51,20 +66,61 @@ export class AccessService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Lê uma vez só o que decide o acesso ao documento. Id malformado não chega
+   * Lê uma vez só o que decide o acesso ao documento, com o compartilhamento
+   * direto da pessoa e a participação dela no espaço (lotação na unidade, ou
+   * dono ou membro do espaço livre) na mesma consulta. Id malformado não chega
    * ao banco e não tem decisão alguma.
    */
   private async findDecision(
     documentId: string,
+    personId: string,
   ): Promise<DocumentDecision | null> {
     if (!UUID_PATTERN.test(documentId)) {
       return null;
     }
 
-    return this.prisma.document.findFirst({
+    const document = await this.prisma.document.findFirst({
       where: { id: documentId },
-      select: { ownerId: true, trashedAt: true },
+      select: {
+        ownerId: true,
+        trashedAt: true,
+        shares: { where: { personId }, select: { level: true } },
+        space: {
+          select: {
+            type: true,
+            ownerId: true,
+            orgUnit: {
+              select: {
+                assignments: {
+                  where: { personId },
+                  select: { personId: true },
+                },
+              },
+            },
+            members: { where: { personId }, select: { personId: true } },
+          },
+        },
+      },
     });
+
+    if (document === null) {
+      return null;
+    }
+
+    const share = document.shares[0];
+    const { space } = document;
+
+    return {
+      ownerId: document.ownerId,
+      trashedAt: document.trashedAt,
+      shareLevel:
+        share === undefined ? null : share.level === 'EDIT' ? 'edit' : 'view',
+      isSpaceMember:
+        (space.type === 'UNIT' &&
+          (space.orgUnit?.assignments.length ?? 0) > 0) ||
+        (space.type === 'FREE' &&
+          (space.ownerId === personId || space.members.length > 0)),
+    };
   }
 
   /**
@@ -78,7 +134,7 @@ export class AccessService {
     personId: string,
     documentId: string,
   ): Promise<AccessLevel> {
-    return levelOf(personId, await this.findDecision(documentId));
+    return levelOf(personId, await this.findDecision(documentId, personId));
   }
 
   /**
@@ -87,7 +143,7 @@ export class AccessService {
    * `'owner'` para restaurar ou apagar.
    */
   async canWrite(personId: string, documentId: string): Promise<boolean> {
-    const document = await this.findDecision(documentId);
+    const document = await this.findDecision(documentId, personId);
 
     return canEdit(levelOf(personId, document)) && document?.trashedAt === null;
   }
@@ -97,7 +153,25 @@ export class AccessService {
    * que está na lixeira fica de fora de todas elas.
    */
   readableDocumentsWhere(personId: string): Prisma.DocumentWhereInput {
-    return { ownerId: personId, trashedAt: null };
+    return {
+      trashedAt: null,
+      OR: [
+        { ownerId: personId },
+        { shares: { some: { personId } } },
+        {
+          space: {
+            type: 'UNIT',
+            orgUnit: { assignments: { some: { personId } } },
+          },
+        },
+        {
+          space: {
+            type: 'FREE',
+            OR: [{ ownerId: personId }, { members: { some: { personId } } }],
+          },
+        },
+      ],
+    };
   }
 
   /**

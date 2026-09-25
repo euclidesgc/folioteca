@@ -1,3 +1,4 @@
+import type { components } from '@folioteca/api-contract';
 import { http, HttpResponse } from 'msw';
 
 import { env } from '@/config/env';
@@ -8,8 +9,18 @@ import type {
   UpdateDocumentBody,
 } from '@/types/api';
 
-import { getDb, type MockDocument } from '../db';
+import {
+  allPeople,
+  createDocumentIn,
+  getDb,
+  getSignedInPerson,
+  type MockDocument,
+  shareDocument,
+  spaceReachOf,
+} from '../db';
 import { devOverride, networkDelay, SESSION_COOKIE_NAME } from '../utils';
+
+type DocumentShareResponse = components['schemas']['DocumentShareResponse'];
 
 const DEFAULT_TITLE = 'Sem título';
 const TITLE_MAX_LENGTH = 200;
@@ -45,31 +56,75 @@ const inTrash = (): ReturnType<typeof HttpResponse.json> =>
     { status: 409 },
   );
 
+const invalidShareBody = (
+  field: string,
+  message: string,
+): ReturnType<typeof HttpResponse.json> =>
+  HttpResponse.json(
+    { message: 'Dados inválidos.', errors: [{ field, message }] },
+    { status: 400 },
+  );
+
+// The body the real schema accepts: exactly `{ level: 'view' }`. Answers the
+// refusal, or null when the body is right.
+const checkShareBody = (
+  body: unknown,
+): ReturnType<typeof HttpResponse.json> | null => {
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    return invalidShareBody('level', 'Escolha o nível de acesso.');
+  }
+
+  const extra = Object.keys(body).find((key) => key !== 'level');
+  if (extra !== undefined) return invalidShareBody(extra, 'Campo não permitido.');
+
+  if (!('level' in body) || body.level !== 'view') {
+    return invalidShareBody('level', 'Escolha o nível de acesso.');
+  }
+
+  return null;
+};
+
 export const documentsHandlers = [
-  http.post(`${env.API_URL}/documents`, async ({ cookies }) => {
+  http.post(`${env.API_URL}/documents`, async ({ cookies, request }) => {
     await networkDelay();
     const forced = await devOverride('documents');
     if (forced) return forced;
 
     if (!cookies[SESSION_COOKIE_NAME]) return unauthenticated();
 
-    const { installation, documents } = getDb();
+    const { installation } = getDb();
     if (!installation) return unauthenticated();
 
+    // The body is optional: without it the document goes to the personal
+    // space, as it always did.
+    const text = await request.text();
+    const requestBody: unknown = text ? JSON.parse(text) : {};
+    const spaceId =
+      typeof requestBody === 'object' &&
+      requestBody !== null &&
+      'spaceId' in requestBody &&
+      typeof requestBody.spaceId === 'string'
+        ? requestBody.spaceId
+        : undefined;
+
     const { person } = installation;
-    const now = new Date().toISOString();
-    const document: MockDocument = {
-      id: crypto.randomUUID(),
-      title: DEFAULT_TITLE,
-      spaceId: `space-${person.id}`,
-      authorId: person.id,
-      ownerId: person.id,
-      createdAt: now,
-      updatedAt: now,
-      trashedAt: null,
-      accessLevel: 'owner',
-    };
-    documents.push(document);
+    let document: MockDocument;
+
+    if (spaceId === undefined) {
+      document = createDocumentIn(person.id, `space-${person.id}`);
+    } else {
+      // Only whoever is directly assigned to the unit, or the owner or a
+      // member of the free space, creates there; any other reach answers the
+      // same 404 as an unknown space.
+      const creator = getSignedInPerson() ?? person;
+      if (spaceReachOf(creator.id, spaceId) !== 'direct') {
+        return HttpResponse.json(
+          { message: 'Espaço não encontrado.' },
+          { status: 404 },
+        );
+      }
+      document = createDocumentIn(creator.id, spaceId);
+    }
 
     const body: DocumentResponse = { data: toDocumentBody(document) };
     return HttpResponse.json(body, { status: 201 });
@@ -135,8 +190,14 @@ export const documentsHandlers = [
       return HttpResponse.json(favoritesBody);
     }
 
+    // Only what the signed-in person owns: a document shared with them opens
+    // by its address, but is not theirs.
+    const ownerId = getSignedInPerson()?.id;
     const list = [...documents]
-      .filter((document) => document.trashedAt === null)
+      .filter(
+        (document) =>
+          document.trashedAt === null && document.ownerId === ownerId,
+      )
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .slice(0, 100)
       .map(({ id, title, updatedAt }) => ({
@@ -337,6 +398,66 @@ export const documentsHandlers = [
       if (index !== -1) favorites.splice(index, 1);
 
       return new HttpResponse(null, { status: 204 });
+    },
+  ),
+
+  http.put(
+    `${env.API_URL}/documents/:documentId/shares/:personId`,
+    async ({ params, request, cookies }) => {
+      await networkDelay();
+      const forced = await devOverride('documents');
+      if (forced) return forced;
+
+      if (!cookies[SESSION_COOKIE_NAME]) return unauthenticated();
+
+      const requester = getSignedInPerson();
+      if (!requester) return unauthenticated();
+
+      // The same order as the real service: access before the body, so an
+      // invalid body never reveals that a document of someone else exists.
+      const { documents } = getDb();
+      const document = documents.find((item) => item.id === params.documentId);
+      if (!document) return notFound();
+
+      if (document.accessLevel !== 'owner') {
+        return HttpResponse.json(
+          { message: 'Só o proprietário pode compartilhar este documento.' },
+          { status: 403 },
+        );
+      }
+
+      if (document.trashedAt !== null) return inTrash();
+
+      const requestBody: unknown = await request.json().catch(() => null);
+      const bodyRefusal = checkShareBody(requestBody);
+      if (bodyRefusal) return bodyRefusal;
+
+      if (params.personId === requester.id) {
+        return HttpResponse.json(
+          { message: 'Você já é o proprietário deste documento.' },
+          { status: 400 },
+        );
+      }
+
+      const person = allPeople().find((item) => item.id === params.personId);
+      if (!person) {
+        return HttpResponse.json(
+          { message: 'Pessoa não encontrada nesta instância.' },
+          { status: 400 },
+        );
+      }
+
+      shareDocument(document.id, person.id);
+
+      const body: DocumentShareResponse = {
+        data: {
+          personId: person.id,
+          name: person.name,
+          email: person.email,
+          level: 'view',
+        },
+      };
+      return HttpResponse.json(body);
     },
   ),
 ];

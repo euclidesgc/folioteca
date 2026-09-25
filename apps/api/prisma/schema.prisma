@@ -48,9 +48,9 @@ model OrgUnit {
 /// Lotação: a pessoa está lotada na unidade. Uma pessoa pode estar lotada em
 /// várias unidades, e a chave primária composta é a única garantia de que ela
 /// não se lota duas vezes na mesma — não há consulta prévia de duplicidade em
-/// lugar nenhum, o 409 nasce do índice. Esta linha **não dá acesso a
-/// documento**: nada em `access/` a lê, e é o teste estrutural de fronteira
-/// que segura isso.
+/// lugar nenhum, o 409 nasce do índice. A lotação direta dá acesso de edição
+/// aos documentos do espaço da unidade, decidido só pela porta
+/// `AccessService`; a herança entre unidades não dá acesso a documento.
 model OrgUnitAssignment {
   orgUnitId String
   personId  String
@@ -81,6 +81,8 @@ model Person {
   favorites         Favorite[]
   sentInvitations   Invitation[]        @relation("InvitationInviter")
   assignments       OrgUnitAssignment[]
+  documentShares    DocumentShare[]
+  spaceMemberships  SpaceMember[]
 }
 
 enum SpaceType {
@@ -112,8 +114,22 @@ model Space {
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   owner        Person?       @relation("SpaceOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   documents    Document[]
+  members      SpaceMember[]
 
   @@index([ownerId])
+}
+
+/// Pessoa adicionada a um espaço livre pelo dono. Sem papel por enquanto.
+model SpaceMember {
+  spaceId   String
+  personId  String
+  createdAt DateTime @default(now())
+
+  space  Space  @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@id([spaceId, personId])
+  @@index([personId])
 }
 
 /// Documento de um espaço: quem escreveu (`authorId`) e quem é dono (`ownerId`).
@@ -131,6 +147,7 @@ model Document {
 
   content   DocumentContent?
   favorites Favorite[]
+  shares    DocumentShare[]
   space     Space            @relation(fields: [spaceId], references: [id], onDelete: Restrict)
   author    Person           @relation("DocumentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
   owner     Person           @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Restrict)
@@ -152,6 +169,26 @@ model Favorite {
   @@id([personId, documentId])
   @@index([personId, createdAt(sort: Desc)])
   @@index([documentId])
+}
+
+/// Nível de um compartilhamento direto. `EDIT` fica reservado para a fatia 148.
+enum ShareLevel {
+  VIEW
+  EDIT
+}
+
+/// Compartilhamento direto de um documento com uma pessoa da instância.
+model DocumentShare {
+  documentId String
+  personId   String
+  level      ShareLevel
+  createdAt  DateTime   @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  person   Person   @relation(fields: [personId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([documentId, personId])
+  @@index([personId])
 }
 
 /// Estado Yjs consolidado do documento, fora do modelo lido pelas listas.

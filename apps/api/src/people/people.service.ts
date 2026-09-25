@@ -11,6 +11,9 @@ type PeopleResponse = components['schemas']['PeopleResponse'];
  */
 export const PEOPLE_SEARCH_LIMIT = 10;
 
+/** Menor termo, já aparado, que a busca para compartilhar leva ao banco. */
+export const PEOPLE_SHARE_SEARCH_MIN_LENGTH = 2;
+
 @Injectable()
 export class PeopleService {
   constructor(private readonly prisma: PrismaService) {}
@@ -37,6 +40,43 @@ export class PeopleService {
         OR: [
           { name: { contains: term, mode: 'insensitive' } },
           { email: { contains: term, mode: 'insensitive' } },
+        ],
+      },
+      take: PEOPLE_SEARCH_LIMIT + 1,
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, email: true },
+    });
+
+    return {
+      data: found.slice(0, PEOPLE_SEARCH_LIMIT),
+      hasMore: found.length > PEOPLE_SEARCH_LIMIT,
+    };
+  }
+
+  /**
+   * Busca pessoas da organização para compartilhar um documento, aberta a
+   * qualquer pessoa com sessão. Termo com menos de
+   * `PEOPLE_SHARE_SEARCH_MIN_LENGTH` caracteres devolve lista vazia sem tocar
+   * o banco, e quem pede nunca aparece: não se compartilha consigo mesmo.
+   */
+  async searchToShare(
+    organizationId: string,
+    requesterId: string,
+    term: string | undefined,
+  ): Promise<PeopleResponse> {
+    const trimmed = term?.trim() ?? '';
+
+    if (trimmed.length < PEOPLE_SHARE_SEARCH_MIN_LENGTH) {
+      return { data: [], hasMore: false };
+    }
+
+    const found = await this.prisma.person.findMany({
+      where: {
+        organizationId,
+        NOT: { id: requesterId },
+        OR: [
+          { name: { contains: trimmed, mode: 'insensitive' } },
+          { email: { contains: trimmed, mode: 'insensitive' } },
         ],
       },
       take: PEOPLE_SEARCH_LIMIT + 1,

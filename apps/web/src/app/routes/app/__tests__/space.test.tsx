@@ -1,19 +1,34 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
+import { http } from 'msw';
 import { beforeEach, expect, test } from 'vitest';
 
 import { createRoutes } from '@/app/router';
+import { env } from '@/config/env';
 import { paths } from '@/config/paths';
 import { queryConfig } from '@/lib/react-query';
 import {
   addAssignment,
   addFreeSpace,
   getDb,
+  seedFreeSpaceMembership,
   seedInstalled,
   seedSampleOrgUnits,
+  seedSpaceMembers,
+  seedUnitSpaceDocuments,
+  setOrgUnitSpaceAccess,
 } from '@/testing/mocks/db';
-import { screen, userEvent, within } from '@/testing/test-utils';
+import { server } from '@/testing/mocks/server';
+import {
+  renderApp,
+  screen,
+  userEvent,
+  waitFor,
+  within,
+} from '@/testing/test-utils';
+
+import { Component as SpaceRoute } from '../space';
 
 // The route is `lazy` and sits past the gate: every wait of this file gets
 // the same explicit budget.
@@ -166,3 +181,262 @@ test('a space of another owner and an unknown id render the same not found state
   expect(unknownContent).toBeDefined();
   expect(otherOwnerAlert.closest('main')?.innerHTML).toBe(unknownContent);
 });
+
+test('the unit space page shows the space documents list', async () => {
+  seedUnitSpaceDocuments();
+
+  renderRoutes(paths.space.getHref(CATALOGACAO_SPACE_ID));
+
+  const heading = await screen.findByRole(
+    'heading',
+    { level: 1, name: 'Catalogação' },
+    LAZY_TIMEOUT,
+  );
+  const main = heading.closest('main');
+  expect(main).not.toBeNull();
+  const content = within(main as HTMLElement);
+
+  // The members of the unit come in a second list below the documents one:
+  // the documents list is the one holding the document link.
+  const documentLink = await content.findByRole(
+    'link',
+    { name: 'Manual de catalogação de periódicos' },
+    LAZY_TIMEOUT,
+  );
+  const list = documentLink.closest('ul');
+  expect(list).not.toBeNull();
+  expect(
+    within(list as HTMLElement).getByRole('link', {
+      name: 'Manual de catalogação de periódicos',
+    }),
+  ).toHaveAttribute(
+    'href',
+    paths.document.getHref('document-unit-space-colleague'),
+  );
+  expect(
+    content.getByRole('button', { name: 'Novo documento' }),
+  ).toBeInTheDocument();
+});
+
+test('the inherited unit space page shows the direct assignment notice', async () => {
+  // Restauro inherits from Acervo, where the person is assigned: the page
+  // opens, its documents do not.
+  setOrgUnitSpaceAccess('org-unit-restauro', 'inherit');
+  addAssignment('org-unit-acervo', INSTALLED_PERSON_ID);
+
+  renderRoutes(paths.space.getHref(RESTAURO_SPACE_ID));
+
+  const heading = await screen.findByRole(
+    'heading',
+    { level: 1, name: 'Restauro e Conservação' },
+    LAZY_TIMEOUT,
+  );
+  const main = heading.closest('main');
+  expect(main).not.toBeNull();
+  const content = within(main as HTMLElement);
+
+  expect(
+    await content.findByText(
+      'Os documentos deste espaço estão disponíveis para quem está lotado diretamente na unidade.',
+      {},
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
+  expect(
+    content.queryByRole('button', { name: 'Novo documento' }),
+  ).not.toBeInTheDocument();
+  expect(content.queryByRole('list')).not.toBeInTheDocument();
+});
+
+test('the space page does not request GET spaces', async () => {
+  seedSpaceMembers();
+  const listRequests: string[] = [];
+  const countListRequests = ({ request }: { request: Request }): void => {
+    const path = new URL(request.url).pathname;
+    if (
+      request.method === 'GET' &&
+      path === new URL(`${env.API_URL}/spaces`, 'http://x').pathname
+    ) {
+      listRequests.push(path);
+    }
+  };
+  server.events.on('request:start', countListRequests);
+
+  // Only the route: the sidebar, which lists the spaces, is not rendered.
+  renderApp(<SpaceRoute />, {
+    url: paths.space.getHref(CATALOGACAO_SPACE_ID),
+    path: paths.space.path,
+  });
+
+  await screen.findByRole(
+    'heading',
+    { level: 1, name: 'Catalogação' },
+    LAZY_TIMEOUT,
+  );
+  await screen.findByRole(
+    'list',
+    { name: 'Pessoas nesta unidade' },
+    LAZY_TIMEOUT,
+  );
+  server.events.removeListener('request:start', countListRequests);
+
+  expect(listRequests).toHaveLength(0);
+});
+
+test('the unit space page shows the members section', async () => {
+  seedSpaceMembers();
+
+  renderRoutes(paths.space.getHref(CATALOGACAO_SPACE_ID));
+
+  const heading = await screen.findByRole(
+    'heading',
+    { level: 1, name: 'Catalogação' },
+    LAZY_TIMEOUT,
+  );
+  const main = heading.closest('main');
+  expect(main).not.toBeNull();
+  const content = within(main as HTMLElement);
+
+  expect(
+    content.getByRole('heading', { level: 2, name: 'Pessoas nesta unidade' }),
+  ).toBeInTheDocument();
+  const list = await content.findByRole(
+    'list',
+    { name: 'Pessoas nesta unidade' },
+    LAZY_TIMEOUT,
+  );
+  const items = within(list).getAllByRole('listitem');
+  expect(items).toHaveLength(2);
+  expect(items[0]).toHaveTextContent('Ana Souza');
+  expect(items[0]).toHaveTextContent('você');
+  expect(items[1]).toHaveTextContent('Marta Ribeiro');
+});
+
+test('the free space page shows the space documents list and Novo documento to its owner', async () => {
+  const space = addFreeSpace(INSTALLED_PERSON_ID, 'Comissão de Leitura');
+
+  renderRoutes(paths.space.getHref(space.id));
+
+  const heading = await screen.findByRole(
+    'heading',
+    { level: 1, name: 'Comissão de Leitura' },
+    LAZY_TIMEOUT,
+  );
+  const main = heading.closest('main');
+  expect(main).not.toBeNull();
+  const content = within(main as HTMLElement);
+
+  expect(
+    await content.findByText(
+      'Nenhum documento neste espaço ainda. Crie o primeiro em “Novo documento”.',
+      {},
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
+  const newDocument = content.getByRole('button', { name: 'Novo documento' });
+  const membersHeading = content.getByRole('heading', {
+    level: 2,
+    name: 'Pessoas neste espaço',
+  });
+  expect(
+    newDocument.compareDocumentPosition(membersHeading) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(
+    content.queryByText(/Os documentos deste espaço ainda não chegaram/),
+  ).not.toBeInTheDocument();
+});
+
+test('the free space page shows the owner document to a member', async () => {
+  seedFreeSpaceMembership();
+  const space = getDb().spaces.find(
+    (item) => item.type === 'free' && item.name === 'Clube de leitura',
+  );
+  expect(space).toBeDefined();
+  const spaceId = space?.id ?? '';
+
+  renderRoutes(paths.space.getHref(spaceId));
+
+  const heading = await screen.findByRole(
+    'heading',
+    { level: 1, name: 'Clube de leitura' },
+    LAZY_TIMEOUT,
+  );
+  const main = heading.closest('main');
+  expect(main).not.toBeNull();
+  const content = within(main as HTMLElement);
+
+  expect(
+    screen.getByText('Um espaço livre de que você é membro.'),
+  ).toBeInTheDocument();
+  expect(
+    await content.findByRole(
+      'link',
+      { name: 'Ata da primeira reunião' },
+      LAZY_TIMEOUT,
+    ),
+  ).toHaveAttribute(
+    'href',
+    paths.document.getHref('document-free-space-owner'),
+  );
+  expect(
+    content.getByRole('button', { name: 'Novo documento' }),
+  ).toBeInTheDocument();
+  expect(
+    content.queryByRole('button', { name: 'Adicionar pessoa' }),
+  ).not.toBeInTheDocument();
+});
+
+test(
+  'creating a document in a free space sends the spaceId and navigates to it',
+  { timeout: 20_000 },
+  async () => {
+    const user = userEvent.setup();
+    const space = addFreeSpace(INSTALLED_PERSON_ID, 'Comissão de Leitura');
+    let postedBody: unknown = null;
+    // Reads the body and returns nothing: the request falls through to the
+    // handler of the fake database, which creates the document.
+    server.use(
+      http.post(`${env.API_URL}/documents`, async ({ request }) => {
+        postedBody = await request.clone().json();
+      }),
+    );
+    const queryClient = new QueryClient({ defaultOptions: queryConfig });
+    const router = createMemoryRouter(createRoutes(), {
+      initialEntries: [paths.space.getHref(space.id)],
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+
+    const heading = await screen.findByRole(
+      'heading',
+      { level: 1, name: 'Comissão de Leitura' },
+      LAZY_TIMEOUT,
+    );
+    const content = within(heading.closest('main') as HTMLElement);
+    await user.click(
+      await content.findByRole(
+        'button',
+        { name: 'Novo documento' },
+        LAZY_TIMEOUT,
+      ),
+    );
+
+    expect(
+      await screen.findByLabelText('Título', undefined, LAZY_TIMEOUT),
+    ).toHaveValue('Sem título');
+    expect(postedBody).toEqual({ spaceId: space.id });
+    const created = getDb().documents.find(
+      (document) => document.spaceId === space.id,
+    );
+    expect(created).toBeDefined();
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe(
+        paths.document.getHref(created?.id ?? ''),
+      );
+    }, LAZY_TIMEOUT);
+  },
+);

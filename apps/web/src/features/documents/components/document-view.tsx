@@ -9,6 +9,7 @@ import { useDocument } from '@/features/documents/api/get-document';
 import { DocumentTitleForm } from '@/features/documents/components/document-title-form';
 import { FavoriteButton } from '@/features/documents/components/favorite-button';
 import { SaveIndicator } from '@/features/documents/components/save-indicator';
+import { ShareDocumentDialog } from '@/features/documents/components/share-document-dialog';
 import { TrashDocumentButton } from '@/features/documents/components/trash-document-button';
 import { TrashedDocumentActions } from '@/features/documents/components/trashed-document-actions';
 import { useDocumentCollaboration } from '@/features/documents/hooks/use-document-collaboration';
@@ -111,6 +112,9 @@ function LoadedDocument({
 
   const trashedAt = document.trashedAt;
   const isTrashed = trashedAt !== null;
+  // Whoever only reads sees the title and the content, with nothing to edit.
+  // The server is the real barrier: it refuses the writes of this person.
+  const isReadOnly = document.accessLevel === 'view';
   const noticeRef = useRef<HTMLDivElement>(null);
   const wasTrashedRef = useRef(isTrashed);
 
@@ -155,20 +159,40 @@ function LoadedDocument({
         <>
           {/* The visible title is the editable field below; the heading keeps
               the page named for screen readers. */}
-          <h1 className="sr-only">{document.title}</h1>
+          {isReadOnly ? null : <h1 className="sr-only">{document.title}</h1>}
 
-          <div className="mb-4 flex justify-end gap-2">
-            {/* The server applies the same rule: only the owner may move a
-                document to the trash. */}
+          <div className="mb-4 flex flex-wrap justify-end gap-2">
+            {isReadOnly ? (
+              <span className="mr-auto self-center rounded-full bg-gray-100 px-2 py-0.5 text-sm text-gray-800">
+                Somente leitura
+              </span>
+            ) : null}
+            {/* The server applies the same rule: only the owner may share a
+                document or move it to the trash. */}
             {document.accessLevel === 'owner' ? (
-              <TrashDocumentButton document={document} />
+              <>
+                <ShareDocumentDialog
+                  documentId={document.id}
+                  documentTitle={document.title}
+                />
+                <TrashDocumentButton document={document} />
+              </>
             ) : null}
             <FavoriteButton document={document} />
           </div>
 
-          <DocumentTitleForm document={document} />
+          {isReadOnly ? (
+            // With no title field to edit, the heading is the visible title.
+            <h1 className="text-2xl font-bold break-words">
+              {document.title}
+            </h1>
+          ) : (
+            <>
+              <DocumentTitleForm document={document} />
 
-          <SaveIndicator status={saveStatus} />
+              <SaveIndicator status={saveStatus} />
+            </>
+          )}
         </>
       )}
 
@@ -187,7 +211,7 @@ function LoadedDocument({
             <DocumentEditor
               fragment={session.fragment}
               provider={session.provider}
-              editable={!isTrashed}
+              editable={!isTrashed && !isReadOnly}
               user={{
                 name: user.data?.person.name ?? 'Você',
                 color: USER_COLOR,

@@ -9,6 +9,7 @@ import type { Response } from 'supertest';
 
 import { createApp } from '../../create-app';
 import { PrismaService } from '../../prisma/prisma.service';
+import { createPersonWithSession } from '../../../test/create-person';
 import { expectMatchesContract } from '../../../test/contract';
 import { httpRequest } from '../../../test/http';
 import { resetDatabase } from '../../../test/reset-database';
@@ -480,4 +481,168 @@ test('every document and summary body carries trashedAt', async () => {
   expect(summaryTrashedAt(mine)).toEqual([null]);
   expect(trashedAtOf(trashed)).toEqual(expect.any(String));
   expect(summaryTrashedAt(trashList)).toEqual([expect.any(String)]);
+});
+
+const SHARE_CONTRACT_PATH = '/documents/{documentId}/shares/{personId}';
+
+function putShare(
+  documentId: string,
+  personId: string,
+  shareCookie: string,
+): Promise<Response> {
+  return httpRequest(app)
+    .put(`/api/documents/${documentId}/shares/${personId}`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', shareCookie)
+    .send({ level: 'view' });
+}
+
+async function expectShareContract(
+  response: Response,
+  status: number,
+): Promise<void> {
+  expect(response.status).toBe(status);
+  await expectMatchesContract({
+    path: SHARE_CONTRACT_PATH,
+    method: 'put',
+    status,
+    body: response.body,
+  });
+}
+
+test('PUT documents shares answers the documented 200', async () => {
+  const documentId = await createDocumentId();
+  const { person } = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+
+  await expectShareContract(await putShare(documentId, person.id, cookie), 200);
+});
+
+test('PUT documents shares answers the documented 400', async () => {
+  const documentId = await createDocumentId();
+
+  await expectShareContract(
+    await putShare(documentId, randomUUID(), cookie),
+    400,
+  );
+});
+
+test('PUT documents shares answers the documented 403', async () => {
+  const documentId = await createDocumentId();
+  const viewer = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+  const { person: third } = await createPersonWithSession(app, {
+    name: 'Ana Ramos',
+    email: 'ana@exemplo.org',
+  });
+  await putShare(documentId, viewer.person.id, cookie);
+
+  await expectShareContract(
+    await putShare(documentId, third.id, viewer.cookie),
+    403,
+  );
+});
+
+test('PUT documents shares answers the documented 404', async () => {
+  const { person } = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+
+  await expectShareContract(
+    await putShare(randomUUID(), person.id, cookie),
+    404,
+  );
+});
+
+test('PUT documents shares answers the documented 409', async () => {
+  const documentId = await createDocumentId();
+  const { person } = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+  await trashDocument(documentId);
+
+  await expectShareContract(await putShare(documentId, person.id, cookie), 409);
+});
+
+/** `POST /api/documents` com o corpo informado, na sessão da instalação. */
+function postDocumentWith(body: object): Promise<Response> {
+  return httpRequest(app)
+    .post('/api/documents')
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie)
+    .send(body);
+}
+
+/** Unidade sob a raiz com o espaço `UNIT` dela e a pessoa da sessão lotada. */
+async function createAssignedUnitSpaceId(): Promise<string> {
+  const person = await prisma.person.findFirstOrThrow({
+    where: { email: EMAIL },
+  });
+  const root = await prisma.orgUnit.findFirstOrThrow({
+    where: { parentId: null },
+  });
+  const unit = await prisma.orgUnit.create({
+    data: {
+      organizationId: person.organizationId,
+      parentId: root.id,
+      name: 'Protocolo',
+    },
+  });
+  const space = await prisma.space.create({
+    data: { type: 'UNIT', orgUnitId: unit.id },
+  });
+  await prisma.orgUnitAssignment.create({
+    data: { orgUnitId: unit.id, personId: person.id },
+  });
+
+  return space.id;
+}
+
+test('POST documents with spaceId answers the documented 201', async () => {
+  const spaceId = await createAssignedUnitSpaceId();
+
+  const response = await postDocumentWith({ spaceId });
+
+  expect(response.status).toBe(201);
+  expect((response.body as { data: { spaceId: string } }).data.spaceId).toBe(
+    spaceId,
+  );
+  await expectMatchesContract({
+    path: '/documents',
+    method: 'post',
+    status: 201,
+    body: response.body,
+  });
+});
+
+test('POST documents with spaceId answers the documented 400', async () => {
+  const spaceId = await createAssignedUnitSpaceId();
+
+  const response = await postDocumentWith({ spaceId, title: 'Regulamento' });
+
+  expect(response.status).toBe(400);
+  await expectMatchesContract({
+    path: '/documents',
+    method: 'post',
+    status: 400,
+    body: response.body,
+  });
+});
+
+test('POST documents with spaceId answers the documented 404', async () => {
+  const response = await postDocumentWith({ spaceId: randomUUID() });
+
+  expect(response.status).toBe(404);
+  await expectMatchesContract({
+    path: '/documents',
+    method: 'post',
+    status: 404,
+    body: response.body,
+  });
 });

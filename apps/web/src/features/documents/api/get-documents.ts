@@ -46,4 +46,7 @@ export function invalidateDocumentLists(queryClient: QueryClient): void {
       queryKey: getDocumentsQueryOptions(scope).queryKey,
     });
   }
+  // The lists of the spaces live under a prefix of their own, for the same
+  // reason: it never hits the open document.
+  void queryClient.invalidateQueries({ queryKey: ['space-documents'] });
 }

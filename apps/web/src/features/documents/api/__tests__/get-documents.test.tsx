@@ -107,7 +107,10 @@ test('invalidateDocumentLists invalidates the three lists and leaves the open do
   expect(invalidateQueries).toHaveBeenCalledWith({
     queryKey: ['documents', { scope: 'trash' }],
   });
-  expect(invalidateQueries).toHaveBeenCalledTimes(3);
+  expect(invalidateQueries).toHaveBeenCalledWith({
+    queryKey: ['space-documents'],
+  });
+  expect(invalidateQueries).toHaveBeenCalledTimes(4);
   expect(invalidateQueries).not.toHaveBeenCalledWith({
     queryKey: ['documents'],
   });

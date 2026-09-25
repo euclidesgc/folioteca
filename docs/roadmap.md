@@ -21,33 +21,38 @@
 | 108 | unit-assignments-remove | (administração) remover uma pessoa de uma unidade, com confirmação | 010 unit-assignments | 010 | done |
 | 011 | admins-list | (administração) ver quem administra a instância | pedido inicial | 086 | done |
 | 012 | unit-spaces | ver na barra lateral uma seção "Unidades" com as unidades em que está lotado e abrir a página do espaço de cada uma, com o nome da unidade e o aviso de que documentos chegam depois | pedido inicial | 010 | done |
-| 128 | unit-space-members | ver na página do espaço de uma unidade quem mais está lotado direto nela, com nome, e-mail e a marcação "você"; traz a rota por id do espaço (`findFirst` escopado, 404 opaco sem `isUuid`), para a página do espaço deixar de baixar a lista inteira de `GET /spaces` | 012 unit-spaces, dívida 012 | 012 | planned |
-| 127 | unit-space-documents | criar um documento no espaço de uma unidade em que está lotado, vê-lo na lista do espaço e ter os membros diretos abrindo e editando esse documento; quem sai da unidade perde o acesso na hora | 012 unit-spaces | 012 | planned |
+| 128 | unit-space-members | ver na página do espaço de uma unidade quem mais está lotado direto nela, com nome, e-mail e a marcação "você"; traz a rota por id do espaço (`findFirst` escopado, 404 opaco sem `isUuid`), para a página do espaço deixar de baixar a lista inteira de `GET /spaces` | 012 unit-spaces, dívida 012 | 012 | in-review |
+| 127 | unit-space-documents | criar um documento no espaço de uma unidade em que está lotado, vê-lo na lista do espaço e ter os membros diretos abrindo e editando esse documento; quem sai da unidade perde o acesso na hora | 012 unit-spaces | 012 | in-review |
+| 152 | unit-space-documents-inherit | quem alcança o espaço de uma unidade só pela herança (fatia 140) também vê, abre e edita os documentos desse espaço, com a mesma regra de alcance da barra lateral (exige decidir como o filtro de documentos legíveis passa a considerar a cadeia de unidades) | 127 unit-space-documents | 127, 140 | planned |
 | 013 | free-spaces | criar um espaço livre com um nome e vê-lo na barra lateral, já como dono dele | pedido inicial | 086 | done |
-| 134 | free-space-invite | (dono do espaço) adicionar ao espaço livre uma pessoa da instância, que passa a vê-lo na barra lateral na hora (traz a tabela de membros do espaço) | 013 free-spaces | 013 | planned |
-| 135 | free-space-members | ver quem é membro do espaço livre e (dono do espaço) remover alguém, que perde o espaço na hora | 013 free-spaces | 134 | planned |
-| 136 | free-space-documents | criar documentos no espaço livre e ter os membros abrindo e editando esses documentos; quem sai do espaço perde o acesso na hora | 013 free-spaces | 127, 134 | planned |
+| 159 | person-picker-shared | (dev) ter a busca e a seleção de pessoa (campo, estados, resultados, pessoa escolhida) num componente e num hook compartilhados da web, extraídos do diálogo "Compartilhar documento" da 145 sem mudar texto nem comportamento, para a 134, a 135, a 016 e as menções reaproveitarem sem copiar | re-fatiamento da 134 | 145 | in-review |
+| 134 | free-space-invite | (dono do espaço) adicionar ao espaço livre uma pessoa da instância, que passa a vê-lo na barra lateral na hora (traz a tabela de membros do espaço) | 013 free-spaces | 013, 159 | in-review |
+| 135 | free-space-members | ver quem é membro do espaço livre e (dono do espaço) remover alguém, que perde o espaço na hora | 013 free-spaces | 134 | in-review |
+| 136 | free-space-documents | criar documentos no espaço livre e ter os membros abrindo e editando esses documentos; quem sai do espaço perde o acesso na hora | 013 free-spaces | 127, 134 | in-review |
 | 137 | free-space-unique-name | ser impedido de criar dois espaços livres com o mesmo nome (sem diferenciar maiúsculas), com o aviso "Você já tem um espaço com esse nome." no campo | 013 free-spaces | 013 | planned |
 | 140 | unit-space-inherit-parent | (administração) marcar o espaço de uma unidade como "herda da unidade-pai": quem está lotado na unidade-pai (e, em cadeia, nas de cima, até o primeiro espaço com permissões próprias) passa a ver o espaço na barra lateral na hora; o padrão de todo espaço de unidade continua "permissões próprias" (só a lotação direta) | 014 space-permissions | 012, 066 | in-review |
 | 141 | free-space-restrict-invite | (dono do espaço) fechar o espaço livre para que só o dono adicione membros; aberto, qualquer membro adiciona | 014 space-permissions | 134 | planned |
 | 142 | free-space-member-roles | (dono do espaço) definir cada membro do espaço livre como leitor ou editor; leitor não cria nem edita documento | 014 space-permissions | 134, 135, 136 | planned |
-| 015 | share-with-person | (proprietário) compartilhar um documento com uma pessoa em ver, editar ou sem acesso, pelo caminho único de decisão de acesso no servidor | pedido inicial | 086, 005 | planned |
-| 016 | share-with-groups | compartilhar com um espaço, uma unidade e tudo abaixo dela (com exclusões) ou toda a instância, com revogação imediata ao sair | pedido inicial | 015, 012, 127, 140 | planned |
+| 145 | share-with-person-view | (proprietário) compartilhar um documento com uma pessoa da instância, escolhida pela busca por nome ou e-mail, em "Pode ver"; a pessoa abre o documento pelo link e o editor fica somente leitura (pelo caminho único de decisão de acesso no servidor) | 015 share-with-person | 086, 005 | in-review |
+| 147 | share-access-list | (proprietário) ver no diálogo de compartilhar quem tem acesso ao documento (o proprietário primeiro, depois as pessoas em ordem alfabética com o nível de cada uma) e copiar o link do documento | 015 share-with-person | 145 | planned |
+| 148 | share-edit-level | (proprietário) compartilhar em "Pode editar", com a pessoa editando junto como colaboradora, e trocar o nível de alguém compartilhando de novo sem duplicar | 015 share-with-person | 147 | planned |
+| 146 | share-level-change | (proprietário) mudar o nível de alguém entre ver, editar e sem acesso; quem perde acesso ou muda de nível sente na hora, mesmo com o documento aberto | 015 share-with-person | 148 | planned |
+| 016 | share-with-groups | compartilhar com um espaço, uma unidade e tudo abaixo dela (com exclusões) ou toda a instância, com revogação imediata ao sair | pedido inicial | 145, 012, 127, 140 | planned |
 | 017 | audience-preview | ver, antes de confirmar o compartilhamento, quantas pessoas passam a ter acesso | pedido inicial | 016 | planned |
 | 018 | who-can-see | ver quem vê este documento e por qual caminho | pedido inicial | 016 | planned |
-| 019 | shared-with-me | ver a lista dos documentos compartilhados comigo | pedido inicial | 015 | planned |
+| 019 | shared-with-me | ver a lista dos documentos compartilhados comigo | pedido inicial | 145 | planned |
 | 020 | structure-change-preview | (administração) ver quem ganha e quem perde acesso antes de confirmar uma mudança de estrutura ou lotação | pedido inicial | 016 | planned |
-| 021 | text-search | pesquisar documentos por texto, recebendo só o que pode ler | pedido inicial | 015 | planned |
-| 022 | comments | comentar ancorado num trecho do documento, com thread e resolução | pedido inicial | 015 | planned |
+| 021 | text-search | pesquisar documentos por texto, recebendo só o que pode ler | pedido inicial | 145 | planned |
+| 022 | comments | comentar ancorado num trecho do documento, com thread e resolução | pedido inicial | 145 | planned |
 | 023 | mentions | mencionar pessoas num comentário | pedido inicial | 022 | planned |
 | 024 | version-history | ver o histórico de versões, comparar e restaurar | pedido inicial | 005 | planned |
 | 025 | attachments | inserir imagens e anexos no documento | pedido inicial | 005 | planned |
-| 026 | realtime-presence | ver quem está no documento e os cursores em tempo real | pedido inicial | 015 | planned |
+| 026 | realtime-presence | ver quem está no documento e os cursores em tempo real | pedido inicial | 145 | planned |
 | 027 | ai-settings | (administração) escolher a chave e o modelo de IA da organização | pedido inicial | 011 | planned |
 | 028 | ai-chat | conversar com a IA sobre documentos selecionados, com citação que abre no bloco de origem | pedido inicial | 027, 021 | planned |
 | 029 | notifications-bell | receber notificações no sino (compartilhamento, menção, comentário) | pedido inicial | 023 | planned |
 | 030 | email-digest | receber e-mail de resumo das notificações | pedido inicial | 029 | planned |
-| 031 | ownership-transfer | transferir a propriedade de um documento, com aceite de quem recebe | pedido inicial | 015 | planned |
+| 031 | ownership-transfer | transferir a propriedade de um documento, com aceite de quem recebe | pedido inicial | 145 | planned |
 | 032 | offboarding | (administração) desligar uma pessoa com revogação no ato e transferência dos documentos dela | pedido inicial | 031 | planned |
 | 033 | access-audit | (administração) consultar e exportar a auditoria de acesso | pedido inicial | 016 | planned |
 | 034 | google-login | entrar com Google | pedido inicial | 003 | planned |
@@ -143,3 +148,15 @@
 | 139 | mock-free-space-counter-reset | (dev) ter o contador de ids de `addFreeSpace` no banco falso (apps/web/src/testing/mocks/db.ts) voltando a zero junto com o resto do banco entre os testes, hoje um `let` de módulo que nunca é zerado, de modo que o id `space-free-N` depende da ordem em que os testes rodam | dívida 013 | | planned |
 | 143 | spaces-list-tree-cache | (dev) ter `GET /spaces` sem carregar a árvore inteira de unidades da organização a cada pedido para resolver a herança (hoje `SpacesService.list` faz `orgUnit.findMany` completo e resolve em memória; cabe cache ou consulta recursiva quando a árvore crescer) | dívida da 140 | | planned |
 | 144 | spaces-query-key-shared | (dev) ter a chave de cache `['spaces']` do React Query numa única fonte compartilhada em vez de repetida literalmente em features (org-units, unit-assignments, free-spaces) | dívida da 140 | | planned |
+| 149 | flaky-web-tests-under-full-suite | (dev) ter `space.test.tsx` ("o foco vai para o main da página do espaço") estável quando a suíte inteira roda com cobertura; hoje o foco no `main` da página do espaço livre falha esporadicamente e passa ao repetir (o caso de use-document-collaboration já é a dívida 120) | dívida da 145 | | planned |
+| 151 | design-doc-document-actions-row | (dev) atualizar a receita antiga "Linha de ações do documento" (fatia 006) em docs/design.md para as classes atuais com `flex-wrap`, hoje registradas só na receita nova da 145 | dívida da 145 | | planned |
+| 153 | my-documents-description-text | (dev) atualizar a descrição de "Meus documentos" ("visíveis só para você até serem compartilhados"), que ficou errada desde que documentos criados em espaço de unidade aparecem ali e os colegas os veem | dívida da 127 | | planned |
+| 154 | assignment-organization-constraint | (dev) ter o banco (ou a porta de acesso) impedindo lotação de uma pessoa em unidade de outra organização; hoje a decisão de acesso não confere a organização e só o serviço de lotação faz essa checagem; o mesmo vale para membro de espaço livre de outra organização (dívida da 136) | dívida da 127 | | planned |
+| 155 | pt-br-collator-everywhere | (dev) ter `admin-roles.service.ts` e o banco fake dos mocks da web usando o comparador pt-BR comum (`apps/api/src/common/pt-br-collator.ts` na API; equivalente único na web) em vez de cada um criar o próprio `Intl.Collator` | dívida da 128 | | planned |
+| 156 | space-members-limit | (dev) ter limite (ou paginação) em `GET /spaces/{spaceId}/members`, hoje sem teto | dívida da 128 | | planned |
+| 157 | space-reach-single-path | (dev) ter o alcance de um espaço calculado por um único caminho (hoje `list` e `reachOf`/`getDetail` em `spaces.service.ts` resolvem a herança separadamente) | dívida da 128 | | planned |
+| 158 | person-row-shared-markup | (dev) ter a linha de pessoa (nome, e-mail, selo) num componente compartilhado, hoje duplicada entre `UnitPeopleList` (administração) e `SpaceMembers` (espaço) | dívida da 128 | | planned |
+| 160 | people-types-single-source | (dev) ter `PersonSummary` e `PeopleResponse` declarados uma única vez na web (hoje repetidos em `src/hooks/use-people-search.ts`, da administração, e `src/hooks/use-person-lookup.ts`, da busca compartilhada) | dívida da 159 | | planned |
+| 161 | contract-space-member-schema-name | (dev) renomear no contrato OpenAPI o schema `SpaceMember` (hoje é a pessoa lotada na unidade, com `isCurrentPerson`) para um nome que não se confunda com a tabela `SpaceMember` do banco (membro de espaço livre), decidindo junto com a lista de membros do espaço livre da fatia 135 | dívida da 134 | | planned |
+| 162 | list-removal-focus-shared | (dev) ter a lógica de foco após remover um item de lista (linha de cima ou primeira linha) num utilitário compartilhado, hoje repetida entre a lista de lotados da administração (108) e a lista de pessoas do espaço livre (135) | dívida da 135 | | planned |
+| 163 | free-space-access-filter-shared | (dev) ter o filtro "dono ou membro do espaço livre" numa única função (hoje repetido em `access.service.ts`, `documents.service.ts` e `spaces.service.ts`) | dívida da 136 | | planned |

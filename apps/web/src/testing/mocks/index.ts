@@ -7,13 +7,18 @@ export const enableMocking = async (): Promise<void> => {
 
   const { worker } = await import('./browser');
   const {
+    seedFreeSpaceMembership,
     seedInstalled,
+    seedRemovedFromFreeSpace,
     seedSampleDocuments,
     seedSampleFavorites,
     seedSampleInvitations,
     seedSampleOrgUnits,
     seedSamplePeople,
     seedSampleTrash,
+    seedSharedReadOnlyDocument,
+    seedSpaceMembers,
+    seedUnitSpaceDocuments,
     touchDocumentUpdatedAt,
   } = await import('./db');
 
@@ -49,6 +54,24 @@ export const enableMocking = async (): Promise<void> => {
   // See the `mock-documents` key documented in utils.ts.
   const documentsKey = window.localStorage.getItem('mock-documents');
   if (documentsKey === 'sample') seedSampleDocuments();
+  // `shared-view` adds a document of someone else that the signed-in person
+  // only reads (needs an installation already seeded).
+  if (documentsKey === 'shared-view') seedSharedReadOnlyDocument();
+  // `unit-space` assigns the signed-in person to a sample unit and adds a
+  // document of a colleague to its space (needs the sample units already
+  // seeded, see `mock-org-units` above).
+  if (documentsKey === 'unit-space') seedUnitSpaceDocuments();
+
+  // See the `mock-space-members` key documented in utils.ts. Read after the
+  // sample units: it assigns people to one of them.
+  const spaceMembersKey = window.localStorage.getItem('mock-space-members');
+  if (spaceMembersKey === 'sample') seedSpaceMembers();
+  // `free-member` adds a free space of someone else with the signed-in person
+  // as its member (needs an installation already seeded).
+  if (spaceMembersKey === 'free-member') seedFreeSpaceMembership();
+  // `free-removed` adds the same free space without the signed-in person, as
+  // it is after the owner removes them (needs an installation already seeded).
+  if (spaceMembersKey === 'free-removed') seedRemovedFromFreeSpace();
 
   // See the `mock-favorites` key documented in utils.ts. Read after the
   // documents seed: it marks the documents already in the database.

@@ -1,0 +1,40 @@
+import type { components } from '@folioteca/api-contract';
+import { queryOptions, useQuery } from '@tanstack/react-query';
+
+import { api } from '@/lib/api-client';
+import type { QueryConfig } from '@/lib/react-query';
+
+export type SpaceDetail = components['schemas']['SpaceDetail'];
+export type SpaceDetailResponse = components['schemas']['SpaceDetailResponse'];
+
+// `silentError`: a 404 is a state of the page ("Espaço não encontrado."), not
+// a notification.
+export const getSpace = (spaceId: string): Promise<SpaceDetailResponse> =>
+  api.get<SpaceDetailResponse, SpaceDetailResponse>(`/spaces/${spaceId}`, {
+    silentError: true,
+  });
+
+// `['space', …]` and not `['spaces', …]`: the `['spaces']` prefix is
+// invalidated when a space is created and when an assignment is added or
+// removed, and it would drag the open space along with it.
+//
+// `staleTime: 0` instead of the app-wide minute: nothing invalidates this key,
+// so coming back to the page is what asks the server again — whoever lost
+// their assignment meanwhile gets the "not found" state.
+export const getSpaceQueryOptions = (spaceId: string) =>
+  queryOptions({
+    queryKey: ['space', spaceId],
+    queryFn: () => getSpace(spaceId),
+    staleTime: 0,
+  });
+
+type UseSpaceOptions = {
+  spaceId: string;
+  queryConfig?: QueryConfig<typeof getSpaceQueryOptions>;
+};
+
+export const useSpace = ({ spaceId, queryConfig }: UseSpaceOptions) =>
+  useQuery({
+    ...getSpaceQueryOptions(spaceId),
+    ...queryConfig,
+  });

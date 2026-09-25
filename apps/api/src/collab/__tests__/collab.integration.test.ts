@@ -605,3 +605,231 @@ test('closing the app stores the pending content', { timeout: 15000 }, async () 
     await connection.close();
   }
 });
+
+test('a view person connects read only and an update is not stored', async () => {
+  const created = await createDocument(cookieA);
+  const first = open({ documentId: created.id, cookie: cookieA });
+
+  await first.synced;
+  writeText(first.ydoc, 'Plano de obras');
+  await waitFor(() => hasContentRow(created.id), {
+    message: 'A linha de conteúdo não apareceu',
+  });
+  await first.close();
+
+  const { person: viewerPerson, cookie: viewerCookie } =
+    await createPersonWithSession(app, {
+      name: 'João Lima',
+      email: 'joao@exemplo.org',
+    });
+  const share = await httpRequest(app)
+    .put(`/api/documents/${created.id}/shares/${viewerPerson.id}`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send({ level: 'view' });
+
+  expect(share.status).toBe(200);
+
+  const viewer = open({ documentId: created.id, cookie: viewerCookie });
+  await viewer.synced;
+
+  await waitFor(() => readText(viewer.ydoc) === 'Plano de obras', {
+    message: 'A pessoa com leitura não recebeu o conteúdo',
+  });
+
+  expect(viewer.provider.authorizedScope).toBe('readonly');
+
+  writeText(viewer.ydoc, ' — rascunho da visitante');
+
+  // Um documento de controle grava normalmente: quando a confirmação dele
+  // chega, a janela em que a escrita da visitante teria sido gravada já passou.
+  const control = await createDocument(cookieA);
+  const controlConnection = open({ documentId: control.id, cookie: cookieA });
+  await controlConnection.synced;
+  writeText(controlConnection.ydoc, 'Documento de controle');
+  await waitFor(
+    () => controlConnection.statelessPayloads.includes(STORED_MESSAGE),
+    { message: 'A gravação do documento de controle não foi confirmada' },
+  );
+
+  expect(await storedText(created.id)).toBe('Plano de obras');
+  expect(viewer.statelessPayloads).not.toContain(STORED_MESSAGE);
+});
+
+type UnitMember = {
+  documentId: string;
+  orgUnitId: string;
+  memberId: string;
+  memberCookie: string;
+};
+
+/**
+ * A dona e o colega lotados diretamente na mesma unidade, com um documento da
+ * dona criado pela API no espaço dela.
+ */
+async function createUnitSpaceDocument(): Promise<UnitMember> {
+  const owner = await prisma.person.findFirstOrThrow({
+    where: { email: EMAIL },
+  });
+  const root = await prisma.orgUnit.findFirstOrThrow({
+    where: { organizationId: owner.organizationId, parentId: null },
+  });
+  const unit = await prisma.orgUnit.create({
+    data: {
+      organizationId: owner.organizationId,
+      parentId: root.id,
+      name: 'Protocolo',
+    },
+  });
+  const space = await prisma.space.create({
+    data: { type: 'UNIT', orgUnitId: unit.id },
+  });
+  const { person: member, cookie: memberCookie } =
+    await createPersonWithSession(app, {
+      name: 'João Lima',
+      email: 'joao@exemplo.org',
+    });
+  await prisma.orgUnitAssignment.createMany({
+    data: [
+      { orgUnitId: unit.id, personId: owner.id },
+      { orgUnitId: unit.id, personId: member.id },
+    ],
+  });
+
+  const response = await httpRequest(app)
+    .post('/api/documents')
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send({ spaceId: space.id });
+
+  expect(response.status).toBe(201);
+
+  return {
+    documentId: (response.body as { data: { id: string } }).data.id,
+    orgUnitId: unit.id,
+    memberId: member.id,
+    memberCookie,
+  };
+}
+
+test('a direct unit member connects and an update is stored', async () => {
+  const { documentId, memberCookie } = await createUnitSpaceDocument();
+  const member = open({ documentId, cookie: memberCookie });
+
+  await member.synced;
+
+  expect(member.provider.authorizedScope).not.toBe('readonly');
+
+  writeText(member.ydoc, 'Ata do protocolo');
+
+  await waitFor(() => member.statelessPayloads.includes(STORED_MESSAGE), {
+    message: 'A gravação do colega da unidade não foi confirmada',
+  });
+
+  expect(await storedText(documentId)).toBe('Ata do protocolo');
+});
+
+test('after removing the assignment the next connection is refused', async () => {
+  const { documentId, orgUnitId, memberId, memberCookie } =
+    await createUnitSpaceDocument();
+  const first = open({ documentId, cookie: memberCookie });
+
+  await first.synced;
+  await first.close();
+
+  await prisma.orgUnitAssignment.delete({
+    where: { orgUnitId_personId: { orgUnitId, personId: memberId } },
+  });
+
+  const next = open({ documentId, cookie: memberCookie });
+  const reason = await next.refused;
+
+  expect(reason).toBeTruthy();
+  expect(next.provider.isSynced).toBe(false);
+  expect(readText(next.ydoc)).toBe('');
+});
+
+type FreeSpaceMember = {
+  documentId: string;
+  spaceId: string;
+  memberId: string;
+  memberCookie: string;
+};
+
+/**
+ * A dona de um espaço livre e um membro dele, com um documento da dona criado
+ * pela API no espaço.
+ */
+async function createFreeSpaceDocument(): Promise<FreeSpaceMember> {
+  const owner = await prisma.person.findFirstOrThrow({
+    where: { email: EMAIL },
+  });
+  const space = await prisma.space.create({
+    data: {
+      type: 'FREE',
+      organizationId: owner.organizationId,
+      name: 'Projeto Alfa',
+      ownerId: owner.id,
+    },
+  });
+  const { person: member, cookie: memberCookie } =
+    await createPersonWithSession(app, {
+      name: 'João Lima',
+      email: 'joao@exemplo.org',
+    });
+  await prisma.spaceMember.create({
+    data: { spaceId: space.id, personId: member.id },
+  });
+
+  const response = await httpRequest(app)
+    .post('/api/documents')
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send({ spaceId: space.id });
+
+  expect(response.status).toBe(201);
+
+  return {
+    documentId: (response.body as { data: { id: string } }).data.id,
+    spaceId: space.id,
+    memberId: member.id,
+    memberCookie,
+  };
+}
+
+test('a free space member connects and an update is stored', async () => {
+  const { documentId, memberCookie } = await createFreeSpaceDocument();
+  const member = open({ documentId, cookie: memberCookie });
+
+  await member.synced;
+
+  expect(member.provider.authorizedScope).not.toBe('readonly');
+
+  writeText(member.ydoc, 'Plano do projeto');
+
+  await waitFor(() => member.statelessPayloads.includes(STORED_MESSAGE), {
+    message: 'A gravação do membro do espaço livre não foi confirmada',
+  });
+
+  expect(await storedText(documentId)).toBe('Plano do projeto');
+});
+
+test('after removing the free space member the next connection is refused', async () => {
+  const { documentId, spaceId, memberId, memberCookie } =
+    await createFreeSpaceDocument();
+  const first = open({ documentId, cookie: memberCookie });
+
+  await first.synced;
+  await first.close();
+
+  await prisma.spaceMember.delete({
+    where: { spaceId_personId: { spaceId, personId: memberId } },
+  });
+
+  const next = open({ documentId, cookie: memberCookie });
+  const reason = await next.refused;
+
+  expect(reason).toBeTruthy();
+  expect(next.provider.isSynced).toBe(false);
+  expect(readText(next.ydoc)).toBe('');
+});

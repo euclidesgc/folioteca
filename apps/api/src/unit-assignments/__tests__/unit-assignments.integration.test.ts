@@ -580,7 +580,7 @@ test('an assignment grants no document access', async () => {
   expect(after.body).toEqual(before.body);
 });
 
-test('a document of the unit space stays 404 after the assignment', async () => {
+test('a document of the unit space answers 200 with accessLevel edit after the assignment', async () => {
   const orgUnitId = await createUnit('Acervo');
   const space = await prisma.space.findFirstOrThrow({ where: { orgUnitId } });
 
@@ -604,7 +604,12 @@ test('a document of the unit space stays 404 after the assignment', async () => 
     .get(`/api/documents/${document.id}`)
     .set('Cookie', cookie);
 
-  expect(response.status).toBe(404);
+  expect(response.status).toBe(200);
+  expect(
+    (response.body as { data: { id: string; accessLevel: string } }).data,
+  ).toEqual(
+    expect.objectContaining({ id: document.id, accessLevel: 'edit' }),
+  );
 });
 
 test('removing an assigned person answers 204 with no body', async () => {

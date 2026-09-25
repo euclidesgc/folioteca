@@ -87,3 +87,41 @@ test('GET people answers the documented 200/401/403', async () => {
     });
   }
 });
+
+const SEARCH_CONTRACT_PATH = '/people/search';
+
+function searchToShare(q: string, cookie?: string): Promise<Response> {
+  const request = httpRequest(app).get('/api/people/search').query({ q });
+
+  return cookie === undefined ? request : request.set('Cookie', cookie);
+}
+
+test('GET people search answers the documented 200', async () => {
+  const { cookie } = await createPersonWithSession(app, {
+    name: 'João Souza',
+    email: 'joao@exemplo.org',
+  });
+
+  const response = await searchToShare('maria', cookie);
+
+  expect(response.status).toBe(200);
+  expect((response.body as { data: unknown[] }).data).toHaveLength(1);
+  await expectMatchesContract({
+    path: SEARCH_CONTRACT_PATH,
+    method: 'get',
+    status: 200,
+    body: response.body,
+  });
+});
+
+test('GET people search answers the documented 401', async () => {
+  const response = await searchToShare('maria');
+
+  expect(response.status).toBe(401);
+  await expectMatchesContract({
+    path: SEARCH_CONTRACT_PATH,
+    method: 'get',
+    status: 401,
+    body: response.body,
+  });
+});

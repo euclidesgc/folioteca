@@ -100,7 +100,7 @@ export interface paths {
         /** Lista os documentos do escopo informado */
         get: operations["getDocuments"];
         put?: never;
-        /** Cria um documento sem título no espaço pessoal de quem chama */
+        /** Cria um documento sem título no espaço pessoal de quem chama, no espaço de unidade informado ou no espaço livre de que a pessoa é dona ou membro */
         post: operations["createDocument"];
         delete?: never;
         options?: never;
@@ -174,6 +174,26 @@ export interface paths {
         post?: never;
         /** Desmarca o documento como favorito de quem chama */
         delete: operations["removeFavorite"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/documents/{documentId}/shares/{personId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Compartilha o documento com uma pessoa da instância
+         * @description Dá a uma pessoa da instância acesso de leitura ao documento. Só o proprietário compartilha. Repetir a chamada para a mesma pessoa devolve o mesmo 200, sem criar um segundo compartilhamento. As checagens acontecem nesta ordem: 401, 404 (documento inexistente ou sem acesso), 403 (quem chama não é o proprietário), 409 (documento na lixeira), 400 (corpo inválido, compartilhar consigo mesmo ou pessoa fora da instância).
+         */
+        put: operations["shareDocument"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -311,6 +331,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/people/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Busca pessoas da instância para compartilhar um documento
+         * @description Busca pessoas da organização de quem chama, por parte do nome ou do e-mail, sem diferenciar maiúsculas de minúsculas. Qualquer pessoa com sessão pode buscar. `q` com menos de 2 caracteres (depois de tirar os espaços das pontas) devolve lista vazia, sem tocar o banco. Devolve no máximo 10 pessoas, com `hasMore` avisando que há mais, e nunca inclui quem pede.
+         */
+        get: operations["searchPeopleToShare"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admins": {
         parameters: {
             query?: never;
@@ -373,6 +413,90 @@ export interface paths {
          * @description Cria um espaço livre na organização da pessoa da sessão, que passa a ser a dona dele. A organização e a dona vêm só da sessão, nunca do corpo. O nome é aparado antes de medir e não precisa ser único.
          */
         post: operations["createSpace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/spaces/{spaceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lê um espaço
+         * @description Lê o espaço informado com a forma de alcance de quem chama. O espaço livre só é lido pelo dono (reach owner). O espaço de unidade é lido por quem a alcança diretamente (reach direct) ou por herança (reach inherited). Qualquer outro caso (espaço inexistente, id malformado, espaço pessoal, espaço livre de outra pessoa, sem alcance ou administração não lotada) recebe o mesmo 404 "Espaço não encontrado.".
+         */
+        get: operations["getSpace"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/spaces/{spaceId}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista as pessoas de um espaço
+         * @description No espaço de unidade, lista as pessoas lotadas diretamente na unidade, com quem chama primeiro e depois por nome e e-mail; quem alcança o espaço, diretamente ou por herança, vê a lista. No espaço livre, o dono e os membros veem a lista: o dono primeiro, depois quem chama se for membro, depois os demais por nome e e-mail. Não há 403. Espaço sem alcance, inexistente, com id malformado ou livre que quem chama não alcança recebe o mesmo 404 opaco.
+         */
+        get: operations["listSpaceMembers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/spaces/{spaceId}/members/{personId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Adiciona uma pessoa a um espaço livre
+         * @description Adiciona a pessoa informada, da mesma instância, como membro do espaço livre. Só o dono do espaço livre adiciona. A operação é idempotente: repetir para a mesma pessoa devolve o mesmo 200 sem duplicar. Adicionar o próprio dono ou uma pessoa que não existe nesta instância recebe 400; um membro que tenta adicionar recebe 403; espaço inexistente, com id malformado, de unidade ou que quem chama não alcança recebe o mesmo 404 opaco.
+         */
+        put: operations["addSpaceMember"];
+        post?: never;
+        /**
+         * Remove uma pessoa de um espaço livre
+         * @description Remove a pessoa informada dos membros do espaço livre. Só o dono do espaço livre remove. A operação é idempotente: remover uma pessoa que não é membro também devolve 204. Remover o próprio dono recebe 400 "O dono não pode ser removido."; um membro que tenta remover recebe 403 "Só o dono do espaço pode remover pessoas."; espaço inexistente, com id malformado, de unidade ou que quem chama não alcança recebe o mesmo 404 "Espaço não encontrado.".
+         */
+        delete: operations["removeSpaceMember"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/spaces/{spaceId}/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista os documentos de um espaço de unidade ou de um espaço livre
+         * @description Lista os documentos fora da lixeira do espaço de unidade ou do espaço livre informado, dos mais recentes para os mais antigos. No espaço de unidade, só quem está lotado diretamente na unidade vê a lista; no espaço livre, o dono ou membro do espaço recebe 200. O 403 continua só para quem alcança um espaço de unidade apenas por herança. Espaço sem alcance, inexistente, com id malformado ou pessoal recebe o mesmo 404 opaco.
+         */
+        get: operations["listSpaceDocuments"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -544,6 +668,10 @@ export interface components {
         DocumentResponse: {
             data: components["schemas"]["Document"];
         };
+        CreateDocumentInput: {
+            /** @description Espaço de unidade onde o documento nasce. Ausente, o documento nasce no espaço pessoal de quem chama. */
+            spaceId?: string;
+        };
         DocumentsResponse: {
             data: components["schemas"]["DocumentSummary"][];
         };
@@ -652,6 +780,44 @@ export interface components {
         SpaceResponse: {
             data: components["schemas"]["Space"];
         };
+        SpaceDetail: {
+            /** @description Identificador do espaço (não da unidade). */
+            id: string;
+            /**
+             * @description Tipo do espaço, de unidade ou livre.
+             * @enum {string}
+             */
+            type: "unit" | "free";
+            /** @description Nome da unidade, no espaço de unidade; nome dado pelo dono, no espaço livre. */
+            name: string;
+            /**
+             * @description Como quem chama alcança o espaço: lotação direta na unidade, herança entre unidades, dono do espaço livre ou membro do espaço livre.
+             * @enum {string}
+             */
+            reach: "direct" | "inherited" | "owner" | "member";
+        };
+        SpaceDetailResponse: {
+            data: components["schemas"]["SpaceDetail"];
+        };
+        SpaceMember: {
+            /** @description Identificador da pessoa. */
+            id: string;
+            name: string;
+            email: string;
+            /** @description Verdadeiro na linha de quem chama. */
+            isCurrentPerson: boolean;
+            /**
+             * @description Papel da pessoa no espaço: `owner` é o dono do espaço livre, `member` é membro do espaço livre e `assigned` é lotada na unidade do espaço de unidade.
+             * @enum {string}
+             */
+            role: "owner" | "member" | "assigned";
+        };
+        SpaceMembersResponse: {
+            data: components["schemas"]["SpaceMember"][];
+        };
+        SpaceMemberResponse: {
+            data: components["schemas"]["PersonSummary"];
+        };
         CreateSpaceInput: {
             /** @description Nome do espaço livre, contado depois de aparar os espaços. */
             name: string;
@@ -726,6 +892,29 @@ export interface components {
             name: string;
             /** @description Senha escolhida, de 12 a 128 caracteres. */
             password: string;
+        };
+        ShareDocumentInput: {
+            /**
+             * @description Nível de acesso dado à pessoa.
+             * @enum {string}
+             */
+            level: "view";
+        };
+        DocumentShare: {
+            /** @description Identificador da pessoa com acesso. */
+            personId: string;
+            /** @description Nome da pessoa. */
+            name: string;
+            /** @description E-mail da pessoa. */
+            email: string;
+            /**
+             * @description Nível de acesso da pessoa.
+             * @enum {string}
+             */
+            level: "view";
+        };
+        DocumentShareResponse: {
+            data: components["schemas"]["DocumentShare"];
         };
         UpdateDocumentBody: {
             title: string;
@@ -1007,7 +1196,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CreateDocumentInput"];
+            };
+        };
         responses: {
             /** @description O documento foi criado. */
             201: {
@@ -1016,6 +1209,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DocumentResponse"];
+                };
+            };
+            /** @description Os dados informados são inválidos. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValidationError"];
                 };
             };
             /** @description Não há sessão válida. */
@@ -1029,6 +1231,15 @@ export interface operations {
             };
             /** @description A requisição foi recusada. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O espaço informado não existe, tem id malformado, não é de unidade ou quem chama não está lotado diretamente na unidade. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1388,6 +1599,78 @@ export interface operations {
             };
             /** @description O documento não existe ou não está acessível. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    shareDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: string;
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShareDocumentInput"];
+            };
+        };
+        responses: {
+            /** @description A pessoa tem acesso de leitura ao documento. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentShareResponse"];
+                };
+            };
+            /** @description O corpo é inválido, a pessoa é o próprio proprietário ou a pessoa não existe nesta instância. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Só o proprietário pode compartilhar este documento. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O documento não existe ou não está acessível. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O documento está na lixeira. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1910,6 +2193,37 @@ export interface operations {
             };
         };
     };
+    searchPeopleToShare: {
+        parameters: {
+            query?: {
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description As pessoas encontradas foram listadas. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PeopleResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     getAdmins: {
         parameters: {
             query?: never;
@@ -2117,6 +2431,251 @@ export interface operations {
             };
             /** @description Não há sessão válida. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getSpace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                spaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description O espaço foi lido. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpaceDetailResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O espaço não existe, tem id malformado, é pessoal, é livre de outra pessoa ou quem chama não o alcança. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listSpaceMembers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                spaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description As pessoas do espaço foram listadas. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpaceMembersResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O espaço não existe, tem id malformado, é livre e quem chama não é dono nem membro, ou quem chama não o alcança. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    addSpaceMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                spaceId: string;
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A pessoa é membro do espaço livre. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpaceMemberResponse"];
+                };
+            };
+            /** @description "Você já é o dono deste espaço." ao adicionar o dono, ou "Pessoa não encontrada nesta instância." para pessoa inexistente, com id malformado ou de outra instância. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description "Só o dono do espaço pode adicionar pessoas." para quem é membro do espaço sem ser o dono. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description "Espaço não encontrado." para espaço inexistente, com id malformado, de unidade ou que quem chama não alcança. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    removeSpaceMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                spaceId: string;
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A pessoa não é membro do espaço livre. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description "O dono não pode ser removido." ao remover o dono do espaço. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description "Só o dono do espaço pode remover pessoas." para quem é membro do espaço sem ser o dono. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description "Espaço não encontrado." para espaço inexistente, com id malformado, de unidade ou que quem chama não alcança. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listSpaceDocuments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                spaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Os documentos do espaço foram listados. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentsResponse"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Quem chama alcança o espaço só por herança, sem lotação direta na unidade. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O espaço não existe, tem id malformado, não é de unidade ou quem chama não o alcança. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
