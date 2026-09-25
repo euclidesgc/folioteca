@@ -414,9 +414,24 @@ reconectar; um desligamento normal do processo (`onModuleDestroy`) fecha os
 sockets crus e o `WebSocketServer` só depois de gravar o que estiver
 pendente, para não perder edição por causa de um `deploy`.
 
-Limite conhecido: o acesso só é conferido **ao conectar**. Perder o acesso ou
-ser removido do documento não derruba quem já está com o socket aberto
-(resolver com a 015). A gravação do conteúdo é condicional: só grava com
+Reavaliação ao mudar compartilhamento: quando o dono troca o nível
+(`PUT /documents/{documentId}/shares/{personId}`) ou remove o compartilhamento
+(`DELETE` da mesma rota), o `SharesService` avisa os ouvintes inscritos em
+`onShareChanged` (sem importar o `CollabService`, sem dependência circular). O
+`CollabService` se inscreve no construtor e chama `reevaluateAccess`, que
+percorre só as conexões daquela pessoa naquele documento e resolve de novo
+`resolveAccess`/`canWrite`: pode escrever → `connection.readOnly = false`;
+só ver → `connection.readOnly = true` (o Hocuspocus descarta o que ela
+enviar); `none` → `close()`. Cada conexão reavaliada recebe, só ela, a
+mensagem sem estado `{"type":"access-changed"}`, sem nível nem dado pessoal. A
+web, ao receber `access-changed`, relê o documento e as listas: o nível novo
+vem do `accessLevel` do `GET` (a web não deriva regra de acesso), e acesso
+removido responde 404 e mostra "Documento não encontrado".
+
+Limite conhecido: mudança de acesso **pelo espaço** (papel ou saída de
+membro) ainda só vale a partir da próxima conexão ao documento (dívida 049).
+Uma conexão que ainda está dentro do `onConnect` quando o compartilhamento
+muda não é reavaliada (corrida aceita). A gravação do conteúdo é condicional: só grava com
 `Document.trashedAt` nulo, checado na mesma transação — senão nada entra no
 banco e não há mensagem `stored`. Ao mover para a lixeira ou apagar em
 definitivo, o servidor fecha as conexões daquele documento por um ouvinte em

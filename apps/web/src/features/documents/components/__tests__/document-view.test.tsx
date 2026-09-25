@@ -12,9 +12,13 @@ import { queryConfig } from '@/lib/react-query';
 import type { MockDocument } from '@/testing/mocks/db';
 import {
   getDb,
+  getSignedInPerson,
+  removeDocumentShare,
   seedInstalled,
   seedSampleDocuments,
+  seedSharedEditableDocument,
   seedSharedReadOnlyDocument,
+  shareDocument,
 } from '@/testing/mocks/db';
 import { server } from '@/testing/mocks/server';
 import { formatDateTime } from '@/utils/format-date-time';
@@ -1012,4 +1016,147 @@ test('choosing Grande widens the sheet without reloading', async () => {
     screen.getByRole('textbox', { name: 'Título do documento' }),
   ).toBe(field);
   expect(factory.createCollaborationProvider).toHaveBeenCalledTimes(1);
+});
+
+const DOWNGRADE_NOTICE = 'Agora você só pode ver este documento.';
+
+// The document another person shared with the signed-in one, in `edit`.
+const sharedEditableDocumentId = (): string => {
+  const id = seedSharedEditableDocument();
+  if (!id) throw new Error('o banco simulado está sem o documento editável');
+  return id;
+};
+
+const signedInPersonId = (): string => {
+  const person = getSignedInPerson();
+  if (!person) throw new Error('ninguém está conectado no banco simulado');
+  return person.id;
+};
+
+// What the server sends after it reevaluated this person's access: the new
+// level is already in the fake database, the message carries none.
+const emitAccessChanged = (): Promise<void> =>
+  emit('stateless', { payload: JSON.stringify({ type: 'access-changed' }) });
+
+const editorDouble = (): Promise<HTMLElement> =>
+  screen.findByTestId('document-editor', undefined, LAZY_TIMEOUT);
+
+test('the status region is mounted and empty while editing', async () => {
+  const id = sharedEditableDocumentId();
+
+  renderApp(<DocumentView documentId={id} />);
+
+  await titleField();
+  await connectAndSync();
+  await editorDouble();
+
+  // The notice region, then the save indicator: both are status regions.
+  const [region, indicator] = screen.getAllByRole('status');
+  expect(region).toHaveAttribute('aria-live', 'polite');
+  expect(region).toHaveTextContent(/^$/);
+  expect(indicator).toHaveTextContent('Salvo');
+  expect(screen.queryByText(DOWNGRADE_NOTICE)).not.toBeInTheDocument();
+});
+
+test('a downgrade from edit to view shows the badge the notice and a read only editor', async () => {
+  const id = sharedEditableDocumentId();
+
+  renderApp(<DocumentView documentId={id} />);
+
+  const field = await titleField();
+  await connectAndSync();
+  expect(await editorDouble()).toHaveAttribute('data-editable', 'true');
+
+  shareDocument(id, signedInPersonId(), 'view');
+  await emitAccessChanged();
+
+  expect(
+    await screen.findByText('Somente leitura', undefined, LAZY_TIMEOUT),
+  ).toBeInTheDocument();
+  expect(screen.getByRole('status')).toHaveTextContent(DOWNGRADE_NOTICE);
+  expect(screen.getByTestId('document-editor')).toHaveAttribute(
+    'data-editable',
+    'false',
+  );
+  expect(field).not.toBeInTheDocument();
+  expect(screen.queryByText('Salvo')).not.toBeInTheDocument();
+  // Same session: the page was not reloaded, and the focus was not taken.
+  expect(factory.createCollaborationProvider).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole('status')).not.toHaveFocus();
+});
+
+test('an upgrade from view to edit makes the page editable again and hides the notice', async () => {
+  const id = sharedEditableDocumentId();
+  const personId = signedInPersonId();
+
+  renderApp(<DocumentView documentId={id} />);
+
+  await titleField();
+  await connectAndSync();
+  await editorDouble();
+
+  shareDocument(id, personId, 'view');
+  await emitAccessChanged();
+  await screen.findByText(DOWNGRADE_NOTICE, undefined, LAZY_TIMEOUT);
+
+  shareDocument(id, personId, 'edit');
+  await emitAccessChanged();
+
+  expect(await titleField()).toBeInTheDocument();
+  expect(screen.queryByText(DOWNGRADE_NOTICE)).not.toBeInTheDocument();
+  expect(screen.queryByText('Somente leitura')).not.toBeInTheDocument();
+  expect(screen.getByText('Salvo')).toBeInTheDocument();
+  expect(screen.getByTestId('document-editor')).toHaveAttribute(
+    'data-editable',
+    'true',
+  );
+  expect(factory.createCollaborationProvider).toHaveBeenCalledTimes(1);
+});
+
+test('opening a document already in view shows no notice', async () => {
+  const shared = sharedReadOnlyDocument();
+
+  renderApp(<DocumentView documentId={shared.id} />);
+
+  await screen.findByText('Somente leitura');
+  await connectAndSync();
+  await editorDouble();
+
+  expect(screen.queryByText(DOWNGRADE_NOTICE)).not.toBeInTheDocument();
+  expect(screen.getByRole('status')).toHaveTextContent(/^$/);
+});
+
+test('losing access shows Documento não encontrado with the app navigation', async () => {
+  const id = sharedEditableDocumentId();
+
+  renderRoutes(paths.document.getHref(id));
+
+  await screen.findByRole(
+    'textbox',
+    { name: 'Título do documento' },
+    LAZY_TIMEOUT,
+  );
+  await connectAndSync();
+
+  // Without the share the fake GET answers 404, like the real one.
+  removeDocumentShare(id, signedInPersonId());
+  await emitAccessChanged();
+
+  expect(
+    await screen.findByRole(
+      'heading',
+      { level: 1, name: 'Documento não encontrado' },
+      LAZY_TIMEOUT,
+    ),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText('Este documento não existe ou você não tem acesso a ele.'),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole('link', { name: 'Ir para Meus documentos' }),
+  ).toHaveAttribute('href', paths.myDocuments.getHref());
+  expect(
+    screen.getByRole('navigation', { name: 'Navegação principal' }),
+  ).toBeInTheDocument();
+  expect(factory.sessions[0]?.provider.isDestroyed).toBe(true);
 });

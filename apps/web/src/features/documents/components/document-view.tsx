@@ -1,5 +1,5 @@
 import type React from 'react';
-import { lazy, Suspense, useEffect, useRef } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { Link, useNavigate } from 'react-router';
 
@@ -134,6 +134,27 @@ function LoadedDocument({
     wasTrashedRef.current = isTrashed;
   }, [isTrashed]);
 
+  const accessLevel = document.accessLevel;
+  // The level of the previous render, kept in state (not in a ref) so the
+  // notice is adjusted during the render itself, without an extra effect.
+  const [previousAccessLevel, setPreviousAccessLevel] = useState(accessLevel);
+  const [showDowngradeNotice, setShowDowngradeNotice] = useState(false);
+
+  // The level only changes here after the server reevaluated the access of
+  // this person (`access-changed`) and the page reread the document. Only the
+  // transition from editing to viewing warns; opening already in view does not.
+  if (previousAccessLevel !== accessLevel) {
+    setPreviousAccessLevel(accessLevel);
+
+    if (previousAccessLevel === 'edit' && accessLevel === 'view') {
+      setShowDowngradeNotice(true);
+    } else if (accessLevel !== 'view') {
+      setShowDowngradeNotice(false);
+    }
+  }
+
+  const isDowngradeNoticeVisible = showDowngradeNotice && !isTrashed;
+
   return (
     // The grey background around the sheet. Below `sm` it loses the side
     // gutter and the sheet takes the whole width, with no horizontal scroll.
@@ -222,6 +243,21 @@ function LoadedDocument({
             )}
           </div>
         </div>
+
+        {/* Always mounted and empty until the change, so screen readers
+            announce the text when it is inserted. It does not take the focus. */}
+        <p
+          role="status"
+          aria-live="polite"
+          className={cn(
+            isDowngradeNoticeVisible &&
+              'mt-0 mb-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-amber-800',
+          )}
+        >
+          {isDowngradeNoticeVisible
+            ? 'Agora você só pode ver este documento.'
+            : null}
+        </p>
 
         {canEditTitle ? <SaveIndicator status={saveStatus} /> : null}
 
