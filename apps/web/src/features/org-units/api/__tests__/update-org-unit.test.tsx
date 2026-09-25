@@ -54,7 +54,12 @@ test('patches the name to the unit path', async () => {
         url = new URL(request.url).pathname;
         body = await request.json();
         return HttpResponse.json({
-          data: { id: CHILD_ID, parentId: 'org-unit-acervo', name: 'Catalogação e Indexação' },
+          data: {
+            id: CHILD_ID,
+            parentId: 'org-unit-acervo',
+            name: 'Catalogação e Indexação',
+            spaceAccess: 'own',
+          },
         });
       },
     ),

@@ -95,6 +95,13 @@ test('an admin deletes a leaf unit using only the keyboard', async ({
   await expect(
     page.getByRole('button', { name: 'Renomear Restauro e Conservação' }),
   ).toBeFocused();
+  // "Acesso ao espaço" comes before "Apagar", which is always the last.
+  await page.keyboard.press('Tab');
+  await expect(
+    page.getByRole('button', {
+      name: 'Acesso ao espaço de Restauro e Conservação',
+    }),
+  ).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(deleteButton).toBeFocused();
 
@@ -136,7 +143,9 @@ test('deleting a unit with children is refused and the dialog stays open', async
   const deleteButton = page.getByRole('button', {
     name: 'Apagar Acervo e Processamento Técnico',
   });
-  // Four actions on the row since slice 010: Pessoas, criar, renomear, apagar.
+  // Five actions on the row since slice 140: Pessoas, criar, renomear, acesso
+  // ao espaço, apagar.
+  await page.keyboard.press('Tab');
   await page.keyboard.press('Tab');
   await page.keyboard.press('Tab');
   await page.keyboard.press('Tab');

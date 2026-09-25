@@ -11,26 +11,28 @@
 | 007 | trash | mandar documento para a lixeira, restaurar ou apagar de vez (só o proprietário) | pedido inicial | 004 | done |
 | 064 | org-units-view | (administração) ver a árvore de unidades da organização numa página "Estrutura", navegável por teclado, numa área "Administração" que só a administração enxerga | 008 org-units-tree | 003 | done |
 | 065 | org-units-create-rename | (administração) criar unidades filhas e renomear unidades, inclusive a raiz (que renomeia a organização) | 008 org-units-tree | 064 | done |
-| 066 | org-units-delete | (administração) apagar unidade sem filhas, com confirmação; a raiz nunca | 008 org-units-tree | 065 | in-review |
-| 085 | invitations-create | (administração) convidar um e-mail e copiar o link gerado | 009 invitations | 003 | in-review |
-| 086 | invitations-accept | abrir o link do convite, criar nome e senha e entrar na aplicação | 009 invitations | 085 | in-review |
-| 087 | invitations-revoke | (administração) revogar um convite pendente, e o link para de funcionar na hora | 009 invitations | 086, 088 | in-review |
-| 088 | invitations-list | (administração) ver os convites pendentes com e-mail, criado em e expira em | 009 invitations | 085 | in-review |
+| 066 | org-units-delete | (administração) apagar unidade sem filhas, com confirmação; a raiz nunca | 008 org-units-tree | 065 | done |
+| 085 | invitations-create | (administração) convidar um e-mail e copiar o link gerado | 009 invitations | 003 | done |
+| 086 | invitations-accept | abrir o link do convite, criar nome e senha e entrar na aplicação | 009 invitations | 085 | done |
+| 087 | invitations-revoke | (administração) revogar um convite pendente, e o link para de funcionar na hora | 009 invitations | 086, 088 | done |
+| 088 | invitations-list | (administração) ver os convites pendentes com e-mail, criado em e expira em | 009 invitations | 085 | done |
 | 089 | invitations-email | receber o convite por e-mail em vez de a administração copiar o link à mão (exige SMTP no projeto) | 009 invitations | 086 | planned |
-| 010 | unit-assignments | (administração) lotar pessoas em unidades e ver quem está lotado | pedido inicial | 066, 086 | in-review |
-| 108 | unit-assignments-remove | (administração) remover uma pessoa de uma unidade, com confirmação | 010 unit-assignments | 010 | in-review |
-| 011 | admins-list | (administração) ver quem administra a instância | pedido inicial | 086 | in-review |
-| 012 | unit-spaces | ver na barra lateral uma seção "Unidades" com as unidades em que está lotado e abrir a página do espaço de cada uma, com o nome da unidade e o aviso de que documentos chegam depois | pedido inicial | 010 | in-review |
+| 010 | unit-assignments | (administração) lotar pessoas em unidades e ver quem está lotado | pedido inicial | 066, 086 | done |
+| 108 | unit-assignments-remove | (administração) remover uma pessoa de uma unidade, com confirmação | 010 unit-assignments | 010 | done |
+| 011 | admins-list | (administração) ver quem administra a instância | pedido inicial | 086 | done |
+| 012 | unit-spaces | ver na barra lateral uma seção "Unidades" com as unidades em que está lotado e abrir a página do espaço de cada uma, com o nome da unidade e o aviso de que documentos chegam depois | pedido inicial | 010 | done |
 | 128 | unit-space-members | ver na página do espaço de uma unidade quem mais está lotado direto nela, com nome, e-mail e a marcação "você"; traz a rota por id do espaço (`findFirst` escopado, 404 opaco sem `isUuid`), para a página do espaço deixar de baixar a lista inteira de `GET /spaces` | 012 unit-spaces, dívida 012 | 012 | planned |
 | 127 | unit-space-documents | criar um documento no espaço de uma unidade em que está lotado, vê-lo na lista do espaço e ter os membros diretos abrindo e editando esse documento; quem sai da unidade perde o acesso na hora | 012 unit-spaces | 012 | planned |
-| 013 | free-spaces | criar um espaço livre com um nome e vê-lo na barra lateral, já como dono dele | pedido inicial | 086 | in-review |
+| 013 | free-spaces | criar um espaço livre com um nome e vê-lo na barra lateral, já como dono dele | pedido inicial | 086 | done |
 | 134 | free-space-invite | (dono do espaço) adicionar ao espaço livre uma pessoa da instância, que passa a vê-lo na barra lateral na hora (traz a tabela de membros do espaço) | 013 free-spaces | 013 | planned |
 | 135 | free-space-members | ver quem é membro do espaço livre e (dono do espaço) remover alguém, que perde o espaço na hora | 013 free-spaces | 134 | planned |
 | 136 | free-space-documents | criar documentos no espaço livre e ter os membros abrindo e editando esses documentos; quem sai do espaço perde o acesso na hora | 013 free-spaces | 127, 134 | planned |
 | 137 | free-space-unique-name | ser impedido de criar dois espaços livres com o mesmo nome (sem diferenciar maiúsculas), com o aviso "Você já tem um espaço com esse nome." no campo | 013 free-spaces | 013 | planned |
-| 014 | space-permissions | definir se um espaço herda do pai ou tem permissões próprias, e restringir espaço livre | pedido inicial | 013 | planned |
+| 140 | unit-space-inherit-parent | (administração) marcar o espaço de uma unidade como "herda da unidade-pai": quem está lotado na unidade-pai (e, em cadeia, nas de cima, até o primeiro espaço com permissões próprias) passa a ver o espaço na barra lateral na hora; o padrão de todo espaço de unidade continua "permissões próprias" (só a lotação direta) | 014 space-permissions | 012, 066 | in-review |
+| 141 | free-space-restrict-invite | (dono do espaço) fechar o espaço livre para que só o dono adicione membros; aberto, qualquer membro adiciona | 014 space-permissions | 134 | planned |
+| 142 | free-space-member-roles | (dono do espaço) definir cada membro do espaço livre como leitor ou editor; leitor não cria nem edita documento | 014 space-permissions | 134, 135, 136 | planned |
 | 015 | share-with-person | (proprietário) compartilhar um documento com uma pessoa em ver, editar ou sem acesso, pelo caminho único de decisão de acesso no servidor | pedido inicial | 086, 005 | planned |
-| 016 | share-with-groups | compartilhar com um espaço, uma unidade e tudo abaixo dela (com exclusões) ou toda a instância, com revogação imediata ao sair | pedido inicial | 015, 012, 127, 014 | planned |
+| 016 | share-with-groups | compartilhar com um espaço, uma unidade e tudo abaixo dela (com exclusões) ou toda a instância, com revogação imediata ao sair | pedido inicial | 015, 012, 127, 140 | planned |
 | 017 | audience-preview | ver, antes de confirmar o compartilhamento, quantas pessoas passam a ter acesso | pedido inicial | 016 | planned |
 | 018 | who-can-see | ver quem vê este documento e por qual caminho | pedido inicial | 016 | planned |
 | 019 | shared-with-me | ver a lista dos documentos compartilhados comigo | pedido inicial | 015 | planned |
@@ -82,7 +84,7 @@
 | 068 | org-units-large-tree | carregar a árvore por nível e ordenar no banco quando houver milhares de unidades (hoje lista inteira, ordenada em memória) | dívida da 064 | | planned |
 | 069 | tree-typeahead-and-actions | ter no componente `Tree` a busca por digitação e a tecla `*` | dívida da 064 | | planned |
 | 070 | mock-multiple-people | ter mais de uma pessoa no banco falso da API simulada, para admin e membro coexistirem numa sessão de desenvolvimento | dívida da 064 | | planned |
-| 071 | e2e-block-editor-bold-flake | estabilizar o caso do negrito em block-editor.spec.ts, que falha esporadicamente com vários workers em paralelo e passa no retry | dívida da 064 | | in-review |
+| 071 | e2e-block-editor-bold-flake | estabilizar o caso do negrito em block-editor.spec.ts, que falha esporadicamente com vários workers em paralelo e passa no retry | dívida da 064 | | done |
 | 072 | db-locale-for-lower | conferir o `LC_CTYPE`/collation dos bancos de homologação e produção, porque o índice único de nomes irmãos usa `lower("name")` e o resultado com acento depende do locale (só dá para conferir pelo contêiner) | dívida da 065 | | planned |
 | 073 | org-unit-accent-siblings-ordering | decidir como exibir irmãs que diferem só por acento ("Área" e "Area" são aceitas, mas a listagem as ordena como iguais) | dívida da 065 | | planned |
 | 074 | uuid-pattern-duplicated | ter um único `isUuid` (apps/api/src/common/is-uuid.ts) usado também por access.service.ts, que ainda tem o padrão duplicado | dívida da 065 | | planned |
@@ -119,8 +121,8 @@
 | 111 | unit-assignments-list-pagination-search | (administração) ver a lista de pessoas lotadas com paginação e busca interna, hoje inteira e sem filtro | dívida 010 | | planned |
 | 112 | person-delete-assignments-policy | decidir por escrito o que acontece com as lotações de uma pessoa quando apagar pessoa existir no produto, porque a FK `RESTRICT` da lotação vai recusar a exclusão | dívida 010 | | planned |
 | 113 | tree-row-actions-order-contract | ter a ordem das ações na linha da árvore documentada e provada num só lugar, hoje contrato implícito de três testes de teclado (dois e2e e um unitário) que quebram juntos se a ordem mudar, sem nada além dos comentários | dívida 010 | | planned |
-| 114 | admin-roles-promote | (administração) promover alguém a administração, pela busca | 011 admin-roles | 011 | in-review |
-| 115 | admin-roles-demote | (administração) rebaixar uma administração, nunca ficando sem nenhuma | 011 admin-roles | 114 | in-review |
+| 114 | admin-roles-promote | (administração) promover alguém a administração, pela busca | 011 admin-roles | 011 | done |
+| 115 | admin-roles-demote | (administração) rebaixar uma administração, nunca ficando sem nenhuma | 011 admin-roles | 114 | done |
 | 116 | admins-list-pagination-search | (administração) ver a lista de administradores (`GET /admins` e a página /admin/admins) com paginação e busca, hoje inteira e sem limite; terceira lista completa sem limite, junto com as da 100 e da 111 | dívida 011 | | planned |
 | 117 | query-states-component | (dev) ter em src/components/ui um componente único de estados de consulta (carregando, vazio, erro com "Tentar novamente", a regra `isPending \|\| (isError && isFetching)` e o `aria-live`), hoje copiado em OrgUnitsTree, InvitationsList, UnitPeopleList e AdminsList | dívida 011 | | planned |
 | 118 | admin-role-grant-history | (administração) saber desde quando cada pessoa administra a instância e quem a promoveu, hoje sem registro nenhum | dívida 011 | 114 | planned |
@@ -135,7 +137,9 @@
 | 129 | spaces-page-list | ver na página "Espaços" (`/spaces`) os espaços de unidade em que está lotado, hoje o placeholder "Nenhum espaço ainda" da 001 que ninguém liga a `GET /spaces`, mesmo com a seção "Unidades" já mostrando esses espaços na barra lateral (espaços de unidade e livres); desde a 013 também os espaços livres de que a pessoa é dona, que já aparecem na seção "Espaços" da barra lateral | dívida 012, dívida 013 | 012 | planned |
 | 130 | mock-unit-space-single-helper | (dev) ter a criação do espaço de unidade no banco falso do MSW num helper só, hoje em quatro lugares (`seedInstalled`, o `POST /installation` falso, `seedSampleOrgUnits` e `addOrgUnit`), com a raiz montada duas vezes; um quinto ponto que crie unidade sem `addUnitSpace` reabriria a 075 em silêncio | dívida 012 | | planned |
 | 131 | unit-spaces-e2e-real-api | ter a jornada da seção "Unidades" e da página do espaço provada por Playwright contra a API real e o Postgres, hoje só contra a API simulada, de modo que o escopo por sessão de `GET /spaces` só é provado pela integração da API | dívida 012 | | planned |
-| 132 | hml-auto-deploy-on-develop | (dev) ver cada merge em `develop` publicado automaticamente em homologação no Coolify (web e API), para testar sem interromper o desenvolvimento — prioridade máxima, pedido do dono em 22/09/2026 | pedido do dono | | in-review |
+| 132 | hml-auto-deploy-on-develop | (dev) ver cada merge em `develop` publicado automaticamente em homologação no Coolify (web e API), para testar sem interromper o desenvolvimento — prioridade máxima, pedido do dono em 22/09/2026 | pedido do dono | | done |
 | 133 | ci-build-images | (dev) ter a integração contínua montando as imagens da API e da web (scripts/verify-images.sh) em cada PR, porque hoje um Dockerfile quebrado só aparece no deploy de homologação | dívida 132 | 132 | planned |
 | 138 | name-schema-shared | (dev) ter um esquema de validação do nome único, em apps/api/src/common e em apps/web/src/utils, hoje copiado com as mesmas regras e mensagens entre `apps/api/src/org-units/org-units.schema.ts` e `apps/api/src/spaces/spaces.schema.ts` e, na web, entre `features/org-units/utils/org-unit-name-schema.ts` e `features/spaces/utils/space-name-schema.ts`; extrair quando uma terceira entidade nomeada aparecer | dívida 013 | | planned |
 | 139 | mock-free-space-counter-reset | (dev) ter o contador de ids de `addFreeSpace` no banco falso (apps/web/src/testing/mocks/db.ts) voltando a zero junto com o resto do banco entre os testes, hoje um `let` de módulo que nunca é zerado, de modo que o id `space-free-N` depende da ordem em que os testes rodam | dívida 013 | | planned |
+| 143 | spaces-list-tree-cache | (dev) ter `GET /spaces` sem carregar a árvore inteira de unidades da organização a cada pedido para resolver a herança (hoje `SpacesService.list` faz `orgUnit.findMany` completo e resolve em memória; cabe cache ou consulta recursiva quando a árvore crescer) | dívida da 140 | | planned |
+| 144 | spaces-query-key-shared | (dev) ter a chave de cache `['spaces']` do React Query numa única fonte compartilhada em vez de repetida literalmente em features (org-units, unit-assignments, free-spaces) | dívida da 140 | | planned |

@@ -14,6 +14,7 @@ const UNIT: OrgUnit = {
   id: 'org-unit-catalogacao',
   parentId: 'org-unit-acervo',
   name: 'Catalogação',
+  spaceAccess: 'own',
 };
 
 beforeEach(() => {

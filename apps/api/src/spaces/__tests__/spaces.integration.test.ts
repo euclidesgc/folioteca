@@ -460,3 +460,169 @@ test('the database rejects a PERSONAL space with a name', async () => {
     }),
   ).rejects.toThrow(/Space_type_owner_check/);
 });
+
+/** Envia `PATCH /api/org-units/:id/space` como a administração. */
+function setSpaceAccess(
+  orgUnitId: string,
+  access: 'own' | 'inherit',
+): Promise<Response> {
+  return httpRequest(app)
+    .patch(`/api/org-units/${orgUnitId}/space`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', adminCookie)
+    .send({ access });
+}
+
+/** Ids dos espaços que `GET /api/spaces` devolve à sessão, em ordem. */
+async function spaceIdsOf(cookie: string): Promise<string[]> {
+  const response = await getSpaces(cookie);
+
+  expect(response.status).toBe(200);
+
+  return (response.body as SpacesBody).data.map((item) => item.id);
+}
+
+type InheritTree = {
+  grandparent: CreatedUnit;
+  parent: CreatedUnit;
+  child: CreatedUnit;
+};
+
+/** Avó "Anexo" → mãe "Biblioteca" → filha "Catálogo", sob a raiz. */
+async function createTree(): Promise<InheritTree> {
+  const grandparent = await createUnit('Anexo');
+  const parent = await createUnit('Biblioteca', {
+    parentId: grandparent.orgUnitId,
+  });
+  const child = await createUnit('Catálogo', { parentId: parent.orgUnitId });
+
+  return { grandparent, parent, child };
+}
+
+test('a person assigned to the parent sees the inheriting child space', async () => {
+  const { parent, child } = await createTree();
+  const { person, cookie } = await createMember();
+  await assign(parent.orgUnitId, person.id);
+
+  await setSpaceAccess(child.orgUnitId, 'inherit');
+
+  expect(await spaceIdsOf(cookie)).toEqual([parent.spaceId, child.spaceId]);
+});
+
+test('a person assigned to the grandparent sees parent and child when both inherit', async () => {
+  const { grandparent, parent, child } = await createTree();
+  const { person, cookie } = await createMember();
+  await assign(grandparent.orgUnitId, person.id);
+
+  await setSpaceAccess(parent.orgUnitId, 'inherit');
+  await setSpaceAccess(child.orgUnitId, 'inherit');
+
+  expect(await spaceIdsOf(cookie)).toEqual([
+    grandparent.spaceId,
+    parent.spaceId,
+    child.spaceId,
+  ]);
+});
+
+test('switching the parent back to own hides parent and child from the grandparent person but keeps the child for the parent person', async () => {
+  const { grandparent, parent, child } = await createTree();
+  const { person: grandparentPerson, cookie: grandparentCookie } =
+    await createMember();
+  const { person: parentPerson, cookie: parentCookie } =
+    await createPersonWithSession(app, {
+      name: 'Ana Lima',
+      email: 'ana@exemplo.org',
+    });
+  await assign(grandparent.orgUnitId, grandparentPerson.id);
+  await assign(parent.orgUnitId, parentPerson.id);
+  await setSpaceAccess(parent.orgUnitId, 'inherit');
+  await setSpaceAccess(child.orgUnitId, 'inherit');
+
+  const before = await spaceIdsOf(grandparentCookie);
+  const response = await setSpaceAccess(parent.orgUnitId, 'own');
+
+  expect(before).toEqual([grandparent.spaceId, parent.spaceId, child.spaceId]);
+  expect(response.status).toBe(200);
+  expect(await spaceIdsOf(grandparentCookie)).toEqual([grandparent.spaceId]);
+  expect(await spaceIdsOf(parentCookie)).toEqual([
+    parent.spaceId,
+    child.spaceId,
+  ]);
+});
+
+test('a person assigned to parent and child sees the child space once', async () => {
+  const { parent, child } = await createTree();
+  const { person, cookie } = await createMember();
+  await assign(parent.orgUnitId, person.id);
+  await assign(child.orgUnitId, person.id);
+
+  await setSpaceAccess(child.orgUnitId, 'inherit');
+
+  expect(await spaceIdsOf(cookie)).toEqual([parent.spaceId, child.spaceId]);
+});
+
+test('removing the parent assignment removes the inherited space', async () => {
+  const { parent, child } = await createTree();
+  const { person, cookie } = await createMember();
+  await assign(parent.orgUnitId, person.id);
+  await setSpaceAccess(child.orgUnitId, 'inherit');
+
+  const before = await spaceIdsOf(cookie);
+  await prisma.orgUnitAssignment.delete({
+    where: {
+      orgUnitId_personId: { orgUnitId: parent.orgUnitId, personId: person.id },
+    },
+  });
+
+  expect(before).toEqual([parent.spaceId, child.spaceId]);
+  expect(await spaceIdsOf(cookie)).toEqual([]);
+});
+
+test('an admin without assignment sees no unit space after changing the access mode', async () => {
+  const { parent, child } = await createTree();
+
+  const first = await setSpaceAccess(parent.orgUnitId, 'inherit');
+  const second = await setSpaceAccess(child.orgUnitId, 'inherit');
+
+  expect(adminPerson.isAdmin).toBe(true);
+  expect(first.status).toBe(200);
+  expect(second.status).toBe(200);
+  expect(await spaceIdsOf(adminCookie)).toEqual([]);
+});
+
+test('deleting an inheriting child removes it from the list of who inherited it', async () => {
+  const { parent, child } = await createTree();
+  const { person, cookie } = await createMember();
+  await assign(parent.orgUnitId, person.id);
+  await setSpaceAccess(child.orgUnitId, 'inherit');
+
+  const before = await spaceIdsOf(cookie);
+  const deleted = await httpRequest(app)
+    .delete(`/api/org-units/${child.orgUnitId}`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', adminCookie);
+
+  expect(before).toEqual([parent.spaceId, child.spaceId]);
+  expect(deleted.status).toBe(204);
+  expect(await spaceIdsOf(cookie)).toEqual([parent.spaceId]);
+});
+
+/**
+ * Organização única por instância: o escopo é provado no serviço real, contra
+ * o mesmo Postgres, com um `organizationId` que não é o da instalação.
+ */
+test('list with another organization id returns nothing', async () => {
+  const { parent, child } = await createTree();
+  const { person } = await createMember();
+  await assign(parent.orgUnitId, person.id);
+  await setSpaceAccess(child.orgUnitId, 'inherit');
+
+  const mine = await spaces.list(adminPerson.organizationId, person.id);
+  const others = await spaces.list(randomUUID(), person.id);
+
+  expect(mine.data.map((item) => item.id)).toEqual([
+    parent.spaceId,
+    child.spaceId,
+  ]);
+  expect(others).toEqual({ data: [] });
+});

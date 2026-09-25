@@ -6,9 +6,14 @@ import { isUuid } from '../common/is-uuid';
 import { parseBody } from '../common/parse-body';
 import { PrismaService } from '../prisma/prisma.service';
 import { orgUnitNotFound } from './org-unit-not-found';
-import { createOrgUnitSchema, updateOrgUnitSchema } from './org-units.schema';
+import {
+  createOrgUnitSchema,
+  updateOrgUnitSchema,
+  updateOrgUnitSpaceSchema,
+} from './org-units.schema';
 
 type OrgUnit = components['schemas']['OrgUnit'];
+type OrgUnitResponse = components['schemas']['OrgUnitResponse'];
 
 const UNIQUE_VIOLATION = 'P2002';
 
@@ -31,7 +36,32 @@ export const CHANGED_MESSAGE =
   'A unidade mudou enquanto era apagada. Recarregue a estrutura e tente de novo.';
 
 /** Campos que descrevem uma unidade para quem chama a API. */
-const orgUnitFields = { id: true, parentId: true, name: true } as const;
+const orgUnitFields = {
+  id: true,
+  parentId: true,
+  name: true,
+  space: { select: { inheritsParent: true } },
+} as const;
+
+type OrgUnitRow = {
+  id: string;
+  parentId: string | null;
+  name: string;
+  space: { inheritsParent: boolean } | null;
+};
+
+/**
+ * Maps a unit row to the contract shape. A unit without a space (which should
+ * not exist) is reported as `own`.
+ */
+function toOrgUnit({ id, parentId, name, space }: OrgUnitRow): OrgUnit {
+  return {
+    id,
+    parentId,
+    name,
+    spaceAccess: space?.inheritsParent === true ? 'inherit' : 'own',
+  };
+}
 
 /**
  * Reconhece a violação do índice único de nome entre irmãs. O 409 nasce só
@@ -71,10 +101,10 @@ export class OrgUnitsService {
   async list(organizationId: string): Promise<OrgUnit[]> {
     const units = await this.prisma.orgUnit.findMany({
       where: { organizationId },
-      select: { id: true, parentId: true, name: true },
+      select: orgUnitFields,
     });
 
-    return [...units].sort(
+    return units.map(toOrgUnit).sort(
       (a, b) => collator.compare(a.name, b.name) || a.id.localeCompare(b.id),
     );
   }
@@ -106,11 +136,12 @@ export class OrgUnitsService {
           select: orgUnitFields,
         });
 
-        await tx.space.create({
+        const space = await tx.space.create({
           data: { type: 'UNIT', orgUnitId: unit.id },
+          select: { inheritsParent: true },
         });
 
-        return unit;
+        return toOrgUnit({ ...unit, space });
       });
     } catch (error) {
       if (isUniqueViolation(error)) {
@@ -161,7 +192,7 @@ export class OrgUnitsService {
           });
         }
 
-        return renamed;
+        return toOrgUnit(renamed);
       });
     } catch (error) {
       if (isUniqueViolation(error)) {
@@ -170,6 +201,45 @@ export class OrgUnitsService {
 
       throw error;
     }
+  }
+
+  /**
+   * Muda quem vê o espaço da unidade: `own` (só os lotados nela) ou `inherit`
+   * (também quem vê o espaço da unidade-pai). O id é resolvido antes de olhar
+   * o corpo, como no renomear; a raiz recusa `inherit` com 409. Marcar o modo
+   * atual é aceito e devolve a unidade como está.
+   */
+  async setSpaceAccess(
+    organizationId: string,
+    orgUnitId: string,
+    body: unknown,
+  ): Promise<OrgUnitResponse> {
+    if (!isUuid(orgUnitId)) {
+      throw orgUnitNotFound();
+    }
+
+    const unit = await this.prisma.orgUnit.findFirst({
+      where: { id: orgUnitId, organizationId },
+      select: { id: true, parentId: true, name: true },
+    });
+
+    if (!unit) {
+      throw orgUnitNotFound();
+    }
+
+    const { access } = parseBody(updateOrgUnitSpaceSchema, body);
+
+    if (access === 'inherit' && unit.parentId === null) {
+      throw new ConflictException('A unidade raiz não tem unidade-pai.');
+    }
+
+    const space = await this.prisma.space.update({
+      where: { orgUnitId },
+      data: { inheritsParent: access === 'inherit' },
+      select: { inheritsParent: true },
+    });
+
+    return { data: toOrgUnit({ ...unit, space }) };
   }
 
   /**

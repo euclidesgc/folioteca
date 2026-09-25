@@ -413,3 +413,144 @@ test('DELETE org-units answers the documented 409', async () => {
     body: response.body,
   });
 });
+
+const ORG_UNIT_SPACE_PATH = '/org-units/{orgUnitId}/space';
+
+/** Envia `PATCH /api/org-units/:id/space` com o cabeçalho do CSRF. */
+function patchOrgUnitSpace(
+  orgUnitId: string,
+  body: object,
+  cookie: string,
+): Promise<Response> {
+  return httpRequest(app)
+    .patch(`/api/org-units/${orgUnitId}/space`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookie)
+    .send(body);
+}
+
+test('PATCH org-units space answers the documented 200', async () => {
+  const created = await postOrgUnit(
+    { parentId: await getRootId(), name: 'Acervo' },
+    adminCookie,
+  );
+
+  const response = await patchOrgUnitSpace(
+    idOf(created),
+    { access: 'inherit' },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(200);
+  await expectMatchesContract({
+    path: ORG_UNIT_SPACE_PATH,
+    method: 'patch',
+    status: 200,
+    body: response.body,
+  });
+});
+
+test('PATCH org-units space answers the documented 400', async () => {
+  const created = await postOrgUnit(
+    { parentId: await getRootId(), name: 'Acervo' },
+    adminCookie,
+  );
+
+  const response = await patchOrgUnitSpace(
+    idOf(created),
+    { access: 'public' },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(400);
+  await expectMatchesContract({
+    path: ORG_UNIT_SPACE_PATH,
+    method: 'patch',
+    status: 400,
+    body: response.body,
+  });
+});
+
+test('PATCH org-units space answers the documented 403', async () => {
+  const created = await postOrgUnit(
+    { parentId: await getRootId(), name: 'Acervo' },
+    adminCookie,
+  );
+  const { cookie } = await createPersonWithSession(app, {
+    name: 'João Souza',
+    email: 'joao@exemplo.org',
+  });
+
+  const response = await patchOrgUnitSpace(
+    idOf(created),
+    { access: 'inherit' },
+    cookie,
+  );
+
+  expect(response.status).toBe(403);
+  await expectMatchesContract({
+    path: ORG_UNIT_SPACE_PATH,
+    method: 'patch',
+    status: 403,
+    body: response.body,
+  });
+});
+
+test('PATCH org-units space answers the documented 404', async () => {
+  const response = await patchOrgUnitSpace(
+    randomUUID(),
+    { access: 'inherit' },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(404);
+  await expectMatchesContract({
+    path: ORG_UNIT_SPACE_PATH,
+    method: 'patch',
+    status: 404,
+    body: response.body,
+  });
+});
+
+test('PATCH org-units space answers the documented 409', async () => {
+  const response = await patchOrgUnitSpace(
+    await getRootId(),
+    { access: 'inherit' },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(409);
+  await expectMatchesContract({
+    path: ORG_UNIT_SPACE_PATH,
+    method: 'patch',
+    status: 409,
+    body: response.body,
+  });
+});
+
+test('GET org-units returns spaceAccess in each unit', async () => {
+  const created = await postOrgUnit(
+    { parentId: await getRootId(), name: 'Acervo' },
+    adminCookie,
+  );
+  await patchOrgUnitSpace(idOf(created), { access: 'inherit' }, adminCookie);
+
+  const response = await httpRequest(app)
+    .get('/api/org-units')
+    .set('Cookie', adminCookie);
+  const units = (
+    response.body as { data: { id: string; spaceAccess: string }[] }
+  ).data;
+
+  expect(response.status).toBe(200);
+  expect(units).toHaveLength(2);
+  expect(
+    units.map((unit) => [unit.id === idOf(created), unit.spaceAccess]),
+  ).toEqual(expect.arrayContaining([[true, 'inherit'], [false, 'own']]));
+  await expectMatchesContract({
+    path: '/org-units',
+    method: 'get',
+    status: 200,
+    body: response.body,
+  });
+});

@@ -6,6 +6,7 @@ import { Button, buttonVariants } from '@/components/ui/button/button';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog/confirmation-dialog';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogTitle,
@@ -17,6 +18,7 @@ import { useDeleteOrgUnit } from '@/features/org-units/api/delete-org-unit';
 import { useOrgUnits } from '@/features/org-units/api/get-org-units';
 import { CreateOrgUnitForm } from '@/features/org-units/components/create-org-unit-form';
 import { RenameOrgUnitForm } from '@/features/org-units/components/rename-org-unit-form';
+import { SpaceAccessControl } from '@/features/org-units/components/space-access-control';
 import {
   buildTree,
   collectExpandableIds,
@@ -26,7 +28,10 @@ import type { OrgUnit } from '@/types/api';
 // A tree with only the root (or nothing at all) says what this place is for.
 const ONLY_ROOT_LIMIT = 1;
 
-type DialogState = { mode: 'create' | 'rename'; unitId: string };
+type DialogState = {
+  mode: 'create' | 'rename' | 'space-access';
+  unitId: string;
+};
 
 // What the dialog asks of whichever form is inside it.
 type FormFocusHandle = { focusName: () => void };
@@ -100,6 +105,25 @@ const UsersIcon = (): React.JSX.Element => (
     <circle cx="9.5" cy="8" r="3.25" />
     <path d="M3.5 19.5c0-3.05 2.69-5.25 6-5.25s6 2.2 6 5.25" />
     <path d="M16 5.2a3.25 3.25 0 0 1 0 6.3M17.5 14.6c1.9.7 3.2 2.4 3.2 4.6" />
+  </svg>
+);
+
+// A padlock, drawn here like the other icons of this file and for the same
+// reason: one feature never imports from another.
+const LockIcon = (): React.JSX.Element => (
+  <svg
+    aria-hidden="true"
+    focusable="false"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="size-4"
+  >
+    <rect x="5" y="10.5" width="14" height="10" rx="2" />
+    <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
   </svg>
 );
 
@@ -260,6 +284,21 @@ function LoadedOrgUnitsTree({
                   size="icon"
                   type="button"
                   tabIndex={tabIndex}
+                  aria-label={`Acesso ao espaço de ${node.label}`}
+                  title={`Acesso ao espaço de ${node.label}`}
+                  onClick={() =>
+                    setDialog({ mode: 'space-access', unitId: node.id })
+                  }
+                >
+                  <LockIcon />
+                </Button>
+              ) : null}
+              {typeof unitsById.get(node.id)?.parentId === 'string' ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  type="button"
+                  tabIndex={tabIndex}
                   aria-label={`Apagar ${node.label}`}
                   title={`Apagar ${node.label}`}
                   onClick={(event) => {
@@ -300,6 +339,15 @@ function LoadedOrgUnitsTree({
         {dialog && dialogUnit ? (
           <DialogContent
             onOpenAutoFocus={(event) => {
+              // The space access has no field: the focus goes to the checked
+              // option, as the radio group pattern asks, not to the first one.
+              if (dialog.mode === 'space-access') {
+                event.preventDefault();
+                (event.currentTarget as HTMLElement | null)
+                  ?.querySelector<HTMLInputElement>('input[type=radio]:checked')
+                  ?.focus();
+                return;
+              }
               // The field, not the first focusable of the box.
               event.preventDefault();
               formFocusRef.current?.focusName();
@@ -328,6 +376,27 @@ function LoadedOrgUnitsTree({
                   onSuccess={handleCreated}
                   onCancel={closeDialog}
                 />
+              </>
+            ) : dialog.mode === 'space-access' ? (
+              <>
+                <DialogTitle>Acesso ao espaço</DialogTitle>
+                <DialogDescription>
+                  Quem vê o espaço de “{dialogUnit.name}”.
+                </DialogDescription>
+                <SpaceAccessControl
+                  key={`space-access-${dialogUnit.id}`}
+                  unit={dialogUnit}
+                  parentName={
+                    unitsById.get(dialogUnit.parentId ?? '')?.name ?? ''
+                  }
+                />
+                <div className="mt-6 flex flex-wrap justify-end gap-2">
+                  <DialogClose asChild>
+                    <Button variant="secondary" type="button">
+                      Fechar
+                    </Button>
+                  </DialogClose>
+                </div>
               </>
             ) : (
               <>

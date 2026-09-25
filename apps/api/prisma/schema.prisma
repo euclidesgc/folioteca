@@ -102,6 +102,9 @@ model Space {
   organizationId String?
   name           String?
   ownerId        String?
+  /// `true` faz quem vê o espaço da unidade-pai ver também este. A restrição
+  /// "só espaço UNIT herda" vive só na migration 0014 (o Prisma não a expressa).
+  inheritsParent Boolean   @default(false)
   createdAt      DateTime  @default(now())
 
   person       Person?       @relation("PersonalSpace", fields: [personId], references: [id])

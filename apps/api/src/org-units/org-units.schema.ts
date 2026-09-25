@@ -33,3 +33,15 @@ export const updateOrgUnitSchema = z.strictObject(
 );
 
 export type UpdateOrgUnitInput = z.infer<typeof updateOrgUnitSchema>;
+
+/** Campos aceitos ao mudar quem vê o espaço da unidade: só o modo de acesso. */
+export const updateOrgUnitSpaceSchema = z.strictObject(
+  {
+    access: z.enum(['own', 'inherit'], {
+      error: 'Escolha o modo de acesso.',
+    }),
+  },
+  { error: 'Campo não permitido.' },
+);
+
+export type UpdateOrgUnitSpaceInput = z.infer<typeof updateOrgUnitSpaceSchema>;

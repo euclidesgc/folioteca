@@ -141,3 +141,34 @@ test('POST spaces answers the documented 401', async () => {
     body: response.body,
   });
 });
+
+test('GET spaces with an inherited unit space matches the documented 200', async () => {
+  const admin = await prisma.person.findFirstOrThrow({ select: { id: true, organizationId: true } });
+  const root = await prisma.orgUnit.findFirstOrThrow({ where: { parentId: null } });
+  const parent = await prisma.orgUnit.create({
+    data: { organizationId: admin.organizationId, parentId: root.id, name: 'Secretaria' },
+  });
+  await prisma.space.create({ data: { type: 'UNIT', orgUnitId: parent.id } });
+  const child = await prisma.orgUnit.create({
+    data: { organizationId: admin.organizationId, parentId: parent.id, name: 'Protocolo' },
+  });
+  const childSpace = await prisma.space.create({
+    data: { type: 'UNIT', orgUnitId: child.id, inheritsParent: true },
+  });
+  await prisma.orgUnitAssignment.create({
+    data: { orgUnitId: parent.id, personId: admin.id },
+  });
+
+  const response = await getSpaces(adminCookie);
+
+  expect(response.status).toBe(200);
+  expect(
+    (response.body as { data: { id: string }[] }).data.map((item) => item.id),
+  ).toContain(childSpace.id);
+  await expectMatchesContract({
+    path: CONTRACT_PATH,
+    method: 'get',
+    status: 200,
+    body: response.body,
+  });
+});

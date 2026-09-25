@@ -4,7 +4,11 @@ import { beforeEach, expect, test } from 'vitest';
 import { useNotifications } from '@/components/ui/notifications/notifications-store';
 import { env } from '@/config/env';
 import { paths } from '@/config/paths';
-import { seedInstalled, seedSampleOrgUnits } from '@/testing/mocks/db';
+import {
+  seedInstalled,
+  seedSampleOrgUnits,
+  setOrgUnitSpaceAccess,
+} from '@/testing/mocks/db';
 import { server } from '@/testing/mocks/server';
 import {
   renderApp,
@@ -505,6 +509,8 @@ test('deleting from the keyboard removes the unit, notifies and focuses the pare
   expect(createAction('Restauro e Conservação')).toHaveFocus();
   await user.tab();
   expect(renameAction('Restauro e Conservação')).toHaveFocus();
+  // "Acesso ao espaço" comes before "Apagar", which is always the last.
+  await user.tab();
   await user.tab();
   expect(deleteAction('Restauro e Conservação')).toHaveFocus();
 
@@ -726,5 +732,139 @@ test('the Pessoas action links to the unit people route', async () => {
   ).toHaveAttribute(
     'href',
     paths.admin.orgUnitPeople.getHref('org-unit-catalogacao'),
+  );
+});
+
+const CHILD_LABELS = READING_ORDER.slice(1);
+
+const spaceAccessAction = (label: string): HTMLElement =>
+  screen.getByRole('button', { name: `Acesso ao espaço de ${label}` });
+
+test('the root has no space access button', async () => {
+  seedSampleOrgUnits();
+
+  renderApp(<OrgUnitsTree />);
+
+  await screen.findByRole(
+    'tree',
+    { name: 'Estrutura de unidades' },
+    LAZY_TIMEOUT,
+  );
+
+  expect(
+    screen.queryByRole('button', {
+      name: 'Acesso ao espaço de Biblioteca Municipal de Exemplo',
+    }),
+  ).not.toBeInTheDocument();
+});
+
+test('each child unit has the Acesso ao espaço button', async () => {
+  seedSampleOrgUnits();
+
+  renderApp(<OrgUnitsTree />);
+
+  await screen.findByRole(
+    'tree',
+    { name: 'Estrutura de unidades' },
+    LAZY_TIMEOUT,
+  );
+
+  for (const label of CHILD_LABELS) {
+    expect(spaceAccessAction(label)).toHaveAttribute(
+      'title',
+      `Acesso ao espaço de ${label}`,
+    );
+  }
+});
+
+test('the space access button opens the Acesso ao espaço dialog', async () => {
+  const user = userEvent.setup();
+  seedSampleOrgUnits();
+
+  renderApp(<OrgUnitsTree />);
+
+  await screen.findByRole(
+    'tree',
+    { name: 'Estrutura de unidades' },
+    LAZY_TIMEOUT,
+  );
+
+  await user.click(spaceAccessAction('Catalogação'));
+
+  const dialog = await screen.findByRole('dialog', {
+    name: 'Acesso ao espaço',
+  });
+  expect(dialog).toHaveAccessibleDescription(
+    'Quem vê o espaço de “Catalogação”.',
+  );
+  expect(
+    within(dialog).getByRole('group', { name: 'Modo de acesso' }),
+  ).toBeInTheDocument();
+  expect(
+    within(dialog).getByRole('radio', { name: 'Permissões próprias' }),
+  ).toBeChecked();
+  expect(
+    within(dialog).getByText(
+      'Só quem está lotado em “Catalogação” vê este espaço.',
+    ),
+  ).toBeInTheDocument();
+
+  await user.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+
+  await waitFor(() => expect(dialog).not.toBeInTheDocument());
+});
+
+test('the space access dialog focuses the checked option', async () => {
+  const user = userEvent.setup();
+  seedSampleOrgUnits();
+  setOrgUnitSpaceAccess('org-unit-acervo', 'inherit');
+
+  renderApp(<OrgUnitsTree />);
+
+  await screen.findByRole(
+    'tree',
+    { name: 'Estrutura de unidades' },
+    LAZY_TIMEOUT,
+  );
+
+  await user.click(spaceAccessAction('Acervo e Processamento Técnico'));
+
+  const dialog = await screen.findByRole('dialog', {
+    name: 'Acesso ao espaço',
+  });
+  const inheritOption = within(dialog).getByRole('radio', {
+    name: 'Herda da unidade-pai',
+  });
+  expect(inheritOption).toBeChecked();
+  await waitFor(() => expect(inheritOption).toHaveFocus());
+});
+
+test('Escape closes the space access dialog and returns focus to the button', async () => {
+  const user = userEvent.setup();
+  seedSampleOrgUnits();
+
+  renderApp(<OrgUnitsTree />);
+
+  await screen.findByRole(
+    'tree',
+    { name: 'Estrutura de unidades' },
+    LAZY_TIMEOUT,
+  );
+
+  await user.click(spaceAccessAction('Restauro e Conservação'));
+
+  const dialog = await screen.findByRole('dialog', {
+    name: 'Acesso ao espaço',
+  });
+
+  await user.keyboard('{Escape}');
+
+  await waitFor(() => expect(dialog).not.toBeInTheDocument());
+  await waitFor(() =>
+    expect(
+      screen.getByRole('button', {
+        name: 'Acesso ao espaço de Restauro e Conservação',
+      }),
+    ).toHaveFocus(),
   );
 });

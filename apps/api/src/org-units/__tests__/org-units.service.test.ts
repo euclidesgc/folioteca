@@ -35,7 +35,12 @@ test('reads only the units of the given organization selecting id, parentId and 
 
   expect(findMany).toHaveBeenCalledWith({
     where: { organizationId: 'organizacao-1' },
-    select: { id: true, parentId: true, name: true },
+    select: {
+      id: true,
+      parentId: true,
+      name: true,
+      space: { select: { inheritsParent: true } },
+    },
   });
 });
 
@@ -200,12 +205,23 @@ test('create writes the unit and its UNIT space in one transaction', async () =>
   expect(transaction).toHaveBeenCalledTimes(1);
   expect(createUnit).toHaveBeenCalledWith({
     data: { organizationId: ORGANIZATION_ID, parentId: PARENT_ID, name: 'Acervo' },
-    select: { id: true, parentId: true, name: true },
+    select: {
+      id: true,
+      parentId: true,
+      name: true,
+      space: { select: { inheritsParent: true } },
+    },
   });
   expect(createSpace).toHaveBeenCalledWith({
     data: { type: 'UNIT', orgUnitId: UNIT_ID },
+    select: { inheritsParent: true },
   });
-  expect(unit).toEqual({ id: UNIT_ID, parentId: PARENT_ID, name: 'Acervo' });
+  expect(unit).toEqual({
+    id: UNIT_ID,
+    parentId: PARENT_ID,
+    name: 'Acervo',
+    spaceAccess: 'own',
+  });
 });
 
 test('create turns a unique violation into ConflictException with the message', async () => {
@@ -262,7 +278,12 @@ test('rename of the root also updates the organization name', async () => {
   expect(updateUnit).toHaveBeenCalledWith({
     where: { id: UNIT_ID },
     data: { name: 'Prefeitura Nova' },
-    select: { id: true, parentId: true, name: true },
+    select: {
+      id: true,
+      parentId: true,
+      name: true,
+      space: { select: { inheritsParent: true } },
+    },
   });
   expect(updateOrganization).toHaveBeenCalledWith({
     where: { id: ORGANIZATION_ID },
@@ -518,4 +539,101 @@ test('remove rethrows any other error', async () => {
   await expect(service.remove(ORGANIZATION_ID, UNIT_ID)).rejects.toThrow(
     'banco fora do ar',
   );
+});
+
+/** Serviço com Prisma falso para `setSpaceAccess`: `found` é a unidade buscada. */
+function createSpaceAccessService(found: UnitRecord | null): {
+  service: OrgUnitsService;
+  findFirst: Mock;
+  updateSpace: Mock;
+} {
+  const findFirst = vi.fn().mockResolvedValue(found);
+  const updateSpace = vi
+    .fn()
+    .mockImplementation((args: { data: { inheritsParent: boolean } }) =>
+      Promise.resolve({ inheritsParent: args.data.inheritsParent }),
+    );
+
+  const prisma = {
+    orgUnit: { findFirst },
+    space: { update: updateSpace },
+  } as unknown as PrismaService;
+
+  return { service: new OrgUnitsService(prisma), findFirst, updateSpace };
+}
+
+test('setSpaceAccess answers 404 for a malformed id', async () => {
+  const { service, findFirst, updateSpace } = createSpaceAccessService(null);
+
+  await expect(
+    service.setSpaceAccess(ORGANIZATION_ID, 'nao-e-uuid', { access: 'inherit' }),
+  ).rejects.toThrow(NOT_FOUND_MESSAGE);
+
+  expect(findFirst).not.toHaveBeenCalled();
+  expect(updateSpace).not.toHaveBeenCalled();
+});
+
+test('setSpaceAccess answers 409 for inherit on the root', async () => {
+  const { service, updateSpace } = createSpaceAccessService({
+    id: UNIT_ID,
+    parentId: null,
+    name: 'Raiz',
+  });
+
+  await expect(
+    service.setSpaceAccess(ORGANIZATION_ID, UNIT_ID, { access: 'inherit' }),
+  ).rejects.toThrow(new ConflictException('A unidade raiz não tem unidade-pai.'));
+
+  expect(updateSpace).not.toHaveBeenCalled();
+});
+
+test('setSpaceAccess updates inheritsParent by orgUnitId', async () => {
+  const { service, findFirst, updateSpace } = createSpaceAccessService({
+    id: UNIT_ID,
+    parentId: PARENT_ID,
+    name: 'Acervo',
+  });
+
+  const result = await service.setSpaceAccess(ORGANIZATION_ID, UNIT_ID, {
+    access: 'inherit',
+  });
+
+  expect(findFirst).toHaveBeenCalledWith(
+    expect.objectContaining({
+      where: { id: UNIT_ID, organizationId: ORGANIZATION_ID },
+    }),
+  );
+  expect(updateSpace).toHaveBeenCalledWith(
+    expect.objectContaining({
+      where: { orgUnitId: UNIT_ID },
+      data: { inheritsParent: true },
+    }),
+  );
+  expect(result).toEqual({
+    data: {
+      id: UNIT_ID,
+      parentId: PARENT_ID,
+      name: 'Acervo',
+      spaceAccess: 'inherit',
+    },
+  });
+});
+
+test('list maps the space inheritsParent to spaceAccess', async () => {
+  const findMany = vi.fn().mockResolvedValue([
+    { id: 'a', parentId: null, name: 'Raiz', space: { inheritsParent: false } },
+    { id: 'b', parentId: 'a', name: 'Acervo', space: { inheritsParent: true } },
+    { id: 'c', parentId: 'a', name: 'Zeladoria', space: null },
+  ]);
+  const service = new OrgUnitsService({
+    orgUnit: { findMany },
+  } as unknown as PrismaService);
+
+  const result = await service.list(ORGANIZATION_ID);
+
+  expect(result).toEqual([
+    { id: 'b', parentId: 'a', name: 'Acervo', spaceAccess: 'inherit' },
+    { id: 'a', parentId: null, name: 'Raiz', spaceAccess: 'own' },
+    { id: 'c', parentId: 'a', name: 'Zeladoria', spaceAccess: 'own' },
+  ]);
 });
