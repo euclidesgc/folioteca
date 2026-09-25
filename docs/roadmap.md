@@ -38,11 +38,15 @@
 | 148 | share-edit-level | (proprietário) compartilhar em "Pode editar", com a pessoa editando junto como colaboradora, e trocar o nível de alguém compartilhando de novo sem duplicar | 015 share-with-person | 147 | in-review |
 | 179 | share-level-change | (proprietário) na lista "Quem tem acesso", mudar o nível de quem tem compartilhamento entre "Pode ver" e "Pode editar" e remover o acesso com confirmação | 015 share-with-person | 148 | in-review |
 | 180 | share-change-live | quem está com o documento aberto sente na hora a troca de nível ou a remoção do compartilhamento (editor vira só leitura com aviso, volta a editar, ou a conexão de colaboração é encerrada e aparece a tela de sem acesso), inclusive quando o nível muda ao compartilhar de novo pela 148; fecha a dívida 049 para o caso de compartilhamento | 015 share-with-person | 179 | in-review |
-| 016 | share-with-groups | compartilhar com um espaço, uma unidade e tudo abaixo dela (com exclusões) ou toda a instância, com revogação imediata ao sair | pedido inicial | 145, 012, 127, 140 | planned |
-| 017 | audience-preview | ver, antes de confirmar o compartilhamento, quantas pessoas passam a ter acesso | pedido inicial | 016 | planned |
-| 018 | who-can-see | ver quem vê este documento e por qual caminho | pedido inicial | 016 | planned |
+| 185 | share-with-instance | (proprietário) compartilhar um documento com toda a instância ("Todos da organização") em "Pode ver" ou "Pode editar", e retirar; quem entra na instância passa a ter acesso e quem sai perde na hora | 016 share-with-groups | 145, 148 | in-progress |
+| 186 | share-with-space | compartilhar com um espaço (os membros do espaço, pela mesma regra de alcance do espaço), com revogação imediata ao sair do espaço | 016 share-with-groups | 185 | planned |
+| 187 | share-with-unit | compartilhar com uma unidade (os lotados diretos), com revogação imediata ao sair da unidade | 016 share-with-groups | 186, 012 | planned |
+| 188 | share-with-unit-subtree | compartilhar com uma unidade e tudo abaixo dela | 016 share-with-groups | 187 | planned |
+| 189 | share-with-unit-exclusions | excluir subunidades de um compartilhamento com "tudo abaixo" | 016 share-with-groups | 188 | planned |
+| 017 | audience-preview | ver, antes de confirmar o compartilhamento, quantas pessoas passam a ter acesso | pedido inicial | 189 | planned |
+| 018 | who-can-see | ver quem vê este documento e por qual caminho | pedido inicial | 189 | planned |
 | 019 | shared-with-me | ver a lista dos documentos compartilhados comigo | pedido inicial | 145 | planned |
-| 020 | structure-change-preview | (administração) ver quem ganha e quem perde acesso antes de confirmar uma mudança de estrutura ou lotação | pedido inicial | 016 | planned |
+| 020 | structure-change-preview | (administração) ver quem ganha e quem perde acesso antes de confirmar uma mudança de estrutura ou lotação | pedido inicial | 189 | planned |
 | 021 | text-search | pesquisar documentos por texto, recebendo só o que pode ler | pedido inicial | 145 | planned |
 | 022 | comments | comentar ancorado num trecho do documento, com thread e resolução | pedido inicial | 145 | planned |
 | 023 | mentions | mencionar pessoas num comentário | pedido inicial | 022 | planned |
@@ -55,7 +59,7 @@
 | 030 | email-digest | receber e-mail de resumo das notificações | pedido inicial | 029 | planned |
 | 031 | ownership-transfer | transferir a propriedade de um documento, com aceite de quem recebe | pedido inicial | 145 | planned |
 | 032 | offboarding | (administração) desligar uma pessoa com revogação no ato e transferência dos documentos dela | pedido inicial | 031 | planned |
-| 033 | access-audit | (administração) consultar e exportar a auditoria de acesso | pedido inicial | 016 | planned |
+| 033 | access-audit | (administração) consultar e exportar a auditoria de acesso | pedido inicial | 189 | planned |
 | 034 | google-login | entrar com Google | pedido inicial | 003 | planned |
 | 035 | corporate-sso | entrar com o SSO corporativo (OIDC) | pedido inicial | 034 | planned |
 | 036 | product-hotsite | conhecer o produto num hotsite de apresentação | pedido inicial | | planned |
