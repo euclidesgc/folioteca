@@ -11,11 +11,15 @@ import {
   useCreateSpace,
 } from '@/features/spaces/api/create-space';
 import type { Space } from '@/features/spaces/api/get-spaces';
+import { isConflictError } from '@/lib/errors';
 
-// The message of a 400 about the name, as the server wrote it: the field
-// message of the real API (`errors[].message`) or, failing that, the top
-// `message`. `null` for any other failure.
+// The message of a 400 (invalid name) or a 409 (a space of the person already
+// has that name), as the server wrote it: for a 400 the field message of the
+// real API (`errors[].message`) or, failing that, the top `message`. `null`
+// for any other failure.
 const getNameErrorMessage = (error: unknown): string | null => {
+  // The shared HTTP client turns every 409 into a `ConflictError`.
+  if (isConflictError(error)) return error.serverMessage ?? null;
   if (!isAxiosError(error) || error.response?.status !== 400) return null;
 
   const data: unknown = error.response.data;

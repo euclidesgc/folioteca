@@ -13,6 +13,13 @@ const SPACE_DOCUMENTS_TEXTS = {
   error: 'Não foi possível carregar os documentos do espaço.',
 };
 
+// Whoever cannot create in the space (a member who only reads) is never
+// pointed at "Novo documento", which is not on screen for them.
+const READ_ONLY_SPACE_DOCUMENTS_TEXTS = {
+  ...SPACE_DOCUMENTS_TEXTS,
+  empty: 'Nenhum documento neste espaço ainda.',
+};
+
 const DIRECT_ASSIGNMENT_NOTICE =
   'Os documentos deste espaço estão disponíveis para quem está lotado diretamente na unidade.';
 
@@ -23,8 +30,12 @@ const isForbidden = (error: unknown): boolean =>
 
 export function SpaceDocuments({
   spaceId,
+  canCreate,
 }: {
   spaceId: string;
+  // What the server says (`canCreateDocuments` of the space), passed by the
+  // route: the documents feature never reads the space itself.
+  canCreate: boolean;
 }): React.JSX.Element {
   const documentsQuery = useSpaceDocuments({ spaceId });
 
@@ -66,15 +77,20 @@ export function SpaceDocuments({
     );
   }
 
-  // Only a 200 reaches here: whoever would get a 403 never sees the button.
+  // Only a 200 reaches here: whoever would get a 403 never sees the button,
+  // and neither does whoever the server says cannot create.
   return (
     <>
-      <div className="mt-6 flex justify-end">
-        <NewDocumentButton spaceId={spaceId} className="shrink-0" />
-      </div>
+      {canCreate ? (
+        <div className="mt-6 flex justify-end">
+          <NewDocumentButton spaceId={spaceId} className="shrink-0" />
+        </div>
+      ) : null}
       <DocumentsListStates
         query={documentsQuery}
-        texts={SPACE_DOCUMENTS_TEXTS}
+        texts={
+          canCreate ? SPACE_DOCUMENTS_TEXTS : READ_ONLY_SPACE_DOCUMENTS_TEXTS
+        }
       />
     </>
   );

@@ -16,6 +16,7 @@ import {
   getSignedInPerson,
   type MockDocument,
   shareDocument,
+  spaceMemberLevelOf,
   spaceReachOf,
 } from '../db';
 import { devOverride, networkDelay, SESSION_COOKIE_NAME } from '../utils';
@@ -123,6 +124,14 @@ export const documentsHandlers = [
           { status: 404 },
         );
       }
+      // A member of a free space who only reads creates nothing there; the
+      // owner has no level and always creates.
+      if (spaceMemberLevelOf(creator.id, spaceId) === 'view') {
+        return HttpResponse.json(
+          { message: 'Só quem pode editar cria documentos neste espaço.' },
+          { status: 403 },
+        );
+      }
       document = createDocumentIn(creator.id, spaceId);
     }
 
@@ -222,7 +231,18 @@ export const documentsHandlers = [
     const document = documents.find((item) => item.id === params.documentId);
     if (!document) return notFound();
 
-    const body: DocumentResponse = { data: toDocumentBody(document) };
+    // A member of the free space who only reads gets `view` on a document of
+    // someone else, whatever level the fake database keeps for it.
+    const reader = getSignedInPerson();
+    const isViewer =
+      reader !== null &&
+      reader.id !== document.ownerId &&
+      spaceMemberLevelOf(reader.id, document.spaceId) === 'view';
+    const body: DocumentResponse = {
+      data: toDocumentBody(
+        isViewer ? { ...document, accessLevel: 'view' } : document,
+      ),
+    };
     return HttpResponse.json(body);
   }),
 

@@ -46,6 +46,10 @@ const getAddMemberErrorMessage = (error: unknown): string => {
 type AddSpaceMemberDialogProps = {
   spaceId: string;
   spaceName: string;
+  // Hidden from the search: nobody adds the owner to their own space. Unknown
+  // while the people of the space load, when nothing is hidden and the server
+  // still refuses the owner.
+  ownerId?: string;
 };
 
 // The trigger and the box. The box opens by state, and the `Dialog` gives the
@@ -54,6 +58,7 @@ type AddSpaceMemberDialogProps = {
 export function AddSpaceMemberDialog({
   spaceId,
   spaceName,
+  ownerId,
 }: AddSpaceMemberDialogProps): React.JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -75,7 +80,7 @@ export function AddSpaceMemberDialog({
           </DialogDescription>
 
           {/* Only mounted while the box is open: reopening starts clean. */}
-          <AddMemberPanel spaceId={spaceId} />
+          <AddMemberPanel spaceId={spaceId} ownerId={ownerId} />
 
           <div className="mt-6 flex flex-wrap justify-end gap-2">
             <DialogClose asChild>
@@ -90,7 +95,13 @@ export function AddSpaceMemberDialog({
   );
 }
 
-function AddMemberPanel({ spaceId }: { spaceId: string }): React.JSX.Element {
+function AddMemberPanel({
+  spaceId,
+  ownerId,
+}: {
+  spaceId: string;
+  ownerId?: string;
+}): React.JSX.Element {
   const [selected, setSelected] = useState<PersonSummary | null>(null);
   const [successMessage, setSuccessMessage] = useState('');
   const [addError, setAddError] = useState<string | null>(null);
@@ -157,6 +168,7 @@ function AddMemberPanel({ spaceId }: { spaceId: string }): React.JSX.Element {
         selected={selected}
         onSelect={handleSelect}
         onClear={handleClear}
+        hiddenIds={ownerId ? [ownerId] : []}
         selectedAside={
           <span className="rounded-full bg-gray-100 px-2 py-0.5 text-sm text-gray-700">
             Membro

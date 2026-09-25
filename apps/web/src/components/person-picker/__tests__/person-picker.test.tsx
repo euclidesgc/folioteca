@@ -35,6 +35,7 @@ type ConsumerProps = {
   onClear?: () => void;
   pickerRef?: React.Ref<PersonPickerHandle>;
   withSlots?: boolean;
+  hiddenIds?: readonly string[];
 };
 
 // The minimal consumer: it owns `selected`, the way a real one does.
@@ -44,6 +45,7 @@ function Consumer({
   onClear,
   pickerRef,
   withSlots = false,
+  hiddenIds,
 }: ConsumerProps): React.JSX.Element {
   const [selected, setSelected] = useState<PersonSummary | null>(
     initialSelected,
@@ -52,6 +54,7 @@ function Consumer({
   return (
     <PersonPicker
       ref={pickerRef}
+      hiddenIds={hiddenIds}
       selected={selected}
       onSelect={(person) => {
         onSelect?.(person);
@@ -257,5 +260,39 @@ test('reset clears the term and focuses the field', async () => {
   expect(field).toHaveFocus();
   expect(
     screen.getByText('Digite pelo menos 2 letras para buscar.'),
+  ).toBeInTheDocument();
+});
+
+test('hiddenIds removes those people from the results', async () => {
+  const { user, field } = renderPicker({ hiddenIds: ['person-sample-6'] });
+
+  await user.type(field, 'silva');
+
+  expect(
+    await screen.findByText('1 resultado.', undefined, LAZY_TIMEOUT),
+  ).toBeInTheDocument();
+  const list = screen.getByRole('list', { name: 'Pessoas encontradas' });
+  expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+  expect(
+    within(list).getByRole('button', { name: 'Selecionar João Pedro Silva' }),
+  ).toBeInTheDocument();
+  expect(within(list).queryByText('Eduardo Silva')).not.toBeInTheDocument();
+});
+
+test('without hiddenIds every result is listed', async () => {
+  const { user, field } = renderPicker();
+
+  await user.type(field, 'silva');
+
+  expect(
+    await screen.findByText('2 resultados.', undefined, LAZY_TIMEOUT),
+  ).toBeInTheDocument();
+  const list = screen.getByRole('list', { name: 'Pessoas encontradas' });
+  expect(within(list).getAllByRole('listitem')).toHaveLength(2);
+  expect(
+    within(list).getByRole('button', { name: 'Selecionar Eduardo Silva' }),
+  ).toBeInTheDocument();
+  expect(
+    within(list).getByRole('button', { name: 'Selecionar João Pedro Silva' }),
   ).toBeInTheDocument();
 });

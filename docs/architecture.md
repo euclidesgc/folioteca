@@ -182,7 +182,34 @@ participação) → `none`. `readableDocumentsWhere` passou a incluir o document
 do espaço livre de que a pessoa é dona ou membro. A regra 11 do teste
 estrutural `document-access-boundary.test.ts` garante que, fora de
 `access.service.ts`, nenhuma leitura de `Document` filtra por `members` nem
-pelo `ownerId` do espaço.
+pelo `ownerId` do espaço. Desde a fatia 142, o membro vale o nível dele
+(`EDIT` ou `VIEW`), não mais sempre `edit`.
+
+**Entrega `free-space-restrict-invite` (fatia 141).** Quem adiciona pessoas ao
+espaço livre é o dono e, quando o espaço está aberto com `membersCanInvite`,
+qualquer membro; remover continua **só do dono**. O flag mora na coluna
+`Space.membersCanInvite` (padrão `false`, fechado), e a restrição de que só
+espaço `FREE` pode abrir é o `CHECK` `Space_members_can_invite_free_check`,
+escrito à mão na migration 0018 porque o Prisma não o expressa. `PATCH
+/spaces/{spaceId}` (`SpacesService.updateSettings`) muda o flag e é **só do
+dono**: membro recebe 403, e quem não alcança o espaço, 404. `addMember` relê
+o flag a cada pedido, na mesma consulta do espaço, por isso fechar o espaço
+barra o membro na hora. Desde a fatia 142, o membro leitor (`VIEW`) não
+adiciona pessoas nem com o espaço aberto.
+
+**Entrega `free-space-member-roles` (fatia 142).** O membro do espaço livre
+tem nível `EDIT` ou `VIEW` na coluna `SpaceMember.level` (migration 0019,
+padrão `EDIT`, por isso quem já era membro continua editor); o dono segue
+`edit` sem nível gravado. Só o dono muda o nível, por `PATCH
+/spaces/{spaceId}/members/{personId}` (`SpacesService.updateMemberLevel`):
+membro recebe 403, o dono como alvo, 400, e quem não é membro, 404. O
+`AccessService` dá `view` ao leitor e mantém o maior entre compartilhamento e
+espaço, então um share `edit` ainda libera a escrita. Quem cria documento
+(`DocumentsService.create` responde 403 ao leitor) e quem adiciona pessoa
+(`addMember`) é decidido no servidor, e a tela só obedece: `getDetail` devolve
+`canCreateDocuments` e `canAddPeople` no `SpaceDetail`. Rebaixar vale a partir
+da próxima conexão ao documento; a sessão de colaboração já aberta não é
+derrubada.
 
 ## 4. Árvore de unidades
 
@@ -227,6 +254,18 @@ inexistente. Modelo de teclado das ações do `Tree`: uma parada de `Tab` na
 entrada da árvore; do item ativo, `Tab` leva às ações desse nó; as teclas de
 navegação da árvore só respondem com o foco no item; `focusNode` move o foco
 para um nó de forma imperativa (usado depois de criar, ver abaixo).
+
+**Entrega `free-space-unique-name` (fatia 137)**: a mesma pessoa não é dona de
+dois espaços livres com o mesmo nome, sem diferenciar maiúsculas. O índice
+único parcial `Space_free_owner_name_key` em
+`("ownerId", lower("name")) WHERE "type" = 'FREE'` foi **escrito à mão** na
+migration `0017_free_space_owner_name_uniqueness` e é **invisível ao
+`schema.prisma`** — como na `0007`, `migrate diff` nunca é rodado nessa tabela.
+Espaços `PERSONAL` e `UNIT` ficam fora da regra. `SpacesService.create` **checa
+antes** (`findFirst` com `mode: 'insensitive'`) para a resposta amigável e
+converte o `P2002` da corrida no **mesmo** `409` "Você já tem um espaço com esse
+nome."; o reconhecimento do `P2002` é `isUniqueViolation`, em
+`apps/api/src/common/is-unique-violation.ts`.
 
 **Entrega `org-units-delete` (fatia 066)**: as FKs `OrgUnit.parentId` e
 `Space.orgUnitId` passaram a `ON DELETE RESTRICT` na migration `0008`,
@@ -764,7 +803,8 @@ enxergar o membro, com `reach: member` (o dono segue `owner`); `GET
 /spaces/{spaceId}/members` continua **só de espaço de unidade** (até a 135,
 que a abre ao espaço livre). Na tela, a
 lista da barra lateral (`get-spaces.ts`) usa `staleTime: 0`, para o membro ver
-o espaço assim que for adicionado.
+o espaço assim que for adicionado. A 141 (§3) passa a deixar o dono abrir a
+adição a qualquer membro.
 
 **Entrega `free-space-members` (fatia 135)**: `GET /spaces/{spaceId}/members`
 passa a servir **também o espaço livre**, ao dono e aos membros, com o **dono

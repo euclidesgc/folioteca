@@ -42,6 +42,8 @@ test("getSpace requests the space path", async () => {
           type: "unit",
           name: "Catalogação",
           reach: "direct",
+          canCreateDocuments: true,
+          canAddPeople: false,
         },
       });
     }),
@@ -62,6 +64,8 @@ test("getSpace requests the space path", async () => {
       type: "unit",
       name: "Catalogação",
       reach: "direct",
+      canCreateDocuments: true,
+      canAddPeople: false,
     },
   });
 });

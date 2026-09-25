@@ -13,6 +13,7 @@ import {
   seedSampleOrgUnits,
   seedSamplePeople,
   seedSpaceMembers,
+  setSpaceMemberLevel,
 } from "@/testing/mocks/db";
 import { server } from "@/testing/mocks/server";
 import {
@@ -291,6 +292,7 @@ test("a FREE space shows the loading status", async () => {
             email: "ana.souza@exemplo.com.br",
             isCurrentPerson: true,
             role: "owner",
+            level: null,
           },
         ],
       });
@@ -333,6 +335,7 @@ test("a FREE space shows the error with Tentar de novo", async () => {
                 email: "ana.souza@exemplo.com.br",
                 isCurrentPerson: true,
                 role: "owner",
+                level: null,
               },
             ],
           });
@@ -591,4 +594,243 @@ test("a UNIT space keeps its texts and has no Remover button", async () => {
   expect(
     screen.queryByRole("heading", { name: "Pessoas neste espaço" }),
   ).not.toBeInTheDocument();
+});
+
+const levelSelect = (name: string): HTMLElement =>
+  screen.getByRole("combobox", { name: `Nível de ${name}` });
+
+// Holds PATCH of the level until `release` is called, recording each body.
+const holdLevelRequests = (): {
+  bodies: unknown[];
+  release: () => void;
+} => {
+  const bodies: unknown[] = [];
+  let release: () => void = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  server.use(
+    http.patch(MEMBER_URL, async ({ request }) => {
+      bodies.push(await request.clone().json());
+      await held;
+      return undefined;
+    }),
+  );
+  return { bodies, release: () => release() };
+};
+
+test("a FREE space shows the editor or leitor badge on every member row", async () => {
+  const spaceId = seedOwnedFreeSpace();
+  setSpaceMemberLevel(spaceId, SECOND_MEMBER.id, "view");
+
+  renderApp(<SpaceMembers spaceId={spaceId} spaceType="free" canRemove={false} />);
+
+  const list = await findFreeList();
+  const items = within(list).getAllByRole("listitem");
+  expect(items).toHaveLength(3);
+  expect(within(items[0] as HTMLElement).getByText("dono")).toBeInTheDocument();
+  expect(within(items[0] as HTMLElement).queryByText("editor")).not.toBeInTheDocument();
+  expect(within(items[0] as HTMLElement).queryByText("leitor")).not.toBeInTheDocument();
+  expect(items[1]).toHaveTextContent(FIRST_MEMBER.name);
+  expect(within(items[1] as HTMLElement).getByText("editor")).toBeInTheDocument();
+  expect(within(items[1] as HTMLElement).queryByText("leitor")).not.toBeInTheDocument();
+  expect(items[2]).toHaveTextContent(SECOND_MEMBER.name);
+  expect(within(items[2] as HTMLElement).getByText("leitor")).toBeInTheDocument();
+  expect(within(items[2] as HTMLElement).queryByText("editor")).not.toBeInTheDocument();
+});
+
+test("the owner sees the Nível de select on member rows and never on the owner row", async () => {
+  const spaceId = seedOwnedFreeSpace();
+  setSpaceMemberLevel(spaceId, SECOND_MEMBER.id, "view");
+
+  renderApp(<SpaceMembers spaceId={spaceId} spaceType="free" canRemove />);
+
+  const list = await findFreeList();
+  const items = within(list).getAllByRole("listitem");
+  const ownerRow = items[0] as HTMLElement;
+  expect(within(ownerRow).getByText("dono")).toBeInTheDocument();
+  expect(within(ownerRow).queryByRole("combobox")).not.toBeInTheDocument();
+  expect(
+    within(items[1] as HTMLElement).getByRole("combobox", {
+      name: `Nível de ${FIRST_MEMBER.name}`,
+    }),
+  ).toHaveDisplayValue("Pode editar");
+  expect(
+    within(items[2] as HTMLElement).getByRole("combobox", {
+      name: `Nível de ${SECOND_MEMBER.name}`,
+    }),
+  ).toHaveDisplayValue("Pode ver");
+  expect(within(list).getAllByRole("combobox")).toHaveLength(2);
+  expect(
+    within(items[1] as HTMLElement).getAllByRole("option").map((option) => option.textContent),
+  ).toEqual(["Pode editar", "Pode ver"]);
+});
+
+test("a member sees no level select", async () => {
+  seedSamplePeople();
+  const ownerId = "person-sample-1";
+  const space = addFreeSpace(ownerId, "Clube do Livro");
+  addSpaceMember(ownerId, space.id, FIRST_MEMBER.id);
+  addSpaceMember(ownerId, space.id, INSTALLED_PERSON_ID);
+  setSpaceMemberLevel(space.id, INSTALLED_PERSON_ID, "view");
+
+  renderApp(<SpaceMembers spaceId={space.id} spaceType="free" canRemove={false} />);
+
+  const list = await findFreeList();
+  expect(within(list).getAllByRole("listitem")).toHaveLength(3);
+  expect(within(list).getByText("leitor")).toBeInTheDocument();
+  expect(within(list).getByText("editor")).toBeInTheDocument();
+  expect(within(list).queryAllByRole("combobox")).toHaveLength(0);
+  expect(screen.queryAllByRole("button", { name: /^Remover/ })).toHaveLength(0);
+});
+
+test("choosing Pode ver sends view and shows Salvando", async () => {
+  const user = userEvent.setup();
+  const spaceId = seedOwnedFreeSpace();
+  const { bodies, release } = holdLevelRequests();
+
+  renderApp(<SpaceMembers spaceId={spaceId} spaceType="free" canRemove />);
+
+  await findFreeList();
+  await user.selectOptions(levelSelect(FIRST_MEMBER.name), "Pode ver");
+
+  expect(await screen.findByText("Salvando…", {}, LAZY_TIMEOUT)).toBeInTheDocument();
+  expect(levelSelect(FIRST_MEMBER.name)).toHaveDisplayValue("Pode ver");
+  await waitFor(() => expect(bodies).toEqual([{ level: "view" }]), LAZY_TIMEOUT);
+
+  release();
+
+  await waitFor(
+    () => expect(screen.queryByText("Salvando…")).not.toBeInTheDocument(),
+    LAZY_TIMEOUT,
+  );
+  expect(levelSelect(FIRST_MEMBER.name)).toHaveDisplayValue("Pode ver");
+});
+
+test("the select is aria-disabled and keeps focus while sending", async () => {
+  const user = userEvent.setup();
+  const spaceId = seedOwnedFreeSpace();
+  const { bodies, release } = holdLevelRequests();
+
+  renderApp(<SpaceMembers spaceId={spaceId} spaceType="free" canRemove />);
+
+  await findFreeList();
+  const select = levelSelect(FIRST_MEMBER.name);
+  await user.click(select);
+  await user.selectOptions(select, "Pode ver");
+
+  await waitFor(
+    () => expect(levelSelect(FIRST_MEMBER.name)).toHaveAttribute("aria-disabled", "true"),
+    LAZY_TIMEOUT,
+  );
+  expect(levelSelect(FIRST_MEMBER.name)).toHaveFocus();
+  expect(levelSelect(FIRST_MEMBER.name)).not.toBeDisabled();
+  expect(levelSelect(SECOND_MEMBER.name)).not.toHaveAttribute("aria-disabled");
+
+  // A second choice while sending is ignored.
+  await user.selectOptions(levelSelect(FIRST_MEMBER.name), "Pode editar");
+  expect(levelSelect(FIRST_MEMBER.name)).toHaveDisplayValue("Pode ver");
+
+  release();
+
+  await waitFor(
+    () => expect(levelSelect(FIRST_MEMBER.name)).not.toHaveAttribute("aria-disabled"),
+    LAZY_TIMEOUT,
+  );
+  expect(levelSelect(FIRST_MEMBER.name)).toHaveFocus();
+  expect(bodies).toEqual([{ level: "view" }]);
+});
+
+test("a success shows the Nível de name atualizado notification", async () => {
+  const user = userEvent.setup();
+  const spaceId = seedOwnedFreeSpace();
+
+  renderApp(<SpaceMembers spaceId={spaceId} spaceType="free" canRemove />);
+
+  const list = await findFreeList();
+  await user.selectOptions(levelSelect(FIRST_MEMBER.name), "Pode ver");
+
+  await waitFor(
+    () =>
+      expect(notificationTitles()).toEqual([
+        `Nível de ${FIRST_MEMBER.name} atualizado`,
+      ]),
+    LAZY_TIMEOUT,
+  );
+  const firstRow = within(list).getAllByRole("listitem")[1] as HTMLElement;
+  expect(within(firstRow).getByText("leitor")).toBeInTheDocument();
+  expect(levelSelect(FIRST_MEMBER.name)).toHaveDisplayValue("Pode ver");
+  expect(
+    getDb().spaceMembers.find((item) => item.personId === FIRST_MEMBER.id),
+  ).toMatchObject({ level: "view" });
+});
+
+test("a failure restores the level and shows the error notification", async () => {
+  const user = userEvent.setup();
+  const spaceId = seedOwnedFreeSpace();
+  server.use(
+    http.patch(MEMBER_URL, () =>
+      HttpResponse.json(
+        { message: "Erro interno do servidor." },
+        { status: 500 },
+      ),
+    ),
+  );
+
+  renderApp(<SpaceMembers spaceId={spaceId} spaceType="free" canRemove />);
+
+  await findFreeList();
+  await user.selectOptions(levelSelect(FIRST_MEMBER.name), "Pode ver");
+
+  await waitFor(
+    () =>
+      expect(notificationTitles()).toEqual([
+        `Não foi possível mudar o nível de ${FIRST_MEMBER.name}. Tente de novo.`,
+      ]),
+    LAZY_TIMEOUT,
+  );
+  await waitFor(
+    () => expect(levelSelect(FIRST_MEMBER.name)).toHaveDisplayValue("Pode editar"),
+    LAZY_TIMEOUT,
+  );
+  expect(
+    within(levelSelect(FIRST_MEMBER.name)).getByRole<HTMLOptionElement>("option", {
+      name: "Pode editar",
+    }).selected,
+  ).toBe(true);
+  expect(levelSelect(FIRST_MEMBER.name)).not.toHaveAttribute("aria-disabled");
+  expect(screen.queryByText("Salvando…")).not.toBeInTheDocument();
+});
+
+test("choosing the current level sends nothing", async () => {
+  const user = userEvent.setup();
+  const spaceId = seedOwnedFreeSpace();
+  const bodies: unknown[] = [];
+  server.use(
+    http.patch(MEMBER_URL, async ({ request }) => {
+      bodies.push(await request.clone().json());
+      return undefined;
+    }),
+  );
+
+  renderApp(<SpaceMembers spaceId={spaceId} spaceType="free" canRemove />);
+
+  await findFreeList();
+  await user.selectOptions(levelSelect(FIRST_MEMBER.name), "Pode editar");
+
+  expect(screen.queryByText("Salvando…")).not.toBeInTheDocument();
+  expect(levelSelect(FIRST_MEMBER.name)).not.toHaveAttribute("aria-disabled");
+
+  // A real change afterwards is the only request that goes out.
+  await user.selectOptions(levelSelect(SECOND_MEMBER.name), "Pode ver");
+
+  await waitFor(
+    () =>
+      expect(notificationTitles()).toEqual([
+        `Nível de ${SECOND_MEMBER.name} atualizado`,
+      ]),
+    LAZY_TIMEOUT,
+  );
+  expect(bodies).toEqual([{ level: "view" }]);
+  expect(levelSelect(FIRST_MEMBER.name)).toHaveDisplayValue("Pode editar");
 });

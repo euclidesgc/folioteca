@@ -116,3 +116,56 @@ test('closing the dialog with Escape returns focus to Novo espaço', async ({
   await expect(newSpaceDialog(page)).toBeHidden();
   await expect(newSpaceButton(page)).toBeFocused();
 });
+
+test('a repeated name is refused on the Nome field and a new name creates the space using only the keyboard', async ({
+  page,
+}) => {
+  await openHome(page);
+  await openDialog(page);
+
+  const dialog = newSpaceDialog(page);
+  const nameField = dialog.getByLabel('Nome');
+
+  // The first space, "Projeto X".
+  await page.keyboard.type('Projeto X');
+  await expect(nameField).toBeFocused();
+  await page.keyboard.press('Enter');
+
+  await expect(page).toHaveURL(SPACE_URL, ROUTE_TIMEOUT);
+  await expect(
+    page.getByRole('heading', { name: 'Projeto X', level: 1 }),
+  ).toBeVisible(ROUTE_TIMEOUT);
+  await expect(dialog).toBeHidden();
+
+  // The same name in other case is refused on the field.
+  await openDialog(page);
+  await page.keyboard.type('PROJETO X');
+  await expect(nameField).toBeFocused();
+  await page.keyboard.press('Enter');
+
+  await expect(
+    dialog.getByText('Você já tem um espaço com esse nome.'),
+  ).toBeVisible();
+  await expect(dialog).toBeVisible();
+  await expect(nameField).toBeFocused();
+  await expect(nameField).toHaveValue('PROJETO X');
+
+  // The refusal, with the focus on "Nome", is the state under test.
+  await expectNoSeriousA11yViolations(page);
+
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.press('Backspace');
+  await expect(nameField).toHaveValue('');
+  await page.keyboard.type('Projeto Y');
+  await expect(nameField).toBeFocused();
+  await page.keyboard.press('Enter');
+
+  await expect(
+    page.getByRole('heading', { name: 'Projeto Y', level: 1 }),
+  ).toBeVisible(ROUTE_TIMEOUT);
+  await expect(page).toHaveURL(SPACE_URL, ROUTE_TIMEOUT);
+  await expect(dialog).toBeHidden();
+  await expect(
+    spacesNav(page).getByRole('link', { name: 'Projeto Y' }),
+  ).toBeVisible();
+});

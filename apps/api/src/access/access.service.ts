@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import type { Prisma, ShareLevel, SpaceType } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { canEdit, type AccessLevel } from './access-level';
@@ -13,11 +13,48 @@ type DocumentDecision = {
   trashedAt: Date | null;
   shareLevel: 'view' | 'edit' | null;
   /**
-   * Participa do espaço do documento: lotada diretamente na unidade dona do
-   * espaço (`UNIT`), ou dona ou membro do espaço livre (`FREE`).
+   * Nível que a participação no espaço do documento dá: `'edit'` para quem é
+   * lotada diretamente na unidade dona do espaço (`UNIT`) ou dona do espaço
+   * livre (`FREE`); o nível do membro no espaço livre; `null` para quem não
+   * participa.
    */
-  isSpaceMember: boolean;
+  spaceLevel: 'edit' | 'view' | null;
 };
+
+/**
+ * Nível que a participação no espaço dá: lotação direta na unidade (`UNIT`)
+ * ou ser dona do espaço livre (`FREE`) valem `'edit'`; membro do espaço livre
+ * vale o nível dele; qualquer outro caso, `null`.
+ */
+function spaceLevelOf(
+  space: {
+    type: SpaceType;
+    ownerId: string | null;
+    orgUnit: { assignments: unknown[] } | null;
+    members: { level: ShareLevel }[];
+  },
+  personId: string,
+): 'edit' | 'view' | null {
+  if (space.type === 'UNIT') {
+    return (space.orgUnit?.assignments.length ?? 0) > 0 ? 'edit' : null;
+  }
+
+  if (space.type !== 'FREE') {
+    return null;
+  }
+
+  if (space.ownerId === personId) {
+    return 'edit';
+  }
+
+  const member = space.members[0];
+
+  if (member === undefined) {
+    return null;
+  }
+
+  return member.level === 'EDIT' ? 'edit' : 'view';
+}
 
 /**
  * Nível da pessoa sobre o documento já lido. Documento ausente (inexistente
@@ -44,13 +81,14 @@ function levelOf(
   }
 
   // Participar do espaço (lotação direta na unidade, ou dono ou membro do
-  // espaço livre) vale edição; a herança entre unidades não entra aqui. Vale
-  // o maior entre ela e o compartilhamento.
-  if (document.isSpaceMember) {
+  // espaço livre) vale o nível do espaço; a herança entre unidades não entra
+  // aqui. Vale o maior entre ele e o compartilhamento: `'edit'` vence
+  // `'view'`.
+  if (document.spaceLevel === 'edit' || document.shareLevel === 'edit') {
     return 'edit';
   }
 
-  return document.shareLevel ?? 'none';
+  return document.spaceLevel ?? document.shareLevel ?? 'none';
 }
 
 /**
@@ -97,7 +135,7 @@ export class AccessService {
                 },
               },
             },
-            members: { where: { personId }, select: { personId: true } },
+            members: { where: { personId }, select: { level: true } },
           },
         },
       },
@@ -115,11 +153,7 @@ export class AccessService {
       trashedAt: document.trashedAt,
       shareLevel:
         share === undefined ? null : share.level === 'EDIT' ? 'edit' : 'view',
-      isSpaceMember:
-        (space.type === 'UNIT' &&
-          (space.orgUnit?.assignments.length ?? 0) > 0) ||
-        (space.type === 'FREE' &&
-          (space.ownerId === personId || space.members.length > 0)),
+      spaceLevel: spaceLevelOf(space, personId),
     };
   }
 

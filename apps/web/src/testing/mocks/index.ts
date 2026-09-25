@@ -8,7 +8,9 @@ export const enableMocking = async (): Promise<void> => {
   const { worker } = await import('./browser');
   const {
     seedFreeSpaceMembership,
+    seedFreeSpaceViewer,
     seedInstalled,
+    seedOpenFreeSpaceMembership,
     seedRemovedFromFreeSpace,
     seedSampleDocuments,
     seedSampleFavorites,
@@ -72,6 +74,14 @@ export const enableMocking = async (): Promise<void> => {
   // `free-removed` adds the same free space without the signed-in person, as
   // it is after the owner removes them (needs an installation already seeded).
   if (spaceMembersKey === 'free-removed') seedRemovedFromFreeSpace();
+  // `free-open` adds the same free space open to its members, with the
+  // signed-in person as a member and someone to add (needs an installation
+  // already seeded).
+  if (spaceMembersKey === 'free-open') seedOpenFreeSpaceMembership();
+  // `free-viewer` adds the same open free space with the signed-in person as
+  // a member who only reads, and a document of the owner in it (needs an
+  // installation already seeded).
+  if (spaceMembersKey === 'free-viewer') seedFreeSpaceViewer();
 
   // See the `mock-favorites` key documented in utils.ts. Read after the
   // documents seed: it marks the documents already in the database.

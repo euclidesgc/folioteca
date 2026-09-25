@@ -19,7 +19,12 @@ export function Component(): React.JSX.Element {
     <SpaceView
       query={spaceQuery}
       spaceId={spaceId}
-      documentsContent={<SpaceDocuments spaceId={spaceId} />}
+      documentsContent={
+        <SpaceDocuments
+          spaceId={spaceId}
+          canCreate={spaceQuery.data?.data.canCreateDocuments ?? false}
+        />
+      }
     />
   );
 }

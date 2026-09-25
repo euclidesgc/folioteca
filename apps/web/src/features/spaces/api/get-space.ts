@@ -18,9 +18,11 @@ export const getSpace = (spaceId: string): Promise<SpaceDetailResponse> =>
 // invalidated when a space is created and when an assignment is added or
 // removed, and it would drag the open space along with it.
 //
-// `staleTime: 0` instead of the app-wide minute: nothing invalidates this key,
-// so coming back to the page is what asks the server again — whoever lost
-// their assignment meanwhile gets the "not found" state.
+// `staleTime: 0` instead of the app-wide minute: the only mutation that
+// invalidates this key is the one of the space settings
+// (`useUpdateSpaceSettings`), in the tab of the owner. Everyone else — a
+// member whose space was opened or closed, whoever lost their assignment —
+// only sees the change because coming back to the page asks the server again.
 export const getSpaceQueryOptions = (spaceId: string) =>
   queryOptions({
     queryKey: ['space', spaceId],

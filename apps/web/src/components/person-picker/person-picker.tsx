@@ -30,6 +30,9 @@ type PersonPickerProps = {
   selectedActions?: ReactNode;
   // Between the header of the chosen person and the row of buttons.
   children?: ReactNode;
+  // People never listed among the results, filtered here after the search
+  // (the owner of a space, for instance).
+  hiddenIds?: readonly string[];
 };
 
 // Search and choice of a person. The consumer owns `selected`; the picker owns
@@ -43,6 +46,7 @@ export function PersonPicker({
   selectedAside,
   selectedActions,
   children,
+  hiddenIds,
 }: PersonPickerProps): React.JSX.Element {
   const [term, setTerm] = useState('');
   const [deferredTerm, setDeferredTerm] = useState('');
@@ -87,7 +91,9 @@ export function PersonPicker({
   // debounce has not fired yet or the request is on its way.
   const isSearching =
     hasEnoughLetters && (deferredTerm !== term || lookupQuery.isFetching);
-  const results = lookupQuery.data;
+  const results = lookupQuery.data?.data.filter(
+    (person) => !hiddenIds?.includes(person.id),
+  );
 
   const renderResults = (): React.JSX.Element => {
     if (!hasEnoughLetters) {
@@ -126,7 +132,7 @@ export function PersonPicker({
       );
     }
 
-    if (results.data.length === 0) {
+    if (results.length === 0) {
       return (
         <p
           role="status"
@@ -140,15 +146,15 @@ export function PersonPicker({
     return (
       <>
         <p role="status" className="mt-4 text-sm text-gray-600">
-          {results.data.length === 1
+          {results.length === 1
             ? '1 resultado.'
-            : `${results.data.length} resultados.`}
+            : `${results.length} resultados.`}
         </p>
         <ul
           aria-label="Pessoas encontradas"
           className="mt-2 divide-y divide-gray-200"
         >
-          {results.data.map((person) => (
+          {results.map((person) => (
             <li
               key={person.id}
               className="flex flex-wrap items-center justify-between gap-4 py-3"

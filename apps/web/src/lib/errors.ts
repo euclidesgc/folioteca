@@ -21,10 +21,15 @@ export class NotFoundError extends Error {
 export const isNotFoundError = (error: unknown): error is NotFoundError =>
   error instanceof NotFoundError;
 
+// `serverMessage` is the `message` of the 409 body, when the server sent one.
 export class ConflictError extends Error {
-  constructor() {
+  readonly status = 409;
+  readonly serverMessage: string | undefined;
+
+  constructor(serverMessage?: string) {
     super('Conflict');
     this.name = 'ConflictError';
+    this.serverMessage = serverMessage;
   }
 }
 

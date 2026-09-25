@@ -13,6 +13,7 @@ import {
   addFreeSpace,
   getDb,
   seedFreeSpaceMembership,
+  seedFreeSpaceViewer,
   seedInstalled,
   seedSampleOrgUnits,
   seedSpaceMembers,
@@ -382,6 +383,43 @@ test('the free space page shows the owner document to a member', async () => {
   expect(
     content.getByRole('button', { name: 'Novo documento' }),
   ).toBeInTheDocument();
+  expect(
+    content.queryByRole('button', { name: 'Adicionar pessoa' }),
+  ).not.toBeInTheDocument();
+});
+
+test('passes canCreateDocuments false to the documents and hides Novo documento', async () => {
+  seedFreeSpaceViewer();
+  const space = getDb().spaces.find(
+    (item) => item.type === 'free' && item.name === 'Clube de leitura',
+  );
+  expect(space).toBeDefined();
+  const spaceId = space?.id ?? '';
+
+  renderRoutes(paths.space.getHref(spaceId));
+
+  const heading = await screen.findByRole(
+    'heading',
+    { level: 1, name: 'Clube de leitura' },
+    LAZY_TIMEOUT,
+  );
+  const main = heading.closest('main');
+  expect(main).not.toBeNull();
+  const content = within(main as HTMLElement);
+
+  expect(
+    await content.findByRole(
+      'link',
+      { name: 'Ata da primeira reunião' },
+      LAZY_TIMEOUT,
+    ),
+  ).toHaveAttribute(
+    'href',
+    paths.document.getHref('document-free-space-viewer'),
+  );
+  expect(
+    content.queryByRole('button', { name: 'Novo documento' }),
+  ).not.toBeInTheDocument();
   expect(
     content.queryByRole('button', { name: 'Adicionar pessoa' }),
   ).not.toBeInTheDocument();

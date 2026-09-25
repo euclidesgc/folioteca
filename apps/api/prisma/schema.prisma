@@ -96,6 +96,10 @@ enum SpaceType {
 /// The type/owner check constraint (`Space_type_owner_check`: which columns
 /// each type requires or forbids) cannot be expressed by Prisma, so it lives
 /// only in the handwritten migrations `0002` and `0013`.
+///
+/// The uniqueness of `(ownerId, lower(name))` among `FREE` spaces (index
+/// `Space_free_owner_name_key`) is a partial expression index Prisma cannot
+/// express, so it lives only in the handwritten migration `0017`.
 model Space {
   id             String    @id @default(uuid())
   type           SpaceType
@@ -107,6 +111,10 @@ model Space {
   /// `true` faz quem vê o espaço da unidade-pai ver também este. A restrição
   /// "só espaço UNIT herda" vive só na migration 0014 (o Prisma não a expressa).
   inheritsParent Boolean   @default(false)
+  /// `true` deixa qualquer membro do espaço livre adicionar pessoas; `false`
+  /// deixa só o dono. A restrição "só espaço FREE abre" vive só na migration
+  /// 0018 (o Prisma não a expressa).
+  membersCanInvite Boolean @default(false)
   createdAt      DateTime  @default(now())
 
   person       Person?       @relation("PersonalSpace", fields: [personId], references: [id])
@@ -124,6 +132,8 @@ model SpaceMember {
   spaceId   String
   personId  String
   createdAt DateTime @default(now())
+  /// Nível do membro no espaço livre: EDIT cria e edita, VIEW só lê. O dono do espaço não tem linha aqui nem nível.
+  level     ShareLevel @default(EDIT)
 
   space  Space  @relation(fields: [spaceId], references: [id], onDelete: Cascade)
   person Person @relation(fields: [personId], references: [id], onDelete: Cascade)

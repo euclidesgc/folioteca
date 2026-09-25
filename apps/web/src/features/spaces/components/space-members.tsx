@@ -9,6 +9,10 @@ import {
   useSpaceMembers,
 } from '@/features/spaces/api/get-space-members';
 import { useRemoveSpaceMember } from '@/features/spaces/api/remove-space-member';
+import {
+  type SpaceMemberLevel,
+  useUpdateSpaceMemberLevel,
+} from '@/features/spaces/api/update-space-member-level';
 
 type SpaceType = 'unit' | 'free';
 
@@ -40,10 +44,29 @@ const MEMBERS_TEXTS = {
   }
 >;
 
-const ROW_CLASS_NAME = 'flex items-center justify-between gap-4 py-3';
+// `flex-wrap`: on a narrow screen the block on the right (badges, level, remove)
+// drops below the name instead of scrolling sideways.
+const ROW_CLASS_NAME =
+  'flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3';
 
 const BADGE_CLASS_NAME =
   'shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-sm text-gray-700';
+
+// Recipe "Seletor na linha da lista": the field of "Campo de formulário"
+// with an automatic width, dimmed while sending.
+const LEVEL_SELECT_CLASS_NAME =
+  'h-10 w-auto rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 aria-disabled:cursor-not-allowed aria-disabled:opacity-60';
+
+const LEVEL_OPTIONS: { value: SpaceMemberLevel; label: string }[] = [
+  { value: 'edit', label: 'Pode editar' },
+  { value: 'view', label: 'Pode ver' },
+];
+
+// The badge of the level of a member, next to "dono" and "você".
+const LEVEL_BADGES: Record<SpaceMemberLevel, string> = {
+  edit: 'editor',
+  view: 'leitor',
+};
 
 type SpaceMembersProps = {
   spaceId: string;
@@ -180,7 +203,8 @@ type FreeMembersListProps = {
   // Where the focus lands after removing the first member: the row of the
   // owner, which always comes first.
   ownerRowRef?: React.RefObject<HTMLLIElement | null>;
-  // The last item of the row of a member, when the owner can remove it.
+  // The last items of the row of a member, when the owner manages it: the
+  // select of the level, then the remove button.
   renderAction?: (member: SpaceMember, index: number) => React.ReactNode;
 };
 
@@ -200,7 +224,7 @@ function FreeMembersList({
         const isOwner = member.role === 'owner';
         const content = (
           <>
-            <span className="flex min-w-0 flex-1 flex-col">
+            <span className="flex min-w-0 grow basis-48 flex-col">
               <span className="truncate text-gray-900" title={member.name}>
                 {member.name}
               </span>
@@ -210,8 +234,13 @@ function FreeMembersList({
                 {member.email}
               </span>
             </span>
-            <span className="flex shrink-0 items-center gap-2">
+            <span className="ml-auto flex shrink-0 flex-wrap items-center gap-2">
               {isOwner ? <span className={BADGE_CLASS_NAME}>dono</span> : null}
+              {member.role === 'member' && member.level ? (
+                <span className={BADGE_CLASS_NAME}>
+                  {LEVEL_BADGES[member.level]}
+                </span>
+              ) : null}
               {member.isCurrentPerson && !isOwner ? (
                 <span className={BADGE_CLASS_NAME}>você</span>
               ) : null}
@@ -262,6 +291,83 @@ const TrashIcon = (): React.JSX.Element => (
     <path d="M4 7h16M10 11v6M14 11v6M9 7V4.5h6V7M6 7l1 13h10l1-13" />
   </svg>
 );
+
+// The level of one member, chosen by the owner. One per row, each with its
+// own mutation, so a row being saved never dims the others.
+function MemberLevelSelect({
+  spaceId,
+  member,
+}: {
+  spaceId: string;
+  member: SpaceMember;
+}): React.JSX.Element {
+  const selectId = useId();
+  const addNotification = useNotifications((state) => state.addNotification);
+  const updateLevelMutation = useUpdateSpaceMemberLevel({
+    spaceId,
+    mutationConfig: {
+      // Runs after the list was read again (see `useUpdateSpaceMemberLevel`):
+      // the badge already shows the new level.
+      onSuccess: () => {
+        addNotification({
+          type: 'success',
+          title: `Nível de ${member.name} atualizado`,
+        });
+      },
+      // Nothing to undo: the value comes back by itself once the mutation is
+      // no longer pending.
+      onError: () => {
+        addNotification({
+          type: 'error',
+          title: `Não foi possível mudar o nível de ${member.name}. Tente de novo.`,
+        });
+      },
+    },
+  });
+
+  const isSaving = updateLevelMutation.isPending;
+
+  // Derived, never copied into state: while sending, the level just chosen;
+  // otherwise what the server says.
+  const level: SpaceMemberLevel = updateLevelMutation.isPending
+    ? updateLevelMutation.variables.level
+    : (member.level ?? 'edit');
+
+  // Ignored while sending (the select is only `aria-disabled`, to keep the
+  // focus) and when the level is already the chosen one.
+  const handleChange = (event: React.ChangeEvent<HTMLSelectElement>): void => {
+    const next = LEVEL_OPTIONS.find(
+      (option) => option.value === event.target.value,
+    )?.value;
+    if (isSaving || !next || next === level) return;
+    updateLevelMutation.mutate({ spaceId, personId: member.id, level: next });
+  };
+
+  return (
+    <span className="flex items-center">
+      <label htmlFor={selectId} className="sr-only">
+        {`Nível de ${member.name}`}
+      </label>
+      <select
+        id={selectId}
+        value={level}
+        aria-disabled={isSaving || undefined}
+        onChange={handleChange}
+        className={LEVEL_SELECT_CLASS_NAME}
+      >
+        {LEVEL_OPTIONS.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      {/* Always in the DOM, so the start of the saving is announced. */}
+      <span aria-live="polite" className="text-sm text-gray-600">
+        {isSaving ? <span className="ml-2">Salvando…</span> : null}
+      </span>
+    </span>
+  );
+}
 
 // Mounted only for the owner: it holds the state of a removal and the single
 // confirmation of the list.
@@ -345,33 +451,36 @@ function RemovableFreeMembersList({
         members={members}
         ownerRowRef={ownerRowRef}
         renderAction={(member, index) => (
-          <Button
-            ref={(node) => {
-              if (node) {
-                removeButtonsRef.current.set(member.id, node);
-              } else {
-                removeButtonsRef.current.delete(member.id);
-              }
-            }}
-            variant="ghost"
-            size="icon"
-            type="button"
-            className="text-red-700 hover:bg-red-50 focus-visible:outline-red-600"
-            aria-label={`Remover ${member.name}`}
-            title={`Remover ${member.name}`}
-            onClick={(event) => {
-              const above = members[index - 1];
-              removeOpenerRef.current = event.currentTarget;
-              setRemoving({
-                personId: member.id,
-                personName: member.name,
-                aboveId: above?.role === 'member' ? above.id : null,
-              });
-              setIsRemoveOpen(true);
-            }}
-          >
-            <TrashIcon />
-          </Button>
+          <>
+            <MemberLevelSelect spaceId={spaceId} member={member} />
+            <Button
+              ref={(node) => {
+                if (node) {
+                  removeButtonsRef.current.set(member.id, node);
+                } else {
+                  removeButtonsRef.current.delete(member.id);
+                }
+              }}
+              variant="ghost"
+              size="icon"
+              type="button"
+              className="text-red-700 hover:bg-red-50 focus-visible:outline-red-600"
+              aria-label={`Remover ${member.name}`}
+              title={`Remover ${member.name}`}
+              onClick={(event) => {
+                const above = members[index - 1];
+                removeOpenerRef.current = event.currentTarget;
+                setRemoving({
+                  personId: member.id,
+                  personName: member.name,
+                  aboveId: above?.role === 'member' ? above.id : null,
+                });
+                setIsRemoveOpen(true);
+              }}
+            >
+              <TrashIcon />
+            </Button>
+          </>
         )}
       />
 

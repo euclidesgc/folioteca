@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog/dialog';
 import { env } from '@/config/env';
 import type { Space } from '@/features/spaces/api/get-spaces';
-import { seedInstalled } from '@/testing/mocks/db';
+import { addFreeSpace, seedInstalled } from '@/testing/mocks/db';
 import { server } from '@/testing/mocks/server';
 import { renderApp, screen, userEvent, waitFor, within } from '@/testing/test-utils';
 
@@ -136,4 +136,76 @@ test('a 400 from the server shows its message on the Nome field', async () => {
   expect(field).toHaveValue('Comissão de Leitura');
   expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
   expect(onSuccess).not.toHaveBeenCalled();
+});
+
+// The name already taken by the signed-in person, seeded straight in the fake
+// database so the POST /spaces handler answers 409 on its own.
+const TAKEN_NAME = 'Projeto X';
+const REPEATED_MESSAGE = 'Você já tem um espaço com esse nome.';
+
+test('a 409 from the server shows its message on the Nome field', async () => {
+  const user = userEvent.setup();
+  addFreeSpace('person-1', TAKEN_NAME);
+  const onSuccess = vi.fn();
+  const onOpenChange = vi.fn();
+  const dialog = renderForm({ onSuccess, onOpenChange });
+
+  const field = screen.getByLabelText('Nome');
+  await user.type(field, 'PROJETO X');
+  await user.click(screen.getByRole('button', { name: 'Criar espaço' }));
+
+  expect(
+    await within(dialog).findByText(REPEATED_MESSAGE, {}, LAZY_TIMEOUT),
+  ).toBeVisible();
+  expect(field).toHaveAttribute('aria-invalid', 'true');
+  expect(field).toHaveAccessibleDescription(
+    expect.stringContaining(REPEATED_MESSAGE),
+  );
+  expect(field).toHaveFocus();
+  expect(field).toHaveValue('PROJETO X');
+  expect(dialog).toBeInTheDocument();
+  expect(
+    within(dialog).getByRole('button', { name: 'Criar espaço' }),
+  ).toBeEnabled();
+  expect(onSuccess).not.toHaveBeenCalled();
+  expect(onOpenChange).not.toHaveBeenCalled();
+});
+
+test('a 409 does not show the form alert', async () => {
+  const user = userEvent.setup();
+  addFreeSpace('person-1', TAKEN_NAME);
+  const dialog = renderForm();
+
+  await user.type(screen.getByLabelText('Nome'), TAKEN_NAME);
+  await user.click(screen.getByRole('button', { name: 'Criar espaço' }));
+
+  await within(dialog).findByText(REPEATED_MESSAGE, {}, LAZY_TIMEOUT);
+  expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
+  expect(
+    within(dialog).queryByText(
+      'Não foi possível criar o espaço. Tente de novo em instantes.',
+    ),
+  ).not.toBeInTheDocument();
+});
+
+test('after a 409 a different name creates the space', async () => {
+  const user = userEvent.setup();
+  addFreeSpace('person-1', TAKEN_NAME);
+  const onSuccess = vi.fn();
+  const dialog = renderForm({ onSuccess });
+
+  const field = screen.getByLabelText('Nome');
+  await user.type(field, 'PROJETO X');
+  await user.click(screen.getByRole('button', { name: 'Criar espaço' }));
+  await within(dialog).findByText(REPEATED_MESSAGE, {}, LAZY_TIMEOUT);
+
+  await user.clear(field);
+  await user.type(field, 'Projeto Y');
+  await user.click(screen.getByRole('button', { name: 'Criar espaço' }));
+
+  await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1), LAZY_TIMEOUT);
+  expect(onSuccess).toHaveBeenCalledWith(
+    expect.objectContaining({ type: 'free', name: 'Projeto Y' }),
+  );
+  expect(within(dialog).queryByText(REPEATED_MESSAGE)).not.toBeInTheDocument();
 });

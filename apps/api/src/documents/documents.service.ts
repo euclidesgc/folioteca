@@ -145,11 +145,31 @@ export class DocumentsService {
               },
             ],
           },
-          select: { id: true },
+          select: {
+            id: true,
+            type: true,
+            ownerId: true,
+            members: {
+              where: { personId: person.id },
+              select: { level: true },
+            },
+          },
         });
 
         if (space === null) {
           throw spaceNotFound();
+        }
+
+        // No espaço livre, o membro com nível de leitura não cria documento;
+        // o dono não tem linha de membro e sempre cria.
+        if (
+          space.type === 'FREE' &&
+          space.ownerId !== person.id &&
+          space.members[0]?.level === 'VIEW'
+        ) {
+          throw new ForbiddenException(
+            'Só quem pode editar cria documentos neste espaço.',
+          );
         }
         targetSpaceId = space.id;
       }

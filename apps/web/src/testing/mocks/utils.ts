@@ -49,6 +49,17 @@ export const networkDelay = (): Promise<void> =>
 //     signed-in person as its member, the state after the owner removes them:
 //     /spaces/space-free-removed shows "Espaço não encontrado." and the space
 //     is not in "Espaços" (needs an installation already seeded)
+//   localStorage.setItem('mock-space-members', 'free-open')  -> adds
+//     "Clube de leitura", the free space of Otávio Mendes open to its
+//     members, with the signed-in person as a member and Lívia Castro outside
+//     it, to see "Adicionar pessoa" as a member and add her (needs an
+//     installation already seeded)
+//   localStorage.setItem('mock-space-members', 'free-viewer')  -> adds
+//     "Clube de leitura", the free space of Otávio Mendes open to its
+//     members, with the signed-in person as a member who only reads and
+//     "Ata da primeira reunião", a document of Otávio in it, to see the space
+//     without "Novo documento" nor "Adicionar pessoa" and open the document
+//     read only (needs an installation already seeded)
 //   localStorage.setItem('mock-favorites', 'sample')  -> marks the first documents
 //     as favorites (needs the documents already seeded)
 //   localStorage.setItem('mock-trash', 'sample')  -> moves the last documents

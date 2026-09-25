@@ -2,6 +2,7 @@ import { ConflictException, Injectable } from '@nestjs/common';
 import type { components } from '@folioteca/api-contract';
 import { Prisma } from '@prisma/client';
 
+import { isUniqueViolation } from '../common/is-unique-violation';
 import { isUuid } from '../common/is-uuid';
 import { parseBody } from '../common/parse-body';
 import { PrismaService } from '../prisma/prisma.service';
@@ -14,8 +15,6 @@ import {
 
 type OrgUnit = components['schemas']['OrgUnit'];
 type OrgUnitResponse = components['schemas']['OrgUnitResponse'];
-
-const UNIQUE_VIOLATION = 'P2002';
 
 const FOREIGN_KEY_VIOLATION = 'P2003';
 
@@ -61,18 +60,6 @@ function toOrgUnit({ id, parentId, name, space }: OrgUnitRow): OrgUnit {
     name,
     spaceAccess: space?.inheritsParent === true ? 'inherit' : 'own',
   };
-}
-
-/**
- * Reconhece a violação do índice único de nome entre irmãs. O 409 nasce só
- * daqui: sem consulta prévia de duplicidade, duas criações simultâneas com o
- * mesmo nome não escapam pela brecha entre a consulta e a gravação.
- */
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === UNIQUE_VIOLATION
-  );
 }
 
 /**

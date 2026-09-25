@@ -833,3 +833,49 @@ test('after removing the free space member the next connection is refused', asyn
   expect(next.provider.isSynced).toBe(false);
   expect(readText(next.ydoc)).toBe('');
 });
+
+test('after demoting the free space member to view the next connection is read only and an update is not stored', async () => {
+  const { documentId, spaceId, memberId, memberCookie } =
+    await createFreeSpaceDocument();
+  const first = open({ documentId, cookie: memberCookie });
+
+  await first.synced;
+  writeText(first.ydoc, 'Plano do projeto');
+  await waitFor(() => first.statelessPayloads.includes(STORED_MESSAGE), {
+    message: 'A gravação do membro do espaço livre não foi confirmada',
+  });
+  await first.close();
+
+  const demoted = await httpRequest(app)
+    .patch(`/api/spaces/${spaceId}/members/${memberId}`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send({ level: 'view' });
+
+  expect(demoted.status).toBe(200);
+
+  const next = open({ documentId, cookie: memberCookie });
+  await next.synced;
+
+  await waitFor(() => readText(next.ydoc) === 'Plano do projeto', {
+    message: 'O membro rebaixado não recebeu o conteúdo',
+  });
+
+  expect(next.provider.authorizedScope).toBe('readonly');
+
+  writeText(next.ydoc, ' — rascunho do leitor');
+
+  // Um documento de controle grava normalmente: quando a confirmação dele
+  // chega, a janela em que a escrita do leitor teria sido gravada já passou.
+  const control = await createDocument(cookieA);
+  const controlConnection = open({ documentId: control.id, cookie: cookieA });
+  await controlConnection.synced;
+  writeText(controlConnection.ydoc, 'Documento de controle');
+  await waitFor(
+    () => controlConnection.statelessPayloads.includes(STORED_MESSAGE),
+    { message: 'A gravação do documento de controle não foi confirmada' },
+  );
+
+  expect(await storedText(documentId)).toBe('Plano do projeto');
+  expect(next.statelessPayloads).not.toContain(STORED_MESSAGE);
+});

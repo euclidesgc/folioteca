@@ -6,6 +6,7 @@ import {
   Get,
   HttpCode,
   Param,
+  Patch,
   Post,
   Put,
   UseGuards,
@@ -26,6 +27,8 @@ type DocumentsResponse = components['schemas']['DocumentsResponse'];
 type SpaceDetailResponse = components['schemas']['SpaceDetailResponse'];
 type SpaceMembersResponse = components['schemas']['SpaceMembersResponse'];
 type SpaceMemberResponse = components['schemas']['SpaceMemberResponse'];
+type SpaceMemberLevelResponse =
+  components['schemas']['SpaceMemberLevelResponse'];
 
 const INHERITED_REACH_MESSAGE =
   'Os documentos deste espaço estão disponíveis para quem está lotado diretamente na unidade.';
@@ -87,6 +90,21 @@ export class SpacesController {
   }
 
   /**
+   * Muda quem adiciona pessoas ao espaço livre; só o dono muda e repetir é
+   * idempotente. Espaço inexistente, malformado, de unidade ou fora de
+   * alcance: 404; membro que não é dono: 403; corpo inválido: 400.
+   */
+  @Patch(':spaceId')
+  @HttpCode(200)
+  async updateSpaceSettings(
+    @CurrentPerson() person: PersonWithOrganization,
+    @Param('spaceId') spaceId: string,
+    @Body() body: unknown,
+  ): Promise<SpaceDetailResponse> {
+    return this.spaces.updateSettings(person, spaceId, body);
+  }
+
+  /**
    * Pessoas do espaço: no de unidade, as lotadas diretamente nela, para quem
    * o alcança direto ou por herança; no livre, o dono e os membros, para o
    * dono e os membros. Id malformado, espaço inexistente ou fora de alcance:
@@ -115,10 +133,10 @@ export class SpacesController {
   }
 
   /**
-   * Adiciona uma pessoa ao espaço livre; só o dono adiciona e repetir é
-   * idempotente. Espaço inexistente, malformado, de unidade ou fora de
-   * alcance: 404; membro que não é dono: 403; o próprio dono ou pessoa fora
-   * da instância: 400.
+   * Adiciona uma pessoa ao espaço livre; o dono adiciona e, com o espaço
+   * aberto, qualquer membro; repetir é idempotente. Espaço inexistente,
+   * malformado, de unidade ou fora de alcance: 404; membro com o espaço
+   * fechado: 403; o dono, a si mesmo ou pessoa fora da instância: 400.
    */
   @Put(':spaceId/members/:personId')
   @HttpCode(200)
@@ -128,6 +146,23 @@ export class SpacesController {
     @Param('personId') personId: string,
   ): Promise<SpaceMemberResponse> {
     return this.spaces.addMember(person, spaceId, personId);
+  }
+
+  /**
+   * Muda o nível de um membro do espaço livre; só o dono muda e repetir é
+   * idempotente. Espaço inexistente, malformado, de unidade ou fora de
+   * alcance: 404; membro que não é dono: 403; o próprio dono ou corpo
+   * inválido: 400; pessoa que não é membro: 404.
+   */
+  @Patch(':spaceId/members/:personId')
+  @HttpCode(200)
+  async updateSpaceMemberLevel(
+    @CurrentPerson() person: PersonWithOrganization,
+    @Param('spaceId') spaceId: string,
+    @Param('personId') personId: string,
+    @Body() body: unknown,
+  ): Promise<SpaceMemberLevelResponse> {
+    return this.spaces.updateMemberLevel(person, spaceId, personId, body);
   }
 
   /**

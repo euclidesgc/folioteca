@@ -145,6 +145,38 @@ test('POST spaces answers the documented 401', async () => {
   });
 });
 
+test('POST spaces documents a 409 response with the Error schema', async () => {
+  const raw = (await SwaggerParser.parse(openapiPath)) as {
+    paths?: Record<
+      string,
+      {
+        post?: {
+          responses?: Record<
+            string,
+            { content?: { 'application/json'?: { schema?: unknown } } }
+          >;
+        };
+      }
+    >;
+  };
+  await postSpace({ name: 'Projeto Alfa' }, adminCookie);
+
+  const response = await postSpace({ name: 'Projeto Alfa' }, adminCookie);
+
+  expect(
+    raw.paths?.[CONTRACT_PATH]?.post?.responses?.['409']?.content?.[
+      'application/json'
+    ]?.schema,
+  ).toEqual({ $ref: '#/components/schemas/Error' });
+  expect(response.status).toBe(409);
+  await expectMatchesContract({
+    path: CONTRACT_PATH,
+    method: 'post',
+    status: 409,
+    body: response.body,
+  });
+});
+
 test('GET spaces with an inherited unit space matches the documented 200', async () => {
   const admin = await prisma.person.findFirstOrThrow({ select: { id: true, organizationId: true } });
   const root = await prisma.orgUnit.findFirstOrThrow({ where: { parentId: null } });
@@ -631,6 +663,289 @@ test('GET space members answers the documented 200 for a FREE space', async () =
   ).toEqual(['owner', 'member']);
   await expectMatchesContract({
     path: '/spaces/{spaceId}/members',
+    method: 'get',
+    status: 200,
+    body: response.body,
+  });
+});
+
+/** `PATCH /api/spaces/:spaceId` com o cabeçalho de CSRF. */
+function patchSpace(
+  spaceId: string,
+  body: object,
+  cookie?: string,
+): Promise<Response> {
+  const request = httpRequest(app)
+    .patch(`/api/spaces/${spaceId}`)
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return cookie === undefined
+    ? request.send(body)
+    : request.set('Cookie', cookie).send(body);
+}
+
+test('PATCH space answers the documented 200', async () => {
+  const { freeSpaceId } = await createFreeSpaceAndOther();
+
+  const response = await patchSpace(
+    freeSpaceId,
+    { membersCanInvite: true },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(200);
+  expect(
+    (response.body as { data: { membersCanInvite: boolean } }).data
+      .membersCanInvite,
+  ).toBe(true);
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}',
+    method: 'patch',
+    status: 200,
+    body: response.body,
+  });
+});
+
+test('PATCH space answers the documented 400', async () => {
+  const { freeSpaceId } = await createFreeSpaceAndOther();
+
+  const response = await patchSpace(freeSpaceId, {}, adminCookie);
+
+  expect(response.status).toBe(400);
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}',
+    method: 'patch',
+    status: 400,
+    body: response.body,
+  });
+});
+
+test('PATCH space answers the documented 403', async () => {
+  const { freeSpaceId, other } = await createFreeSpaceAndOther();
+  const added = await putSpaceMember(freeSpaceId, other.id, adminCookie);
+
+  const response = await patchSpace(
+    freeSpaceId,
+    { membersCanInvite: true },
+    other.cookie,
+  );
+
+  expect(added.status).toBe(200);
+  expect(response.status).toBe(403);
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}',
+    method: 'patch',
+    status: 403,
+    body: response.body,
+  });
+});
+
+test('PATCH space answers the documented 404', async () => {
+  const response = await patchSpace(
+    randomUUID(),
+    { membersCanInvite: true },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(404);
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}',
+    method: 'patch',
+    status: 404,
+    body: response.body,
+  });
+});
+
+test('GET space answers the documented 200 with membersCanInvite', async () => {
+  const { freeSpaceId } = await createFreeSpaceAndOther();
+  const opened = await patchSpace(
+    freeSpaceId,
+    { membersCanInvite: true },
+    adminCookie,
+  );
+
+  const response = await getSpace(freeSpaceId, adminCookie);
+
+  expect(opened.status).toBe(200);
+  expect(response.status).toBe(200);
+  expect(
+    (response.body as { data: { membersCanInvite: boolean } }).data
+      .membersCanInvite,
+  ).toBe(true);
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}',
+    method: 'get',
+    status: 200,
+    body: response.body,
+  });
+});
+
+/** `PATCH /api/spaces/:spaceId/members/:personId` com o cabeçalho de CSRF. */
+function patchSpaceMember(
+  spaceId: string,
+  personId: string,
+  body: object,
+  cookie?: string,
+): Promise<Response> {
+  const request = httpRequest(app)
+    .patch(`/api/spaces/${spaceId}/members/${personId}`)
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return cookie === undefined
+    ? request.send(body)
+    : request.set('Cookie', cookie).send(body);
+}
+
+/** Espaço livre da administração com Ana já adicionada como membro. */
+async function createFreeSpaceWithMember(): Promise<{
+  freeSpaceId: string;
+  adminId: string;
+  other: { id: string; cookie: string };
+}> {
+  const created = await createFreeSpaceAndOther();
+  const added = await putSpaceMember(
+    created.freeSpaceId,
+    created.other.id,
+    adminCookie,
+  );
+
+  expect(added.status).toBe(200);
+
+  return created;
+}
+
+// Valida contra `SpaceMemberLevelResponse` (com `data` em `SpaceMember`).
+test('PATCH space member answers the documented 200', async () => {
+  const { freeSpaceId, other } = await createFreeSpaceWithMember();
+
+  const response = await patchSpaceMember(
+    freeSpaceId,
+    other.id,
+    { level: 'view' },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(200);
+  expect((response.body as { data: { level: string } }).data.level).toBe(
+    'view',
+  );
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}/members/{personId}',
+    method: 'patch',
+    status: 200,
+    body: response.body,
+  });
+});
+
+// Valida contra `Error`, com `errors` de `UpdateSpaceMemberInput` recusado.
+test('PATCH space member answers the documented 400', async () => {
+  const { freeSpaceId, other } = await createFreeSpaceWithMember();
+
+  const response = await patchSpaceMember(freeSpaceId, other.id, {}, adminCookie);
+
+  expect(response.status).toBe(400);
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}/members/{personId}',
+    method: 'patch',
+    status: 400,
+    body: response.body,
+  });
+});
+
+// Valida contra `Error`.
+test('PATCH space member answers the documented 403', async () => {
+  const { freeSpaceId, adminId, other } = await createFreeSpaceWithMember();
+
+  const response = await patchSpaceMember(
+    freeSpaceId,
+    adminId,
+    { level: 'view' },
+    other.cookie,
+  );
+
+  expect(response.status).toBe(403);
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}/members/{personId}',
+    method: 'patch',
+    status: 403,
+    body: response.body,
+  });
+});
+
+// Valida contra `Error`.
+test('PATCH space member answers the documented 404', async () => {
+  const { other } = await createFreeSpaceWithMember();
+
+  const response = await patchSpaceMember(
+    randomUUID(),
+    other.id,
+    { level: 'view' },
+    adminCookie,
+  );
+
+  expect(response.status).toBe(404);
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}/members/{personId}',
+    method: 'patch',
+    status: 404,
+    body: response.body,
+  });
+});
+
+// Valida cada item contra `SpaceMember`, com `level` nulo para o dono e
+// `'view'` para o membro rebaixado.
+test('GET space members answers the documented 200 with level', async () => {
+  const { freeSpaceId, adminId, other } = await createFreeSpaceWithMember();
+  const demoted = await patchSpaceMember(
+    freeSpaceId,
+    other.id,
+    { level: 'view' },
+    adminCookie,
+  );
+
+  const response = await getSpaceMembers(freeSpaceId, adminCookie);
+
+  expect(demoted.status).toBe(200);
+  expect(response.status).toBe(200);
+  expect(
+    (response.body as { data: { id: string; level: string | null }[] }).data.map(
+      ({ id, level }) => ({ id, level }),
+    ),
+  ).toEqual([
+    { id: adminId, level: null },
+    { id: other.id, level: 'view' },
+  ]);
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}/members',
+    method: 'get',
+    status: 200,
+    body: response.body,
+  });
+});
+
+// Valida contra `SpaceDetail`, com `canCreateDocuments` e `canAddPeople`.
+test('GET space answers the documented 200 with canCreateDocuments and canAddPeople', async () => {
+  const { freeSpaceId, other } = await createFreeSpaceWithMember();
+  const demoted = await patchSpaceMember(
+    freeSpaceId,
+    other.id,
+    { level: 'view' },
+    adminCookie,
+  );
+
+  const response = await getSpace(freeSpaceId, other.cookie);
+
+  expect(demoted.status).toBe(200);
+  expect(response.status).toBe(200);
+  expect(
+    (
+      response.body as {
+        data: { canCreateDocuments: boolean; canAddPeople: boolean };
+      }
+    ).data,
+  ).toMatchObject({ canCreateDocuments: false, canAddPeople: false });
+  await expectMatchesContract({
+    path: '/spaces/{spaceId}',
     method: 'get',
     status: 200,
     body: response.body,
