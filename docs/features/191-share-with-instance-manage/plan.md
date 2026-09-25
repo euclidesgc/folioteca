@@ -145,13 +145,13 @@ Caminhos relativos à raiz. A ordem importa: chamada e API simulada, depois a te
 
 Caminhos relativos à raiz. Ao fim da fase, a fatia está utilizável de ponta a ponta e documentada.
 
-- [ ] T3.1 — Documentação da remoção da instância
+- [x] T3.1 — Documentação da remoção da instância
   - Arquivos: `docs/architecture.md` (alterar)
   - O que fazer: §3: rota `DELETE /documents/{documentId}/instance-share` (204, idempotente, ordem 404 → 403 → 409, só o dono); a troca de nível usa o `PUT …/instance-share` existente; a remoção vale no pedido seguinte porque a decisão relê a instância, e a reavaliação das conexões abertas fica para a 192.
   - Skills: —
   - Complexidade: baixa
 
-- [ ] T3.2 — e2e: o dono troca e remove o acesso de Todos da organização (D6, R1, R2, R3, R6)
+- [x] T3.2 — e2e: o dono troca e remove o acesso de Todos da organização (D6, R1, R2, R3, R6)
   - Arquivos: `apps/web/e2e/tests/share-with-instance-manage.spec.ts` (criar)
   - O que fazer: com a API simulada (o estado **não** persiste entre recargas; nada de `page.reload()` e nada de `/collab`), o dono abre um documento, abre "Compartilhar documento", compartilha com "Todos da organização" em "Pode ver" pelo fluxo da 190 (ou parte de um estado inicial com a instância já compartilhada, montado só antes da primeira navegação), troca o select "Nível de Todos da organização" para "Pode editar" e vê o valor mantido; roda `expectNoSeriousA11yViolations` com o diálogo e o select presentes; escolhe "Remover acesso", vê "Remover o acesso de Todos da organização?", roda `expectNoSeriousA11yViolations` com a confirmação aberta, clica em "Remover" e vê a linha "Todos da organização" sumir e "Todos da organização não têm mais acesso ao documento.". Esperas por `expect(...)` com `ROUTE_TIMEOUT`; sem `waitForTimeout`, `.skip(` nem `.only(`. Teste: `the owner changes and removes the Todos da organização access`.
   - Skills: e2e-testing
@@ -159,10 +159,10 @@ Caminhos relativos à raiz. Ao fim da fase, a fatia está utilizável de ponta a
 
 ### Critérios de aceite da fase 3
 
-- [ ] CA3.1 — Com `docker compose up -d`, na raiz e com o cache do `tsc` limpo: `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` e `pnpm test:e2e` (a suíte inteira) saem com 0 e sem aviso.
-- [ ] CA3.2 — `apps/web/e2e/tests/share-with-instance-manage.spec.ts` tem o teste `the owner changes and removes the Todos da organização access`, que usa `ROUTE_TIMEOUT` e chama `expectNoSeriousA11yViolations(` duas vezes (uma antes de abrir a confirmação, outra com ela aberta); `rg -n "waitForTimeout|\.skip\(|\.only\(|reload\(|/collab" apps/web/e2e/tests/share-with-instance-manage.spec.ts` é vazio; toda ocorrência de `localStorage` no arquivo está antes do primeiro `goto` do teste.
-- [ ] CA3.3 — `docs/architecture.md` cita `DELETE` junto de `instance-share`, a resposta 204 e a fatia 192 para a reavaliação das conexões abertas.
-- [ ] CA3.4 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `DELETE instance-share answers 204 and the list shows instance level none` e `removing the instance share gives none to a colleague reached only through it`; `pnpm exec vitest run --project web` (0) inclui `removing the instance hides the row, notifies and focuses the owner row`; `pnpm test:e2e` (0) inclui `the owner changes and removes the Todos da organização access`.
+- [x] CA3.1 — Com `docker compose up -d`, na raiz e com o cache do `tsc` limpo: `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` e `pnpm test:e2e` (a suíte inteira) saem com 0 e sem aviso.
+- [x] CA3.2 — `apps/web/e2e/tests/share-with-instance-manage.spec.ts` tem o teste `the owner changes and removes the Todos da organização access`, que usa `ROUTE_TIMEOUT` e chama `expectNoSeriousA11yViolations(` duas vezes (uma antes de abrir a confirmação, outra com ela aberta); `rg -n "waitForTimeout|\.skip\(|\.only\(|reload\(|/collab" apps/web/e2e/tests/share-with-instance-manage.spec.ts` é vazio; toda ocorrência de `localStorage` no arquivo está antes do primeiro `goto` do teste.
+- [x] CA3.3 — `docs/architecture.md` cita `DELETE` junto de `instance-share`, a resposta 204 e a fatia 192 para a reavaliação das conexões abertas.
+- [x] CA3.4 — A fatia está utilizável de ponta a ponta: `pnpm exec vitest run --project api` (0) inclui `DELETE instance-share answers 204 and the list shows instance level none` e `removing the instance share gives none to a colleague reached only through it`; `pnpm exec vitest run --project web` (0) inclui `removing the instance hides the row, notifies and focuses the owner row`; `pnpm test:e2e` (0) inclui `the owner changes and removes the Todos da organização access`.
 
 ## Desvios
 

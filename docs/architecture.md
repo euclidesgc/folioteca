@@ -258,6 +258,23 @@ obrigatório `instance: { level: 'none' | 'view' | 'edit' }` ao lado de `data`
 (dono e pessoas, inalterado); `none` quer dizer sem compartilhamento com a
 instância.
 
+**Entrega `share-with-instance-manage` (fatia 191).** O dono troca o nível ou
+remove o compartilhamento com a instância na linha "Todos da organização" da
+lista "Quem tem acesso". A **troca de nível** não tem rota própria: reusa o
+`PUT /documents/{documentId}/instance-share` da fatia 190, que já é
+idempotente. A **remoção** é a rota nova
+`DELETE /documents/{documentId}/instance-share`
+(`SharesService.removeInstance`) → **204** sem corpo, só do dono e com a
+mesma ordem das outras rotas de compartilhamento: 404 único "Documento não
+encontrado." para quem não vê o documento, 403 para quem vê sem ser dono e 409
+com o documento na lixeira. É idempotente: remover quando não há linha em
+`DocumentInstanceShare` também responde 204, e depois dela
+`GET /documents/{documentId}/shares` traz `instance: { level: 'none' }`. Não há
+nada a invalidar no servidor: como `findDecision` e `readableDocumentsWhere`
+releem a instância a cada pedido, quem só tinha acesso pela organização fica em
+`none` (e recebe o 404 opaco) **no pedido seguinte**. A reavaliação das
+conexões `/collab` já abertas quando o acesso muda fica para a **fatia 192**.
+
 ## 4. Árvore de unidades
 
 `parentId` + consulta recursiva (`WITH RECURSIVE`). "Unidade e tudo abaixo"
