@@ -4,11 +4,12 @@ A fatia **180** `share-change-live` faz a troca de nível e a remoção de um
 compartilhamento com uma pessoa valerem na hora para quem está com o documento
 aberto, e a **192** `share-with-instance-live` fez o mesmo para "Todos da
 organização". A **195** `share-with-space` permite compartilhar um documento
-com espaços, e a **196** `share-with-space-manage` trocar o nível e remover esse
+com espaços livres, a **198** `share-with-unit-space` com espaços de unidade, e
+a **196** `share-with-space-manage` trocar o nível e remover esse
 compartilhamento pela lista "Quem tem acesso". Esta fatia, a última da divisão
-do compartilhamento com espaço, leva o efeito na hora para os espaços e fecha,
-para esse caso, a dívida **049** (hoje quem perde o acesso por mudança no
-espaço continua com a colaboração aberta até reconectar).
+do compartilhamento com espaço, leva o efeito na hora para os espaços dos dois
+tipos e fecha, para esse caso, a dívida **049** (hoje quem perde o acesso por
+mudança no espaço continua com a colaboração aberta até reconectar).
 
 ## Valor
 
@@ -50,8 +51,8 @@ pode.
 
 ## Fora de escopo
 
-- Criar, trocar ou remover o compartilhamento com espaço: fatias **195** e
-  **196**.
+- Criar, trocar ou remover o compartilhamento com espaço: fatias **195**,
+  **198** e **196**.
 - Efeito na hora de mudanças no espaço sobre os documentos **do próprio
   espaço** (sair do espaço, trocar o papel de membro sem compartilhamento
   envolvido): segue na dívida **049**.

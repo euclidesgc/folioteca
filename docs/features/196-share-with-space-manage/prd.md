@@ -1,13 +1,15 @@
 # PRD 196 — share-with-space-manage
 
 A fatia **195** `share-with-space` permite ao proprietário compartilhar um
-documento com um ou mais espaços de que é membro, e mostra cada um como uma
-linha com o nome do espaço e o selo "Espaço" na lista "Quem tem acesso". A
-**179** `share-level-change` já permite trocar o nível e remover o acesso de uma
-pessoa pela lista, e a **191** `share-with-instance-manage` fez o mesmo para a
-linha "Todos da organização". Esta fatia, a segunda da divisão do
-compartilhamento com espaço em **195**, **196** e **197**, leva esse controle
-para as linhas de espaço.
+documento com um ou mais espaços livres de que é dono ou membro, e a **198**
+`share-with-unit-space` estende isso aos espaços de unidade que ele alcança;
+cada espaço aparece como uma linha com o nome do espaço e o selo "Espaço" na
+lista "Quem tem acesso". A **179** `share-level-change` já permite trocar o
+nível e remover o acesso de uma pessoa pela lista, e a **191**
+`share-with-instance-manage` fez o mesmo para a linha "Todos da organização".
+Esta fatia, da divisão do compartilhamento com espaço em **195**, **198**,
+**196** e **197**, leva esse controle para as linhas de espaço, dos dois
+tipos.
 
 ## Valor
 
@@ -21,9 +23,9 @@ sem refazer o compartilhamento.
 
 ## Requisitos
 
-- **R1** — Cada linha de espaço tem o mesmo controle de nível da 179: "Pode
-  ver", "Pode editar" e, por último, "Remover acesso". Só o proprietário vê
-  esse controle.
+- **R1** — Cada linha de espaço (livre ou de unidade) tem o mesmo controle de
+  nível da 179: "Pode ver", "Pode editar" e, por último, "Remover acesso". Só
+  o proprietário vê esse controle.
 - **R2** — Trocar o nível vale na hora, sem confirmação, e é anunciado por
   leitor de tela como "Nível de <nome do espaço> alterado para Pode editar."
   (ou "Pode ver"). Se falhar, volta ao nível anterior e mostra "Não foi
@@ -49,7 +51,8 @@ sem refazer o compartilhamento.
 
 ## Fora de escopo
 
-- Criar o compartilhamento com espaço: fatia **195** `share-with-space`.
+- Criar o compartilhamento com espaço: fatias **195** `share-with-space` e
+  **198** `share-with-unit-space`.
 - Efeito na hora da troca ou da remoção para quem está com o documento aberto:
   fatia **197** `share-with-space-live`.
 - Compartilhar com unidade (**187**), com unidade e tudo abaixo (**188**) e
@@ -60,5 +63,6 @@ sem refazer o compartilhamento.
 
 - **Textos da linha do espaço** (R2, R3): o nome do espaço ocupa o lugar do
   nome da pessoa nos textos da 179.
-- **Proprietário que já não é membro do espaço** (R1): continua podendo trocar
-  o nível e remover; o alcance só é exigido ao criar o compartilhamento (195).
+- **Proprietário que já não alcança o espaço** (R1): continua podendo trocar
+  o nível e remover; o alcance só é exigido ao criar o compartilhamento (195 e
+  198).
