@@ -18,6 +18,8 @@ import { shareDocumentSchema } from './documents.schema';
 import { TRASHED_DOCUMENT_MESSAGE } from './documents.service';
 
 type DocumentShareResponse = components['schemas']['DocumentShareResponse'];
+type DocumentInstanceShareResponse =
+  components['schemas']['DocumentInstanceShareResponse'];
 type DocumentAccessEntry = components['schemas']['DocumentAccessEntry'];
 type DocumentAccessListResponse =
   components['schemas']['DocumentAccessListResponse'];
@@ -121,6 +123,48 @@ export class SharesService {
   }
 
   /**
+   * Shares the document with everyone in the owner's organization, at the
+   * requested level ("view" or "edit"). Nothing is stored per person: who
+   * belongs to the organization is read on every access decision. Checks run
+   * in the order not found (opaque) → forbidden (not the owner) → conflict
+   * (document in the trash) → invalid body. Sharing again keeps a single row
+   * and switches its level in either direction.
+   */
+  async shareInstance(
+    requester: PersonWithOrganization,
+    documentId: string,
+    body: unknown,
+  ): Promise<DocumentInstanceShareResponse> {
+    const accessLevel = await this.access.resolveAccess(
+      requester.id,
+      documentId,
+    );
+
+    if (accessLevel === 'none') {
+      throw documentNotFound();
+    }
+
+    if (accessLevel !== 'owner') {
+      throw new ForbiddenException(OWNER_ONLY_MESSAGE);
+    }
+
+    if (!(await this.access.canWrite(requester.id, documentId))) {
+      throw new ConflictException(TRASHED_DOCUMENT_MESSAGE);
+    }
+
+    const { level } = parseBody(shareDocumentSchema, body);
+    const storedLevel = level === 'edit' ? 'EDIT' : 'VIEW';
+
+    await this.prisma.documentInstanceShare.upsert({
+      where: { documentId },
+      create: { documentId, level: storedLevel },
+      update: { level: storedLevel },
+    });
+
+    return { data: { level } };
+  }
+
+  /**
    * Removes the person's direct share of the document. Idempotent: removing a
    * share that does not exist (already removed, never created, the owner
    * themself or a malformed personId) succeeds without changes. Checks run in
@@ -193,7 +237,8 @@ export class SharesService {
    * Lista quem tem acesso ao documento: o proprietário primeiro, depois as
    * pessoas em ordem pt-BR (nome, e-mail, id). Só o proprietário consulta; a
    * lixeira não bloqueia a leitura. O acesso é conferido antes de ler as
-   * linhas de compartilhamento.
+   * linhas de compartilhamento. `instance` traz o nível do compartilhamento
+   * com todos da organização, `'none'` quando não há.
    */
   async list(
     requester: PersonWithOrganization,
@@ -243,6 +288,20 @@ export class SharesService {
       isCurrentPerson: true,
     };
 
-    return { data: [ownerEntry, ...shareEntries] };
+    const instanceShare = await this.prisma.documentInstanceShare.findFirst({
+      where: { documentId },
+      select: { level: true },
+    });
+    const instanceLevel =
+      instanceShare === null
+        ? ('none' as const)
+        : instanceShare.level === 'EDIT'
+          ? ('edit' as const)
+          : ('view' as const);
+
+    return {
+      data: [ownerEntry, ...shareEntries],
+      instance: { level: instanceLevel },
+    };
   }
 }

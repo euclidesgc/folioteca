@@ -1000,3 +1000,147 @@ test('removeDocumentShare has no request body and no nullable', async () => {
   expect(operation?.requestBody).toBeUndefined();
   expect(JSON.stringify(pathItem)).not.toContain('nullable');
 });
+
+const INSTANCE_SHARE_CONTRACT_PATH = '/documents/{documentId}/instance-share';
+
+function putInstanceShare(
+  documentId: string,
+  body: object,
+  shareCookie?: string,
+): Promise<Response> {
+  const request = httpRequest(app)
+    .put(`/api/documents/${documentId}/instance-share`)
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  return (
+    shareCookie === undefined ? request : request.set('Cookie', shareCookie)
+  ).send(body);
+}
+
+async function expectInstanceShareContract(
+  response: Response,
+  status: number,
+): Promise<void> {
+  expect(response.status).toBe(status);
+  await expectMatchesContract({
+    path: INSTANCE_SHARE_CONTRACT_PATH,
+    method: 'put',
+    status,
+    body: response.body,
+  });
+}
+
+test('PUT instance-share has the same path and parameter in the controller and the contract', async () => {
+  const pathItem = (await rawContract()).paths?.[INSTANCE_SHARE_CONTRACT_PATH];
+  const controllerPath = Reflect.getMetadata(
+    PATH_METADATA,
+    DocumentsController,
+  ) as unknown;
+  const handler = Object.getOwnPropertyDescriptor(
+    DocumentsController.prototype,
+    'shareDocumentWithInstance',
+  )?.value as object;
+  const methodPath = Reflect.getMetadata(PATH_METADATA, handler) as unknown;
+  const requestMethod = Reflect.getMetadata(METHOD_METADATA, handler) as unknown;
+  const routeArgs = (Reflect.getMetadata(
+    ROUTE_ARGS_METADATA,
+    DocumentsController,
+    'shareDocumentWithInstance',
+  ) ?? {}) as Record<string, { data?: unknown }>;
+  const paramNames = Object.entries(routeArgs)
+    .filter(([key]) => key.startsWith(`${RouteParamtypes.PARAM}:`))
+    .map(([, arg]) => arg.data)
+    .sort();
+  const contractPath = `/${String(controllerPath)}/${String(methodPath)}`.replace(
+    /:(\w+)/g,
+    '{$1}',
+  );
+
+  expect(Object.keys(pathItem ?? {})).toEqual(['put']);
+  expect(pathItem?.put?.operationId).toBe('shareDocumentWithInstance');
+  expect(Object.keys(pathItem?.put?.responses ?? {}).sort()).toEqual([
+    '200',
+    '400',
+    '401',
+    '403',
+    '404',
+    '409',
+  ]);
+  expect(requestMethod).toBe(RequestMethod.PUT);
+  expect(contractPath).toBe(INSTANCE_SHARE_CONTRACT_PATH);
+  expect(paramNames).toEqual(['documentId']);
+  expect(
+    (pathItem?.put?.parameters ?? [])
+      .filter((parameter) => parameter.in === 'path')
+      .map((parameter) => parameter.name),
+  ).toEqual(['documentId']);
+  expect(JSON.stringify(pathItem)).not.toContain('nullable');
+});
+
+test('PUT instance-share matches the 200 contract', async () => {
+  const documentId = await createDocumentId();
+  const trashedId = await createDocumentId();
+  await trashDocument(trashedId);
+  const viewer = await createPersonWithSession(app, {
+    name: 'João Lima',
+    email: 'joao@exemplo.org',
+  });
+  await putShare(documentId, viewer.person.id, cookie);
+
+  const shared = await putInstanceShare(documentId, { level: 'edit' }, cookie);
+  const invalid = await putInstanceShare(documentId, { level: 'owner' }, cookie);
+  const unauthorized = await putInstanceShare(documentId, { level: 'view' });
+  const forbidden = await putInstanceShare(
+    documentId,
+    { level: 'view' },
+    viewer.cookie,
+  );
+  const missing = await putInstanceShare(randomUUID(), { level: 'view' }, cookie);
+  const trashed = await putInstanceShare(trashedId, { level: 'view' }, cookie);
+
+  expect(shared.body).toEqual({ data: { level: 'edit' } });
+  await expectInstanceShareContract(shared, 200);
+  await expectInstanceShareContract(invalid, 400);
+  await expectInstanceShareContract(unauthorized, 401);
+  await expectInstanceShareContract(forbidden, 403);
+  await expectInstanceShareContract(missing, 404);
+  await expectInstanceShareContract(trashed, 409);
+});
+
+test('GET shares matches the contract with instance', async () => {
+  const schema = (await rawContract()).components?.schemas
+    ?.DocumentAccessListResponse;
+  const instanceSchema = (await rawContract()).components?.schemas
+    ?.DocumentInstanceAccess;
+  const withoutInstance = await createDocumentId();
+  const withInstance = await createDocumentId();
+  await putInstanceShare(withInstance, { level: 'view' }, cookie);
+
+  const none = await getShares(withoutInstance, cookie);
+  const view = await getShares(withInstance, cookie);
+
+  expect(schema?.required).toEqual(['data', 'instance']);
+  expect(instanceSchema?.required).toContain('level');
+  expect([...(instanceSchema?.properties?.level?.enum ?? [])].sort()).toEqual([
+    'edit',
+    'none',
+    'view',
+  ]);
+  expect((none.body as { instance: unknown }).instance).toEqual({
+    level: 'none',
+  });
+  expect((view.body as { instance: unknown }).instance).toEqual({
+    level: 'view',
+  });
+  await expectSharesListContract(none, 200);
+  await expectSharesListContract(view, 200);
+  // A lista sem `instance` não cumpre mais o contrato.
+  await expect(
+    expectMatchesContract({
+      path: SHARES_LIST_CONTRACT_PATH,
+      method: 'get',
+      status: 200,
+      body: { data: (none.body as { data: unknown }).data },
+    }),
+  ).rejects.toThrow('instance');
+});

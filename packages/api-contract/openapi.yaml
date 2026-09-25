@@ -511,7 +511,8 @@ paths:
       description: >-
         Lista quem tem acesso ao documento. Só o proprietário consulta. O
         proprietário vem primeiro, depois as pessoas com acesso direto em ordem
-        alfabética. Documento na lixeira continua legível para o proprietário.
+        alfabética; `instance` traz o nível do compartilhamento com todos da
+        organização ("none" quando não há). Documento na lixeira continua legível para o proprietário.
         As checagens acontecem nesta ordem: 401, 404 (documento inexistente ou
         sem acesso), 403 (quem chama não é o proprietário).
       parameters:
@@ -651,6 +652,70 @@ paths:
                 $ref: "#/components/schemas/Error"
         "403":
           description: Só o proprietário pode remover o acesso a este documento.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: O documento não existe ou não está acessível.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: >-
+            Este documento está na lixeira. Restaure-o para editar.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /documents/{documentId}/instance-share:
+    put:
+      operationId: shareDocumentWithInstance
+      tags:
+        - documents
+      summary: Compartilha o documento com todos da organização
+      description: >-
+        Dá a todas as pessoas da organização do proprietário, inclusive a quem
+        entrar depois, acesso de leitura ou de edição ao documento. Só o
+        proprietário compartilha. Há no máximo um compartilhamento com a
+        organização por documento: repetir a chamada troca o nível nos dois
+        sentidos. As checagens acontecem nesta ordem: 401, 404 (documento
+        inexistente ou sem acesso), 403 (quem chama não é o proprietário), 409
+        (documento na lixeira), 400 (corpo inválido).
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShareDocumentInput"
+      responses:
+        "200":
+          description: Compartilhamento com a organização criado ou nível atualizado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentInstanceShareResponse"
+        "400":
+          description: O corpo é inválido.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Não há sessão válida.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Só o proprietário pode compartilhar este documento.
           content:
             application/json:
               schema:
@@ -2753,6 +2818,33 @@ components:
           type: boolean
           description: Indica se a linha é de quem fez a consulta.
       required: [personId, name, email, level, isCurrentPerson]
+    DocumentInstanceShare:
+      type: object
+      properties:
+        level:
+          type: string
+          enum: [view, edit]
+          description: >-
+            Nível de acesso gravado para todos da organização: "view" (Pode
+            ver) ou "edit" (Pode editar).
+      required: [level]
+    DocumentInstanceShareResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/DocumentInstanceShare"
+      required: [data]
+    DocumentInstanceAccess:
+      type: object
+      properties:
+        level:
+          type: string
+          enum: [none, view, edit]
+          description: >-
+            Nível de acesso de todos da organização: "none" (sem
+            compartilhamento com a organização), "view" (Pode ver) ou "edit"
+            (Pode editar).
+      required: [level]
     DocumentAccessListResponse:
       type: object
       properties:
@@ -2760,7 +2852,9 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DocumentAccessEntry"
-      required: [data]
+        instance:
+          $ref: "#/components/schemas/DocumentInstanceAccess"
+      required: [data, instance]
     UpdateDocumentBody:
       type: object
       properties:

@@ -919,3 +919,141 @@ test('a space member created without level is EDIT', async () => {
 
   expect(row.level).toBe('EDIT');
 });
+
+/** Compartilha o documento com todos da organização do dono, pelo Prisma. */
+async function shareWithInstance(
+  documentId: string,
+  level: 'VIEW' | 'EDIT',
+): Promise<void> {
+  await prisma.documentInstanceShare.create({ data: { documentId, level } });
+}
+
+/** Ids dos documentos que a pessoa lê pela porta de leitura. */
+async function readableIds(personId: string): Promise<string[]> {
+  const readable = await prisma.document.findMany({
+    where: await access.readableDocumentsWhere(personId),
+    select: { id: true },
+  });
+
+  return readable.map(({ id }) => id);
+}
+
+test('an instance view share gives view and canWrite false to a colleague', async () => {
+  const owner = await install();
+  const documentId = await createDocument(owner, 'Documento da Maria');
+  const colleague = await createViewer();
+  await shareWithInstance(documentId, 'VIEW');
+
+  expect(await access.resolveAccess(colleague.id, documentId)).toBe('view');
+  expect(await access.canWrite(colleague.id, documentId)).toBe(false);
+  expect(await readableIds(colleague.id)).toEqual([documentId]);
+});
+
+test('an instance edit share gives edit to a colleague', async () => {
+  const owner = await install();
+  const documentId = await createDocument(owner, 'Documento da Maria');
+  const colleague = await createViewer();
+  await shareWithInstance(documentId, 'EDIT');
+
+  expect(await access.resolveAccess(colleague.id, documentId)).toBe('edit');
+  expect(await access.canWrite(colleague.id, documentId)).toBe(true);
+});
+
+test('a person created after the instance share gets access', async () => {
+  await install();
+  const { person: owner, cookie } = await createPersonWithSession(app, {
+    name: 'Ana Ramos',
+    email: 'ana@exemplo.org',
+  });
+  const documentId = await createDocument(owner, 'Documento da Ana');
+
+  const response = await httpRequest(app)
+    .put(`/api/documents/${documentId}/instance-share`)
+    .set('Cookie', cookie)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .send({ level: 'view' });
+
+  expect(response.status).toBe(200);
+
+  const newcomer = await createViewer();
+
+  expect(await access.resolveAccess(newcomer.id, documentId)).toBe('view');
+  expect(await readableIds(newcomer.id)).toEqual([documentId]);
+});
+
+test('a deleted person gets none from an instance share', async () => {
+  const owner = await install();
+  const documentId = await createDocument(owner, 'Documento da Maria');
+  await shareWithInstance(documentId, 'EDIT');
+  const leaving = await prisma.person.create({
+    data: {
+      organizationId: owner.organizationId,
+      name: 'João Lima',
+      email: 'joao@exemplo.org',
+      passwordHash: randomUUID(),
+    },
+  });
+
+  expect(await access.resolveAccess(leaving.id, documentId)).toBe('edit');
+
+  await prisma.person.delete({ where: { id: leaving.id } });
+
+  expect(await access.resolveAccess(leaving.id, documentId)).toBe('none');
+  expect(await access.canWrite(leaving.id, documentId)).toBe(false);
+  expect(await readableIds(leaving.id)).toEqual([]);
+});
+
+test('a random person id gets none and no readable documents from an instance share', async () => {
+  const owner = await install();
+  const documentId = await createDocument(owner, 'Documento da Maria');
+  await shareWithInstance(documentId, 'EDIT');
+  const stranger = randomUUID();
+
+  expect(await access.resolveAccess(stranger, documentId)).toBe('none');
+  expect(await access.canWrite(stranger, documentId)).toBe(false);
+  expect(await readableIds(stranger)).toEqual([]);
+});
+
+test('a personal view share plus an instance edit share gives edit', async () => {
+  const owner = await install();
+  const documentId = await createDocument(owner, 'Documento da Maria');
+  const colleague = await createViewer();
+  await shareView(documentId, colleague);
+  await shareWithInstance(documentId, 'EDIT');
+
+  expect(await access.resolveAccess(colleague.id, documentId)).toBe('edit');
+  expect(await access.canWrite(colleague.id, documentId)).toBe(true);
+});
+
+test('a personal edit share plus an instance view share gives edit', async () => {
+  const owner = await install();
+  const documentId = await createDocument(owner, 'Documento da Maria');
+  const colleague = await createViewer();
+  await prisma.documentShare.create({
+    data: { documentId, personId: colleague.id, level: 'EDIT' },
+  });
+  await shareWithInstance(documentId, 'VIEW');
+
+  expect(await access.resolveAccess(colleague.id, documentId)).toBe('edit');
+  expect(await access.canWrite(colleague.id, documentId)).toBe(true);
+});
+
+test('a space edit member plus an instance view share gives edit', async () => {
+  const { member, documentId } = await createFreeScenario();
+  await shareWithInstance(documentId, 'VIEW');
+
+  expect(await access.resolveAccess(member.id, documentId)).toBe('edit');
+  expect(await access.canWrite(member.id, documentId)).toBe(true);
+});
+
+test('a trashed document with an instance share gives none to a colleague and owner to the owner', async () => {
+  const owner = await install();
+  const documentId = await createTrashedDocument(owner, 'Documento na lixeira');
+  const colleague = await createViewer();
+  await shareWithInstance(documentId, 'EDIT');
+
+  expect(await access.resolveAccess(colleague.id, documentId)).toBe('none');
+  expect(await access.canWrite(colleague.id, documentId)).toBe(false);
+  expect(await readableIds(colleague.id)).toEqual([]);
+  expect(await access.resolveAccess(owner.id, documentId)).toBe('owner');
+});

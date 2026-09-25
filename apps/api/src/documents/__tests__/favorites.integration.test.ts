@@ -485,3 +485,33 @@ test('a favorite reached only by inheritance is listed and disappears when inher
     }),
   ).toBe(1);
 });
+
+test('a favorite reached only through the instance is listed', async () => {
+  const created = await createDocument(cookieA);
+  const shared = await httpRequest(app)
+    .put(`/api/documents/${created.id}/instance-share`)
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .set('Cookie', cookieA)
+    .send({ level: 'view' });
+  const { person: personB, cookie: cookieB } = await createPersonB();
+
+  const marked = await putFavorite(cookieB, created.id);
+  const listed = await getFavorites(cookieB);
+  const opened = await getDocument(cookieB, created.id);
+
+  await prisma.documentInstanceShare.delete({
+    where: { documentId: created.id },
+  });
+
+  const hidden = await getFavorites(cookieB);
+  const rows = await prisma.favorite.count({
+    where: { personId: personB.id, documentId: created.id },
+  });
+
+  expect(shared.status).toBe(200);
+  expect(marked.status).toBe(204);
+  expect(summaryIds(listed)).toEqual([created.id]);
+  expect((opened.body as { data: DocumentBody }).data.isFavorite).toBe(true);
+  expect(hidden.body).toEqual({ data: [] });
+  expect(rows).toBe(1);
+});

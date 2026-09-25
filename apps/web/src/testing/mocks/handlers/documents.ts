@@ -495,6 +495,7 @@ export const documentsHandlers = [
 
       const body: DocumentAccessListResponse = {
         data: listDocumentShares(document.id),
+        instance: { level: 'none' },
       };
       return HttpResponse.json(body);
     },

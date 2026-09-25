@@ -53,16 +53,22 @@ function createService(
   findMany: ReturnType<typeof vi.fn>;
   deleteMany: ReturnType<typeof vi.fn>;
   canWriteMock: ReturnType<typeof vi.fn>;
+  instanceUpsert: ReturnType<typeof vi.fn>;
 } {
   const findFirst = vi.fn().mockResolvedValue(storedPerson);
   const upsert = vi.fn().mockResolvedValue({});
   const findMany = vi.fn().mockResolvedValue(shareRows);
   const deleteMany = vi.fn().mockResolvedValue({ count: 1 });
   const canWriteMock = vi.fn().mockResolvedValue(canWrite);
+  const instanceUpsert = vi.fn().mockResolvedValue({});
 
   const prisma = {
     person: { findFirst },
     documentShare: { upsert, findMany, deleteMany },
+    documentInstanceShare: {
+      findFirst: vi.fn().mockResolvedValue(null),
+      upsert: instanceUpsert,
+    },
   } as unknown as PrismaService;
 
   const access = {
@@ -77,6 +83,7 @@ function createService(
     findMany,
     deleteMany,
     canWriteMock,
+    instanceUpsert,
   };
 }
 
@@ -561,4 +568,51 @@ test('a throwing listener does not break share', async () => {
   } finally {
     logError.mockRestore();
   }
+});
+
+test('shareInstance checks 404 then 403 then 409 then 400', async () => {
+  const invalidBody = { level: 'owner' };
+  const none = createService('none', { canWrite: false });
+  const view = createService('view', { canWrite: false });
+  const edit = createService('edit', { canWrite: false });
+  const trashed = createService('owner', { canWrite: false });
+  const owner = createService('owner');
+
+  const notFound = await errorOf(
+    none.service.shareInstance(requester, DOCUMENT_ID, invalidBody),
+  );
+  const forbiddenView = await errorOf(
+    view.service.shareInstance(requester, DOCUMENT_ID, invalidBody),
+  );
+  const forbiddenEdit = await errorOf(
+    edit.service.shareInstance(requester, DOCUMENT_ID, invalidBody),
+  );
+  const conflict = await errorOf(
+    trashed.service.shareInstance(requester, DOCUMENT_ID, invalidBody),
+  );
+  const badRequest = await errorOf(
+    owner.service.shareInstance(requester, DOCUMENT_ID, invalidBody),
+  );
+
+  expect(notFound).toBeInstanceOf(NotFoundException);
+  expect((notFound as NotFoundException).message).toBe(
+    'Documento não encontrado.',
+  );
+  expect(forbiddenView).toBeInstanceOf(ForbiddenException);
+  expect(forbiddenEdit).toBeInstanceOf(ForbiddenException);
+  expect((forbiddenEdit as ForbiddenException).message).toBe(
+    'Só o proprietário pode compartilhar este documento.',
+  );
+  expect(conflict).toBeInstanceOf(ConflictException);
+  expect((conflict as ConflictException).message).toBe(
+    'Este documento está na lixeira. Restaure-o para editar.',
+  );
+  expect(badRequest).toBeInstanceOf(BadRequestException);
+  expect(none.instanceUpsert).not.toHaveBeenCalled();
+  expect(view.instanceUpsert).not.toHaveBeenCalled();
+  expect(edit.instanceUpsert).not.toHaveBeenCalled();
+  expect(trashed.instanceUpsert).not.toHaveBeenCalled();
+  expect(owner.instanceUpsert).not.toHaveBeenCalled();
+  expect(none.canWriteMock).not.toHaveBeenCalled();
+  expect(view.canWriteMock).not.toHaveBeenCalled();
 });
