@@ -229,6 +229,68 @@ estrutural `document-access-boundary.test.ts` garante que `resolveReach` só é
 declarado em `access/unit-reach.ts` e que nenhum arquivo fora de `access/` o
 chama. "Pessoas nesta unidade" continua só com a lotação direta.
 
+**Entrega `share-with-instance` (fatia 190).** O dono pode compartilhar o
+documento com **todos da organização**, em `view` ou `edit`. O
+compartilhamento com a instância mora na tabela `DocumentInstanceShare`, **uma
+linha por documento** (chave `documentId`, cascade com o documento; migration
+`0021_document_instance_share` escrita à mão, reaproveitando o enum
+`ShareLevel`). Não há coluna de organização nem linha por pessoa: a instância
+**só vale para quem pertence à organização do dono** do documento, e isso é
+relido a cada pedido — em `findDecision` (o `select` do documento traz
+`instanceShare` e as pessoas da organização do dono filtradas pela pessoa que
+pede) e em `readableDocumentsWhere` (ramo `instanceShare: { isNot: null }` com
+`owner.organization.people` contendo a pessoa). Quem chega à organização depois
+ganha o acesso; pessoa apagada ou de outra organização fica em `none` e recebe
+o 404 opaco. `resolveAccess` segue a ordem dono → lixeira → maior(pessoa,
+instância, espaço) → `none`: a instância nunca dá `owner`, e na lixeira o
+documento some para quem não é dono (a linha fica guardada e volta com o nível
+ao restaurar). A regra 9 do teste estrutural `document-access-boundary.test.ts`
+passou a cobrir também a tabela `DocumentInstanceShare` (só `access.service.ts`
+e `documents/shares.service.ts` a tocam), e a regra 13 garante que, fora de
+`access.service.ts`, nenhuma leitura de `Document` filtra por `instanceShare`,
+e que `readableDocumentsWhere` só alcança a instância pela organização do dono.
+`PUT /documents/{documentId}/instance-share` (`SharesService.shareInstance`) é
+só do dono, com a mesma ordem da rota da pessoa: 404 único "Documento não
+encontrado." para quem não vê o documento, 403 para quem vê sem ser dono, 409
+com o documento na lixeira e só depois a validação do corpo; é idempotente
+(`upsert`, uma linha só). `GET /documents/{documentId}/shares` ganhou o campo
+obrigatório `instance: { level: 'none' | 'view' | 'edit' }` ao lado de `data`
+(dono e pessoas, inalterado); `none` quer dizer sem compartilhamento com a
+instância.
+
+**Entrega `share-with-instance-manage` (fatia 191).** O dono troca o nível ou
+remove o compartilhamento com a instância na linha "Todos da organização" da
+lista "Quem tem acesso". A **troca de nível** não tem rota própria: reusa o
+`PUT /documents/{documentId}/instance-share` da fatia 190, que já é
+idempotente. A **remoção** é a rota nova
+`DELETE /documents/{documentId}/instance-share`
+(`SharesService.removeInstance`) → **204** sem corpo, só do dono e com a
+mesma ordem das outras rotas de compartilhamento: 404 único "Documento não
+encontrado." para quem não vê o documento, 403 para quem vê sem ser dono e 409
+com o documento na lixeira. É idempotente: remover quando não há linha em
+`DocumentInstanceShare` também responde 204, e depois dela
+`GET /documents/{documentId}/shares` traz `instance: { level: 'none' }`. Não há
+nada a invalidar no servidor: como `findDecision` e `readableDocumentsWhere`
+releem a instância a cada pedido, quem só tinha acesso pela organização fica em
+`none` (e recebe o 404 opaco) **no pedido seguinte**. A reavaliação das
+conexões `/collab` já abertas quando o acesso muda fica para a **fatia 192**.
+
+**Entrega `share-with-instance-live` (fatia 192).** Mudar o compartilhamento
+com a instância vale na hora para quem está com o documento aberto. O `PUT
+/documents/{documentId}/instance-share` (sempre, mesmo sem mudar o nível) e o
+`DELETE /documents/{documentId}/instance-share` que removeu uma linha avisam
+pelo mesmo canal da fatia 180, `SharesService.onShareChanged`, com a pessoa
+`null` (alvo "todos com o documento aberto"); o `DELETE` sem linha não avisa.
+O `CollabService.reevaluateAccess` reavalia então **todas** as conexões
+`/collab` do documento, em sequência, cada uma pelo `personId` do próprio
+contexto (o proprietário incluído), via `resolveAccess` + `canWrite`:
+rebaixado fica só leitura, promovido volta a editar, e quem ficou sem acesso
+recebe a mensagem e tem a conexão fechada. A mensagem continua sendo só
+`{"type":"access-changed"}`, e quem tem outro caminho (compartilhamento
+próprio ou espaço) mantém o nível que esse caminho garante. Limite conhecido:
+uma conexão ainda no `onConnect` durante o PUT/DELETE não é reavaliada
+(dívida 184).
+
 ## 4. Árvore de unidades
 
 `parentId` + consulta recursiva (`WITH RECURSIVE`). "Unidade e tudo abaixo"

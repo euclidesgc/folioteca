@@ -14,11 +14,14 @@ import {
   createDocumentIn,
   getDb,
   getSignedInPerson,
+  instanceShareLevelOf,
   listDocumentShares,
   type MockDocument,
   type MockDocumentShare,
+  removeDocumentInstanceShare,
   removeDocumentShare,
   shareDocument,
+  shareDocumentWithInstance,
   spaceMemberLevelOf,
   spaceReachOf,
 } from '../db';
@@ -27,6 +30,8 @@ import { devOverride, networkDelay, SESSION_COOKIE_NAME } from '../utils';
 type DocumentShareResponse = components['schemas']['DocumentShareResponse'];
 type DocumentAccessListResponse =
   components['schemas']['DocumentAccessListResponse'];
+type DocumentInstanceShareResponse =
+  components['schemas']['DocumentInstanceShareResponse'];
 
 const DEFAULT_TITLE = 'Sem título';
 const TITLE_MAX_LENGTH = 200;
@@ -495,6 +500,7 @@ export const documentsHandlers = [
 
       const body: DocumentAccessListResponse = {
         data: listDocumentShares(document.id),
+        instance: { level: instanceShareLevelOf(document.id) },
       };
       return HttpResponse.json(body);
     },
@@ -563,6 +569,49 @@ export const documentsHandlers = [
   ),
 
   // The same order as the real service: 404 without access, 403 for whoever
+  // has access but does not own the document, 409 in the trash, 400 for an
+  // invalid body. Sharing again keeps a single row with the level switched.
+  http.put(
+    `${env.API_URL}/documents/:documentId/instance-share`,
+    async ({ params, request, cookies }) => {
+      await networkDelay();
+      const forced = await devOverride('documents');
+      if (forced) return forced;
+
+      if (!cookies[SESSION_COOKIE_NAME]) return unauthenticated();
+
+      const requester = getSignedInPerson();
+      if (!requester) return unauthenticated();
+
+      const { documents } = getDb();
+      const document = documents.find((item) => item.id === params.documentId);
+      if (!document) return notFound();
+
+      if (document.accessLevel !== 'owner') {
+        return HttpResponse.json(
+          { message: 'Só o proprietário pode compartilhar este documento.' },
+          { status: 403 },
+        );
+      }
+
+      if (document.trashedAt !== null) return inTrash();
+
+      const requestBody: unknown = await request.json().catch(() => null);
+      const bodyRefusal = checkShareBody(requestBody);
+      if (bodyRefusal) return bodyRefusal;
+
+      // Checked by `checkShareBody` above.
+      const { level } = requestBody as { level: MockDocumentShare['level'] };
+      const share = shareDocumentWithInstance(document.id, level);
+
+      const body: DocumentInstanceShareResponse = {
+        data: { level: share.level },
+      };
+      return HttpResponse.json(body);
+    },
+  ),
+
+  // The same order as the real service: 404 without access, 403 for whoever
   // has access but does not own the document, 409 in the trash. Idempotent:
   // a person without a share also answers 204.
   http.delete(
@@ -594,6 +643,42 @@ export const documentsHandlers = [
       if (document.trashedAt !== null) return inTrash();
 
       removeDocumentShare(document.id, String(params.personId));
+
+      return new HttpResponse(null, { status: 204 });
+    },
+  ),
+  // The same order as the real service: 404 without access, 403 for whoever
+  // has access but does not own the document, 409 in the trash. Idempotent:
+  // a document not shared with the organization also answers 204.
+  http.delete(
+    `${env.API_URL}/documents/:documentId/instance-share`,
+    async ({ params, cookies }) => {
+      await networkDelay();
+      const forced = await devOverride('documents');
+      if (forced) return forced;
+
+      if (!cookies[SESSION_COOKIE_NAME]) return unauthenticated();
+
+      const requester = getSignedInPerson();
+      if (!requester) return unauthenticated();
+
+      const { documents } = getDb();
+      const document = documents.find((item) => item.id === params.documentId);
+      if (!document) return notFound();
+
+      if (document.accessLevel !== 'owner') {
+        return HttpResponse.json(
+          {
+            message:
+              'Só o proprietário pode remover o acesso a este documento.',
+          },
+          { status: 403 },
+        );
+      }
+
+      if (document.trashedAt !== null) return inTrash();
+
+      removeDocumentInstanceShare(document.id);
 
       return new HttpResponse(null, { status: 204 });
     },

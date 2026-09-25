@@ -18,6 +18,8 @@ import { shareDocumentSchema } from './documents.schema';
 import { TRASHED_DOCUMENT_MESSAGE } from './documents.service';
 
 type DocumentShareResponse = components['schemas']['DocumentShareResponse'];
+type DocumentInstanceShareResponse =
+  components['schemas']['DocumentInstanceShareResponse'];
 type DocumentAccessEntry = components['schemas']['DocumentAccessEntry'];
 type DocumentAccessListResponse =
   components['schemas']['DocumentAccessListResponse'];
@@ -41,13 +43,14 @@ export class SharesService {
   private readonly logger = new Logger(SharesService.name);
 
   /**
-   * Who wants to know that a person's share of a document changed. The
-   * `collab` module subscribes here; this service does not know it (the import
-   * would be circular).
+   * Who wants to know that a share of a document changed. `personId` is the
+   * person whose direct share changed, or `null` for everyone with the
+   * document open (the organization share). The `collab` module subscribes
+   * here; this service does not know it (the import would be circular).
    */
   private readonly changedListeners: ((
     documentId: string,
-    personId: string,
+    personId: string | null,
   ) => void)[] = [];
 
   constructor(
@@ -121,6 +124,50 @@ export class SharesService {
   }
 
   /**
+   * Shares the document with everyone in the owner's organization, at the
+   * requested level ("view" or "edit"). Nothing is stored per person: who
+   * belongs to the organization is read on every access decision. Checks run
+   * in the order not found (opaque) → forbidden (not the owner) → conflict
+   * (document in the trash) → invalid body. Sharing again keeps a single row
+   * and switches its level in either direction.
+   */
+  async shareInstance(
+    requester: PersonWithOrganization,
+    documentId: string,
+    body: unknown,
+  ): Promise<DocumentInstanceShareResponse> {
+    const accessLevel = await this.access.resolveAccess(
+      requester.id,
+      documentId,
+    );
+
+    if (accessLevel === 'none') {
+      throw documentNotFound();
+    }
+
+    if (accessLevel !== 'owner') {
+      throw new ForbiddenException(OWNER_ONLY_MESSAGE);
+    }
+
+    if (!(await this.access.canWrite(requester.id, documentId))) {
+      throw new ConflictException(TRASHED_DOCUMENT_MESSAGE);
+    }
+
+    const { level } = parseBody(shareDocumentSchema, body);
+    const storedLevel = level === 'edit' ? 'EDIT' : 'VIEW';
+
+    await this.prisma.documentInstanceShare.upsert({
+      where: { documentId },
+      create: { documentId, level: storedLevel },
+      update: { level: storedLevel },
+    });
+
+    this.notifyShareChanged(documentId, null);
+
+    return { data: { level } };
+  }
+
+  /**
    * Removes the person's direct share of the document. Idempotent: removing a
    * share that does not exist (already removed, never created, the owner
    * themself or a malformed personId) succeeds without changes. Checks run in
@@ -163,11 +210,49 @@ export class SharesService {
   }
 
   /**
+   * Removes the document's share with everyone in the organization. Idempotent:
+   * removing a share that does not exist succeeds without changes. Checks run
+   * in the order not found (opaque) → forbidden (not the owner) → conflict
+   * (document in the trash). When a row was removed, the listeners are told
+   * so every open collab connection of the document is re-evaluated.
+   */
+  async removeInstance(
+    requester: PersonWithOrganization,
+    documentId: string,
+  ): Promise<void> {
+    const accessLevel = await this.access.resolveAccess(
+      requester.id,
+      documentId,
+    );
+
+    if (accessLevel === 'none') {
+      throw documentNotFound();
+    }
+
+    if (accessLevel !== 'owner') {
+      throw new ForbiddenException(OWNER_ONLY_REMOVE_MESSAGE);
+    }
+
+    if (!(await this.access.canWrite(requester.id, documentId))) {
+      throw new ConflictException(TRASHED_DOCUMENT_MESSAGE);
+    }
+
+    const { count } = await this.prisma.documentInstanceShare.deleteMany({
+      where: { documentId },
+    });
+
+    if (count > 0) {
+      this.notifyShareChanged(documentId, null);
+    }
+  }
+
+  /**
    * Subscribes a listener to share changes (level switched or share removed).
-   * Called at startup, once per listener.
+   * `personId` is `null` when the change reaches everyone with the document
+   * open. Called at startup, once per listener.
    */
   onShareChanged(
-    listener: (documentId: string, personId: string) => void,
+    listener: (documentId: string, personId: string | null) => void,
   ): void {
     this.changedListeners.push(listener);
   }
@@ -176,7 +261,10 @@ export class SharesService {
    * Calls every listener. A throwing listener does not break the HTTP
    * response: the error is logged without the ids of who was involved.
    */
-  private notifyShareChanged(documentId: string, personId: string): void {
+  private notifyShareChanged(
+    documentId: string,
+    personId: string | null,
+  ): void {
     for (const listener of this.changedListeners) {
       try {
         listener(documentId, personId);
@@ -193,7 +281,8 @@ export class SharesService {
    * Lista quem tem acesso ao documento: o proprietário primeiro, depois as
    * pessoas em ordem pt-BR (nome, e-mail, id). Só o proprietário consulta; a
    * lixeira não bloqueia a leitura. O acesso é conferido antes de ler as
-   * linhas de compartilhamento.
+   * linhas de compartilhamento. `instance` traz o nível do compartilhamento
+   * com todos da organização, `'none'` quando não há.
    */
   async list(
     requester: PersonWithOrganization,
@@ -243,6 +332,20 @@ export class SharesService {
       isCurrentPerson: true,
     };
 
-    return { data: [ownerEntry, ...shareEntries] };
+    const instanceShare = await this.prisma.documentInstanceShare.findFirst({
+      where: { documentId },
+      select: { level: true },
+    });
+    const instanceLevel =
+      instanceShare === null
+        ? ('none' as const)
+        : instanceShare.level === 'EDIT'
+          ? ('edit' as const)
+          : ('view' as const);
+
+    return {
+      data: [ownerEntry, ...shareEntries],
+      instance: { level: instanceLevel },
+    };
   }
 }

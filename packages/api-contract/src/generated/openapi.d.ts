@@ -211,7 +211,7 @@ export interface paths {
         };
         /**
          * Lista quem tem acesso ao documento
-         * @description Lista quem tem acesso ao documento. Só o proprietário consulta. O proprietário vem primeiro, depois as pessoas com acesso direto em ordem alfabética. Documento na lixeira continua legível para o proprietário. As checagens acontecem nesta ordem: 401, 404 (documento inexistente ou sem acesso), 403 (quem chama não é o proprietário).
+         * @description Lista quem tem acesso ao documento. Só o proprietário consulta. O proprietário vem primeiro, depois as pessoas com acesso direto em ordem alfabética; `instance` traz o nível do compartilhamento com todos da organização ("none" quando não há). Documento na lixeira continua legível para o proprietário. As checagens acontecem nesta ordem: 401, 404 (documento inexistente ou sem acesso), 403 (quem chama não é o proprietário).
          */
         get: operations["listDocumentShares"];
         put?: never;
@@ -241,6 +241,30 @@ export interface paths {
          * @description Remove o compartilhamento direto do documento com uma pessoa. Só o proprietário remove. A operação é idempotente: responde 204 também quando a pessoa já não tinha compartilhamento. As checagens acontecem nesta ordem: 401, 404 (documento inexistente ou sem acesso), 403 (quem chama não é o proprietário), 409 (documento na lixeira).
          */
         delete: operations["removeDocumentShare"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/documents/{documentId}/instance-share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Compartilha o documento com todos da organização
+         * @description Dá a todas as pessoas da organização do proprietário, inclusive a quem entrar depois, acesso de leitura ou de edição ao documento. Só o proprietário compartilha. Há no máximo um compartilhamento com a organização por documento: repetir a chamada troca o nível nos dois sentidos. As checagens acontecem nesta ordem: 401, 404 (documento inexistente ou sem acesso), 403 (quem chama não é o proprietário), 409 (documento na lixeira), 400 (corpo inválido).
+         */
+        put: operations["shareDocumentWithInstance"];
+        post?: never;
+        /**
+         * Remove o compartilhamento do documento com todos da organização
+         * @description Remove o compartilhamento do documento com todos da organização. Quem só tinha acesso pela organização deixa de ter acesso no pedido seguinte. Só o proprietário remove. A operação é idempotente: responde 204 também quando o documento já não estava compartilhado com a organização. As checagens acontecem nesta ordem: 401, 404 (documento inexistente ou sem acesso), 403 (quem chama não é o proprietário), 409 (documento na lixeira).
+         */
+        delete: operations["removeDocumentInstanceShare"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1024,8 +1048,26 @@ export interface components {
             /** @description Indica se a linha é de quem fez a consulta. */
             isCurrentPerson: boolean;
         };
+        DocumentInstanceShare: {
+            /**
+             * @description Nível de acesso gravado para todos da organização: "view" (Pode ver) ou "edit" (Pode editar).
+             * @enum {string}
+             */
+            level: "view" | "edit";
+        };
+        DocumentInstanceShareResponse: {
+            data: components["schemas"]["DocumentInstanceShare"];
+        };
+        DocumentInstanceAccess: {
+            /**
+             * @description Nível de acesso de todos da organização: "none" (sem compartilhamento com a organização), "view" (Pode ver) ou "edit" (Pode editar).
+             * @enum {string}
+             */
+            level: "none" | "view" | "edit";
+        };
         DocumentAccessListResponse: {
             data: components["schemas"]["DocumentAccessEntry"][];
+            instance: components["schemas"]["DocumentInstanceAccess"];
         };
         UpdateDocumentBody: {
             title: string;
@@ -1900,6 +1942,133 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Acesso removido; também responde 204 se a pessoa já não tinha compartilhamento. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Só o proprietário pode remover o acesso a este documento. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O documento não existe ou não está acessível. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Este documento está na lixeira. Restaure-o para editar. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    shareDocumentWithInstance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShareDocumentInput"];
+            };
+        };
+        responses: {
+            /** @description Compartilhamento com a organização criado ou nível atualizado. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentInstanceShareResponse"];
+                };
+            };
+            /** @description O corpo é inválido. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Não há sessão válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Só o proprietário pode compartilhar este documento. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description O documento não existe ou não está acessível. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Este documento está na lixeira. Restaure-o para editar. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    removeDocumentInstanceShare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Compartilhamento com a organização removido; também responde 204 se o documento já não estava compartilhado com a organização. */
             204: {
                 headers: {
                     [name: string]: unknown;

@@ -25,6 +25,8 @@ import { SharesService } from './shares.service';
 type DocumentResponse = components['schemas']['DocumentResponse'];
 type DocumentsResponse = components['schemas']['DocumentsResponse'];
 type DocumentShareResponse = components['schemas']['DocumentShareResponse'];
+type DocumentInstanceShareResponse =
+  components['schemas']['DocumentInstanceShareResponse'];
 type DocumentAccessListResponse =
   components['schemas']['DocumentAccessListResponse'];
 
@@ -161,6 +163,24 @@ export class DocumentsController {
     @Body() body: unknown,
   ): Promise<DocumentShareResponse> {
     return this.shares.share(person, documentId, personId, body);
+  }
+
+  @Put(':documentId/instance-share')
+  async shareDocumentWithInstance(
+    @CurrentPerson() person: PersonWithOrganization,
+    @Param('documentId') documentId: string,
+    @Body() body: unknown,
+  ): Promise<DocumentInstanceShareResponse> {
+    return this.shares.shareInstance(person, documentId, body);
+  }
+
+  @Delete(':documentId/instance-share')
+  @HttpCode(204)
+  async removeDocumentInstanceShare(
+    @CurrentPerson() person: PersonWithOrganization,
+    @Param('documentId') documentId: string,
+  ): Promise<void> {
+    await this.shares.removeInstance(person, documentId);
   }
 
   @Delete(':documentId/shares/:personId')

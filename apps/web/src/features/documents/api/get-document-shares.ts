@@ -4,8 +4,12 @@ import { queryOptions, useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 
 export type DocumentAccessEntry = components['schemas']['DocumentAccessEntry'];
+// `instance.level` is 'none' | 'view' | 'edit': the level of everyone in the
+// organization, as the server answers it.
 export type DocumentAccessListResponse =
   components['schemas']['DocumentAccessListResponse'];
+export type DocumentInstanceAccess =
+  components['schemas']['DocumentInstanceAccess'];
 
 // Silent: a failure is shown by the section of the dialog itself, with its
 // own "Tentar de novo". Both type arguments are given on purpose: the response

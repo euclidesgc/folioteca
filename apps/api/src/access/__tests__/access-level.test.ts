@@ -20,23 +20,49 @@ type SpaceRow = {
 
 const PERSONAL_SPACE: SpaceRow = { type: 'PERSONAL', orgUnit: null };
 
+/** Parte do `select` que filtra as pessoas da organização do dono. */
+type OwnerOrganizationSelect = {
+  owner: {
+    select: {
+      organization: {
+        select: { people: { where: { id: string } } };
+      };
+    };
+  };
+};
+
 /**
  * `levelOf` é privado do `AccessService`: ele é exercitado pelo
  * `resolveAccess`, com o Prisma trocado por um dublê que devolve o documento
- * já com a linha de compartilhamento da pessoa e o espaço (pessoal, se o
- * caso não informar outro).
+ * já com a linha de compartilhamento da pessoa, o compartilhamento com a
+ * organização (nenhum, se o caso não informar), a organização do dono com a
+ * pessoa que pede o acesso (já filtrada pelo `select`) e o espaço (pessoal, se
+ * o caso não informar outro).
  */
 function accessWith(document: {
   ownerId: string;
   trashedAt: Date | null;
   shares: ShareRow[];
   space?: SpaceRow;
+  instanceShare?: ShareRow | null;
 }): AccessService {
   const prisma = {
     document: {
-      findFirst: vi
-        .fn()
-        .mockResolvedValue({ space: PERSONAL_SPACE, ...document }),
+      findFirst: vi.fn().mockImplementation(
+        ({ select }: { select: OwnerOrganizationSelect }) =>
+          Promise.resolve({
+            space: PERSONAL_SPACE,
+            instanceShare: null,
+            owner: {
+              organization: {
+                people: [
+                  { id: select.owner.select.organization.select.people.where.id },
+                ],
+              },
+            },
+            ...document,
+          }),
+      ),
     },
   } as unknown as PrismaService;
 
@@ -256,6 +282,54 @@ test('levelOf returns none for a viewer member on a trashed document', async () 
     trashedAt: new Date('2026-03-01T10:00:00.000Z'),
     shares: [],
     space: freeSpace([{ level: 'VIEW' }]),
+  });
+
+  expect(await access.resolveAccess(VIEWER_ID, randomUUID())).toBe('none');
+});
+
+test('levelOf returns view for an instance view share', async () => {
+  const access = accessWith({
+    ownerId: OWNER_ID,
+    trashedAt: null,
+    shares: [],
+    instanceShare: { level: 'VIEW' },
+  });
+
+  expect(await access.resolveAccess(VIEWER_ID, randomUUID())).toBe('view');
+});
+
+test('levelOf returns edit when the instance gives edit over a view share', async () => {
+  const access = accessWith({
+    ownerId: OWNER_ID,
+    trashedAt: null,
+    shares: [{ level: 'VIEW' }],
+    space: freeSpace([{ level: 'VIEW' }]),
+    instanceShare: { level: 'EDIT' },
+  });
+
+  expect(await access.resolveAccess(VIEWER_ID, randomUUID())).toBe('edit');
+});
+
+test('levelOf never returns owner from an instance share', async () => {
+  const access = accessWith({
+    ownerId: OWNER_ID,
+    trashedAt: null,
+    shares: [],
+    instanceShare: { level: 'EDIT' },
+  });
+
+  const level = await access.resolveAccess(VIEWER_ID, randomUUID());
+
+  expect(level).not.toBe('owner');
+  expect(level).toBe('edit');
+});
+
+test('levelOf returns none for an instance share on a trashed document', async () => {
+  const access = accessWith({
+    ownerId: OWNER_ID,
+    trashedAt: new Date('2026-03-01T10:00:00.000Z'),
+    shares: [],
+    instanceShare: { level: 'EDIT' },
   });
 
   expect(await access.resolveAccess(VIEWER_ID, randomUUID())).toBe('none');

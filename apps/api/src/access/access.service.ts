@@ -31,6 +31,12 @@ type DocumentDecision = {
    * participa.
    */
   spaceLevel: 'edit' | 'view' | null;
+  /**
+   * Nível do compartilhamento com todos da organização, só quando a pessoa
+   * pertence à organização do dono; `null` sem compartilhamento ou para quem
+   * está fora dela. Nunca dá `'owner'`.
+   */
+  instanceLevel: 'view' | 'edit' | null;
 };
 
 /**
@@ -95,12 +101,22 @@ function levelOf(
   // Participar do espaço (lotação direta na unidade, herança da unidade-pai,
   // ou dono ou membro do espaço livre) vale o nível do espaço; a herança entre
   // unidades entra só pelo `spaceLevel`, já calculado em `findDecision`. Vale
-  // o maior entre ele e o compartilhamento: `'edit'` vence `'view'`.
-  if (document.spaceLevel === 'edit' || document.shareLevel === 'edit') {
+  // o maior entre ele, o compartilhamento com a pessoa e o compartilhamento
+  // com a organização: `'edit'` vence `'view'`.
+  if (
+    document.spaceLevel === 'edit' ||
+    document.shareLevel === 'edit' ||
+    document.instanceLevel === 'edit'
+  ) {
     return 'edit';
   }
 
-  return document.spaceLevel ?? document.shareLevel ?? 'none';
+  return (
+    document.spaceLevel ??
+    document.shareLevel ??
+    document.instanceLevel ??
+    'none'
+  );
 }
 
 /**
@@ -149,8 +165,9 @@ export class AccessService {
 
   /**
    * Lê uma vez só o que decide o acesso ao documento, com o compartilhamento
-   * direto da pessoa e a participação dela no espaço (lotação na unidade, ou
-   * dono ou membro do espaço livre) na mesma consulta. Id malformado não chega
+   * direto da pessoa, o compartilhamento com a organização do dono (com a
+   * pertença da pessoa a ela) e a participação dela no espaço (lotação na
+   * unidade, ou dono ou membro do espaço livre) na mesma consulta. Id malformado não chega
    * ao banco e não tem decisão alguma.
    */
   private async findDecision(
@@ -167,6 +184,16 @@ export class AccessService {
         ownerId: true,
         trashedAt: true,
         shares: { where: { personId }, select: { level: true } },
+        instanceShare: { select: { level: true } },
+        owner: {
+          select: {
+            organization: {
+              select: {
+                people: { where: { id: personId }, select: { id: true } },
+              },
+            },
+          },
+        },
         space: {
           select: {
             id: true,
@@ -197,15 +224,24 @@ export class AccessService {
     const { space } = document;
     const shareLevel: DocumentDecision['shareLevel'] =
       share === undefined ? null : share.level === 'EDIT' ? 'edit' : 'view';
+    const { instanceShare } = document;
+    const instanceLevel: DocumentDecision['instanceLevel'] =
+      instanceShare === null ||
+      document.owner.organization.people.length === 0
+        ? null
+        : instanceShare.level === 'EDIT'
+          ? 'edit'
+          : 'view';
     let spaceLevel = spaceLevelOf(space, personId);
 
     // Only an heir pays for the unit tree: not the owner, not a trashed
-    // document, not an `edit` share, not a direct assignment and only when the
-    // unit space inherits from the parent.
+    // document, not an `edit` share (personal or with the instance), not a
+    // direct assignment and only when the unit space inherits from the parent.
     if (
       document.ownerId !== personId &&
       document.trashedAt === null &&
       shareLevel !== 'edit' &&
+      instanceLevel !== 'edit' &&
       space.type === 'UNIT' &&
       space.orgUnit !== null &&
       space.orgUnit.assignments.length === 0 &&
@@ -226,6 +262,7 @@ export class AccessService {
       trashedAt: document.trashedAt,
       shareLevel,
       spaceLevel,
+      instanceLevel,
     };
   }
 
@@ -270,6 +307,10 @@ export class AccessService {
       OR: [
         { ownerId: personId },
         { shares: { some: { personId } } },
+        {
+          instanceShare: { isNot: null },
+          owner: { organization: { people: { some: { id: personId } } } },
+        },
         { spaceId: { in: reachedIds } },
         {
           space: {
